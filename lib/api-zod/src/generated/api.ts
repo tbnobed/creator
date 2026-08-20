@@ -308,6 +308,20 @@ export const DeleteServerResponse = zod.void()
 
 
 /**
+ * @summary Read saved ComfyUI connection details for editing
+ */
+export const GetServerConfigurationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetServerConfigurationResponse = zod.object({
+  "id": zod.string(),
+  "apiBaseUrl": zod.string(),
+  "websocketUrl": zod.string()
+})
+
+
+/**
  * @summary Test a configured server connection
  */
 export const TestServerConnectionParams = zod.object({

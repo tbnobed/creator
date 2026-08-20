@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   useListServers, 
   useCreateServer, 
@@ -6,6 +6,7 @@ import {
   useDeleteServer, 
   useTestServerConnection,
   useGetServerQueue,
+   useGetServerConfiguration,
   getListServersQueryKey,
   getGetServerQueueQueryKey
 } from "@workspace/api-client-react";
@@ -245,6 +246,21 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
   const updateMutation = useUpdateServer();
   const [testResult, setTestResult] = useState<{ connected: boolean, message: string } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [apiBaseUrl, setApiBaseUrl] = useState(initialData?.apiBaseUrl ?? "");
+  const [websocketUrl, setWebsocketUrl] = useState(initialData?.websocketUrl ?? "");
+  const {
+    data: savedConfiguration,
+    isLoading: isLoadingConfiguration,
+    isError: configurationLoadFailed,
+  } = useGetServerConfiguration(initialData?.id ?? "", {
+    query: { enabled: Boolean(initialData?.id) },
+  });
+
+  useEffect(() => {
+    if (!savedConfiguration) return;
+    setApiBaseUrl(savedConfiguration.apiBaseUrl);
+    setWebsocketUrl(savedConfiguration.websocketUrl);
+  }, [savedConfiguration]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -327,13 +343,15 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
       <div className="space-y-2">
         <Label htmlFor="apiBaseUrl">
           ComfyUI API Base URL
-          {initialData && <span className="text-muted-foreground font-normal ml-2">(Leave blank to keep existing)</span>}
+          {initialData && <span className="text-muted-foreground font-normal ml-2">({isLoadingConfiguration ? "Loading saved value…" : "Saved value"})</span>}
         </Label>
         <Input 
           id="apiBaseUrl" 
           name="apiBaseUrl" 
           required={!initialData} 
           type="url"
+          value={apiBaseUrl}
+          onChange={(event) => setApiBaseUrl(event.target.value)}
           className="bg-secondary/20 font-mono text-xs" 
           placeholder="http://192.168.1.100:8188" 
         />
@@ -342,17 +360,37 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
       <div className="space-y-2">
         <Label htmlFor="websocketUrl">
           ComfyUI WebSocket URL
-          {initialData && <span className="text-muted-foreground font-normal ml-2">(Leave blank to keep existing)</span>}
+          {initialData && <span className="text-muted-foreground font-normal ml-2">({isLoadingConfiguration ? "Loading saved value…" : "Saved value"})</span>}
         </Label>
         <Input 
           id="websocketUrl" 
           name="websocketUrl" 
           required={!initialData} 
           type="text"
+          value={websocketUrl}
+          onChange={(event) => setWebsocketUrl(event.target.value)}
           className="bg-secondary/20 font-mono text-xs" 
           placeholder="ws://192.168.1.100:8188/ws" 
         />
       </div>
+      {configurationLoadFailed && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not load the saved connection details. You can still change the other worker settings.
+        </p>
+      )}
+
+      {initialData && (
+        <div className="grid grid-cols-2 gap-4 rounded-md border border-border/50 bg-secondary/10 p-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Detected GPU</Label>
+            <p className="text-sm font-medium">{initialData.gpuName || "Not detected yet"}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Detected VRAM</Label>
+            <p className="text-sm font-medium font-mono">{initialData.vramGb ? `${initialData.vramGb} GB` : "Not detected yet"}</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">

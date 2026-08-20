@@ -214,6 +214,20 @@ paths:
       responses:
         "204":
           description: Deleted
+  /servers/{id}/configuration:
+    get:
+      operationId: getServerConfiguration
+      tags: [servers]
+      summary: Read saved ComfyUI connection details for editing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Editable ComfyUI connection configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerConnectionConfiguration"
   /servers/{id}/test:
     post:
       operationId: testServerConnection
@@ -505,6 +519,13 @@ components:
         enabled: { type: boolean }
         priority: { type: number, minimum: 0 }
         maxConcurrentJobs: { type: ["number", "null"], minimum: 1 }
+    ServerConnectionConfiguration:
+      type: object
+      required: [id, apiBaseUrl, websocketUrl]
+      properties:
+        id: { type: string }
+        apiBaseUrl: { type: string }
+        websocketUrl: { type: string }
     ConnectionTest:
       type: object
       required: [connected, message, server, gpu, vramGb]

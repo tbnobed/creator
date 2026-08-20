@@ -23,6 +23,7 @@ export * from './parameterMapping';
 export * from './queueSnapshot';
 export * from './referenceVideoUpload';
 export * from './referenceVideoUploadMimeType';
+export * from './serverConnectionConfiguration';
 export * from './serverCreateInput';
 export * from './serverUpdateInput';
 export * from './setting';

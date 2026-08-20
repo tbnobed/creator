@@ -30,6 +30,7 @@ import type {
   HealthStatus,
   QueueSnapshot,
   ReferenceVideoUpload,
+  ServerConnectionConfiguration,
   ServerCreateInput,
   ServerUpdateInput,
   Setting,
@@ -1016,6 +1017,83 @@ export const useDeleteServer = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteServerMutationOptions(options));
     }
+
+export const getGetServerConfigurationUrl = (id: string,) => {
+
+
+
+
+  return `/api/servers/${id}/configuration`
+}
+
+/**
+ * @summary Read saved ComfyUI connection details for editing
+ */
+export const getServerConfiguration = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ServerConnectionConfiguration> => {
+
+  return customFetch<ServerConnectionConfiguration>(getGetServerConfigurationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetServerConfigurationQueryKey = (id: string,) => {
+    return [
+    `/api/servers/${id}/configuration`
+    ] as const;
+    }
+
+
+export const getGetServerConfigurationQueryOptions = <TData = Awaited<ReturnType<typeof getServerConfiguration>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServerConfiguration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetServerConfigurationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getServerConfiguration>>> = ({ signal }) => getServerConfiguration(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getServerConfiguration>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetServerConfigurationQueryResult = NonNullable<Awaited<ReturnType<typeof getServerConfiguration>>>
+export type GetServerConfigurationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read saved ComfyUI connection details for editing
+ */
+
+export function useGetServerConfiguration<TData = Awaited<ReturnType<typeof getServerConfiguration>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getServerConfiguration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetServerConfigurationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getTestServerConnectionUrl = (id: string,) => {
 

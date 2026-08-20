@@ -129,6 +129,12 @@ export interface ServerUpdateInput {
   maxConcurrentJobs?: number | null;
 }
 
+export interface ServerConnectionConfiguration {
+  id: string;
+  apiBaseUrl: string;
+  websocketUrl: string;
+}
+
 export interface ConnectionTest {
   connected: boolean;
   message: string;

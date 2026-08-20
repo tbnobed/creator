@@ -4,6 +4,8 @@ import {
   CreateServerBody,
   CreateServerResponse,
   DeleteServerParams,
+  GetServerConfigurationParams,
+  GetServerConfigurationResponse,
   GetServerQueueParams,
   GetServerQueueResponse,
   ListServersResponse,
@@ -119,6 +121,24 @@ router.patch("/servers/:id", async (req, res): Promise<void> => {
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Invalid server configuration" });
   }
+});
+
+router.get("/servers/:id/configuration", async (req, res): Promise<void> => {
+  const params = GetServerConfigurationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, params.data.id));
+  if (!server) {
+    res.status(404).json({ error: "Server not found" });
+    return;
+  }
+  res.json(GetServerConfigurationResponse.parse({
+    id: server.id,
+    apiBaseUrl: server.apiBaseUrl,
+    websocketUrl: server.websocketUrl,
+  }));
 });
 
 router.delete("/servers/:id", async (req, res): Promise<void> => {
