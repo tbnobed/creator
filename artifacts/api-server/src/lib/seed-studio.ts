@@ -146,6 +146,7 @@ async function seedWorkflowDefinitions(): Promise<void> {
     },
   ];
   const blackwellVariant = miniMaxH3R2vSeed.blackwell;
+  const videoVariants = variants.filter((variant) => variant.mappings === r2vVideoMappings);
   const legacyBlackwellPlaceholder = existing.find((workflow) => (
     workflow.name === blackwellVariant.name &&
     workflow.description === "Reference-character and image video generation. Import the actual ComfyUI API workflow before activation." &&
@@ -189,6 +190,31 @@ async function seedWorkflowDefinitions(): Promise<void> {
   if (missingVariants.length > 0) {
     await db.insert(workflowTemplatesTable).values(missingVariants);
   }
+
+  const staleVideoWorkflowRecords = existing.flatMap((workflow) => {
+    const variant = videoVariants.find((candidate) => candidate.name === workflow.name);
+    const apiWorkflow = workflow.apiWorkflow as Record<string, { class_type?: unknown; inputs?: Record<string, unknown> }> | null;
+    const node136 = apiWorkflow?.["136"];
+    const node137 = apiWorkflow?.["137"];
+    const node139 = apiWorkflow?.["139"];
+    const isStaleVideoSeed = Boolean(
+      variant &&
+      node136?.inputs?.["ref_videos.ref_video_0"] &&
+      node137?.class_type === "LoadImage" &&
+      node137.inputs?.image === "reference-character-1.png" &&
+      node139?.class_type === "LoadImage" &&
+      node139.inputs?.image === "reference-character-2.png",
+    );
+    return isStaleVideoSeed && variant ? [{ workflow, variant }] : [];
+  });
+  await Promise.all(staleVideoWorkflowRecords.map(({ workflow, variant }) => (
+    db.update(workflowTemplatesTable).set({
+      apiWorkflow: variant.createWorkflow(variant.clipName),
+      mappings: variant.mappings,
+      expectedInputs: Object.keys(variant.mappings),
+      version: workflow.version + 1,
+    }).where(eq(workflowTemplatesTable.id, workflow.id))
+  )));
 
   if (!existingNames.has("MiniMax H3 FL2VA")) {
     await db.insert(workflowTemplatesTable).values({

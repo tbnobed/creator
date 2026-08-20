@@ -178,6 +178,8 @@ export function createMiniMaxH3R2vVideoWorkflow(clipName: string): ApiWorkflow {
   workflow["132"].inputs.value = 16;
   delete workflow["136"].inputs["ref_images.ref_image_0"];
   delete workflow["136"].inputs["ref_images.ref_image_1"];
+  delete workflow["137"];
+  delete workflow["139"];
   workflow["136"].inputs["ref_videos.ref_video_0"] = ["153", 0];
   workflow["136"].inputs["ref_video_audios.ref_video_audio_0"] = ["153", 1];
   workflow["152"] = {
