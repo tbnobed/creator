@@ -6,9 +6,10 @@ import {
   useDeleteServer, 
   useTestServerConnection,
   useGetServerQueue,
-   useGetServerConfiguration,
+  useGetServerConfiguration,
   getListServersQueryKey,
-  getGetServerQueueQueryKey
+  getGetServerQueueQueryKey,
+  getGetServerConfigurationQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Page, PageHeader } from "@/components/layout/page";
@@ -253,7 +254,10 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
     isLoading: isLoadingConfiguration,
     isError: configurationLoadFailed,
   } = useGetServerConfiguration(initialData?.id ?? "", {
-    query: { enabled: Boolean(initialData?.id) },
+    query: {
+      queryKey: getGetServerConfigurationQueryKey(initialData?.id ?? ""),
+      enabled: Boolean(initialData?.id),
+    },
   });
 
   useEffect(() => {
