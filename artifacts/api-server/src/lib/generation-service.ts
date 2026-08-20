@@ -128,7 +128,12 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       workflow: candidate,
       server: selectServer(servers, candidate.compatibleServerTags),
     }))
-    .find((candidate) => candidate.server);
+    .filter((candidate) => candidate.server !== null)
+    .sort((a, b) => (
+      a.server!.queueSize - b.server!.queueSize ||
+      a.server!.activeJobCount - b.server!.activeJobCount ||
+      a.server!.priority - b.server!.priority
+    ))[0];
   const workflow = selected?.workflow ?? compatibleWorkflows[0] ?? workflows[0];
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
