@@ -83,9 +83,12 @@ export default function ServersPage() {
 
 function ServerCard({ server }: { server: any }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteServer();
   const updateMutation = useUpdateServer();
+  const testMutation = useTestServerConnection();
 
   const handleDelete = async () => {
     if (confirm("Remove this compute node? Running jobs may fail.")) {
@@ -95,15 +98,32 @@ function ServerCard({ server }: { server: any }) {
   };
 
   const handleToggleEnable = async () => {
-    await updateMutation.mutateAsync({
-      id: server.id,
-      data: {
-        displayName: server.displayName,
-        priority: server.priority,
-        enabled: !server.enabled
-      }
-    });
-    queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+    setActionError(null);
+    try {
+      await updateMutation.mutateAsync({
+        id: server.id,
+        data: {
+          displayName: server.displayName,
+          priority: server.priority,
+          enabled: !server.enabled
+        }
+      });
+      queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not update this worker.");
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setActionError(null);
+    try {
+      const result = await testMutation.mutateAsync({ id: server.id });
+      setConnectionMessage(result.message);
+      queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetServerQueueQueryKey(server.id) });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Connection test failed.");
+    }
   };
 
   const isOnline = server.status === "ONLINE";
@@ -144,6 +164,16 @@ function ServerCard({ server }: { server: any }) {
           </div>
           
           <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 border-border/50 text-xs"
+              onClick={handleTestConnection}
+              disabled={testMutation.isPending}
+            >
+              {testMutation.isPending ? "Testing..." : "Test connection"}
+            </Button>
             <Switch checked={server.enabled} onCheckedChange={handleToggleEnable} />
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
               <DialogTrigger asChild>
@@ -163,6 +193,11 @@ function ServerCard({ server }: { server: any }) {
             </Button>
           </div>
         </div>
+        {(connectionMessage || actionError) && (
+          <p className={`text-sm ${actionError ? "text-destructive" : "text-emerald-500"}`}>
+            {actionError ?? connectionMessage}
+          </p>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="space-y-1">
@@ -246,7 +281,11 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
           setFormError("API Base URL and WebSocket URL are required for new servers.");
           return;
         }
-        await createMutation.mutateAsync({ data });
+        const created = await createMutation.mutateAsync({ data });
+        const connection = await testMutation.mutateAsync({ id: created.id });
+        if (!connection.connected) {
+          setTestResult(connection);
+        }
       }
       queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
       onSuccess();
