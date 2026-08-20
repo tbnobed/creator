@@ -16,7 +16,7 @@ import {
   settingsTable,
   workflowTemplatesTable,
 } from "@workspace/db";
-import { cancelGeneration, createAndSubmitGeneration } from "../lib/generation-service";
+import { cancelGeneration, createAndSubmitGeneration, recoverTimedOutGeneration } from "../lib/generation-service";
 import { presentGeneration } from "../lib/studio-presenters";
 
 const router: IRouter = Router();
@@ -56,10 +56,14 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
+  let [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
   if (!job) {
     res.status(404).json({ error: "Generation not found" });
     return;
+  }
+  if (job.status === "FAILED" && job.errorMessage === "Timed out while waiting for ComfyUI") {
+    await recoverTimedOutGeneration(job.id);
+    [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
   }
   res.json(GetGenerationResponse.parse(await present(job)));
 });

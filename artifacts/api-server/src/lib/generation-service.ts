@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import {
   characterAssetsTable,
   charactersTable,
@@ -18,6 +18,8 @@ import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder"
 import { mediaStorage } from "./storage-service";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
+const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
+const generationTimeoutMs = 6 * 60 * 60 * 1000;
 
 type GenerationRequest = {
   characterIds?: string[];
@@ -306,8 +308,93 @@ export async function cancelGeneration(jobId: string) {
   return cancelled;
 }
 
+async function downloadCompletedOutput(
+  jobId: string,
+  client: ComfyUIClient,
+  promptId: string,
+  allowTimedOutFailure = false,
+): Promise<boolean> {
+  const history = await client.getHistory(promptId);
+  const output = chooseOutput(history);
+  if (!output) return false;
+
+  const eligibleStatus = allowTimedOutFailure
+    ? or(
+      inArray(generationJobsTable.status, activeGenerationStatuses),
+      and(eq(generationJobsTable.status, "FAILED"), eq(generationJobsTable.errorMessage, generationTimeoutMessage)),
+    )
+    : inArray(generationJobsTable.status, activeGenerationStatuses);
+  const [downloading] = await db
+    .update(generationJobsTable)
+    .set({ status: "DOWNLOADING", currentNode: "Retrieving output", errorMessage: null })
+    .where(and(eq(generationJobsTable.id, jobId), eligibleStatus))
+    .returning({ id: generationJobsTable.id });
+  if (!downloading) return false;
+
+  try {
+    const bytes = await client.getOutputFile(output.filename, output.subfolder, output.type);
+    const mimeType = output.filename.toLowerCase().endsWith(".webm") ? "video/webm" : "video/mp4";
+    const storageKey = await mediaStorage.storeOutput(output.filename, mimeType, bytes);
+    await db
+      .update(generationJobsTable)
+      .set({
+        status: "COMPLETED",
+        outputStorageKey: storageKey,
+        outputMimeType: mimeType,
+        progress: 1,
+        currentNode: null,
+        errorMessage: null,
+        failedAt: null,
+        completedAt: new Date(),
+      })
+      .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+    return true;
+  } catch (error) {
+    await db
+      .update(generationJobsTable)
+      .set({
+        status: allowTimedOutFailure ? "FAILED" : "RUNNING",
+        currentNode: null,
+        errorMessage: allowTimedOutFailure
+          ? generationTimeoutMessage
+          : error instanceof Error ? error.message : "Output download failed",
+        failedAt: allowTimedOutFailure ? new Date() : null,
+      })
+      .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+    throw error;
+  }
+}
+
+export async function recoverTimedOutGeneration(jobId: string): Promise<boolean> {
+  const [job] = await db
+    .select()
+    .from(generationJobsTable)
+    .where(eq(generationJobsTable.id, jobId));
+  if (
+    !job ||
+    job.status !== "FAILED" ||
+    job.errorMessage !== generationTimeoutMessage ||
+    !job.comfyPromptId ||
+    !job.comfyServerId
+  ) {
+    return false;
+  }
+  const [server] = await db
+    .select()
+    .from(comfyServersTable)
+    .where(eq(comfyServersTable.id, job.comfyServerId));
+  if (!server) return false;
+
+  try {
+    return await downloadCompletedOutput(job.id, new ComfyUIClient(server), job.comfyPromptId, true);
+  } catch (error) {
+    logger.warn({ err: error, jobId }, "Could not recover timed-out generation output");
+    return false;
+  }
+}
+
 async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId: string) {
-  const timeoutAt = Date.now() + 2 * 60 * 60 * 1000;
+  const timeoutAt = Date.now() + generationTimeoutMs;
   while (Date.now() < timeoutAt) {
     try {
       const [currentJob] = await db
@@ -315,26 +402,7 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
         .from(generationJobsTable)
         .where(eq(generationJobsTable.id, jobId));
       if (!currentJob || currentJob.status === "CANCELLED") return;
-      const history = await client.getHistory(promptId);
-      const output = chooseOutput(history);
-      if (output) {
-        const [downloading] = await db
-          .update(generationJobsTable)
-          .set({ status: "DOWNLOADING", currentNode: "Retrieving output" })
-          .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
-          .returning({ id: generationJobsTable.id });
-        if (!downloading) return;
-        const bytes = await client.getOutputFile(output.filename, output.subfolder, output.type);
-        const mimeType = output.filename.toLowerCase().endsWith(".webm") ? "video/webm" : "video/mp4";
-        const storageKey = await mediaStorage.storeOutput(output.filename, mimeType, bytes);
-        const [completed] = await db
-          .update(generationJobsTable)
-          .set({ status: "COMPLETED", outputStorageKey: storageKey, outputMimeType: mimeType, progress: 1, completedAt: new Date() })
-          .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
-          .returning({ id: generationJobsTable.id });
-        if (!completed) return;
-        return;
-      }
+      if (await downloadCompletedOutput(jobId, client, promptId)) return;
       const [running] = await db
         .update(generationJobsTable)
         .set({ status: "RUNNING", currentNode: "ComfyUI processing" })
@@ -348,6 +416,6 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
   }
   await db
     .update(generationJobsTable)
-    .set({ status: "FAILED", errorMessage: "Timed out while waiting for ComfyUI", failedAt: new Date() })
+    .set({ status: "FAILED", errorMessage: generationTimeoutMessage, failedAt: new Date() })
     .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
 }
