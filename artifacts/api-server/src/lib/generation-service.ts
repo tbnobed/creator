@@ -225,6 +225,12 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   try {
     const client = new ComfyUIClient(server);
     const assetParameters = await uploadMappedReferences(client, workflow.mappings as ParameterMappings, input.characterIds, input.settingId);
+    if (
+      !wantsReferenceVideo &&
+      !Object.keys(assetParameters).some((field) => /^referenceImage\d+$/.test(field))
+    ) {
+      throw new Error("Select a character with at least one reference image before generating.");
+    }
     const referenceVideo = input.referenceVideoKey
       ? await mediaStorage.readReferenceVideo(input.referenceVideoKey)
       : null;
