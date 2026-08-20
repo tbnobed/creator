@@ -220,6 +220,8 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
   const updateMutation = useUpdateWorkflow();
   const [name, setName] = useState(workflow.name);
   const [description, setDescription] = useState(workflow.description);
+  const [generationMode, setGenerationMode] = useState(workflow.generationMode);
+  const [modelFamily, setModelFamily] = useState(workflow.modelFamily);
   const [tagsText, setTagsText] = useState((workflow.compatibleServerTags ?? []).join(", "));
   const [mappingsText, setMappingsText] = useState(
     JSON.stringify(workflow.mappings ?? {}, null, 2),
@@ -230,6 +232,8 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
   useEffect(() => {
     setName(workflow.name);
     setDescription(workflow.description);
+    setGenerationMode(workflow.generationMode);
+    setModelFamily(workflow.modelFamily);
     setTagsText((workflow.compatibleServerTags ?? []).join(", "));
     setMappingsText(JSON.stringify(workflow.mappings ?? {}, null, 2));
     setApiWorkflowText(workflow.apiWorkflow ? JSON.stringify(workflow.apiWorkflow, null, 2) : "");
@@ -278,6 +282,8 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
         data: {
           name,
           description,
+          generationMode,
+          modelFamily,
           compatibleServerTags: tagsText.split(",").map((tag: string) => tag.trim()).filter(Boolean),
           mappings,
           apiWorkflow,
@@ -293,11 +299,6 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Mode <span className="font-medium text-foreground">{workflow.generationMode}</span>
-        {" · "}Model <span className="font-medium text-foreground">{workflow.modelFamily}</span>
-      </p>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={`workflow-name-${workflow.id}`}>Name</Label>
@@ -309,6 +310,16 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
           />
         </div>
         <div className="space-y-2">
+          <Label htmlFor={`workflow-mode-${workflow.id}`}>Pipeline mode</Label>
+          <Input
+            id={`workflow-mode-${workflow.id}`}
+            value={generationMode}
+            onChange={(event) => setGenerationMode(event.target.value)}
+            required
+            placeholder="txt2vid"
+          />
+        </div>
+        <div className="space-y-2">
           <Label htmlFor={`workflow-tags-${workflow.id}`}>Server tags</Label>
           <Input
             id={`workflow-tags-${workflow.id}`}
@@ -317,6 +328,17 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
             placeholder="A100, PN"
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`workflow-model-${workflow.id}`}>Model family</Label>
+        <Input
+          id={`workflow-model-${workflow.id}`}
+          value={modelFamily}
+          onChange={(event) => setModelFamily(event.target.value)}
+          required
+          placeholder="MiniMax H3"
+        />
       </div>
 
       <div className="space-y-2">

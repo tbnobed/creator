@@ -213,6 +213,8 @@ export interface WorkflowUpdate {
   /** @minLength 1 */
   name?: string;
   description?: string;
+  generationMode?: string;
+  modelFamily?: string;
   compatibleServerTags?: string[];
   active?: boolean;
   apiWorkflow?: WorkflowUpdateApiWorkflow;

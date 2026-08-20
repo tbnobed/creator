@@ -109,6 +109,8 @@ router.patch("/workflows/:id", async (req, res): Promise<void> => {
     const [workflow] = await db.update(workflowTemplatesTable).set({
       name: input.data.name ?? existing.name,
       description: input.data.description ?? existing.description,
+      generationMode: input.data.generationMode ?? existing.generationMode,
+      modelFamily: input.data.modelFamily ?? existing.modelFamily,
       compatibleServerTags: input.data.compatibleServerTags ?? existing.compatibleServerTags,
       active,
       apiWorkflow,

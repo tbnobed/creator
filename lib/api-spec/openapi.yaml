@@ -578,6 +578,8 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         description: { type: string }
+        generationMode: { type: string }
+        modelFamily: { type: string }
         compatibleServerTags: { type: array, items: { type: string } }
         active: { type: boolean }
         apiWorkflow:

@@ -468,6 +468,8 @@ export const UpdateWorkflowParams = zod.object({
 export const UpdateWorkflowBody = zod.object({
   "name": zod.string().min(1).optional(),
   "description": zod.string().optional(),
+  "generationMode": zod.string().optional(),
+  "modelFamily": zod.string().optional(),
   "compatibleServerTags": zod.array(zod.string()).optional(),
   "active": zod.boolean().optional(),
   "apiWorkflow": zod.record(zod.string(), zod.unknown()).optional(),
