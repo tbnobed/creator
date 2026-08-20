@@ -262,21 +262,20 @@ export const UpdateServerParams = zod.object({
 })
 
 
-export const updateServerBodyEnabledDefault = true;
 export const updateServerBodyPriorityMin = 0;
 
 
 
 
 export const UpdateServerBody = zod.object({
-  "displayName": zod.string().min(1),
-  "apiBaseUrl": zod.string(),
-  "websocketUrl": zod.string(),
+  "displayName": zod.string().min(1).optional(),
+  "apiBaseUrl": zod.string().optional(),
+  "websocketUrl": zod.string().optional(),
   "gpuName": zod.string().nullish(),
   "vramGb": zod.number().nullish(),
   "tags": zod.array(zod.string()).optional(),
-  "enabled": zod.boolean().default(updateServerBodyEnabledDefault),
-  "priority": zod.number().min(updateServerBodyPriorityMin),
+  "enabled": zod.boolean().optional(),
+  "priority": zod.number().min(updateServerBodyPriorityMin).optional(),
   "maxConcurrentJobs": zod.number().min(1).nullish()
 })
 

@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateServerBody,
@@ -18,6 +18,27 @@ import { assertTrustedComfyUrl, ComfyUIClient } from "../lib/comfy/client";
 import { presentServer } from "../lib/studio-presenters";
 
 const router: IRouter = Router();
+
+async function validateServerEndpoints(apiBaseUrl: string, rawWebsocketUrl: string) {
+  const apiUrl = await assertTrustedComfyUrl(apiBaseUrl.trim());
+  let websocketUrl: URL;
+  try {
+    websocketUrl = new URL(rawWebsocketUrl.trim());
+  } catch {
+    throw new Error("Enter a valid ComfyUI WebSocket URL");
+  }
+  if (websocketUrl.protocol === "http:") websocketUrl.protocol = "ws:";
+  if (websocketUrl.protocol === "https:") websocketUrl.protocol = "wss:";
+  if (
+    !["ws:", "wss:"].includes(websocketUrl.protocol) ||
+    websocketUrl.username ||
+    websocketUrl.password ||
+    websocketUrl.hostname.toLowerCase() !== apiUrl.hostname.toLowerCase()
+  ) {
+    throw new Error("WebSocket URL must use ws/wss and match the configured API host");
+  }
+  return { apiUrl, websocketUrl };
+}
 
 async function present(server: typeof comfyServersTable.$inferSelect) {
   const workflows = await db.select().from(workflowTemplatesTable);
@@ -39,13 +60,11 @@ router.post("/servers", async (req, res): Promise<void> => {
     return;
   }
   try {
-    const apiUrl = await assertTrustedComfyUrl(input.data.apiBaseUrl);
-    const websocketUrl = new URL(input.data.websocketUrl);
-    if (!["ws:", "wss:"].includes(websocketUrl.protocol) || websocketUrl.hostname !== apiUrl.hostname) {
-      throw new Error("WebSocket URL must use ws/wss and match the configured API host");
-    }
+    const { apiUrl, websocketUrl } = await validateServerEndpoints(input.data.apiBaseUrl, input.data.websocketUrl);
     const [server] = await db.insert(comfyServersTable).values({
       ...input.data,
+      apiBaseUrl: apiUrl.toString(),
+      websocketUrl: websocketUrl.toString(),
       hostname: apiUrl.hostname,
       tags: input.data.tags ?? [],
       gpuName: input.data.gpuName ?? null,
@@ -70,23 +89,32 @@ router.patch("/servers/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
+  const [existing] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Server not found" });
+    return;
+  }
+  const changesConnection = input.data.apiBaseUrl !== undefined || input.data.websocketUrl !== undefined;
+  if (changesConnection && (!input.data.apiBaseUrl || !input.data.websocketUrl)) {
+    res.status(400).json({ error: "Enter both API and WebSocket URLs when changing a server connection" });
+    return;
+  }
   try {
-    const apiUrl = await assertTrustedComfyUrl(input.data.apiBaseUrl);
-    const wsUrl = new URL(input.data.websocketUrl);
-    if (!["ws:", "wss:"].includes(wsUrl.protocol) || wsUrl.hostname !== apiUrl.hostname) throw new Error("WebSocket URL must use ws/wss and match API host");
+    const connection = changesConnection
+      ? await validateServerEndpoints(input.data.apiBaseUrl!, input.data.websocketUrl!)
+      : { apiUrl: new URL(existing.apiBaseUrl), websocketUrl: new URL(existing.websocketUrl) };
     const [server] = await db.update(comfyServersTable).set({
-      ...input.data,
-      hostname: apiUrl.hostname,
-      tags: input.data.tags ?? [],
-      gpuName: input.data.gpuName ?? null,
-      vramGb: input.data.vramGb ?? null,
-      maxConcurrentJobs: input.data.maxConcurrentJobs ?? null,
-      enabled: input.data.enabled ?? true,
+      displayName: input.data.displayName ?? existing.displayName,
+      apiBaseUrl: connection.apiUrl.toString(),
+      websocketUrl: connection.websocketUrl.toString(),
+      hostname: connection.apiUrl.hostname,
+      tags: input.data.tags ?? existing.tags,
+      gpuName: input.data.gpuName === undefined ? existing.gpuName : input.data.gpuName,
+      vramGb: input.data.vramGb === undefined ? existing.vramGb : input.data.vramGb,
+      maxConcurrentJobs: input.data.maxConcurrentJobs === undefined ? existing.maxConcurrentJobs : input.data.maxConcurrentJobs,
+      enabled: input.data.enabled ?? existing.enabled,
+      priority: input.data.priority ?? existing.priority,
     }).where(eq(comfyServersTable.id, params.data.id)).returning();
-    if (!server) {
-      res.status(404).json({ error: "Server not found" });
-      return;
-    }
     res.json(UpdateServerResponse.parse(await present(server)));
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Invalid server configuration" });

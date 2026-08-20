@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ServerInput {
+export interface ServerUpdateInput {
   /** @minLength 1 */
-  displayName: string;
-  apiBaseUrl: string;
-  websocketUrl: string;
+  displayName?: string;
+  apiBaseUrl?: string;
+  websocketUrl?: string;
   /** @nullable */
   gpuName?: string | null;
   /** @nullable */
@@ -18,7 +18,7 @@ export interface ServerInput {
   tags?: string[];
   enabled?: boolean;
   /** @minimum 0 */
-  priority: number;
+  priority?: number;
   /**
      * @minimum 1
      * @nullable

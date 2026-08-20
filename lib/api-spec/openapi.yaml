@@ -177,7 +177,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ServerInput"
+              $ref: "#/components/schemas/ServerCreateInput"
       responses:
         "201":
           description: Created server
@@ -197,7 +197,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ServerInput"
+              $ref: "#/components/schemas/ServerUpdateInput"
       responses:
         "200":
           description: Updated server
@@ -443,7 +443,7 @@ components:
         lastHeartbeat: { type: ["string", "null"] }
         supportedWorkflowCount: { type: number }
         memoryUsedGb: { type: ["number", "null"] }
-    ServerInput:
+    ServerCreateInput:
       type: object
       required: [displayName, apiBaseUrl, websocketUrl, priority]
       properties:
@@ -454,6 +454,18 @@ components:
         vramGb: { type: ["number", "null"] }
         tags: { type: array, items: { type: string } }
         enabled: { type: boolean, default: true }
+        priority: { type: number, minimum: 0 }
+        maxConcurrentJobs: { type: ["number", "null"], minimum: 1 }
+    ServerUpdateInput:
+      type: object
+      properties:
+        displayName: { type: string, minLength: 1 }
+        apiBaseUrl: { type: string }
+        websocketUrl: { type: string }
+        gpuName: { type: ["string", "null"] }
+        vramGb: { type: ["number", "null"] }
+        tags: { type: array, items: { type: string } }
+        enabled: { type: boolean }
         priority: { type: number, minimum: 0 }
         maxConcurrentJobs: { type: ["number", "null"], minimum: 1 }
     ConnectionTest:

@@ -29,7 +29,8 @@ import type {
   GenerationJob,
   HealthStatus,
   QueueSnapshot,
-  ServerInput,
+  ServerCreateInput,
+  ServerUpdateInput,
   Setting,
   SettingInput,
   WorkflowInput,
@@ -812,14 +813,14 @@ export const getCreateServerUrl = () => {
 /**
  * @summary Add a ComfyUI server
  */
-export const createServer = async (serverInput: ServerInput, options?: Parameters<typeof customFetch>[1]): Promise<ComfyServer> => {
+export const createServer = async (serverCreateInput: ServerCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<ComfyServer> => {
 
   return customFetch<ComfyServer>(getCreateServerUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(serverInput)
+    body: JSON.stringify(serverCreateInput)
   }
 );}
 
@@ -828,8 +829,8 @@ export const createServer = async (serverInput: ServerInput, options?: Parameter
 
 
 export const getCreateServerMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createServer>>, TError,{data: BodyType<ServerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createServer>>, TError,{data: BodyType<ServerInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createServer>>, TError,{data: BodyType<ServerCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createServer>>, TError,{data: BodyType<ServerCreateInput>}, TContext> => {
 
 const mutationKey = ['createServer'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -841,7 +842,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createServer>>, {data: BodyType<ServerInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createServer>>, {data: BodyType<ServerCreateInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createServer(data,requestOptions)
@@ -855,18 +856,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateServerMutationResult = NonNullable<Awaited<ReturnType<typeof createServer>>>
-    export type CreateServerMutationBody = BodyType<ServerInput>
+    export type CreateServerMutationBody = BodyType<ServerCreateInput>
     export type CreateServerMutationError = ErrorType<unknown>
 
     /**
  * @summary Add a ComfyUI server
  */
 export const useCreateServer = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createServer>>, TError,{data: BodyType<ServerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createServer>>, TError,{data: BodyType<ServerCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createServer>>,
         TError,
-        {data: BodyType<ServerInput>},
+        {data: BodyType<ServerCreateInput>},
         TContext
       > => {
       return useMutation(getCreateServerMutationOptions(options));
@@ -884,14 +885,14 @@ export const getUpdateServerUrl = (id: string,) => {
  * @summary Update a ComfyUI server
  */
 export const updateServer = async (id: string,
-    serverInput: ServerInput, options?: Parameters<typeof customFetch>[1]): Promise<ComfyServer> => {
+    serverUpdateInput: ServerUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<ComfyServer> => {
 
   return customFetch<ComfyServer>(getUpdateServerUrl(id),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(serverInput)
+    body: JSON.stringify(serverUpdateInput)
   }
 );}
 
@@ -900,8 +901,8 @@ export const updateServer = async (id: string,
 
 
 export const getUpdateServerMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateServer>>, TError,{id: string;data: BodyType<ServerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateServer>>, TError,{id: string;data: BodyType<ServerInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateServer>>, TError,{id: string;data: BodyType<ServerUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateServer>>, TError,{id: string;data: BodyType<ServerUpdateInput>}, TContext> => {
 
 const mutationKey = ['updateServer'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -913,7 +914,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateServer>>, {id: string;data: BodyType<ServerInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateServer>>, {id: string;data: BodyType<ServerUpdateInput>}> = (props) => {
           const {id,data} = props ?? {};
 
           return  updateServer(id,data,requestOptions)
@@ -927,18 +928,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateServerMutationResult = NonNullable<Awaited<ReturnType<typeof updateServer>>>
-    export type UpdateServerMutationBody = BodyType<ServerInput>
+    export type UpdateServerMutationBody = BodyType<ServerUpdateInput>
     export type UpdateServerMutationError = ErrorType<unknown>
 
     /**
  * @summary Update a ComfyUI server
  */
 export const useUpdateServer = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateServer>>, TError,{id: string;data: BodyType<ServerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateServer>>, TError,{id: string;data: BodyType<ServerUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateServer>>,
         TError,
-        {id: string;data: BodyType<ServerInput>},
+        {id: string;data: BodyType<ServerUpdateInput>},
         TContext
       > => {
       return useMutation(getUpdateServerMutationOptions(options));

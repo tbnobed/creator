@@ -89,7 +89,7 @@ export interface ComfyServer {
   memoryUsedGb?: number | null;
 }
 
-export interface ServerInput {
+export interface ServerCreateInput {
   /** @minLength 1 */
   displayName: string;
   apiBaseUrl: string;
@@ -102,6 +102,26 @@ export interface ServerInput {
   enabled?: boolean;
   /** @minimum 0 */
   priority: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  maxConcurrentJobs?: number | null;
+}
+
+export interface ServerUpdateInput {
+  /** @minLength 1 */
+  displayName?: string;
+  apiBaseUrl?: string;
+  websocketUrl?: string;
+  /** @nullable */
+  gpuName?: string | null;
+  /** @nullable */
+  vramGb?: number | null;
+  tags?: string[];
+  enabled?: boolean;
+  /** @minimum 0 */
+  priority?: number;
   /**
      * @minimum 1
      * @nullable

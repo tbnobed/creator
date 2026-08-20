@@ -99,8 +99,6 @@ function ServerCard({ server }: { server: any }) {
       id: server.id,
       data: {
         displayName: server.displayName,
-        apiBaseUrl: "HIDDEN", // Server ignores if not updating
-        websocketUrl: "HIDDEN",
         priority: server.priority,
         enabled: !server.enabled
       }
@@ -211,9 +209,11 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
   const createMutation = useCreateServer();
   const updateMutation = useUpdateServer();
   const [testResult, setTestResult] = useState<{ connected: boolean, message: string } | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     
     const tagsStr = formData.get("tags") as string;
@@ -231,21 +231,28 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
     const websocketUrl = formData.get("websocketUrl") as string;
     
     if (apiBaseUrl && apiBaseUrl !== "") data.apiBaseUrl = apiBaseUrl;
-    if (websocketUrl && websocketUrl !== "") data.websocketUrl = websocketUrl;
 
-    if (initialData?.id) {
-      await updateMutation.mutateAsync({ id: initialData.id, data });
-    } else {
-      // For create, URLs are required
-      if (!data.apiBaseUrl || !data.websocketUrl) {
-        alert("API Base URL and WebSocket URL are required for new servers.");
-        return;
+    try {
+      if (websocketUrl && websocketUrl !== "") {
+        const normalizedSocket = new URL(websocketUrl.trim());
+        if (normalizedSocket.protocol === "http:") normalizedSocket.protocol = "ws:";
+        if (normalizedSocket.protocol === "https:") normalizedSocket.protocol = "wss:";
+        data.websocketUrl = normalizedSocket.toString();
       }
-      await createMutation.mutateAsync({ data });
+      if (initialData?.id) {
+        await updateMutation.mutateAsync({ id: initialData.id, data });
+      } else {
+        if (!data.apiBaseUrl || !data.websocketUrl) {
+          setFormError("API Base URL and WebSocket URL are required for new servers.");
+          return;
+        }
+        await createMutation.mutateAsync({ data });
+      }
+      queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+      onSuccess();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Could not save this GPU worker.");
     }
-
-    queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
-    onSuccess();
   };
 
   const testMutation = useTestServerConnection();
@@ -272,6 +279,11 @@ function ServerForm({ initialData, onSuccess }: { initialData?: any, onSuccess: 
         <Label htmlFor="displayName">Display Name</Label>
         <Input id="displayName" name="displayName" required defaultValue={initialData?.displayName} className="bg-secondary/20" placeholder="e.g. RTX-4090-Worker-1" />
       </div>
+      {formError && (
+        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {formError}
+        </p>
+      )}
       
       <div className="space-y-2">
         <Label htmlFor="apiBaseUrl">
