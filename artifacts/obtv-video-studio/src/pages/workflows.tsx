@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   useListWorkflows, 
   useCreateWorkflow, 
@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Page, PageHeader } from "@/components/layout/page";
-import { Plus, Workflow, Code, Save, TerminalSquare } from "lucide-react";
+import { Plus, Workflow, Pencil, TerminalSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +88,7 @@ export default function WorkflowsPage() {
 
 function WorkflowCard({ workflow }: { workflow: any }) {
   const [showJson, setShowJson] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const updateMutation = useUpdateWorkflow();
@@ -125,10 +126,19 @@ function WorkflowCard({ workflow }: { workflow: any }) {
           <p className="text-sm text-muted-foreground">{workflow.description}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsEditOpen(true)}>
+            <Pencil className="size-3.5" />
+            Edit
+          </Button>
           <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor={`active-${workflow.id}`}>
             {workflow.active ? "Active" : "Inactive"}
           </Label>
-          <Switch id={`active-${workflow.id}`} checked={workflow.active} onCheckedChange={toggleActive} />
+          <Switch
+            id={`active-${workflow.id}`}
+            checked={workflow.active}
+            disabled={updateMutation.isPending}
+            onCheckedChange={toggleActive}
+          />
         </div>
       </div>
       {actionError && (
@@ -189,7 +199,191 @@ function WorkflowCard({ workflow }: { workflow: any }) {
           )}
         </div>
       )}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit {workflow.name}</DialogTitle>
+          </DialogHeader>
+          <WorkflowEditor
+            workflow={workflow}
+            onSuccess={() => setIsEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () => void }) {
+  const queryClient = useQueryClient();
+  const updateMutation = useUpdateWorkflow();
+  const [name, setName] = useState(workflow.name);
+  const [description, setDescription] = useState(workflow.description);
+  const [tagsText, setTagsText] = useState((workflow.compatibleServerTags ?? []).join(", "));
+  const [mappingsText, setMappingsText] = useState(
+    JSON.stringify(workflow.mappings ?? {}, null, 2),
+  );
+  const [apiWorkflowText, setApiWorkflowText] = useState("");
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    setName(workflow.name);
+    setDescription(workflow.description);
+    setTagsText((workflow.compatibleServerTags ?? []).join(", "));
+    setMappingsText(JSON.stringify(workflow.mappings ?? {}, null, 2));
+    setApiWorkflowText("");
+    setFormError("");
+  }, [workflow]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError("");
+
+    let mappings: Record<string, { nodeId: string; input: string }>;
+    let apiWorkflow: Record<string, unknown> | undefined;
+
+    try {
+      const parsedMappings = mappingsText.trim() ? JSON.parse(mappingsText) : {};
+      if (
+        !parsedMappings
+        || Array.isArray(parsedMappings)
+        || typeof parsedMappings !== "object"
+        || Object.values(parsedMappings).some(
+          (mapping) => !mapping
+            || typeof mapping !== "object"
+            || typeof (mapping as { nodeId?: unknown }).nodeId !== "string"
+            || typeof (mapping as { input?: unknown }).input !== "string",
+        )
+      ) {
+        throw new Error("Mappings must be an object of variable names to { nodeId, input } values.");
+      }
+      mappings = parsedMappings;
+
+      if (apiWorkflowText.trim()) {
+        const parsedWorkflow = JSON.parse(apiWorkflowText);
+        if (!parsedWorkflow || Array.isArray(parsedWorkflow) || typeof parsedWorkflow !== "object") {
+          throw new Error("Replacement API JSON must be an object.");
+        }
+        apiWorkflow = parsedWorkflow;
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Check the JSON fields and try again.");
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id: workflow.id,
+        data: {
+          name,
+          description,
+          compatibleServerTags: tagsText.split(",").map((tag: string) => tag.trim()).filter(Boolean),
+          mappings,
+          apiWorkflow,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: getListWorkflowsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetWorkflowQueryKey(workflow.id) });
+      onSuccess();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Could not save this workflow.");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Mode <span className="font-medium text-foreground">{workflow.generationMode}</span>
+        {" · "}Model <span className="font-medium text-foreground">{workflow.modelFamily}</span>
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={`workflow-name-${workflow.id}`}>Name</Label>
+          <Input
+            id={`workflow-name-${workflow.id}`}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`workflow-tags-${workflow.id}`}>Server tags</Label>
+          <Input
+            id={`workflow-tags-${workflow.id}`}
+            value={tagsText}
+            onChange={(event) => setTagsText(event.target.value)}
+            placeholder="A100, PN"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`workflow-description-${workflow.id}`}>Description</Label>
+        <Input
+          id={`workflow-description-${workflow.id}`}
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`workflow-mappings-${workflow.id}`}>Mappings JSON</Label>
+        <Textarea
+          id={`workflow-mappings-${workflow.id}`}
+          value={mappingsText}
+          onChange={(event) => setMappingsText(event.target.value)}
+          className="h-36 font-mono text-xs"
+          placeholder='{"positive_prompt": {"nodeId": "6", "input": "text"}}'
+        />
+        <p className="text-xs text-muted-foreground">
+          Map each studio field to an exact node ID and input name from this workflow.
+        </p>
+      </div>
+
+      <details className="rounded-md border border-border/60 bg-secondary/10 p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          Available node inputs ({workflow.nodes?.length ?? 0} nodes)
+        </summary>
+        <div className="mt-3 max-h-52 space-y-2 overflow-y-auto font-mono text-xs">
+          {workflow.nodes?.map((node: any) => (
+            <div key={node.nodeId} className="rounded border border-border/50 bg-background/50 p-2">
+              <span className="font-semibold">Node {node.nodeId}</span>
+              <span className="ml-2 text-muted-foreground">{node.title ?? node.classType}</span>
+              <p className="mt-1 text-muted-foreground">
+                Inputs: {node.inputs?.map((input: any) => input.name).join(", ") || "none"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <div className="space-y-2">
+        <Label htmlFor={`workflow-api-json-${workflow.id}`}>Replace ComfyUI API JSON (optional)</Label>
+        <Textarea
+          id={`workflow-api-json-${workflow.id}`}
+          value={apiWorkflowText}
+          onChange={(event) => setApiWorkflowText(event.target.value)}
+          className="h-32 font-mono text-xs"
+          placeholder="Leave blank to keep the currently imported API workflow."
+        />
+        <p className="text-xs text-muted-foreground">
+          Pasting replacement JSON validates every mapping before it is saved.
+        </p>
+      </div>
+
+      {formError && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {formError}
+        </p>
+      )}
+
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="submit" disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

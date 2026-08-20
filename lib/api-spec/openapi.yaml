@@ -290,7 +290,7 @@ paths:
     patch:
       operationId: updateWorkflow
       tags: [workflows]
-      summary: Update workflow metadata and mappings
+      summary: Update workflow metadata, API JSON, and mappings
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -554,6 +554,9 @@ components:
         description: { type: string }
         compatibleServerTags: { type: array, items: { type: string } }
         active: { type: boolean }
+        apiWorkflow:
+          type: object
+          additionalProperties: true
         mappings:
           type: object
           additionalProperties:

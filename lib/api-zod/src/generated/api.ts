@@ -453,7 +453,7 @@ export const GetWorkflowResponse = zod.object({
 
 
 /**
- * @summary Update workflow metadata and mappings
+ * @summary Update workflow metadata, API JSON, and mappings
  */
 export const UpdateWorkflowParams = zod.object({
   "id": zod.coerce.string()
@@ -467,6 +467,7 @@ export const UpdateWorkflowBody = zod.object({
   "description": zod.string().optional(),
   "compatibleServerTags": zod.array(zod.string()).optional(),
   "active": zod.boolean().optional(),
+  "apiWorkflow": zod.record(zod.string(), zod.unknown()).optional(),
   "mappings": zod.record(zod.string(), zod.object({
   "nodeId": zod.string(),
   "input": zod.string()

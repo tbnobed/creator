@@ -1398,7 +1398,7 @@ export const getUpdateWorkflowUrl = (id: string,) => {
 }
 
 /**
- * @summary Update workflow metadata and mappings
+ * @summary Update workflow metadata, API JSON, and mappings
  */
 export const updateWorkflow = async (id: string,
     workflowUpdate: WorkflowUpdate, options?: Parameters<typeof customFetch>[1]): Promise<WorkflowTemplate> => {
@@ -1448,7 +1448,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateWorkflowMutationError = ErrorType<unknown>
 
     /**
- * @summary Update workflow metadata and mappings
+ * @summary Update workflow metadata, API JSON, and mappings
  */
 export const useUpdateWorkflow = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkflow>>, TError,{id: string;data: BodyType<WorkflowUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}

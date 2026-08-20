@@ -198,6 +198,8 @@ export interface WorkflowInput {
   mappings?: WorkflowInputMappings;
 }
 
+export type WorkflowUpdateApiWorkflow = { [key: string]: unknown };
+
 export type WorkflowUpdateMappings = {[key: string]: ParameterMapping};
 
 export interface WorkflowUpdate {
@@ -206,6 +208,7 @@ export interface WorkflowUpdate {
   description?: string;
   compatibleServerTags?: string[];
   active?: boolean;
+  apiWorkflow?: WorkflowUpdateApiWorkflow;
   mappings?: WorkflowUpdateMappings;
 }
 

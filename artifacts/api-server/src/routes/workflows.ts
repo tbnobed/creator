@@ -97,16 +97,21 @@ router.patch("/workflows/:id", async (req, res): Promise<void> => {
     return;
   }
   try {
+    const apiWorkflow = input.data.apiWorkflow
+      ? parseApiWorkflow(input.data.apiWorkflow).workflow
+      : existing.apiWorkflow;
     const mappings = input.data.mappings ?? existing.mappings;
-    validateMappings(existing.apiWorkflow, mappings);
-    if (input.data.active && (!existing.apiWorkflow || Object.keys(mappings).length === 0)) {
+    const active = input.data.active ?? existing.active;
+    validateMappings(apiWorkflow, mappings);
+    if (active && (!apiWorkflow || Object.keys(mappings).length === 0)) {
       throw new Error("An active workflow needs imported API JSON and at least one mapping");
     }
     const [workflow] = await db.update(workflowTemplatesTable).set({
       name: input.data.name ?? existing.name,
       description: input.data.description ?? existing.description,
       compatibleServerTags: input.data.compatibleServerTags ?? existing.compatibleServerTags,
-      active: input.data.active ?? existing.active,
+      active,
+      apiWorkflow,
       mappings,
       expectedInputs: Object.keys(mappings),
     }).where(eq(workflowTemplatesTable.id, existing.id)).returning();

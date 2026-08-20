@@ -33,4 +33,5 @@ export * from './workflowNode';
 export * from './workflowTemplate';
 export * from './workflowTemplateMappings';
 export * from './workflowUpdate';
+export * from './workflowUpdateApiWorkflow';
 export * from './workflowUpdateMappings';

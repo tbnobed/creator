@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { WorkflowUpdateApiWorkflow } from './workflowUpdateApiWorkflow';
 import type { WorkflowUpdateMappings } from './workflowUpdateMappings';
 
 export interface WorkflowUpdate {
@@ -13,5 +14,6 @@ export interface WorkflowUpdate {
   description?: string;
   compatibleServerTags?: string[];
   active?: boolean;
+  apiWorkflow?: WorkflowUpdateApiWorkflow;
   mappings?: WorkflowUpdateMappings;
 }
