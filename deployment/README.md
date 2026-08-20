@@ -69,17 +69,27 @@ bind mount, make the host directory writable by UID/GID `10001`.
    ```
 
 On a fresh database, the API applies the committed Drizzle migrations before it
-opens its HTTP port. It then seeds only missing studio records; existing records
-are not overwritten.
+opens its HTTP port. It then seeds the complete studio workflow catalog
+idempotently; existing user-managed records are not overwritten.
 
-### Hardware-aware MiniMax H3 bootstrap
+### MiniMax H3 workflow bootstrap
 
-The deployment seed includes two active `r2v` variants:
+The deployment seed includes these active `r2v` variants:
 
-- **A100** — requires `minimax-h3` and `a100` tags and uses
+- **Image reference, A100** — requires `minimax-h3` and `a100` tags and uses
   `qwen3vl_32b_minimax_h3_int8_convrot.safetensors`.
-- **Blackwell** — requires `minimax-h3` and `blackwell` tags and uses
+- **Image reference, Blackwell** — requires `minimax-h3` and `blackwell` tags and uses
   `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`.
+- **Video/audio reference, A100** — requires `minimax-h3` and `a100` tags,
+  loads the uploaded video with `LoadVideo`, and extracts its video/audio
+  components.
+- **Video/audio reference, Blackwell** — requires `minimax-h3` and `blackwell`
+  tags, loads the uploaded video with `LoadVideo`, and extracts its video/audio
+  components.
+
+The seed also creates the inactive `MiniMax H3 FL2VA` catalog placeholder for a
+future first/last-frame workflow. Video/audio reference variants do not require
+cast or environment assets; the uploaded video is their reference.
 
 Set the endpoint pairs in `.env` before the first `docker compose up -d --build`
 to create the corresponding worker records. The seed only inserts missing
@@ -88,6 +98,9 @@ or API JSON that you have already edited in an existing deployment.
 The sole upgrade exception is the original, inactive, API-less MiniMax H3
 placeholder shipped by earlier OBTV versions; its exact unedited fingerprint is
 upgraded to the Blackwell variant so prior deployments receive the working seed.
+An exact stale video-reference seed containing the old disconnected
+`reference-character-1.png` and `reference-character-2.png` loaders is also
+upgraded to the cleaned `LoadVideo`/`GetVideoComponents` graph.
 
 `docker compose build` produces images but cannot seed PostgreSQL by itself;
 the seed runs when the API container starts during `docker compose up -d`.
