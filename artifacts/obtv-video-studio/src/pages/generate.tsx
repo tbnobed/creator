@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { 
   useListCharacters, 
@@ -51,10 +51,20 @@ export default function GeneratePage() {
   const [qualityPreset, setQualityPreset] = useState<"DRAFT" | "STANDARD" | "HIGH">("STANDARD");
   const [seedMode, setSeedMode] = useState<"RANDOM" | "FIXED">("RANDOM");
   const [seed, setSeed] = useState<number>(0);
+  const hasSelectedInitialMode = useRef(false);
   const activeWorkflows = workflows?.filter(w => w.active) || [];
   const activeWorkflowsForMode = activeWorkflows.filter((workflow) => workflow.generationMode === generationMode);
   const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
   const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
+
+  useEffect(() => {
+    if (hasSelectedInitialMode.current || !workflows) return;
+    const preferredWorkflow = activeWorkflows.find((workflow) => !workflow.mappings?.referenceVideo) ?? activeWorkflows[0];
+    if (preferredWorkflow) {
+      setGenerationMode(preferredWorkflow.generationMode);
+    }
+    hasSelectedInitialMode.current = true;
+  }, [workflows]);
 
   const toggleChar = (id: string) => {
     setSelectedChars(prev => 
