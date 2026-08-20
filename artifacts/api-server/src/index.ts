@@ -1,4 +1,5 @@
 import app from "./app";
+import { resumeActiveGenerations } from "./lib/generation-service";
 import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
 
@@ -18,6 +19,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start(): Promise<void> {
   await ensureStudioSeed();
+  await resumeActiveGenerations();
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

@@ -89,19 +89,52 @@ async function uploadMappedReferences(
   return mapped;
 }
 
+type ComfyOutputFile = {
+  filename?: unknown;
+  subfolder?: unknown;
+  type?: unknown;
+};
+
 function chooseOutput(history: Record<string, unknown>): { filename: string; subfolder: string; type: string } | null {
   const first = Object.values(history)[0];
   if (!first || typeof first !== "object") return null;
-  const outputs = (first as { outputs?: Record<string, { images?: Array<{ filename?: string; subfolder?: string; type?: string }> }> }).outputs;
+  const outputs = (first as { outputs?: Record<string, Record<string, unknown>> }).outputs;
   if (!outputs) return null;
   for (const output of Object.values(outputs)) {
-    for (const image of output.images ?? []) {
-      if (image.filename?.match(/\.(mp4|webm|mov)$/i)) {
-        return { filename: image.filename, subfolder: image.subfolder ?? "", type: image.type ?? "output" };
+    for (const collectionName of ["gifs", "videos", "images"]) {
+      const collection = output[collectionName];
+      if (!Array.isArray(collection)) continue;
+      for (const file of collection as ComfyOutputFile[]) {
+        if (typeof file.filename === "string" && file.filename.match(/\.(mp4|webm|mov|mkv)$/i)) {
+          return {
+            filename: file.filename,
+            subfolder: typeof file.subfolder === "string" ? file.subfolder : "",
+            type: typeof file.type === "string" ? file.type : "output",
+          };
+        }
       }
     }
   }
   return null;
+}
+
+export async function resumeActiveGenerations(): Promise<void> {
+  const jobs = await db
+    .select()
+    .from(generationJobsTable)
+    .where(inArray(generationJobsTable.status, ["QUEUED", "RUNNING", "DOWNLOADING"]));
+  for (const job of jobs) {
+    if (!job.comfyPromptId || !job.comfyServerId) continue;
+    const [server] = await db
+      .select()
+      .from(comfyServersTable)
+      .where(eq(comfyServersTable.id, job.comfyServerId));
+    if (!server) {
+      logger.warn({ jobId: job.id, serverId: job.comfyServerId }, "Cannot resume generation: ComfyUI server is missing");
+      continue;
+    }
+    void monitorGeneration(job.id, new ComfyUIClient(server), job.comfyPromptId);
+  }
 }
 
 export async function createAndSubmitGeneration(input: GenerationRequest) {
@@ -186,6 +219,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       width: input.width,
       height: input.height,
       frames: frameCount,
+      durationSeconds: input.durationSeconds,
       fps: input.fps,
       seed: input.seedMode === "FIXED" ? input.seed ?? 0 : Math.floor(Math.random() * 2_147_483_647),
       ...assetParameters,

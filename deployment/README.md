@@ -51,6 +51,8 @@ bind mount, make the host directory writable by UID/GID `10001`.
    `WEB_PORT` and `API_PORT` if the defaults are already in use, and set
    `COMFY_ALLOWED_HOSTS` to the hostnames or public IPs of the ComfyUI workers.
    Do not put `http://`, `https://`, `ws://`, ports, or paths in the allowlist.
+   Set each matching `OBTV_SEED_*_API_URL` and
+   `OBTV_SEED_*_WEBSOCKET_URL` pair to seed that external worker.
 4. Build and start:
 
    ```sh
@@ -67,8 +69,31 @@ bind mount, make the host directory writable by UID/GID `10001`.
    ```
 
 On a fresh database, the API applies the committed Drizzle migrations before it
-opens its HTTP port. It then seeds only the initial missing studio records;
-existing records are not overwritten.
+opens its HTTP port. It then seeds only missing studio records; existing records
+are not overwritten.
+
+### Hardware-aware MiniMax H3 bootstrap
+
+The deployment seed includes two active `r2v` variants:
+
+- **A100** — requires `minimax-h3` and `a100` tags and uses
+  `qwen3vl_32b_minimax_h3_int8_convrot.safetensors`.
+- **Blackwell** — requires `minimax-h3` and `blackwell` tags and uses
+  `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`.
+
+Set the endpoint pairs in `.env` before the first `docker compose up -d --build`
+to create the corresponding worker records. The seed only inserts missing
+worker names and workflow names, so it never replaces URLs, tags, model choices,
+or API JSON that you have already edited in an existing deployment.
+The sole upgrade exception is the original, inactive, API-less MiniMax H3
+placeholder shipped by earlier OBTV versions; its exact unedited fingerprint is
+upgraded to the Blackwell variant so prior deployments receive the working seed.
+
+`docker compose build` produces images but cannot seed PostgreSQL by itself;
+the seed runs when the API container starts during `docker compose up -d`.
+The configured worker hosts must be in `COMFY_ALLOWED_HOSTS`, and the matching
+model files and custom nodes must already be installed on those external
+ComfyUI workers.
 
 ## Operations
 
