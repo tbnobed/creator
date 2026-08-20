@@ -25,7 +25,13 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(
+  cors(
+    process.env.NODE_ENV === "production"
+      ? { origin: process.env.CORS_ORIGIN ?? false }
+      : undefined,
+  ),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

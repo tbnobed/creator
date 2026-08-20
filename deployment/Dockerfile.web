@@ -1,0 +1,33 @@
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
+
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm exec tsc --build --force
+
+ARG BASE_PATH=/
+ENV NODE_ENV=production \
+    PORT=5173 \
+    BASE_PATH=${BASE_PATH}
+
+RUN pnpm --filter @workspace/obtv-video-studio run typecheck
+RUN pnpm --filter @workspace/obtv-video-studio run build
+
+FROM node:24-bookworm-slim AS runtime
+
+WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=8080
+
+RUN groupadd --system --gid 10001 obtv \
+  && useradd --system --uid 10001 --gid obtv --home-dir /app --shell /usr/sbin/nologin obtv \
+  && install --directory --owner=obtv --group=obtv --mode=0755 /app/public
+
+COPY --from=build --chown=obtv:obtv /app/artifacts/obtv-video-studio/dist/public ./public
+COPY --chown=obtv:obtv deployment/static-server.mjs ./static-server.mjs
+
+USER obtv
+EXPOSE 8080
+CMD ["node", "/app/static-server.mjs"]
