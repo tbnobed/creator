@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -68,6 +68,9 @@
 }
 
 :root {
+  --brand-primary: #FF1F62;
+  --brand-ai-accent: #8B2BE2;
+  --brand-gradient: linear-gradient(135deg, #FF1F62 0%, #8B2BE2 100%);
   --button-outline: rgba(255, 255, 255, 0.1);
   --badge-outline: rgba(255, 255, 255, 0.05);
   --opaque-button-border-intensity: 9;
@@ -75,56 +78,56 @@
   --elevate-2: rgba(255, 255, 255, 0.09);
 
   /* Default to Dark Mode for the studio vibe */
-  --background: 240 10% 4%;
+  --background: 228 19% 5%;
   --foreground: 0 0% 98%;
 
-  --card: 240 5% 10%;
+  --card: 220 17% 9%;
   --card-foreground: 0 0% 98%;
-  --card-border: 240 5% 16%;
+  --card-border: 223 16% 18%;
 
-  --popover: 240 10% 4%;
+  --popover: 220 17% 9%;
   --popover-foreground: 0 0% 98%;
-  --popover-border: 240 5% 16%;
+  --popover-border: 223 16% 18%;
 
-  --primary: 350 85% 55%;
+  --primary: 342 100% 56%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 240 4% 16%;
+  --secondary: 219 15% 13%;
   --secondary-foreground: 0 0% 98%;
 
-  --muted: 240 4% 16%;
-  --muted-foreground: 240 5% 65%;
+  --muted: 219 15% 13%;
+  --muted-foreground: 224 12% 57%;
 
-  --accent: 240 4% 16%;
+  --accent: 219 15% 13%;
   --accent-foreground: 0 0% 98%;
 
   --destructive: 0 85% 60%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 240 5% 16%;
-  --input: 240 5% 16%;
-  --ring: 350 85% 55%;
+  --border: 223 16% 18%;
+  --input: 219 15% 13%;
+  --ring: 342 100% 56%;
 
-  --chart-1: 350 85% 55%;
-  --chart-2: 190 90% 50%;
-  --chart-3: 45 100% 50%;
-  --chart-4: 280 60% 60%;
+  --chart-1: 342 100% 56%;
+  --chart-2: 271 75% 53%;
+  --chart-3: 190 90% 50%;
+  --chart-4: 45 100% 50%;
   --chart-5: 160 60% 45%;
 
-  --sidebar: 240 10% 4%;
-  --sidebar-foreground: 240 5% 85%;
-  --sidebar-border: 240 5% 16%;
-  --sidebar-primary: 350 85% 55%;
+  --sidebar: 220 17% 9%;
+  --sidebar-foreground: 224 12% 74%;
+  --sidebar-border: 223 16% 18%;
+  --sidebar-primary: 342 100% 56%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 4% 16%;
+  --sidebar-accent: 219 15% 13%;
   --sidebar-accent-foreground: 240 5% 95%;
-  --sidebar-ring: 350 85% 55%;
+  --sidebar-ring: 342 100% 56%;
 
-  --app-font-sans: 'Outfit', sans-serif;
+  --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: 'Georgia', serif;
-  --app-font-mono: 'Space Mono', monospace;
+  --app-font-mono: 'JetBrains Mono', monospace;
 
-  --radius: 0.5rem;
+  --radius: 0.625rem;
   
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);
@@ -158,10 +161,31 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    background-color: #0B0C10;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+
+  h1, h2 {
+    font-weight: 800;
   }
 }
 
 @layer utilities {
+  .brand-gradient {
+    background: var(--brand-gradient);
+  }
+
+  .brand-glow {
+    box-shadow: 0 0 16px rgba(255, 31, 98, 0.35);
+  }
+
+  .font-mono {
+    letter-spacing: 0.05em;
+  }
+
   input[type='search']::-webkit-search-cancel-button { @apply hidden; }
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);

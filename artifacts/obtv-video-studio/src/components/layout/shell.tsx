@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
-import { 
-  Clapperboard, 
+import {
+  Clapperboard,
   Users, 
   Map, 
   Activity, 
@@ -13,6 +13,7 @@ import { useHealthCheck } from "@workspace/api-client-react";
 
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+  const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.jpg`;
 
   const { data: health } = useHealthCheck();
 
@@ -30,13 +31,12 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/30 text-foreground dark">
       {/* Sidebar */}
       <div className="w-64 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border/50">
-          <div className="flex items-center gap-2 text-primary font-bold text-lg tracking-tight">
-            <div className="size-6 rounded-sm bg-primary flex items-center justify-center">
-              <Clapperboard className="size-4 text-primary-foreground" />
-            </div>
-            OBTV STUDIO
-          </div>
+        <div className="h-20 flex items-center px-5 border-b border-sidebar-border/50">
+          <img
+            src={wordmarkSrc}
+            alt="OBTV CreatorAi"
+            className="h-auto w-full max-w-[210px] object-contain"
+          />
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
@@ -46,10 +46,10 @@ export function Shell({ children }: { children: ReactNode }) {
               <Link 
                 key={link.href} 
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                className={`flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2 transition-all ${
                   isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    ? "border-l-primary bg-[linear-gradient(90deg,rgba(255,31,98,0.12),rgba(139,43,226,0.05))] pl-[9px] text-white font-semibold" 
+                    : "border-l-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 }`}
               >
                 <link.icon className={`size-4 ${isActive ? "text-primary" : ""}`} />

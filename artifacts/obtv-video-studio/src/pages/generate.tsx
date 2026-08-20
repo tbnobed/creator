@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Clapperboard, Users, Map, Settings2, Play, Upload, Video } from "lucide-react";
+import { Check, Clapperboard, Users, Map, Settings2, Play, Upload, Video } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -179,9 +179,9 @@ export default function GeneratePage() {
           </div>
 
           <Tabs defaultValue="assets" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 bg-secondary/30 mb-4 h-12">
-              <TabsTrigger value="assets" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium">1. Select Assets</TabsTrigger>
-              <TabsTrigger value="prompt" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium">2. Write Shot</TabsTrigger>
+            <TabsList className="mb-4 grid h-12 w-full grid-cols-2 rounded-lg bg-secondary p-1">
+              <TabsTrigger value="assets" className="rounded-md font-semibold text-muted-foreground data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">1. Select Assets</TabsTrigger>
+              <TabsTrigger value="prompt" className="rounded-md font-semibold text-muted-foreground data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">2. Write Shot</TabsTrigger>
             </TabsList>
             
             <TabsContent value="assets" className="space-y-6 mt-0">
@@ -200,7 +200,7 @@ export default function GeneratePage() {
                     return (
                       <Card 
                         key={char.id} 
-                        className={`cursor-pointer overflow-hidden border-2 transition-all ${isSelected ? 'border-primary shadow-[0_0_15px_rgba(225,29,72,0.3)] bg-primary/5' : 'border-border/50 hover:border-primary/50 bg-card/30'}`}
+                        className={`cursor-pointer overflow-hidden rounded-[10px] border transition-all ${isSelected ? 'border-[1.5px] border-primary bg-primary/5 shadow-[0_0_16px_rgba(255,31,98,0.3)]' : 'border-border hover:border-primary/50 bg-card/30'}`}
                         onClick={() => toggleChar(char.id)}
                       >
                         <div className="aspect-[3/4] bg-secondary/50 relative">
@@ -210,6 +210,11 @@ export default function GeneratePage() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-3">
                             <span className="font-medium text-white text-sm">{char.name}</span>
                           </div>
+                          {isSelected && (
+                            <div className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_0_12px_rgba(255,31,98,0.55)]">
+                              <Check className="size-4 stroke-[3]" />
+                            </div>
+                          )}
                         </div>
                       </Card>
                     );
@@ -237,12 +242,17 @@ export default function GeneratePage() {
                     return (
                       <Card 
                         key={setting.id} 
-                        className={`cursor-pointer overflow-hidden border-2 transition-all flex items-center ${isSelected ? 'border-primary shadow-[0_0_15px_rgba(225,29,72,0.3)] bg-primary/5' : 'border-border/50 hover:border-primary/50 bg-card/30'}`}
+                        className={`cursor-pointer overflow-hidden rounded-[10px] border transition-all flex items-center ${isSelected ? 'border-[1.5px] border-primary bg-primary/5 shadow-[0_0_16px_rgba(255,31,98,0.3)]' : 'border-border hover:border-primary/50 bg-card/30'}`}
                         onClick={() => setSelectedSetting(isSelected ? "" : setting.id)}
                       >
                         <div className="w-24 h-16 bg-secondary/50 relative flex-shrink-0">
                           {setting.thumbnail && (
                             <img src={setting.thumbnail} className="w-full h-full object-cover opacity-80" alt={setting.name} />
+                          )}
+                          {isSelected && (
+                            <div className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_0_12px_rgba(255,31,98,0.55)]">
+                              <Check className="size-4 stroke-[3]" />
+                            </div>
                           )}
                         </div>
                         <div className="p-3 font-medium text-sm flex-1">{setting.name}</div>
@@ -450,7 +460,7 @@ export default function GeneratePage() {
                 </div>
 
                 <Button 
-                  className="w-full h-12 text-base font-bold tracking-wide shadow-[0_0_20px_rgba(225,29,72,0.4)] hover:shadow-[0_0_30px_rgba(225,29,72,0.6)] transition-all"
+                  className="w-full h-12 text-base font-semibold uppercase tracking-[0.05em] shadow-[0_0_16px_rgba(255,31,98,0.35)] hover:shadow-[0_0_20px_rgba(255,31,98,0.5)] transition-all"
                   onClick={handleGenerate}
                   disabled={createJob.isPending || isUploadingReferenceVideo || !prompt || (!hasReferenceVideo && (selectedChars.length === 0 || !selectedSetting)) || (workflowRequiresReferenceVideo && !hasReferenceVideo)}
                 >
