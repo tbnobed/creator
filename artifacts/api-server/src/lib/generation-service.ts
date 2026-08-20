@@ -17,6 +17,8 @@ import { selectServer } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
 
+const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
+
 type GenerationRequest = {
   characterIds?: string[];
   settingId?: string;
@@ -257,24 +259,88 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   }
 }
 
+export async function cancelGeneration(jobId: string) {
+  const [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, jobId));
+  if (!job) {
+    throw new Error("Generation job not found");
+  }
+  const alreadyCancelled = job.status === "CANCELLED";
+  if (!activeGenerationStatuses.includes(job.status) && !alreadyCancelled) {
+    throw new Error("Only active generation jobs can be cancelled");
+  }
+
+  let cancellationNote = "Cancelled by user.";
+  if (job.comfyServerId && job.comfyPromptId) {
+    const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, job.comfyServerId));
+    if (server) {
+      try {
+        const client = new ComfyUIClient(server);
+        await client.removeQueuedPrompt(job.comfyPromptId);
+        if (job.status === "RUNNING" || alreadyCancelled) {
+          await client.interrupt(job.comfyPromptId);
+        }
+      } catch (error) {
+        logger.warn({ err: error, jobId }, "Could not cancel generation on ComfyUI worker");
+        cancellationNote = "Cancelled in OBTV. The ComfyUI worker could not be reached to confirm cancellation.";
+      }
+    }
+  }
+
+  if (alreadyCancelled) {
+    const [retried] = await db
+      .update(generationJobsTable)
+      .set({ errorMessage: cancellationNote })
+      .where(eq(generationJobsTable.id, jobId))
+      .returning();
+    return retried ?? job;
+  }
+
+  const [cancelled] = await db
+    .update(generationJobsTable)
+    .set({ status: "CANCELLED", currentNode: null, errorMessage: cancellationNote })
+    .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+    .returning();
+  if (!cancelled) {
+    throw new Error("Generation job finished before it could be cancelled");
+  }
+  return cancelled;
+}
+
 async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId: string) {
   const timeoutAt = Date.now() + 2 * 60 * 60 * 1000;
   while (Date.now() < timeoutAt) {
     try {
+      const [currentJob] = await db
+        .select({ status: generationJobsTable.status })
+        .from(generationJobsTable)
+        .where(eq(generationJobsTable.id, jobId));
+      if (!currentJob || currentJob.status === "CANCELLED") return;
       const history = await client.getHistory(promptId);
       const output = chooseOutput(history);
       if (output) {
-        await db.update(generationJobsTable).set({ status: "DOWNLOADING", currentNode: "Retrieving output" }).where(eq(generationJobsTable.id, jobId));
+        const [downloading] = await db
+          .update(generationJobsTable)
+          .set({ status: "DOWNLOADING", currentNode: "Retrieving output" })
+          .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+          .returning({ id: generationJobsTable.id });
+        if (!downloading) return;
         const bytes = await client.getOutputFile(output.filename, output.subfolder, output.type);
         const mimeType = output.filename.toLowerCase().endsWith(".webm") ? "video/webm" : "video/mp4";
         const storageKey = await mediaStorage.storeOutput(output.filename, mimeType, bytes);
-        await db
+        const [completed] = await db
           .update(generationJobsTable)
           .set({ status: "COMPLETED", outputStorageKey: storageKey, outputMimeType: mimeType, progress: 1, completedAt: new Date() })
-          .where(eq(generationJobsTable.id, jobId));
+          .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+          .returning({ id: generationJobsTable.id });
+        if (!completed) return;
         return;
       }
-      await db.update(generationJobsTable).set({ status: "RUNNING", currentNode: "ComfyUI processing" }).where(eq(generationJobsTable.id, jobId));
+      const [running] = await db
+        .update(generationJobsTable)
+        .set({ status: "RUNNING", currentNode: "ComfyUI processing" })
+        .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+        .returning({ id: generationJobsTable.id });
+      if (!running) return;
     } catch (error) {
       logger.warn({ err: error, jobId }, "Generation monitor retrying after ComfyUI error");
     }
@@ -283,5 +349,5 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
   await db
     .update(generationJobsTable)
     .set({ status: "FAILED", errorMessage: "Timed out while waiting for ComfyUI", failedAt: new Date() })
-    .where(eq(generationJobsTable.id, jobId));
+    .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
 }

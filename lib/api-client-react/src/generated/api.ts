@@ -1687,6 +1687,77 @@ export function useGetGeneration<TData = Awaited<ReturnType<typeof getGeneration
 
 
 
+export const getCancelGenerationUrl = (id: string,) => {
+
+
+
+
+  return `/api/generations/${id}/cancel`
+}
+
+/**
+ * @summary Cancel an active generation job
+ */
+export const cancelGeneration = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<GenerationJob> => {
+
+  return customFetch<GenerationJob>(getCancelGenerationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelGenerationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelGeneration>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelGeneration>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelGeneration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelGeneration>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelGeneration(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelGenerationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelGeneration>>>
+
+    export type CancelGenerationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Cancel an active generation job
+ */
+export const useCancelGeneration = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelGeneration>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelGeneration>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelGenerationMutationOptions(options));
+    }
+
 export const getUploadReferenceVideoUrl = () => {
 
 

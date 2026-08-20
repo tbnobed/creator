@@ -55,7 +55,8 @@ export class ComfyUIClient {
         const message = await response.text();
         throw new Error(`ComfyUI ${response.status}: ${message.slice(0, 500)}`);
       }
-      return (await response.json()) as T;
+      const responseText = await response.text();
+      return (responseText ? JSON.parse(responseText) : undefined) as T;
     } finally {
       clearTimeout(timer);
     }
@@ -113,7 +114,19 @@ export class ComfyUIClient {
     });
   }
 
-  interrupt() {
-    return this.request<unknown>("/interrupt", { method: "POST" });
+  removeQueuedPrompt(promptId: string) {
+    return this.request<unknown>("/queue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ delete: [promptId] }),
+    });
+  }
+
+  interrupt(promptId?: string) {
+    return this.request<unknown>("/interrupt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: promptId ? JSON.stringify({ prompt_id: promptId }) : undefined,
+    });
   }
 }

@@ -1,13 +1,27 @@
-import { useListGenerations } from "@workspace/api-client-react";
+import { getListGenerationsQueryKey, useCancelGeneration, useListGenerations } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Page, PageHeader } from "@/components/layout/page";
-import { Activity, Play, CheckCircle2, XCircle, Clock, Loader2, Video } from "lucide-react";
+import { Activity, Play, CheckCircle2, XCircle, Clock, Loader2, Video, Square } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 
 export default function GenerationsPage() {
   const { data: generations, isLoading } = useListGenerations();
+  const queryClient = useQueryClient();
+  const cancelJob = useCancelGeneration({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListGenerationsQueryKey() }),
+    },
+  });
+
+  const requestCancellation = (jobId: string) => {
+    if (window.confirm("Cancel this generation? The current ComfyUI prompt will be interrupted and cannot be resumed.")) {
+      cancelJob.mutate({ id: jobId });
+    }
+  };
 
   return (
     <Page>
@@ -37,9 +51,11 @@ export default function GenerationsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {generations?.map(job => (
-            <Link key={job.id} href={`/generations/${job.id}`}>
-              <Card className="p-4 hover:border-primary/50 transition-colors bg-card/30 backdrop-blur-sm cursor-pointer group border-border/50 flex items-center gap-4">
+          {generations?.map(job => {
+            const isCancellable = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status);
+            return (
+              <Card key={job.id} className="p-4 hover:border-primary/50 transition-colors bg-card/30 backdrop-blur-sm group border-border/50 flex items-center gap-4">
+                <Link href={`/generations/${job.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                 <div className="size-12 rounded bg-secondary/50 flex flex-shrink-0 items-center justify-center overflow-hidden">
                   {job.status === "COMPLETED" && job.outputUrl ? (
                     <Video className="size-5 text-primary" />
@@ -73,9 +89,23 @@ export default function GenerationsPage() {
                     <Badge variant="outline" className="text-[10px] font-mono bg-background/50 h-5 px-1.5">{job.serverName}</Badge>
                   )}
                 </div>
+                </Link>
+                {isCancellable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => requestCancellation(job.id)}
+                    disabled={cancelJob.isPending}
+                    title="Cancel this generation"
+                  >
+                    <Square className="mr-1.5 size-3.5 fill-current" />
+                    Cancel
+                  </Button>
+                )}
               </Card>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </Page>

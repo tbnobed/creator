@@ -351,6 +351,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GenerationJob"
+  /generations/{id}/cancel:
+    post:
+      operationId: cancelGeneration
+      tags: [generations]
+      summary: Cancel an active generation job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Cancelled generation job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
   /reference-videos:
     post:
       operationId: uploadReferenceVideo

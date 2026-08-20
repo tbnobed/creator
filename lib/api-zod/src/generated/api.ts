@@ -647,6 +647,39 @@ export const GetGenerationResponse = zod.object({
 
 
 /**
+ * @summary Cancel an active generation job
+ */
+export const CancelGenerationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CancelGenerationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "prompt": zod.string(),
+  "compiledPrompt": zod.string(),
+  "generationMode": zod.string(),
+  "qualityPreset": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "durationSeconds": zod.number(),
+  "seed": zod.number().nullish(),
+  "progress": zod.number().nullable(),
+  "currentNode": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "workflowName": zod.string().nullable(),
+  "comfyPromptId": zod.string().nullish(),
+  "outputUrl": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "queuedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish()
+})
+
+
+/**
  * @summary Upload a reference video for a generation
  */
 export const UploadReferenceVideoResponse = zod.object({

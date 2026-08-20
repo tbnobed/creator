@@ -65,8 +65,10 @@ services:
       args:
         BASE_PATH: /
     restart: unless-stopped
+    environment:
+      API_PROXY_ORIGIN: http://api:5000
     ports:
-      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+      - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8080}:8080"
 
 volumes:
   obtv_postgres_data:

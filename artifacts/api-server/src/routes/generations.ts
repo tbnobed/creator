@@ -16,7 +16,7 @@ import {
   settingsTable,
   workflowTemplatesTable,
 } from "@workspace/db";
-import { createAndSubmitGeneration } from "../lib/generation-service";
+import { cancelGeneration, createAndSubmitGeneration } from "../lib/generation-service";
 import { presentGeneration } from "../lib/studio-presenters";
 
 const router: IRouter = Router();
@@ -62,6 +62,22 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
     return;
   }
   res.json(GetGenerationResponse.parse(await present(job)));
+});
+
+router.post("/generations/:id/cancel", async (req, res): Promise<void> => {
+  const params = GetGenerationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    const job = await cancelGeneration(params.data.id);
+    res.json(GetGenerationResponse.parse(await present(job)));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Generation could not be cancelled";
+    const status = message === "Generation job not found" ? 404 : 409;
+    res.status(status).json({ error: message });
+  }
 });
 
 router.get("/dashboard/summary", async (_req, res): Promise<void> => {

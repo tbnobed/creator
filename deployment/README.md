@@ -21,8 +21,9 @@ maintain.
   and server provisioning are intentionally outside this project.
 - Network access from the API container to each permitted ComfyUI worker.
 
-The Compose project binds the web server to `127.0.0.1:${WEB_PORT}` (8080 by
-default) and the API to `127.0.0.1:${API_PORT}` (5000 by default). In NPM,
+The Compose project binds the web server to
+`${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT}` (8080 by default) and the API to
+`127.0.0.1:${API_PORT}` (5000 by default). In NPM,
 create a Proxy Host for the public domain that forwards `/` to the web port,
 then add a Custom Location for `/api` (including `/api/media/...`) forwarding
 to the API port. Keep both routes on the same public domain so the browser
@@ -32,6 +33,15 @@ If NPM runs in Docker rather than directly on Ubuntu, use the host gateway or
 the Docker network address that NPM can reach instead of `127.0.0.1`. The
 Compose ports are intentionally loopback-only and should not be exposed
 directly to the internet.
+
+### Direct LAN access without NPM
+
+For a trusted internal network, set `WEB_BIND_ADDRESS=0.0.0.0` in `.env`, then
+run `docker compose up -d --build`. The studio will be reachable at
+`http://<ubuntu-server-lan-ip>:${WEB_PORT:-8080}`. The web container proxies
+same-origin `/api` requests to the private API container, so do not expose
+`API_PORT` to the LAN. Restrict this port with a host firewall or use NPM and
+TLS for any access beyond a trusted network.
 
 The API and web containers run without root privileges. The named media volume
 is initialized with ownership for the API user; if you replace it with a host
