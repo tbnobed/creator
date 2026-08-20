@@ -88,6 +88,7 @@ export default function WorkflowsPage() {
 
 function WorkflowCard({ workflow }: { workflow: any }) {
   const [showJson, setShowJson] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const updateMutation = useUpdateWorkflow();
 
@@ -96,11 +97,20 @@ function WorkflowCard({ workflow }: { workflow: any }) {
   });
 
   const toggleActive = async () => {
-    await updateMutation.mutateAsync({
-      id: workflow.id,
-      data: { active: !workflow.active }
-    });
-    queryClient.invalidateQueries({ queryKey: getListWorkflowsQueryKey() });
+    setActionError(null);
+    try {
+      await updateMutation.mutateAsync({
+        id: workflow.id,
+        data: { active: !workflow.active }
+      });
+      queryClient.invalidateQueries({ queryKey: getListWorkflowsQueryKey() });
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Could not update this workflow.",
+      );
+    }
   };
 
   return (
@@ -121,6 +131,11 @@ function WorkflowCard({ workflow }: { workflow: any }) {
           <Switch id={`active-${workflow.id}`} checked={workflow.active} onCheckedChange={toggleActive} />
         </div>
       </div>
+      {actionError && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
         <div>
