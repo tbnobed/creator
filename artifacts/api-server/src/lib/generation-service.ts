@@ -118,17 +118,25 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     .where(and(eq(workflowTemplatesTable.generationMode, input.generationMode), eq(workflowTemplatesTable.active, true)))
     .orderBy(desc(workflowTemplatesTable.version));
   const wantsReferenceVideo = Boolean(input.referenceVideoKey);
-  const workflow = workflows.find((candidate) => (
+  const compatibleWorkflows = workflows.filter((candidate) => (
+    candidate.apiWorkflow &&
     Boolean((candidate.mappings as ParameterMappings).referenceVideo) === wantsReferenceVideo
-  )) ?? workflows[0];
+  ));
+  const servers = await db.select().from(comfyServersTable);
+  const selected = compatibleWorkflows
+    .map((candidate) => ({
+      workflow: candidate,
+      server: selectServer(servers, candidate.compatibleServerTags),
+    }))
+    .find((candidate) => candidate.server);
+  const workflow = selected?.workflow ?? compatibleWorkflows[0] ?? workflows[0];
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
   if ((workflow.mappings as ParameterMappings).referenceVideo && !input.referenceVideoKey) {
     throw new Error("No active workflow without reference-video input is configured for this generation mode");
   }
-  const servers = await db.select().from(comfyServersTable);
-  const server = selectServer(servers, workflow.compatibleServerTags);
+  const server = selected?.server ?? selectServer(servers, workflow.compatibleServerTags);
   if (!server) {
     throw new Error("No healthy, compatible ComfyUI server is available. Configure and test a server first.");
   }
