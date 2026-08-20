@@ -13,6 +13,6 @@ export function selectServer(
     (a, b) =>
       a.queueSize - b.queueSize ||
       a.activeJobCount - b.activeJobCount ||
-      b.priority - a.priority,
+      a.priority - b.priority,
   )[0] ?? null;
 }
