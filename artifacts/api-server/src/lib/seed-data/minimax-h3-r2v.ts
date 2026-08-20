@@ -155,9 +155,39 @@ export const r2vMappings = {
   referenceImage2: { nodeId: "139", input: "image" },
 };
 
+export const r2vVideoMappings = {
+  prompt: { nodeId: "138", input: "value" },
+  width: { nodeId: "136", input: "width" },
+  height: { nodeId: "136", input: "height" },
+  durationSeconds: { nodeId: "132", input: "value" },
+  fps: { nodeId: "130", input: "fps" },
+  seed: { nodeId: "129", input: "noise_seed" },
+  referenceVideo: { nodeId: "152", input: "file" },
+};
+
 export function createMiniMaxH3R2vWorkflow(clipName: string): ApiWorkflow {
   const workflow = structuredClone(baseWorkflow);
   workflow["128"].inputs["clip_name"] = clipName;
+  return workflow;
+}
+
+export function createMiniMaxH3R2vVideoWorkflow(clipName: string): ApiWorkflow {
+  const workflow = createMiniMaxH3R2vWorkflow(clipName);
+  workflow["92"].inputs["video-preview"] = "";
+  workflow["115"].inputs.megapixels = 1;
+  workflow["132"].inputs.value = 16;
+  delete workflow["136"].inputs["ref_images.ref_image_0"];
+  delete workflow["136"].inputs["ref_images.ref_image_1"];
+  workflow["136"].inputs["ref_videos.ref_video_0"] = ["153", 0];
+  workflow["136"].inputs["ref_video_audios.ref_video_audio_0"] = ["153", 1];
+  workflow["152"] = {
+    class_type: "LoadVideo",
+    inputs: { file: "reference-presenter.mp4", "video-preview": "" },
+  };
+  workflow["153"] = {
+    class_type: "GetVideoComponents",
+    inputs: { video: ["152", 0] },
+  };
   return workflow;
 }
 
@@ -171,6 +201,21 @@ export const miniMaxH3R2vSeed = {
   blackwell: {
     name: "MiniMax H3 REF2VA",
     description: "MiniMax H3 reference-image video generation for Blackwell workers using the NVFP4 AWQ text encoder.",
+    tags: ["minimax-h3", "blackwell"],
+    clipName: blackwellTextEncoder,
+  },
+} as const;
+
+export const miniMaxH3R2vVideoSeed = {
+  a100: {
+    name: "MiniMax H3 REF2VA Video (A100)",
+    description: "MiniMax H3 presenter-video reference generation for NVIDIA A100 workers. The uploaded video supplies the reference video and audio.",
+    tags: ["minimax-h3", "a100"],
+    clipName: "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+  },
+  blackwell: {
+    name: "MiniMax H3 REF2VA Video (Blackwell)",
+    description: "MiniMax H3 presenter-video reference generation for Blackwell workers. The uploaded video supplies the reference video and audio.",
     tags: ["minimax-h3", "blackwell"],
     clipName: blackwellTextEncoder,
   },

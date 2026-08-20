@@ -10,8 +10,11 @@ import {
 import { assertTrustedComfyUrl } from "./comfy/client";
 import {
   createMiniMaxH3R2vWorkflow,
+  createMiniMaxH3R2vVideoWorkflow,
   miniMaxH3R2vSeed,
+  miniMaxH3R2vVideoSeed,
   r2vMappings,
+  r2vVideoMappings,
 } from "./seed-data/minimax-h3-r2v";
 
 let seeded = false;
@@ -120,7 +123,28 @@ async function seedConfiguredWorkers(): Promise<void> {
 async function seedWorkflowDefinitions(): Promise<void> {
   const existing = await db.select().from(workflowTemplatesTable);
   const existingNames = new Set(existing.map((workflow) => workflow.name));
-  const variants = [miniMaxH3R2vSeed.a100, miniMaxH3R2vSeed.blackwell];
+  const variants = [
+    {
+      ...miniMaxH3R2vSeed.a100,
+      createWorkflow: createMiniMaxH3R2vWorkflow,
+      mappings: r2vMappings,
+    },
+    {
+      ...miniMaxH3R2vSeed.blackwell,
+      createWorkflow: createMiniMaxH3R2vWorkflow,
+      mappings: r2vMappings,
+    },
+    {
+      ...miniMaxH3R2vVideoSeed.a100,
+      createWorkflow: createMiniMaxH3R2vVideoWorkflow,
+      mappings: r2vVideoMappings,
+    },
+    {
+      ...miniMaxH3R2vVideoSeed.blackwell,
+      createWorkflow: createMiniMaxH3R2vVideoWorkflow,
+      mappings: r2vVideoMappings,
+    },
+  ];
   const blackwellVariant = miniMaxH3R2vSeed.blackwell;
   const legacyBlackwellPlaceholder = existing.find((workflow) => (
     workflow.name === blackwellVariant.name &&
@@ -155,11 +179,11 @@ async function seedWorkflowDefinitions(): Promise<void> {
       description: variant.description,
       generationMode: "r2v",
       modelFamily: "MiniMax H3",
-      apiWorkflow: createMiniMaxH3R2vWorkflow(variant.clipName),
+      apiWorkflow: variant.createWorkflow(variant.clipName),
       compatibleServerTags: [...variant.tags],
       active: true,
-      mappings: r2vMappings,
-      expectedInputs: Object.keys(r2vMappings),
+      mappings: variant.mappings,
+      expectedInputs: Object.keys(variant.mappings),
       expectedOutputs: ["video"],
     }));
   if (missingVariants.length > 0) {
