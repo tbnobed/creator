@@ -18,8 +18,8 @@ import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder"
 import { mediaStorage } from "./storage-service";
 
 type GenerationRequest = {
-  characterIds: string[];
-  settingId: string;
+  characterIds?: string[];
+  settingId?: string;
   prompt: string;
   negativePrompt?: string;
   cameraInstructions?: string;
@@ -39,14 +39,14 @@ type GenerationRequest = {
 
 function compilePrompt(
   characters: { name: string; promptDescription: string }[],
-  setting: { name: string; promptDescription: string },
+  setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
   const sections = [
     characters.length
       ? `CHARACTERS\n${characters.map((character) => `${character.name}: ${character.promptDescription}`).join("\n\n")}`
       : "",
-    setting.promptDescription ? `SETTING\n${setting.promptDescription}` : "",
+    setting?.promptDescription ? `SETTING\n${setting.promptDescription}` : "",
     `ACTION\n${input.prompt}`,
     input.dialogue ? `DIALOGUE\n${input.dialogue}` : "",
     input.cameraInstructions ? `CAMERA\n${input.cameraInstructions}` : "",
@@ -59,19 +59,25 @@ function compilePrompt(
 async function uploadMappedReferences(
   client: ComfyUIClient,
   mappings: ParameterMappings,
-  characterIds: string[],
-  settingId: string,
+  characterIds: string[] = [],
+  settingId?: string,
 ): Promise<Record<string, string>> {
-  const characterAssets = await db
-    .select()
-    .from(characterAssetsTable)
-    .where(inArray(characterAssetsTable.characterId, characterIds))
-    .orderBy(asc(characterAssetsTable.sortOrder));
-  const settingAssets = await db
-    .select()
-    .from(settingAssetsTable)
-    .where(eq(settingAssetsTable.settingId, settingId))
-    .orderBy(asc(settingAssetsTable.sortOrder));
+  const [characterAssets, settingAssets] = await Promise.all([
+    characterIds.length
+      ? db
+        .select()
+        .from(characterAssetsTable)
+        .where(inArray(characterAssetsTable.characterId, characterIds))
+        .orderBy(asc(characterAssetsTable.sortOrder))
+      : Promise.resolve([]),
+    settingId
+      ? db
+        .select()
+        .from(settingAssetsTable)
+        .where(eq(settingAssetsTable.settingId, settingId))
+        .orderBy(asc(settingAssetsTable.sortOrder))
+      : Promise.resolve([]),
+  ]);
   const fields: Array<readonly [string, { storageKey: string; originalName: string; mimeType: string }]> = [
     ...characterAssets.map((asset, index) => [`referenceImage${index + 1}`, asset] as const),
     ...settingAssets.map((asset, index) => [`settingImage${index + 1}`, asset] as const),
@@ -139,10 +145,15 @@ export async function resumeActiveGenerations(): Promise<void> {
 
 export async function createAndSubmitGeneration(input: GenerationRequest) {
   const [characters, setting] = await Promise.all([
-    db.select().from(charactersTable).where(inArray(charactersTable.id, input.characterIds)),
-    db.select().from(settingsTable).where(eq(settingsTable.id, input.settingId)),
+    input.characterIds?.length
+      ? db.select().from(charactersTable).where(inArray(charactersTable.id, input.characterIds))
+      : Promise.resolve([]),
+    input.settingId
+      ? db.select().from(settingsTable).where(eq(settingsTable.id, input.settingId))
+      : Promise.resolve([]),
   ]);
-  if (characters.length !== input.characterIds.length || !setting[0]) {
+  const wantsReferenceVideo = Boolean(input.referenceVideoKey);
+  if (!wantsReferenceVideo && (characters.length !== input.characterIds?.length || !setting[0])) {
     throw new Error("Select characters and a setting from the current library");
   }
   const workflows = await db
@@ -150,7 +161,6 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     .from(workflowTemplatesTable)
     .where(and(eq(workflowTemplatesTable.generationMode, input.generationMode), eq(workflowTemplatesTable.active, true)))
     .orderBy(desc(workflowTemplatesTable.version));
-  const wantsReferenceVideo = Boolean(input.referenceVideoKey);
   const compatibleWorkflows = workflows.filter((candidate) => (
     candidate.apiWorkflow &&
     Boolean((candidate.mappings as ParameterMappings).referenceVideo) === wantsReferenceVideo
@@ -183,7 +193,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   const [job] = await db
     .insert(generationJobsTable)
     .values({
-      title: `${characters[0].name} — ${setting[0].name}`,
+      title: `${characters[0]?.name ?? "Reference video"} — ${setting[0]?.name ?? "Presenter"}`,
       status: "UPLOADING",
       workflowTemplateId: workflow.id,
       comfyServerId: server.id,
@@ -200,10 +210,14 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       qualityPreset: input.qualityPreset,
     })
     .returning();
-  await db.insert(generationCharactersTable).values(
-    characters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
-  );
-  await db.insert(generationSettingsTable).values({ generationJobId: job.id, settingId: setting[0].id });
+  if (characters.length > 0) {
+    await db.insert(generationCharactersTable).values(
+      characters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
+    );
+  }
+  if (setting[0]) {
+    await db.insert(generationSettingsTable).values({ generationJobId: job.id, settingId: setting[0].id });
+  }
   try {
     const client = new ComfyUIClient(server);
     const assetParameters = await uploadMappedReferences(client, workflow.mappings as ParameterMappings, input.characterIds, input.settingId);

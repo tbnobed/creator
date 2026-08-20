@@ -56,6 +56,7 @@ export default function GeneratePage() {
   const activeWorkflowsForMode = activeWorkflows.filter((workflow) => workflow.generationMode === generationMode);
   const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
   const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
+  const hasReferenceVideo = Boolean(referenceVideoFile || referenceVideoKey);
 
   useEffect(() => {
     if (hasSelectedInitialMode.current || !workflows) return;
@@ -126,8 +127,8 @@ export default function GeneratePage() {
 
   const handleGenerate = async () => {
     if (!prompt) return alert("Shot prompt is required");
-    if (selectedChars.length === 0) return alert("Select at least one character");
-    if (!selectedSetting) return alert("Select a setting");
+    if (!hasReferenceVideo && selectedChars.length === 0) return alert("Select at least one character");
+    if (!hasReferenceVideo && !selectedSetting) return alert("Select a setting");
     if (workflowRequiresReferenceVideo && !referenceVideoFile && !referenceVideoKey) {
       return alert("The selected workflow requires a reference video.");
     }
@@ -136,8 +137,8 @@ export default function GeneratePage() {
       const uploadedReferenceVideoKey = await uploadReferenceVideo();
       const res = await createJob.mutateAsync({
         data: {
-          characterIds: selectedChars,
-          settingId: selectedSetting,
+          characterIds: selectedChars.length ? selectedChars : undefined,
+          settingId: selectedSetting || undefined,
           prompt,
           negativePrompt,
           cameraInstructions,
@@ -189,8 +190,9 @@ export default function GeneratePage() {
                 <div className="flex justify-between items-center">
                   <Label className="text-base font-semibold flex items-center gap-2">
                     <Users className="size-4 text-primary" /> Cast
+                    {hasReferenceVideo && <span className="text-xs font-normal text-muted-foreground">(optional with video reference)</span>}
                   </Label>
-                  <span className="text-xs text-muted-foreground">{selectedChars.length}/9 selected</span>
+                  <span className="text-xs text-muted-foreground">{hasReferenceVideo && selectedChars.length === 0 ? "Not needed" : `${selectedChars.length}/9 selected`}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {characters?.map(char => {
@@ -225,8 +227,9 @@ export default function GeneratePage() {
                 <div className="flex justify-between items-center">
                   <Label className="text-base font-semibold flex items-center gap-2">
                     <Map className="size-4 text-primary" /> Environment
+                    {hasReferenceVideo && <span className="text-xs font-normal text-muted-foreground">(optional with video reference)</span>}
                   </Label>
-                  <span className="text-xs text-muted-foreground">{selectedSetting ? "1/1 selected" : "0/1 selected"}</span>
+                  <span className="text-xs text-muted-foreground">{hasReferenceVideo && !selectedSetting ? "Not needed" : selectedSetting ? "1/1 selected" : "0/1 selected"}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {settings?.map(setting => {
@@ -440,16 +443,16 @@ export default function GeneratePage() {
               {/* Preflight Summary */}
               <div className="mt-6 pt-4 border-t border-border/50">
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
-                  <div className="flex justify-between"><span>Cast:</span> <span className={selectedChars.length ? "text-foreground" : "text-destructive"}>{selectedChars.length}</span></div>
-                  <div className="flex justify-between"><span>Set:</span> <span className={selectedSetting ? "text-foreground" : "text-destructive"}>{selectedSetting ? "Ready" : "Missing"}</span></div>
-                  <div className="flex justify-between"><span>Reference:</span> <span className={referenceVideoFile || referenceVideoKey ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>{referenceVideoFile ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}</span></div>
+                  <div className="flex justify-between"><span>Cast:</span> <span className={selectedChars.length || hasReferenceVideo ? "text-foreground" : "text-destructive"}>{selectedChars.length || hasReferenceVideo ? selectedChars.length || "Not needed" : "Missing"}</span></div>
+                  <div className="flex justify-between"><span>Set:</span> <span className={selectedSetting || hasReferenceVideo ? "text-foreground" : "text-destructive"}>{selectedSetting ? "Ready" : hasReferenceVideo ? "Not needed" : "Missing"}</span></div>
+                  <div className="flex justify-between"><span>Reference:</span> <span className={hasReferenceVideo ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>{hasReferenceVideo ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}</span></div>
                   <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
                 </div>
 
                 <Button 
                   className="w-full h-12 text-base font-bold tracking-wide shadow-[0_0_20px_rgba(225,29,72,0.4)] hover:shadow-[0_0_30px_rgba(225,29,72,0.6)] transition-all"
                   onClick={handleGenerate}
-                  disabled={createJob.isPending || isUploadingReferenceVideo || !prompt || selectedChars.length === 0 || !selectedSetting || (workflowRequiresReferenceVideo && !referenceVideoFile && !referenceVideoKey)}
+                  disabled={createJob.isPending || isUploadingReferenceVideo || !prompt || (!hasReferenceVideo && (selectedChars.length === 0 || !selectedSetting)) || (workflowRequiresReferenceVideo && !hasReferenceVideo)}
                 >
                   {isUploadingReferenceVideo ? "Uploading reference..." : createJob.isPending ? "Queuing Job..." : "SEND TO RENDER"}
                   {!createJob.isPending && !isUploadingReferenceVideo && <Play className="ml-2 size-4 fill-current" />}

@@ -568,8 +568,8 @@ export const createGenerationBodySeedMin = 0;
 
 
 export const CreateGenerationBody = zod.object({
-  "characterIds": zod.array(zod.string()).min(1).max(createGenerationBodyCharacterIdsMax),
-  "settingId": zod.string(),
+  "characterIds": zod.array(zod.string()).min(1).max(createGenerationBodyCharacterIdsMax).optional(),
+  "settingId": zod.string().optional(),
   "prompt": zod.string().min(1).max(createGenerationBodyPromptMax),
   "negativePrompt": zod.string().max(createGenerationBodyNegativePromptMax).optional(),
   "cameraInstructions": zod.string().max(createGenerationBodyCameraInstructionsMax).optional(),

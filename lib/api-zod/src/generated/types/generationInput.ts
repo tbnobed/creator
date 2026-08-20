@@ -14,8 +14,8 @@ export interface GenerationInput {
      * @minItems 1
      * @maxItems 9
      */
-  characterIds: string[];
-  settingId: string;
+  characterIds?: string[];
+  settingId?: string;
   /**
      * @minLength 1
      * @maxLength 10000
