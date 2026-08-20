@@ -52,8 +52,9 @@ export default function GeneratePage() {
   const [seedMode, setSeedMode] = useState<"RANDOM" | "FIXED">("RANDOM");
   const [seed, setSeed] = useState<number>(0);
   const activeWorkflows = workflows?.filter(w => w.active) || [];
-  const selectedWorkflow = activeWorkflows.find((workflow) => workflow.generationMode === generationMode);
-  const workflowRequiresReferenceVideo = Boolean(selectedWorkflow?.mappings?.referenceVideo);
+  const activeWorkflowsForMode = activeWorkflows.filter((workflow) => workflow.generationMode === generationMode);
+  const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
+  const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
 
   const toggleChar = (id: string) => {
     setSelectedChars(prev => 
@@ -250,10 +251,10 @@ export default function GeneratePage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="reference-video" className="text-base font-semibold">
-                      Reference video {workflowRequiresReferenceVideo ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(optional)</span>}
+                      Reference video <span className="text-muted-foreground">(optional)</span>
                     </Label>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Upload the performance or motion source used by a reference-video workflow. MP4 or WebM, up to 250 MB.
+                      Upload an MP4 or WebM only when using a reference-video workflow. Up to 250 MB.
                     </p>
                   </div>
                 </div>
@@ -431,7 +432,7 @@ export default function GeneratePage() {
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
                   <div className="flex justify-between"><span>Cast:</span> <span className={selectedChars.length ? "text-foreground" : "text-destructive"}>{selectedChars.length}</span></div>
                   <div className="flex justify-between"><span>Set:</span> <span className={selectedSetting ? "text-foreground" : "text-destructive"}>{selectedSetting ? "Ready" : "Missing"}</span></div>
-                  <div className="flex justify-between"><span>Reference:</span> <span className={!workflowRequiresReferenceVideo || referenceVideoFile || referenceVideoKey ? "text-foreground" : "text-destructive"}>{referenceVideoFile ? "Ready" : workflowRequiresReferenceVideo ? "Missing" : "Optional"}</span></div>
+                  <div className="flex justify-between"><span>Reference:</span> <span className={referenceVideoFile || referenceVideoKey ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>{referenceVideoFile ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}</span></div>
                   <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
                 </div>
 

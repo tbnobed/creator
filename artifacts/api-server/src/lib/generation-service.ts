@@ -112,16 +112,20 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   if (characters.length !== input.characterIds.length || !setting[0]) {
     throw new Error("Select characters and a setting from the current library");
   }
-  const workflow = (await db
+  const workflows = await db
     .select()
     .from(workflowTemplatesTable)
     .where(and(eq(workflowTemplatesTable.generationMode, input.generationMode), eq(workflowTemplatesTable.active, true)))
-    .orderBy(desc(workflowTemplatesTable.version)))[0];
+    .orderBy(desc(workflowTemplatesTable.version));
+  const wantsReferenceVideo = Boolean(input.referenceVideoKey);
+  const workflow = workflows.find((candidate) => (
+    Boolean((candidate.mappings as ParameterMappings).referenceVideo) === wantsReferenceVideo
+  )) ?? workflows[0];
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
   if ((workflow.mappings as ParameterMappings).referenceVideo && !input.referenceVideoKey) {
-    throw new Error("This workflow requires a reference video");
+    throw new Error("No active workflow without reference-video input is configured for this generation mode");
   }
   const servers = await db.select().from(comfyServersTable);
   const server = selectServer(servers, workflow.compatibleServerTags);
