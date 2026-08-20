@@ -31,7 +31,7 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/30 text-foreground dark">
       {/* Sidebar */}
       <div className="w-64 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="h-20 flex items-center px-5 border-b border-sidebar-border/50">
+        <div className="h-20 flex items-center bg-black px-5 border-b border-black">
           <img
             src={wordmarkSrc}
             alt="OBTV CreatorAi"
