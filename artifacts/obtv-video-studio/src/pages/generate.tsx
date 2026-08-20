@@ -272,7 +272,7 @@ export default function GeneratePage() {
                     <Slider 
                       value={[duration]} 
                       onValueChange={v => setDuration(v[0])} 
-                      min={1} max={10} step={1}
+                      min={1} max={30} step={1}
                       className="flex-1"
                     />
                   </div>
