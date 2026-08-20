@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "OBTV AI Video Studio"
+description = "A professional dark post-production workspace for selecting reusable characters and settings, configuring ComfyUI workflows, and generating AI video through a secure backend orchestration layer."
+version = "1.0.0"
+id = "artifacts/obtv-video-studio"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22370
+
+[services.development]
+run = "pnpm --filter @workspace/obtv-video-studio run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/obtv-video-studio", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/obtv-video-studio/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22370"
+BASE_PATH = "/"

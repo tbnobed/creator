@@ -1,0 +1,1 @@
+- [OpenAPI Zod compatibility](openapi-zod-compatibility.md) — Generated integer/URI validators need v3-safe contract shapes plus server-side validation.

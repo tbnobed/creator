@@ -10,6 +10,16 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: characters
+    description: Character library
+  - name: settings
+    description: Setting library
+  - name: servers
+    description: ComfyUI server administration
+  - name: workflows
+    description: Workflow template administration
+  - name: generations
+    description: Video generation jobs
 paths:
   /healthz:
     get:
@@ -24,7 +34,343 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /characters:
+    get:
+      operationId: listCharacters
+      tags: [characters]
+      summary: List characters
+      responses:
+        "200":
+          description: Character library
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Character"
+    post:
+      operationId: createCharacter
+      tags: [characters]
+      summary: Create a character
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterInput"
+      responses:
+        "201":
+          description: Created character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+  /characters/{id}:
+    patch:
+      operationId: updateCharacter
+      tags: [characters]
+      summary: Update a character
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterInput"
+      responses:
+        "200":
+          description: Updated character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+    delete:
+      operationId: deleteCharacter
+      tags: [characters]
+      summary: Delete a character
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /settings:
+    get:
+      operationId: listSettings
+      tags: [settings]
+      summary: List settings
+      responses:
+        "200":
+          description: Setting library
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Setting"
+    post:
+      operationId: createSetting
+      tags: [settings]
+      summary: Create a setting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingInput"
+      responses:
+        "201":
+          description: Created setting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Setting"
+  /settings/{id}:
+    patch:
+      operationId: updateSetting
+      tags: [settings]
+      summary: Update a setting
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingInput"
+      responses:
+        "200":
+          description: Updated setting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Setting"
+    delete:
+      operationId: deleteSetting
+      tags: [settings]
+      summary: Delete a setting
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /servers:
+    get:
+      operationId: listServers
+      tags: [servers]
+      summary: List configured ComfyUI servers
+      responses:
+        "200":
+          description: Server cards without private connection details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComfyServer"
+    post:
+      operationId: createServer
+      tags: [servers]
+      summary: Add a ComfyUI server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerInput"
+      responses:
+        "201":
+          description: Created server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComfyServer"
+  /servers/{id}:
+    patch:
+      operationId: updateServer
+      tags: [servers]
+      summary: Update a ComfyUI server
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerInput"
+      responses:
+        "200":
+          description: Updated server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComfyServer"
+    delete:
+      operationId: deleteServer
+      tags: [servers]
+      summary: Remove a server
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /servers/{id}/test:
+    post:
+      operationId: testServerConnection
+      tags: [servers]
+      summary: Test a configured server connection
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Connection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTest"
+  /servers/{id}/queue:
+    get:
+      operationId: getServerQueue
+      tags: [servers]
+      summary: Read the queue for a configured server
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Queue snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueSnapshot"
+  /workflows:
+    get:
+      operationId: listWorkflows
+      tags: [workflows]
+      summary: List workflow templates
+      responses:
+        "200":
+          description: Workflow templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowTemplate"
+    post:
+      operationId: createWorkflow
+      tags: [workflows]
+      summary: Import an API-format workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowInput"
+      responses:
+        "201":
+          description: Imported workflow
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTemplate"
+  /workflows/{id}:
+    get:
+      operationId: getWorkflow
+      tags: [workflows]
+      summary: Inspect a workflow template
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Workflow with readable node inspection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTemplate"
+    patch:
+      operationId: updateWorkflow
+      tags: [workflows]
+      summary: Update workflow metadata and mappings
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowUpdate"
+      responses:
+        "200":
+          description: Updated workflow
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTemplate"
+  /generations:
+    get:
+      operationId: listGenerations
+      tags: [generations]
+      summary: List generation history
+      responses:
+        "200":
+          description: Generation history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GenerationJob"
+    post:
+      operationId: createGeneration
+      tags: [generations]
+      summary: Submit a generation job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerationInput"
+      responses:
+        "201":
+          description: Queued generation job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+  /generations/{id}:
+    get:
+      operationId: getGeneration
+      tags: [generations]
+      summary: Get a generation job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Generation job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [generations]
+      summary: Read studio summary data
+      responses:
+        "200":
+          description: Summary for the studio shell
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
 components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +379,230 @@ components:
           type: string
       required:
         - status
+    Character:
+      type: object
+      required: [id, name, description, promptDescription, thumbnail, tags, assetCount, voiceProfile, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        promptDescription: { type: string }
+        thumbnail: { type: ["string", "null"] }
+        tags: { type: array, items: { type: string } }
+        assetCount: { type: number }
+        voiceProfile: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    CharacterInput:
+      type: object
+      required: [name, description, promptDescription]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        promptDescription: { type: string }
+        thumbnail: { type: ["string", "null"] }
+        tags: { type: array, items: { type: string } }
+        voiceProfile: { type: ["string", "null"] }
+    Setting:
+      type: object
+      required: [id, name, description, promptDescription, thumbnail, tags, assetCount, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        promptDescription: { type: string }
+        thumbnail: { type: ["string", "null"] }
+        tags: { type: array, items: { type: string } }
+        assetCount: { type: number }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    SettingInput:
+      type: object
+      required: [name, description, promptDescription]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        promptDescription: { type: string }
+        thumbnail: { type: ["string", "null"] }
+        tags: { type: array, items: { type: string } }
+    ComfyServer:
+      type: object
+      required: [id, displayName, hostname, gpuName, vramGb, tags, enabled, priority, status, queueSize, activeJobCount, lastHeartbeat, supportedWorkflowCount]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        hostname: { type: string }
+        gpuName: { type: ["string", "null"] }
+        vramGb: { type: ["number", "null"] }
+        tags: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        priority: { type: number }
+        status: { type: string, enum: [ONLINE, OFFLINE, UNKNOWN] }
+        queueSize: { type: number }
+        activeJobCount: { type: number }
+        lastHeartbeat: { type: ["string", "null"] }
+        supportedWorkflowCount: { type: number }
+        memoryUsedGb: { type: ["number", "null"] }
+    ServerInput:
+      type: object
+      required: [displayName, apiBaseUrl, websocketUrl, priority]
+      properties:
+        displayName: { type: string, minLength: 1 }
+        apiBaseUrl: { type: string }
+        websocketUrl: { type: string }
+        gpuName: { type: ["string", "null"] }
+        vramGb: { type: ["number", "null"] }
+        tags: { type: array, items: { type: string } }
+        enabled: { type: boolean, default: true }
+        priority: { type: number, minimum: 0 }
+        maxConcurrentJobs: { type: ["number", "null"], minimum: 1 }
+    ConnectionTest:
+      type: object
+      required: [connected, message, server, gpu, vramGb]
+      properties:
+        connected: { type: boolean }
+        message: { type: string }
+        server: { type: ["string", "null"] }
+        gpu: { type: ["string", "null"] }
+        vramGb: { type: ["number", "null"] }
+    QueueSnapshot:
+      type: object
+      required: [queueRunning, queuePending]
+      properties:
+        queueRunning: { type: number }
+        queuePending: { type: number }
+        queueRunningIds: { type: array, items: { type: string } }
+        queuePendingIds: { type: array, items: { type: string } }
+    WorkflowNode:
+      type: object
+      required: [nodeId, classType, title, inputs]
+      properties:
+        nodeId: { type: string }
+        classType: { type: string }
+        title: { type: ["string", "null"] }
+        inputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowInputField"
+    WorkflowInputField:
+      type: object
+      required: [name, value]
+      properties:
+        name: { type: string }
+        value: {}
+    ParameterMapping:
+      type: object
+      required: [nodeId, input]
+      properties:
+        nodeId: { type: string }
+        input: { type: string }
+    WorkflowTemplate:
+      type: object
+      required: [id, name, description, generationMode, modelFamily, compatibleServerTags, active, version, mappings, nodes, expectedInputs, expectedOutputs, importedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        generationMode: { type: string }
+        modelFamily: { type: string }
+        compatibleServerTags: { type: array, items: { type: string } }
+        active: { type: boolean }
+        version: { type: number }
+        mappings:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ParameterMapping"
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNode"
+        expectedInputs: { type: array, items: { type: string } }
+        expectedOutputs: { type: array, items: { type: string } }
+        importedAt: { type: string }
+    WorkflowInput:
+      type: object
+      required: [name, description, generationMode, modelFamily, apiWorkflow, compatibleServerTags]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        generationMode: { type: string }
+        modelFamily: { type: string }
+        apiWorkflow:
+          type: object
+          additionalProperties: true
+        compatibleServerTags: { type: array, items: { type: string } }
+        mappings:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ParameterMapping"
+    WorkflowUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        compatibleServerTags: { type: array, items: { type: string } }
+        active: { type: boolean }
+        mappings:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ParameterMapping"
+    GenerationInput:
+      type: object
+      required: [characterIds, settingId, prompt, generationMode, durationSeconds, fps, width, height, qualityPreset, seedMode]
+      properties:
+        characterIds: { type: array, items: { type: string }, minItems: 1, maxItems: 9 }
+        settingId: { type: string }
+        prompt: { type: string, minLength: 1, maxLength: 10000 }
+        negativePrompt: { type: string, maxLength: 5000 }
+        cameraInstructions: { type: string, maxLength: 5000 }
+        dialogue: { type: string, maxLength: 5000 }
+        motionInstructions: { type: string, maxLength: 5000 }
+        audioInstructions: { type: string, maxLength: 5000 }
+        generationMode: { type: string }
+        durationSeconds: { type: number, minimum: 1, maximum: 120 }
+        fps: { type: number, enum: [24, 25, 30] }
+        width: { type: number, minimum: 64, maximum: 4096 }
+        height: { type: number, minimum: 64, maximum: 4096 }
+        qualityPreset: { type: string, enum: [DRAFT, STANDARD, HIGH] }
+        seedMode: { type: string, enum: [RANDOM, FIXED] }
+        seed: { type: ["number", "null"], minimum: 0 }
+    GenerationJob:
+      type: object
+      required: [id, title, status, prompt, compiledPrompt, generationMode, qualityPreset, width, height, fps, durationSeconds, progress, currentNode, serverName, workflowName, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [DRAFT, UPLOADING, QUEUED, RUNNING, DOWNLOADING, COMPLETED, FAILED, CANCELLED] }
+        prompt: { type: string }
+        compiledPrompt: { type: string }
+        generationMode: { type: string }
+        qualityPreset: { type: string }
+        width: { type: number }
+        height: { type: number }
+        fps: { type: number }
+        durationSeconds: { type: number }
+        seed: { type: ["number", "null"] }
+        progress: { type: ["number", "null"] }
+        currentNode: { type: ["string", "null"] }
+        serverName: { type: ["string", "null"] }
+        workflowName: { type: ["string", "null"] }
+        comfyPromptId: { type: ["string", "null"] }
+        outputUrl: { type: ["string", "null"] }
+        errorMessage: { type: ["string", "null"] }
+        createdAt: { type: string }
+        queuedAt: { type: ["string", "null"] }
+        completedAt: { type: ["string", "null"] }
+    DashboardSummary:
+      type: object
+      required: [characterCount, settingCount, onlineServerCount, activeGenerationCount, completedGenerationCount, latestGenerations]
+      properties:
+        characterCount: { type: number }
+        settingCount: { type: number }
+        onlineServerCount: { type: number }
+        activeGenerationCount: { type: number }
+        completedGenerationCount: { type: number }
+        latestGenerations:
+          type: array
+          items:
+            $ref: "#/components/schemas/GenerationJob"
 
