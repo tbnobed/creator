@@ -1,0 +1,85 @@
+obtv-admin@gx10-28e4:~$ PID=444254
+
+ps -o pid,ppid,user,lstart,etime,args -p "$PID"
+
+sudo sh -c "tr '\0' ' ' < /proc/$PID/cmdline; echo"
+
+sudo readlink -f /proc/$PID/cwd
+
+sudo cat /proc/$PID/cgroup
+
+pstree -aps "$PID"
+    PID    PPID USER                      STARTED     ELAPSED COMMAND
+ 444254 3283368 obtv-ad+ Thu Aug 20 11:40:07 2026       01:57 python main.py --listen 0.0.0.0 --port 8188 --enable-manager
+python main.py --listen 0.0.0.0 --port 8188 --enable-manager
+/home/obtv-admin/ComfyUI
+0::/user.slice/user-1000.slice/session-5696.scope
+systemd,1 splash
+  └─sshd,7153
+      └─sshd,3283147
+          └─sshd,3283367
+              └─bash,3283368
+                  └─python,444254 main.py --listen 0.0.0.0 --port 8188 --enable-manager
+                      ├─{python},444288
+                      ├─{python},444289
+                      ├─{python},444290
+                      ├─{python},444291
+                      ├─{python},444292
+                      ├─{python},444293
+                      ├─{python},444294
+                      ├─{python},444295
+                      ├─{python},444296
+                      ├─{python},444297
+                      ├─{python},444298
+                      ├─{python},444299
+                      ├─{python},444300
+                      ├─{python},444301
+                      ├─{python},444302
+                      ├─{python},444303
+                      ├─{python},444304
+                      ├─{python},444305
+                      ├─{python},444306
+                      ├─{python},444308
+                      ├─{python},444312
+                      ├─{python},444313
+                      ├─{python},444314
+                      ├─{python},444315
+                      ├─{python},444316
+                      ├─{python},444317
+                      ├─{python},444318
+                      ├─{python},444319
+                      ├─{python},444320
+                      ├─{python},444321
+                      ├─{python},444322
+                      ├─{python},444323
+                      ├─{python},444324
+                      ├─{python},444325
+                      ├─{python},444326
+                      ├─{python},444327
+                      ├─{python},444328
+                      ├─{python},444329
+                      ├─{python},444330
+                      ├─{python},444331
+                      ├─{python},444332
+                      ├─{python},444333
+                      ├─{python},444334
+                      ├─{python},444335
+                      ├─{python},444336
+                      ├─{python},444337
+                      ├─{python},444338
+                      ├─{python},444339
+                      ├─{python},444343
+                      ├─{python},444344
+                      ├─{python},444345
+                      ├─{python},444346
+                      ├─{python},444347
+                      ├─{python},444348
+                      ├─{python},444349
+                      ├─{python},444350
+                      ├─{python},444351
+                      └─{python},444355
+obtv-admin@gx10-28e4:~$ sudo ss -tnp | grep ':8188'
+ESTAB 0      0      192.168.0.114:8188 192.168.0.32:56375 users:(("python",pid=444254,fd=59))
+ESTAB 0      0      192.168.0.114:8188 192.168.0.32:60977 users:(("python",pid=444254,fd=60))
+ESTAB 0      0      192.168.0.114:8188 192.168.0.32:61272 users:(("python",pid=444254,fd=61))
+obtv-admin@gx10-28e4:~$
