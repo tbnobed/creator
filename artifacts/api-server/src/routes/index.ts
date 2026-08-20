@@ -6,6 +6,7 @@ import serversRouter from "./servers";
 import workflowsRouter from "./workflows";
 import generationsRouter from "./generations";
 import mediaRouter from "./media";
+import referenceVideosRouter from "./reference-videos";
 
 const router: IRouter = Router();
 
@@ -15,6 +16,7 @@ router.use(settingsRouter);
 router.use(serversRouter);
 router.use(workflowsRouter);
 router.use(generationsRouter);
+router.use(referenceVideosRouter);
 router.use(mediaRouter);
 
 export default router;

@@ -84,6 +84,15 @@ export class ComfyUIClient {
     return this.request<{ name: string }>("/upload/image", { method: "POST", body: form, timeoutMs: 60_000 });
   }
 
+  async uploadVideo(file: { name: string; mimeType: "video/mp4" | "video/webm"; bytes: Buffer }): Promise<{ name: string }> {
+    const form = new FormData();
+    const bytes = new Uint8Array(file.bytes);
+    // ComfyUI stores user-provided input files through its upload/image endpoint,
+    // including videos consumed by video-loader nodes.
+    form.append("image", new Blob([bytes], { type: file.mimeType }), file.name);
+    return this.request<{ name: string }>("/upload/image", { method: "POST", body: form, timeoutMs: 120_000 });
+  }
+
   async getOutputFile(filename: string, subfolder = "", type = "output"): Promise<Buffer> {
     const baseUrl = await assertTrustedComfyUrl(this.server.apiBaseUrl);
     const target = new URL("/view", baseUrl);

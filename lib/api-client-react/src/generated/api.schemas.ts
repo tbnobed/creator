@@ -165,6 +165,11 @@ export interface ParameterMapping {
   input: string;
 }
 
+/**
+ * @nullable
+ */
+export type WorkflowTemplateApiWorkflow = { [key: string]: unknown } | null;
+
 export type WorkflowTemplateMappings = {[key: string]: ParameterMapping};
 
 export interface WorkflowTemplate {
@@ -173,6 +178,8 @@ export interface WorkflowTemplate {
   description: string;
   generationMode: string;
   modelFamily: string;
+  /** @nullable */
+  apiWorkflow: WorkflowTemplateApiWorkflow;
   compatibleServerTags: string[];
   active: boolean;
   version: number;
@@ -261,6 +268,7 @@ export interface GenerationInput {
   /** @maxLength 5000 */
   audioInstructions?: string;
   generationMode: string;
+  referenceVideoKey?: string;
   /**
      * @minimum 1
      * @maximum 120
@@ -333,6 +341,20 @@ export interface GenerationJob {
   queuedAt?: string | null;
   /** @nullable */
   completedAt?: string | null;
+}
+
+export type ReferenceVideoUploadMimeType = typeof ReferenceVideoUploadMimeType[keyof typeof ReferenceVideoUploadMimeType];
+
+
+export const ReferenceVideoUploadMimeType = {
+  'video/mp4': 'video/mp4',
+  'video/webm': 'video/webm',
+} as const;
+
+export interface ReferenceVideoUpload {
+  storageKey: string;
+  mediaUrl: string;
+  mimeType: ReferenceVideoUploadMimeType;
 }
 
 export interface DashboardSummary {

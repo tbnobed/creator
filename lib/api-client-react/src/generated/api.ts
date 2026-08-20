@@ -29,6 +29,7 @@ import type {
   GenerationJob,
   HealthStatus,
   QueueSnapshot,
+  ReferenceVideoUpload,
   ServerCreateInput,
   ServerUpdateInput,
   Setting,
@@ -1685,6 +1686,77 @@ export function useGetGeneration<TData = Awaited<ReturnType<typeof getGeneration
 
 
 
+
+export const getUploadReferenceVideoUrl = () => {
+
+
+
+
+  return `/api/reference-videos`
+}
+
+/**
+ * @summary Upload a reference video for a generation
+ */
+export const uploadReferenceVideo = async (uploadReferenceVideoBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<ReferenceVideoUpload> => {
+
+  return customFetch<ReferenceVideoUpload>(getUploadReferenceVideoUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4', ...options?.headers },
+    body: uploadReferenceVideoBody
+  }
+);}
+
+
+
+
+
+export const getUploadReferenceVideoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadReferenceVideo>>, TError,{data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadReferenceVideo>>, TError,{data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadReferenceVideo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadReferenceVideo>>, {data: BodyType<Blob>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadReferenceVideo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadReferenceVideoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadReferenceVideo>>>
+    export type UploadReferenceVideoMutationBody = BodyType<Blob>
+    export type UploadReferenceVideoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload a reference video for a generation
+ */
+export const useUploadReferenceVideo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadReferenceVideo>>, TError,{data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadReferenceVideo>>,
+        TError,
+        {data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadReferenceVideoMutationOptions(options));
+    }
 
 export const getGetDashboardSummaryUrl = () => {
 

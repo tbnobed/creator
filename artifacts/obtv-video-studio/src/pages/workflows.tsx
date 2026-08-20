@@ -94,8 +94,9 @@ function WorkflowCard({ workflow }: { workflow: any }) {
   const updateMutation = useUpdateWorkflow();
 
   const { data: fullWorkflow, isLoading } = useGetWorkflow(workflow.id, {
-    query: { enabled: showJson, queryKey: getGetWorkflowQueryKey(workflow.id) }
+    query: { enabled: showJson || isEditOpen, queryKey: getGetWorkflowQueryKey(workflow.id) }
   });
+  const editableWorkflow = fullWorkflow ?? workflow;
 
   const toggleActive = async () => {
     setActionError(null);
@@ -205,7 +206,7 @@ function WorkflowCard({ workflow }: { workflow: any }) {
             <DialogTitle>Edit {workflow.name}</DialogTitle>
           </DialogHeader>
           <WorkflowEditor
-            workflow={workflow}
+            workflow={editableWorkflow}
             onSuccess={() => setIsEditOpen(false)}
           />
         </DialogContent>
@@ -231,7 +232,7 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
     setDescription(workflow.description);
     setTagsText((workflow.compatibleServerTags ?? []).join(", "));
     setMappingsText(JSON.stringify(workflow.mappings ?? {}, null, 2));
-    setApiWorkflowText("");
+    setApiWorkflowText(workflow.apiWorkflow ? JSON.stringify(workflow.apiWorkflow, null, 2) : "");
     setFormError("");
   }, [workflow]);
 
@@ -338,6 +339,10 @@ function WorkflowEditor({ workflow, onSuccess }: { workflow: any; onSuccess: () 
         />
         <p className="text-xs text-muted-foreground">
           Map each studio field to an exact node ID and input name from this workflow.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          For a per-job reference video, use <code className="rounded bg-secondary px-1 py-0.5">referenceVideo</code> as
+          the mapping key and target your ComfyUI <code className="rounded bg-secondary px-1 py-0.5">LoadVideo → file</code> input.
         </p>
       </div>
 

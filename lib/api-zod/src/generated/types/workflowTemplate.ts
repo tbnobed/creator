@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { WorkflowNode } from './workflowNode';
+import type { WorkflowTemplateApiWorkflow } from './workflowTemplateApiWorkflow';
 import type { WorkflowTemplateMappings } from './workflowTemplateMappings';
 
 export interface WorkflowTemplate {
@@ -14,6 +15,8 @@ export interface WorkflowTemplate {
   description: string;
   generationMode: string;
   modelFamily: string;
+  /** @nullable */
+  apiWorkflow: WorkflowTemplateApiWorkflow;
   compatibleServerTags: string[];
   active: boolean;
   version: number;

@@ -347,6 +347,7 @@ export const ListWorkflowsResponseItem = zod.object({
   "description": zod.string(),
   "generationMode": zod.string(),
   "modelFamily": zod.string(),
+  "apiWorkflow": zod.record(zod.string(), zod.unknown()).nullable(),
   "compatibleServerTags": zod.array(zod.string()),
   "active": zod.boolean(),
   "version": zod.number(),
@@ -395,6 +396,7 @@ export const CreateWorkflowResponse = zod.object({
   "description": zod.string(),
   "generationMode": zod.string(),
   "modelFamily": zod.string(),
+  "apiWorkflow": zod.record(zod.string(), zod.unknown()).nullable(),
   "compatibleServerTags": zod.array(zod.string()),
   "active": zod.boolean(),
   "version": zod.number(),
@@ -430,6 +432,7 @@ export const GetWorkflowResponse = zod.object({
   "description": zod.string(),
   "generationMode": zod.string(),
   "modelFamily": zod.string(),
+  "apiWorkflow": zod.record(zod.string(), zod.unknown()).nullable(),
   "compatibleServerTags": zod.array(zod.string()),
   "active": zod.boolean(),
   "version": zod.number(),
@@ -480,6 +483,7 @@ export const UpdateWorkflowResponse = zod.object({
   "description": zod.string(),
   "generationMode": zod.string(),
   "modelFamily": zod.string(),
+  "apiWorkflow": zod.record(zod.string(), zod.unknown()).nullable(),
   "compatibleServerTags": zod.array(zod.string()),
   "active": zod.boolean(),
   "version": zod.number(),
@@ -571,6 +575,7 @@ export const CreateGenerationBody = zod.object({
   "motionInstructions": zod.string().max(createGenerationBodyMotionInstructionsMax).optional(),
   "audioInstructions": zod.string().max(createGenerationBodyAudioInstructionsMax).optional(),
   "generationMode": zod.string(),
+  "referenceVideoKey": zod.string().optional(),
   "durationSeconds": zod.number().min(1).max(createGenerationBodyDurationSecondsMax),
   "fps": zod.union([zod.literal(24),zod.literal(25),zod.literal(30)]),
   "width": zod.number().min(createGenerationBodyWidthMin).max(createGenerationBodyWidthMax),
@@ -636,6 +641,16 @@ export const GetGenerationResponse = zod.object({
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),
   "completedAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Upload a reference video for a generation
+ */
+export const UploadReferenceVideoResponse = zod.object({
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "mimeType": zod.enum(['video/mp4', 'video/webm'])
 })
 
 

@@ -32,6 +32,7 @@ export interface GenerationInput {
   /** @maxLength 5000 */
   audioInstructions?: string;
   generationMode: string;
+  referenceVideoKey?: string;
   /**
      * @minimum 1
      * @maximum 120

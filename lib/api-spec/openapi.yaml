@@ -351,6 +351,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GenerationJob"
+  /reference-videos:
+    post:
+      operationId: uploadReferenceVideo
+      tags: [media]
+      summary: Upload a reference video for a generation
+      requestBody:
+        required: true
+        content:
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+          video/webm:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Stored reference video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferenceVideoUpload"
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -510,13 +533,16 @@ components:
         input: { type: string }
     WorkflowTemplate:
       type: object
-      required: [id, name, description, generationMode, modelFamily, compatibleServerTags, active, version, mappings, nodes, expectedInputs, expectedOutputs, importedAt]
+      required: [id, name, description, generationMode, modelFamily, compatibleServerTags, active, version, mappings, nodes, expectedInputs, expectedOutputs, importedAt, apiWorkflow]
       properties:
         id: { type: string }
         name: { type: string }
         description: { type: string }
         generationMode: { type: string }
         modelFamily: { type: string }
+        apiWorkflow:
+          type: [object, "null"]
+          additionalProperties: true
         compatibleServerTags: { type: array, items: { type: string } }
         active: { type: boolean }
         version: { type: number }
@@ -574,6 +600,7 @@ components:
         motionInstructions: { type: string, maxLength: 5000 }
         audioInstructions: { type: string, maxLength: 5000 }
         generationMode: { type: string }
+        referenceVideoKey: { type: string }
         durationSeconds: { type: number, minimum: 1, maximum: 120 }
         fps: { type: number, enum: [24, 25, 30] }
         width: { type: number, minimum: 64, maximum: 4096 }
@@ -607,6 +634,13 @@ components:
         createdAt: { type: string }
         queuedAt: { type: ["string", "null"] }
         completedAt: { type: ["string", "null"] }
+    ReferenceVideoUpload:
+      type: object
+      required: [storageKey, mediaUrl, mimeType]
+      properties:
+        storageKey: { type: string }
+        mediaUrl: { type: string }
+        mimeType: { type: string, enum: [video/mp4, video/webm] }
     DashboardSummary:
       type: object
       required: [characterCount, settingCount, onlineServerCount, activeGenerationCount, completedGenerationCount, latestGenerations]

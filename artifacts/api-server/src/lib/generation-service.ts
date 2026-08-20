@@ -34,6 +34,7 @@ type GenerationRequest = {
   qualityPreset: string;
   seedMode: string;
   seed?: number | null;
+  referenceVideoKey?: string;
 };
 
 function compilePrompt(
@@ -119,6 +120,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
+  if ((workflow.mappings as ParameterMappings).referenceVideo && !input.referenceVideoKey) {
+    throw new Error("This workflow requires a reference video");
+  }
   const servers = await db.select().from(comfyServersTable);
   const server = selectServer(servers, workflow.compatibleServerTags);
   if (!server) {
@@ -153,6 +157,12 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   try {
     const client = new ComfyUIClient(server);
     const assetParameters = await uploadMappedReferences(client, workflow.mappings as ParameterMappings, input.characterIds, input.settingId);
+    const referenceVideo = input.referenceVideoKey
+      ? await mediaStorage.readReferenceVideo(input.referenceVideoKey)
+      : null;
+    const referenceVideoParameters = referenceVideo
+      ? { referenceVideo: (await client.uploadVideo(referenceVideo)).name }
+      : {};
     const submittedWorkflow = buildWorkflow(workflow.apiWorkflow, workflow.mappings as ParameterMappings, {
       prompt: compiledPrompt,
       negativePrompt: input.negativePrompt,
@@ -162,6 +172,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       fps: input.fps,
       seed: input.seedMode === "FIXED" ? input.seed ?? 0 : Math.floor(Math.random() * 2_147_483_647),
       ...assetParameters,
+      ...referenceVideoParameters,
     });
     const submitted = await client.submitWorkflow(submittedWorkflow, job.id);
     const [queuedJob] = await db

@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Clapperboard, Users, Map, Settings2, Play, Wand2 } from "lucide-react";
+import { Clapperboard, Users, Map, Settings2, Play, Upload, Video } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -33,6 +33,10 @@ export default function GeneratePage() {
 
   const [selectedChars, setSelectedChars] = useState<string[]>([]);
   const [selectedSetting, setSelectedSetting] = useState<string>("");
+  const [referenceVideoFile, setReferenceVideoFile] = useState<File | null>(null);
+  const [referenceVideoKey, setReferenceVideoKey] = useState<string | null>(null);
+  const [referenceVideoError, setReferenceVideoError] = useState("");
+  const [isUploadingReferenceVideo, setIsUploadingReferenceVideo] = useState(false);
   
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("ugly, distorted, blurry, low resolution, bad anatomy");
@@ -47,6 +51,9 @@ export default function GeneratePage() {
   const [qualityPreset, setQualityPreset] = useState<"DRAFT" | "STANDARD" | "HIGH">("STANDARD");
   const [seedMode, setSeedMode] = useState<"RANDOM" | "FIXED">("RANDOM");
   const [seed, setSeed] = useState<number>(0);
+  const activeWorkflows = workflows?.filter(w => w.active) || [];
+  const selectedWorkflow = activeWorkflows.find((workflow) => workflow.generationMode === generationMode);
+  const workflowRequiresReferenceVideo = Boolean(selectedWorkflow?.mappings?.referenceVideo);
 
   const toggleChar = (id: string) => {
     setSelectedChars(prev => 
@@ -56,12 +63,66 @@ export default function GeneratePage() {
     );
   };
 
+  const selectReferenceVideo = (file: File | null) => {
+    setReferenceVideoError("");
+    setReferenceVideoKey(null);
+    if (!file) {
+      setReferenceVideoFile(null);
+      return;
+    }
+    if (!["video/mp4", "video/webm"].includes(file.type)) {
+      setReferenceVideoFile(null);
+      setReferenceVideoError("Choose an MP4 or WebM reference video.");
+      return;
+    }
+    if (file.size > 250 * 1024 * 1024) {
+      setReferenceVideoFile(null);
+      setReferenceVideoError("Reference videos must be 250 MB or smaller.");
+      return;
+    }
+    setReferenceVideoFile(file);
+  };
+
+  const uploadReferenceVideo = async (): Promise<string | undefined> => {
+    if (!referenceVideoFile) return undefined;
+    if (referenceVideoKey) return referenceVideoKey;
+
+    setIsUploadingReferenceVideo(true);
+    setReferenceVideoError("");
+    try {
+      const response = await fetch("/api/reference-videos", {
+        method: "POST",
+        headers: {
+          "content-type": referenceVideoFile.type,
+          "x-file-name": referenceVideoFile.name,
+        },
+        body: referenceVideoFile,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || typeof payload.storageKey !== "string") {
+        throw new Error(payload.error || "Reference video upload failed.");
+      }
+      setReferenceVideoKey(payload.storageKey);
+      return payload.storageKey;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Reference video upload failed.";
+      setReferenceVideoError(message);
+      throw error;
+    } finally {
+      setIsUploadingReferenceVideo(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!prompt) return alert("Shot prompt is required");
     if (selectedChars.length === 0) return alert("Select at least one character");
     if (!selectedSetting) return alert("Select a setting");
+    if (workflowRequiresReferenceVideo && !referenceVideoFile && !referenceVideoKey) {
+      return alert("The selected workflow requires a reference video.");
+    }
 
     try {
+      const uploadedReferenceVideoKey = await uploadReferenceVideo();
       const res = await createJob.mutateAsync({
         data: {
           characterIds: selectedChars,
@@ -77,7 +138,8 @@ export default function GeneratePage() {
           height,
           qualityPreset,
           seedMode,
-          seed: seedMode === "FIXED" ? seed : null
+          seed: seedMode === "FIXED" ? seed : null,
+          referenceVideoKey: uploadedReferenceVideoKey,
         }
       });
       setLocation(`/generations/${res.id}`);
@@ -86,7 +148,6 @@ export default function GeneratePage() {
     }
   };
 
-  const activeWorkflows = workflows?.filter(w => w.active) || [];
   const availableModes = Array.from(new Set(activeWorkflows.map(w => w.generationMode)));
 
   return (
@@ -180,6 +241,36 @@ export default function GeneratePage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border/50 bg-card/20 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-md bg-primary/15 p-2">
+                    <Video className="size-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor="reference-video" className="text-base font-semibold">
+                      Reference video {workflowRequiresReferenceVideo ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(optional)</span>}
+                    </Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Upload the performance or motion source used by a reference-video workflow. MP4 or WebM, up to 250 MB.
+                    </p>
+                  </div>
+                </div>
+                <Input
+                  id="reference-video"
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={(event) => selectReferenceVideo(event.target.files?.[0] ?? null)}
+                  className="cursor-pointer bg-secondary/20 file:mr-3 file:border-0 file:bg-primary/15 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary"
+                />
+                {referenceVideoFile && (
+                  <p className="flex items-center gap-2 text-xs text-emerald-500">
+                    <Upload className="size-3.5" />
+                    {referenceVideoFile.name} {referenceVideoKey ? "is ready to send." : "will upload when you render."}
+                  </p>
+                )}
+                {referenceVideoError && <p className="text-xs text-destructive">{referenceVideoError}</p>}
               </div>
             </TabsContent>
 
@@ -340,16 +431,17 @@ export default function GeneratePage() {
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
                   <div className="flex justify-between"><span>Cast:</span> <span className={selectedChars.length ? "text-foreground" : "text-destructive"}>{selectedChars.length}</span></div>
                   <div className="flex justify-between"><span>Set:</span> <span className={selectedSetting ? "text-foreground" : "text-destructive"}>{selectedSetting ? "Ready" : "Missing"}</span></div>
+                  <div className="flex justify-between"><span>Reference:</span> <span className={!workflowRequiresReferenceVideo || referenceVideoFile || referenceVideoKey ? "text-foreground" : "text-destructive"}>{referenceVideoFile ? "Ready" : workflowRequiresReferenceVideo ? "Missing" : "Optional"}</span></div>
                   <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
                 </div>
 
                 <Button 
                   className="w-full h-12 text-base font-bold tracking-wide shadow-[0_0_20px_rgba(225,29,72,0.4)] hover:shadow-[0_0_30px_rgba(225,29,72,0.6)] transition-all"
                   onClick={handleGenerate}
-                  disabled={createJob.isPending || !prompt || selectedChars.length === 0 || !selectedSetting}
+                  disabled={createJob.isPending || isUploadingReferenceVideo || !prompt || selectedChars.length === 0 || !selectedSetting || (workflowRequiresReferenceVideo && !referenceVideoFile && !referenceVideoKey)}
                 >
-                  {createJob.isPending ? "Queuing Job..." : "SEND TO RENDER"}
-                  {!createJob.isPending && <Play className="ml-2 size-4 fill-current" />}
+                  {isUploadingReferenceVideo ? "Uploading reference..." : createJob.isPending ? "Queuing Job..." : "SEND TO RENDER"}
+                  {!createJob.isPending && !isUploadingReferenceVideo && <Play className="ml-2 size-4 fill-current" />}
                 </Button>
               </div>
             </div>

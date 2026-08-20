@@ -65,6 +65,7 @@ export function presentWorkflow(workflow: WorkflowTemplate) {
     description: workflow.description,
     generationMode: workflow.generationMode,
     modelFamily: workflow.modelFamily,
+    apiWorkflow: workflow.apiWorkflow,
     compatibleServerTags: workflow.compatibleServerTags,
     active: workflow.active,
     version: workflow.version,
