@@ -1,5 +1,6 @@
 import app from "./app";
 import { resumeActiveGenerations } from "./lib/generation-service";
+import { startServerHealthChecks } from "./lib/server-health";
 import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
 
@@ -20,6 +21,7 @@ if (Number.isNaN(port) || port <= 0) {
 async function start(): Promise<void> {
   await ensureStudioSeed();
   await resumeActiveGenerations();
+  void startServerHealthChecks();
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
