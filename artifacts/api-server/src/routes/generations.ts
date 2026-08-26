@@ -13,11 +13,13 @@ import {
   comfyServersTable,
   db,
   generationJobsTable,
+  longFormShotsTable,
   settingsTable,
   workflowTemplatesTable,
 } from "@workspace/db";
 import { cancelGeneration, createAndSubmitGeneration, recoverTimedOutGeneration } from "../lib/generation-service";
 import { presentGeneration } from "../lib/studio-presenters";
+import { mediaStorage } from "../lib/storage-service";
 
 const router: IRouter = Router();
 
@@ -66,6 +68,47 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
     [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
   }
   res.json(GetGenerationResponse.parse(await present(job)));
+});
+
+router.delete("/generations/:id", async (req, res): Promise<void> => {
+  const params = GetGenerationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
+  if (!job) {
+    res.status(404).json({ error: "Generation not found" });
+    return;
+  }
+  if (["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status)) {
+    res.status(409).json({ error: "Cancel the active generation before deleting it." });
+    return;
+  }
+
+  const outputKey = job.outputStorageKey;
+  const [deleted] = await db.transaction(async (tx) => {
+    await tx.update(longFormShotsTable)
+      .set({ generationJobId: null })
+      .where(eq(longFormShotsTable.generationJobId, job.id));
+    return tx.delete(generationJobsTable)
+      .where(eq(generationJobsTable.id, job.id))
+      .returning({ id: generationJobsTable.id });
+  });
+  if (!deleted) {
+    res.status(404).json({ error: "Generation not found" });
+    return;
+  }
+
+  if (outputKey) {
+    const [stillReferenced] = await db.select({ id: longFormShotsTable.id })
+      .from(longFormShotsTable)
+      .where(eq(longFormShotsTable.outputStorageKey, outputKey));
+    if (!stillReferenced) {
+      await mediaStorage.deleteOutput(outputKey);
+    }
+  }
+  res.sendStatus(204);
 });
 
 router.post("/generations/:id/cancel", async (req, res): Promise<void> => {

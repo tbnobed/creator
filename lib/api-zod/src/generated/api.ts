@@ -661,6 +661,16 @@ export const GetGenerationResponse = zod.object({
 
 
 /**
+ * @summary Delete a completed generation from history
+ */
+export const DeleteGenerationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteGenerationResponse = zod.void()
+
+
+/**
  * @summary Cancel an active generation job
  */
 export const CancelGenerationParams = zod.object({

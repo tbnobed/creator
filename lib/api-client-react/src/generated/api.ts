@@ -1770,6 +1770,77 @@ export function useGetGeneration<TData = Awaited<ReturnType<typeof getGeneration
 
 
 
+export const getDeleteGenerationUrl = (id: string,) => {
+
+
+
+
+  return `/api/generations/${id}`
+}
+
+/**
+ * @summary Delete a completed generation from history
+ */
+export const deleteGeneration = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteGenerationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteGenerationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGeneration>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteGeneration>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteGeneration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteGeneration>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteGeneration(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteGenerationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteGeneration>>>
+
+    export type DeleteGenerationMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a completed generation from history
+ */
+export const useDeleteGeneration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGeneration>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteGeneration>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteGenerationMutationOptions(options));
+    }
+
 export const getCancelGenerationUrl = (id: string,) => {
 
 

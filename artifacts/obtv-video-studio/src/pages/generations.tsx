@@ -1,7 +1,7 @@
-import { getListGenerationsQueryKey, useCancelGeneration, useListGenerations } from "@workspace/api-client-react";
+import { getListGenerationsQueryKey, useCancelGeneration, useDeleteGeneration, useListGenerations } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Page, PageHeader } from "@/components/layout/page";
-import { Activity, Play, CheckCircle2, XCircle, Clock, Loader2, Video, Square } from "lucide-react";
+import { Activity, Play, XCircle, Clock, Loader2, Video, Square, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,26 @@ export default function GenerationsPage() {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getListGenerationsQueryKey() }),
     },
   });
+  const deleteJob = useDeleteGeneration({
+    mutation: {
+      onSuccess: (_result, { id }) => {
+        queryClient.setQueryData(
+          getListGenerationsQueryKey(),
+          (current: typeof generations) => current?.filter((job) => job.id !== id),
+        );
+        void queryClient.invalidateQueries({ queryKey: getListGenerationsQueryKey() });
+      },
+    },
+  });
 
   const requestCancellation = (jobId: string) => {
     if (window.confirm("Cancel this generation? The current ComfyUI prompt will be interrupted and cannot be resumed.")) {
       cancelJob.mutate({ id: jobId });
+    }
+  };
+  const requestDeletion = (jobId: string) => {
+    if (window.confirm("Delete this generation from queue history? Active generations must be cancelled first.")) {
+      deleteJob.mutate({ id: jobId });
     }
   };
 
@@ -101,6 +117,19 @@ export default function GenerationsPage() {
                   >
                     <Square className="mr-1.5 size-3.5 fill-current" />
                     Cancel
+                  </Button>
+                )}
+                {!isCancellable && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => requestDeletion(job.id)}
+                    disabled={deleteJob.isPending}
+                    title="Delete from queue history"
+                    aria-label="Delete from queue history"
+                  >
+                    <Trash2 className="size-4" />
                   </Button>
                 )}
               </Card>

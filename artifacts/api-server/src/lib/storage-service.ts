@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -97,6 +97,12 @@ export class LocalMediaStorage {
 
   resolvePath(key: string): string {
     return resolveKey(key);
+  }
+
+  async deleteOutput(key: string): Promise<void> {
+    await unlink(resolveKey(key)).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
   }
 
   stream(key: string) {

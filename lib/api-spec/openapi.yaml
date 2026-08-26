@@ -367,6 +367,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GenerationJob"
+    delete:
+      operationId: deleteGeneration
+      tags: [generations]
+      summary: Delete a completed generation from history
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Generation not found
+        "409":
+          description: Active generations must be cancelled before deletion
   /generations/{id}/cancel:
     post:
       operationId: cancelGeneration
