@@ -28,6 +28,11 @@ import type {
   GenerationInput,
   GenerationJob,
   HealthStatus,
+  LongFormProject,
+  LongFormProjectDetail,
+  LongFormProjectInput,
+  LongFormShot,
+  LongFormShotUpdate,
   QueueSnapshot,
   ReferenceVideoUpload,
   ServerConnectionConfiguration,
@@ -1983,4 +1988,589 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
 
 
 
+
+export const getListLongFormProjectsUrl = () => {
+
+
+
+
+  return `/api/long-form-projects`
+}
+
+/**
+ * @summary List long-form video projects
+ */
+export const listLongFormProjects = async ( options?: Parameters<typeof customFetch>[1]): Promise<LongFormProject[]> => {
+
+  return customFetch<LongFormProject[]>(getListLongFormProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLongFormProjectsQueryKey = () => {
+    return [
+    `/api/long-form-projects`
+    ] as const;
+    }
+
+
+export const getListLongFormProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listLongFormProjects>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLongFormProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLongFormProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLongFormProjects>>> = ({ signal }) => listLongFormProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLongFormProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLongFormProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listLongFormProjects>>>
+export type ListLongFormProjectsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List long-form video projects
+ */
+
+export function useListLongFormProjects<TData = Awaited<ReturnType<typeof listLongFormProjects>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLongFormProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLongFormProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateLongFormProjectUrl = () => {
+
+
+
+
+  return `/api/long-form-projects`
+}
+
+/**
+ * @summary Create a planned long-form video project
+ */
+export const createLongFormProject = async (longFormProjectInput: LongFormProjectInput, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getCreateLongFormProjectUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(longFormProjectInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLongFormProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLongFormProject>>, TError,{data: BodyType<LongFormProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLongFormProject>>, TError,{data: BodyType<LongFormProjectInput>}, TContext> => {
+
+const mutationKey = ['createLongFormProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLongFormProject>>, {data: BodyType<LongFormProjectInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLongFormProject(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLongFormProjectMutationResult = NonNullable<Awaited<ReturnType<typeof createLongFormProject>>>
+    export type CreateLongFormProjectMutationBody = BodyType<LongFormProjectInput>
+    export type CreateLongFormProjectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a planned long-form video project
+ */
+export const useCreateLongFormProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLongFormProject>>, TError,{data: BodyType<LongFormProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLongFormProject>>,
+        TError,
+        {data: BodyType<LongFormProjectInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLongFormProjectMutationOptions(options));
+    }
+
+export const getGetLongFormProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}`
+}
+
+/**
+ * @summary Get a long-form project and its shot plan
+ */
+export const getLongFormProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getGetLongFormProjectUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLongFormProjectQueryKey = (id: string,) => {
+    return [
+    `/api/long-form-projects/${id}`
+    ] as const;
+    }
+
+
+export const getGetLongFormProjectQueryOptions = <TData = Awaited<ReturnType<typeof getLongFormProject>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLongFormProject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLongFormProjectQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLongFormProject>>> = ({ signal }) => getLongFormProject(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLongFormProject>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLongFormProjectQueryResult = NonNullable<Awaited<ReturnType<typeof getLongFormProject>>>
+export type GetLongFormProjectQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a long-form project and its shot plan
+ */
+
+export function useGetLongFormProject<TData = Awaited<ReturnType<typeof getLongFormProject>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLongFormProject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLongFormProjectQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartLongFormProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/start`
+}
+
+/**
+ * @summary Start or resume a long-form project
+ */
+export const startLongFormProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getStartLongFormProjectUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartLongFormProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startLongFormProject>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['startLongFormProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startLongFormProject>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  startLongFormProject(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartLongFormProjectMutationResult = NonNullable<Awaited<ReturnType<typeof startLongFormProject>>>
+
+    export type StartLongFormProjectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Start or resume a long-form project
+ */
+export const useStartLongFormProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startLongFormProject>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getStartLongFormProjectMutationOptions(options));
+    }
+
+export const getPauseLongFormProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/pause`
+}
+
+/**
+ * @summary Pause future dispatch for a long-form project
+ */
+export const pauseLongFormProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getPauseLongFormProjectUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPauseLongFormProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pauseLongFormProject>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['pauseLongFormProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pauseLongFormProject>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  pauseLongFormProject(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PauseLongFormProjectMutationResult = NonNullable<Awaited<ReturnType<typeof pauseLongFormProject>>>
+
+    export type PauseLongFormProjectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Pause future dispatch for a long-form project
+ */
+export const usePauseLongFormProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pauseLongFormProject>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPauseLongFormProjectMutationOptions(options));
+    }
+
+export const getCancelLongFormProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/cancel`
+}
+
+/**
+ * @summary Cancel a long-form project and active child renders
+ */
+export const cancelLongFormProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getCancelLongFormProjectUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelLongFormProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelLongFormProject>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelLongFormProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelLongFormProject>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelLongFormProject(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelLongFormProjectMutationResult = NonNullable<Awaited<ReturnType<typeof cancelLongFormProject>>>
+
+    export type CancelLongFormProjectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Cancel a long-form project and active child renders
+ */
+export const useCancelLongFormProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelLongFormProject>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelLongFormProjectMutationOptions(options));
+    }
+
+export const getUpdateLongFormShotUrl = (id: string,
+    shotId: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/shots/${shotId}`
+}
+
+/**
+ * @summary Edit a planned long-form shot
+ */
+export const updateLongFormShot = async (id: string,
+    shotId: string,
+    longFormShotUpdate: LongFormShotUpdate, options?: Parameters<typeof customFetch>[1]): Promise<LongFormShot> => {
+
+  return customFetch<LongFormShot>(getUpdateLongFormShotUrl(id,shotId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(longFormShotUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateLongFormShotMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormShot>>, TError,{id: string;shotId: string;data: BodyType<LongFormShotUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLongFormShot>>, TError,{id: string;shotId: string;data: BodyType<LongFormShotUpdate>}, TContext> => {
+
+const mutationKey = ['updateLongFormShot'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLongFormShot>>, {id: string;shotId: string;data: BodyType<LongFormShotUpdate>}> = (props) => {
+          const {id,shotId,data} = props ?? {};
+
+          return  updateLongFormShot(id,shotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLongFormShotMutationResult = NonNullable<Awaited<ReturnType<typeof updateLongFormShot>>>
+    export type UpdateLongFormShotMutationBody = BodyType<LongFormShotUpdate>
+    export type UpdateLongFormShotMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Edit a planned long-form shot
+ */
+export const useUpdateLongFormShot = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormShot>>, TError,{id: string;shotId: string;data: BodyType<LongFormShotUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLongFormShot>>,
+        TError,
+        {id: string;shotId: string;data: BodyType<LongFormShotUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateLongFormShotMutationOptions(options));
+    }
+
+export const getRetryLongFormShotUrl = (id: string,
+    shotId: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/shots/${shotId}/retry`
+}
+
+/**
+ * @summary Retry a failed long-form shot
+ */
+export const retryLongFormShot = async (id: string,
+    shotId: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormShot> => {
+
+  return customFetch<LongFormShot>(getRetryLongFormShotUrl(id,shotId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryLongFormShotMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryLongFormShot>>, TError,{id: string;shotId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryLongFormShot>>, TError,{id: string;shotId: string}, TContext> => {
+
+const mutationKey = ['retryLongFormShot'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryLongFormShot>>, {id: string;shotId: string}> = (props) => {
+          const {id,shotId} = props ?? {};
+
+          return  retryLongFormShot(id,shotId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryLongFormShotMutationResult = NonNullable<Awaited<ReturnType<typeof retryLongFormShot>>>
+
+    export type RetryLongFormShotMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Retry a failed long-form shot
+ */
+export const useRetryLongFormShot = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryLongFormShot>>, TError,{id: string;shotId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryLongFormShot>>,
+        TError,
+        {id: string;shotId: string},
+        TContext
+      > => {
+      return useMutation(getRetryLongFormShotMutationOptions(options));
+    }
 

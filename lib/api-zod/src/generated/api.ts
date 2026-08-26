@@ -739,3 +739,440 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary List long-form video projects
+ */
+export const ListLongFormProjectsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListLongFormProjectsResponse = zod.array(ListLongFormProjectsResponseItem)
+
+
+/**
+ * @summary Create a planned long-form video project
+ */
+export const createLongFormProjectBodyTitleMax = 180;
+
+export const createLongFormProjectBodyScriptMax = 100000;
+
+export const createLongFormProjectBodyStorylineMax = 20000;
+
+export const createLongFormProjectBodyTargetDurationSecondsMax = 600;
+
+export const createLongFormProjectBodyShotDurationSecondsDefault = 8;
+export const createLongFormProjectBodyShotDurationSecondsMin = 2;
+export const createLongFormProjectBodyShotDurationSecondsMax = 30;
+
+export const createLongFormProjectBodyCharacterIdsMax = 9;
+
+export const createLongFormProjectBodyNegativePromptMax = 5000;
+
+export const createLongFormProjectBodyWidthMin = 64;
+export const createLongFormProjectBodyWidthMax = 4096;
+
+export const createLongFormProjectBodyHeightMin = 64;
+export const createLongFormProjectBodyHeightMax = 4096;
+
+
+
+export const CreateLongFormProjectBody = zod.object({
+  "title": zod.string().min(1).max(createLongFormProjectBodyTitleMax),
+  "script": zod.string().min(1).max(createLongFormProjectBodyScriptMax),
+  "storyline": zod.string().max(createLongFormProjectBodyStorylineMax).optional(),
+  "targetDurationSeconds": zod.number().min(1).max(createLongFormProjectBodyTargetDurationSecondsMax),
+  "shotDurationSeconds": zod.number().min(createLongFormProjectBodyShotDurationSecondsMin).max(createLongFormProjectBodyShotDurationSecondsMax).default(createLongFormProjectBodyShotDurationSecondsDefault),
+  "characterIds": zod.array(zod.string()).min(1).max(createLongFormProjectBodyCharacterIdsMax),
+  "settingId": zod.string(),
+  "generationMode": zod.string(),
+  "negativePrompt": zod.string().max(createLongFormProjectBodyNegativePromptMax).optional(),
+  "width": zod.number().min(createLongFormProjectBodyWidthMin).max(createLongFormProjectBodyWidthMax),
+  "height": zod.number().min(createLongFormProjectBodyHeightMin).max(createLongFormProjectBodyHeightMax),
+  "fps": zod.union([zod.literal(24),zod.literal(25),zod.literal(30)]),
+  "qualityPreset": zod.enum(['DRAFT', 'STANDARD', 'HIGH'])
+})
+
+export const CreateLongFormProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Get a long-form project and its shot plan
+ */
+export const GetLongFormProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetLongFormProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Start or resume a long-form project
+ */
+export const StartLongFormProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const StartLongFormProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Pause future dispatch for a long-form project
+ */
+export const PauseLongFormProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PauseLongFormProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Cancel a long-form project and active child renders
+ */
+export const CancelLongFormProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CancelLongFormProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Edit a planned long-form shot
+ */
+export const UpdateLongFormShotParams = zod.object({
+  "id": zod.coerce.string(),
+  "shotId": zod.coerce.string()
+})
+
+export const updateLongFormShotBodyTitleMax = 180;
+
+export const updateLongFormShotBodyPromptMax = 10000;
+
+export const updateLongFormShotBodyDialogueMax = 5000;
+
+export const updateLongFormShotBodyCameraInstructionsMax = 5000;
+
+export const updateLongFormShotBodyMotionInstructionsMax = 5000;
+
+export const updateLongFormShotBodyContinuityNoteMax = 5000;
+
+export const updateLongFormShotBodyDurationSecondsMin = 2;
+export const updateLongFormShotBodyDurationSecondsMax = 30;
+
+
+
+export const UpdateLongFormShotBody = zod.object({
+  "title": zod.string().min(1).max(updateLongFormShotBodyTitleMax).optional(),
+  "prompt": zod.string().min(1).max(updateLongFormShotBodyPromptMax).optional(),
+  "dialogue": zod.string().max(updateLongFormShotBodyDialogueMax).optional(),
+  "cameraInstructions": zod.string().max(updateLongFormShotBodyCameraInstructionsMax).optional(),
+  "motionInstructions": zod.string().max(updateLongFormShotBodyMotionInstructionsMax).optional(),
+  "continuityNote": zod.string().max(updateLongFormShotBodyContinuityNoteMax).optional(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']).optional(),
+  "durationSeconds": zod.number().min(updateLongFormShotBodyDurationSecondsMin).max(updateLongFormShotBodyDurationSecondsMax).optional()
+})
+
+export const UpdateLongFormShotResponse = zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Retry a failed long-form shot
+ */
+export const RetryLongFormShotParams = zod.object({
+  "id": zod.coerce.string(),
+  "shotId": zod.coerce.string()
+})
+
+export const RetryLongFormShotResponse = zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+})
+
+

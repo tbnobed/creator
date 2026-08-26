@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import {
   characterAssetsTable,
   charactersTable,
@@ -10,6 +10,8 @@ import {
   settingAssetsTable,
   settingsTable,
   workflowTemplatesTable,
+  pool,
+  type GenerationJob,
 } from "@workspace/db";
 import { logger } from "./logger";
 import { ComfyUIClient } from "./comfy/client";
@@ -21,7 +23,27 @@ const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
 const generationTimeoutMs = 6 * 60 * 60 * 1000;
 
-type GenerationRequest = {
+async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    const lock = await client.query<{ locked: boolean }>(
+      "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
+      [`comfy-server:${serverId}`],
+    );
+    if (!lock.rows[0]?.locked) {
+      throw new Error("The selected GPU is being reserved by another render. Try again shortly.");
+    }
+    try {
+      return await work();
+    } finally {
+      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [`comfy-server:${serverId}`]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+export type GenerationRequest = {
   characterIds?: string[];
   settingId?: string;
   prompt: string;
@@ -39,6 +61,9 @@ type GenerationRequest = {
   seedMode: string;
   seed?: number | null;
   referenceVideoKey?: string;
+  preferredServerId?: string;
+  longFormShotId?: string;
+  onJobCreated?: (job: GenerationJob) => Promise<void>;
 };
 
 function compilePrompt(
@@ -145,6 +170,10 @@ export async function resumeActiveGenerations(): Promise<void> {
     }
     void monitorGeneration(job.id, new ComfyUIClient(server), job.comfyPromptId);
   }
+  await db
+    .update(generationJobsTable)
+    .set({ status: "FAILED", errorMessage: "Submission was interrupted before ComfyUI returned a prompt ID.", failedAt: new Date() })
+    .where(and(eq(generationJobsTable.status, "UPLOADING"), sql`${generationJobsTable.comfyPromptId} IS NULL`));
 }
 
 export async function createAndSubmitGeneration(input: GenerationRequest) {
@@ -170,10 +199,20 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     Boolean((candidate.mappings as ParameterMappings).referenceVideo) === wantsReferenceVideo
   ));
   const servers = await db.select().from(comfyServersTable);
-  const selected = compatibleWorkflows
+  const requestedServer = input.preferredServerId
+    ? servers.find((server) => server.id === input.preferredServerId)
+    : undefined;
+  const workflowsForRequestedServer = requestedServer
+    ? compatibleWorkflows.filter((candidate) => (
+      requestedServer.enabled &&
+      requestedServer.status === "ONLINE" &&
+      candidate.compatibleServerTags.every((tag) => requestedServer.tags.includes(tag))
+    ))
+    : compatibleWorkflows;
+  const selected = workflowsForRequestedServer
     .map((candidate) => ({
       workflow: candidate,
-      server: selectServer(servers, candidate.compatibleServerTags),
+      server: requestedServer ?? selectServer(servers, candidate.compatibleServerTags),
     }))
     .filter((candidate) => candidate.server !== null)
     .sort((a, b) => (
@@ -181,17 +220,26 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       a.server!.activeJobCount - b.server!.activeJobCount ||
       a.server!.priority - b.server!.priority
     ))[0];
-  const workflow = selected?.workflow ?? compatibleWorkflows[0] ?? workflows[0];
+  const workflow = selected?.workflow ?? workflowsForRequestedServer[0] ?? workflows[0];
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
   if ((workflow.mappings as ParameterMappings).referenceVideo && !input.referenceVideoKey) {
     throw new Error("No active workflow without reference-video input is configured for this generation mode");
   }
-  const server = selected?.server ?? selectServer(servers, workflow.compatibleServerTags);
+  const apiWorkflow = workflow.apiWorkflow;
+  const server = selected?.server ?? requestedServer ?? selectServer(servers, workflow.compatibleServerTags);
   if (!server) {
     throw new Error("No healthy, compatible ComfyUI server is available. Configure and test a server first.");
   }
+  return withServerSlotLock(server.id, async () => {
+    const activeJobs = await db
+      .select({ id: generationJobsTable.id })
+      .from(generationJobsTable)
+      .where(and(eq(generationJobsTable.comfyServerId, server.id), inArray(generationJobsTable.status, activeGenerationStatuses)));
+    if (activeJobs.length >= (server.maxConcurrentJobs ?? 1)) {
+      throw new Error(`${server.displayName} is at its safe render capacity.`);
+    }
   const compiledPrompt = compilePrompt(characters, setting[0], input);
   const frameCount = Math.round(input.durationSeconds * input.fps);
   const [job] = await db
@@ -200,6 +248,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       title: `${characters[0]?.name ?? "Reference video"} — ${setting[0]?.name ?? "Presenter"}`,
       status: "UPLOADING",
       workflowTemplateId: workflow.id,
+      longFormShotId: input.longFormShotId ?? null,
       comfyServerId: server.id,
       prompt: input.prompt,
       compiledPrompt,
@@ -214,6 +263,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       qualityPreset: input.qualityPreset,
     })
     .returning();
+  await input.onJobCreated?.(job);
   if (characters.length > 0) {
     await db.insert(generationCharactersTable).values(
       characters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
@@ -237,7 +287,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     const referenceVideoParameters = referenceVideo
       ? { referenceVideo: (await client.uploadVideo(referenceVideo)).name }
       : {};
-    const submittedWorkflow = buildWorkflow(workflow.apiWorkflow, workflow.mappings as ParameterMappings, {
+    const submittedWorkflow = buildWorkflow(apiWorkflow, workflow.mappings as ParameterMappings, {
       prompt: compiledPrompt,
       negativePrompt: input.negativePrompt,
       width: input.width,
@@ -265,6 +315,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       .where(eq(generationJobsTable.id, job.id));
     throw error;
   }
+  });
 }
 
 export async function cancelGeneration(jobId: string) {

@@ -6,7 +6,7 @@ export function selectServer(
 ): ComfyServer | null {
   const candidates = servers.filter((server) => {
     if (!server.enabled || server.status !== "ONLINE") return false;
-    if (server.maxConcurrentJobs && server.activeJobCount >= server.maxConcurrentJobs) return false;
+    if (server.activeJobCount >= (server.maxConcurrentJobs ?? 1)) return false;
     return requiredTags.every((tag) => server.tags.includes(tag));
   });
   return candidates.sort(

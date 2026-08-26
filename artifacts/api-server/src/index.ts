@@ -3,6 +3,7 @@ import { resumeActiveGenerations } from "./lib/generation-service";
 import { startServerHealthChecks } from "./lib/server-health";
 import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
+import { startLongFormOrchestrator } from "./lib/long-form-service";
 
 const rawPort = process.env["PORT"];
 
@@ -21,6 +22,7 @@ if (Number.isNaN(port) || port <= 0) {
 async function start(): Promise<void> {
   await ensureStudioSeed();
   await resumeActiveGenerations();
+  await startLongFormOrchestrator();
   void startServerHealthChecks();
   app.listen(port, (err) => {
     if (err) {

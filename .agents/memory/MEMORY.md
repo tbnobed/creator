@@ -1,1 +1,2 @@
 - [OpenAPI Zod compatibility](openapi-zod-compatibility.md) — Generated integer/URI validators need v3-safe contract shapes plus server-side validation.
+- [Long-form GPU capacity](long-form-gpu-capacity.md) — Treat one render per GPU as the safe default until a workload benchmark proves otherwise.

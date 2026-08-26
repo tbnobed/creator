@@ -95,6 +95,10 @@ export class LocalMediaStorage {
     return key;
   }
 
+  resolvePath(key: string): string {
+    return resolveKey(key);
+  }
+
   stream(key: string) {
     return createReadStream(resolveKey(key));
   }

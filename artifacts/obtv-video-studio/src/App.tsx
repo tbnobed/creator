@@ -16,6 +16,10 @@ import AdminPage from '@/pages/admin';
 import GenerationsPage from '@/pages/generations';
 import GenerationDetailPage from '@/pages/generation-detail';
 
+import ProjectsPage from '@/pages/projects';
+import ProjectDetailPage from '@/pages/projects/[id]';
+import NewProjectPage from '@/pages/projects/new';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -31,6 +35,9 @@ function Router() {
       <RoutedErrorBoundary>
         <Switch>
           <Route path="/" component={GeneratePage} />
+          <Route path="/projects" component={ProjectsPage} />
+          <Route path="/projects/new" component={NewProjectPage} />
+          <Route path="/projects/:id" component={ProjectDetailPage} />
           <Route path="/characters" component={CharactersPage} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/generations" component={GenerationsPage} />

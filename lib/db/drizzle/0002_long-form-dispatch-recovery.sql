@@ -1,0 +1,1 @@
+ALTER TABLE "obtv_generation_jobs" ADD COLUMN "long_form_shot_id" uuid;

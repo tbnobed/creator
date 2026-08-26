@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
 import {
   Clapperboard,
+  Film,
   Users, 
   Map, 
   Activity, 
@@ -19,6 +20,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const links = [
     { href: "/", label: "Generate", icon: Clapperboard },
+    { href: "/projects", label: "Long-Form", icon: Film },
     { href: "/characters", label: "Characters", icon: Users },
     { href: "/settings", label: "Settings", icon: Map },
     { href: "/generations", label: "Queue & History", icon: Activity },
@@ -70,7 +72,6 @@ export function Shell({ children }: { children: ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-0 bg-background">
         {/* subtle noise texture for the studio feel */}
-        <div className="pointer-events-none fixed inset-0 opacity-[0.03] mix-blend-overlay z-50 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
         {children}
       </main>
     </div>

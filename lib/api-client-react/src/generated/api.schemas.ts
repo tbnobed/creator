@@ -374,3 +374,200 @@ export interface DashboardSummary {
   latestGenerations: GenerationJob[];
 }
 
+export type LongFormProjectInputFps = typeof LongFormProjectInputFps[keyof typeof LongFormProjectInputFps];
+
+
+export const LongFormProjectInputFps = {
+  NUMBER_24: 24,
+  NUMBER_25: 25,
+  NUMBER_30: 30,
+} as const;
+
+export type LongFormProjectInputQualityPreset = typeof LongFormProjectInputQualityPreset[keyof typeof LongFormProjectInputQualityPreset];
+
+
+export const LongFormProjectInputQualityPreset = {
+  DRAFT: 'DRAFT',
+  STANDARD: 'STANDARD',
+  HIGH: 'HIGH',
+} as const;
+
+export interface LongFormProjectInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 100000
+     */
+  script: string;
+  /** @maxLength 20000 */
+  storyline?: string;
+  /**
+     * @minimum 1
+     * @maximum 600
+     */
+  targetDurationSeconds: number;
+  /**
+     * @minimum 2
+     * @maximum 30
+     */
+  shotDurationSeconds?: number;
+  /**
+     * @minItems 1
+     * @maxItems 9
+     */
+  characterIds: string[];
+  settingId: string;
+  generationMode: string;
+  /** @maxLength 5000 */
+  negativePrompt?: string;
+  /**
+     * @minimum 64
+     * @maximum 4096
+     */
+  width: number;
+  /**
+     * @minimum 64
+     * @maximum 4096
+     */
+  height: number;
+  fps: LongFormProjectInputFps;
+  qualityPreset: LongFormProjectInputQualityPreset;
+}
+
+export type LongFormProjectStatus = typeof LongFormProjectStatus[keyof typeof LongFormProjectStatus];
+
+
+export const LongFormProjectStatus = {
+  DRAFT: 'DRAFT',
+  READY: 'READY',
+  RUNNING: 'RUNNING',
+  PAUSED: 'PAUSED',
+  ASSEMBLING: 'ASSEMBLING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface LongFormProject {
+  id: string;
+  title: string;
+  script: string;
+  storyline: string;
+  status: LongFormProjectStatus;
+  targetDurationSeconds: number;
+  generationMode: string;
+  width: number;
+  height: number;
+  fps: number;
+  qualityPreset: string;
+  characterIds?: string[];
+  /** @nullable */
+  settingId?: string | null;
+  totalShots: number;
+  completedShots: number;
+  failedShots: number;
+  progress: number;
+  /** @nullable */
+  finalOutputUrl: string | null;
+  /** @nullable */
+  errorMessage: string | null;
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LongFormShotTransition = typeof LongFormShotTransition[keyof typeof LongFormShotTransition];
+
+
+export const LongFormShotTransition = {
+  CUT: 'CUT',
+  DISSOLVE: 'DISSOLVE',
+  FADE: 'FADE',
+} as const;
+
+export type LongFormShotStatus = typeof LongFormShotStatus[keyof typeof LongFormShotStatus];
+
+
+export const LongFormShotStatus = {
+  PLANNED: 'PLANNED',
+  QUEUED: 'QUEUED',
+  RENDERING: 'RENDERING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface LongFormShot {
+  id: string;
+  sceneNumber: number;
+  shotNumber: number;
+  title: string;
+  prompt: string;
+  dialogue: string;
+  cameraInstructions: string;
+  motionInstructions: string;
+  continuityNote: string;
+  transition: LongFormShotTransition;
+  durationSeconds: number;
+  status: LongFormShotStatus;
+  retryCount: number;
+  characterIds: string[];
+  /** @nullable */
+  settingId: string | null;
+  /** @nullable */
+  generationId: string | null;
+  /** @nullable */
+  serverName: string | null;
+  /** @nullable */
+  outputUrl: string | null;
+  /** @nullable */
+  errorMessage: string | null;
+}
+
+export type LongFormShotUpdateTransition = typeof LongFormShotUpdateTransition[keyof typeof LongFormShotUpdateTransition];
+
+
+export const LongFormShotUpdateTransition = {
+  CUT: 'CUT',
+  DISSOLVE: 'DISSOLVE',
+  FADE: 'FADE',
+} as const;
+
+export interface LongFormShotUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 10000
+     */
+  prompt?: string;
+  /** @maxLength 5000 */
+  dialogue?: string;
+  /** @maxLength 5000 */
+  cameraInstructions?: string;
+  /** @maxLength 5000 */
+  motionInstructions?: string;
+  /** @maxLength 5000 */
+  continuityNote?: string;
+  transition?: LongFormShotUpdateTransition;
+  /**
+     * @minimum 2
+     * @maximum 30
+     */
+  durationSeconds?: number;
+}
+
+export type LongFormProjectDetail = LongFormProject & {
+  shots: LongFormShot[];
+};
+

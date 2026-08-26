@@ -20,6 +20,8 @@ tags:
     description: Workflow template administration
   - name: generations
     description: Video generation jobs
+  - name: long-form-projects
+    description: Long-form video planning and orchestration
 paths:
   /healthz:
     get:
@@ -414,6 +416,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
+  /long-form-projects:
+    get:
+      operationId: listLongFormProjects
+      tags: [long-form-projects]
+      summary: List long-form video projects
+      responses:
+        "200":
+          description: Long-form projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LongFormProject"
+    post:
+      operationId: createLongFormProject
+      tags: [long-form-projects]
+      summary: Create a planned long-form video project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LongFormProjectInput"
+      responses:
+        "201":
+          description: Planned long-form project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}:
+    get:
+      operationId: getLongFormProject
+      tags: [long-form-projects]
+      summary: Get a long-form project and its shot plan
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Long-form project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}/start:
+    post:
+      operationId: startLongFormProject
+      tags: [long-form-projects]
+      summary: Start or resume a long-form project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Active long-form project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}/pause:
+    post:
+      operationId: pauseLongFormProject
+      tags: [long-form-projects]
+      summary: Pause future dispatch for a long-form project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Paused long-form project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}/cancel:
+    post:
+      operationId: cancelLongFormProject
+      tags: [long-form-projects]
+      summary: Cancel a long-form project and active child renders
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Cancelled long-form project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}/shots/{shotId}:
+    patch:
+      operationId: updateLongFormShot
+      tags: [long-form-projects]
+      summary: Edit a planned long-form shot
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: shotId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LongFormShotUpdate"
+      responses:
+        "200":
+          description: Updated shot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormShot"
+  /long-form-projects/{id}/shots/{shotId}/retry:
+    post:
+      operationId: retryLongFormShot
+      tags: [long-form-projects]
+      summary: Retry a failed long-form shot
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: shotId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Queued shot retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormShot"
 components:
   parameters:
     Id:
@@ -691,4 +822,92 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GenerationJob"
+    LongFormProjectInput:
+      type: object
+      required: [title, script, targetDurationSeconds, characterIds, settingId, generationMode, width, height, fps, qualityPreset]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        script: { type: string, minLength: 1, maxLength: 100000 }
+        storyline: { type: string, maxLength: 20000 }
+        targetDurationSeconds: { type: number, minimum: 1, maximum: 600 }
+        shotDurationSeconds: { type: number, minimum: 2, maximum: 30, default: 8 }
+        characterIds: { type: array, items: { type: string }, minItems: 1, maxItems: 9 }
+        settingId: { type: string }
+        generationMode: { type: string }
+        negativePrompt: { type: string, maxLength: 5000 }
+        width: { type: number, minimum: 64, maximum: 4096 }
+        height: { type: number, minimum: 64, maximum: 4096 }
+        fps: { type: number, enum: [24, 25, 30] }
+        qualityPreset: { type: string, enum: [DRAFT, STANDARD, HIGH] }
+    LongFormProject:
+      type: object
+      required: [id, title, script, storyline, status, targetDurationSeconds, generationMode, width, height, fps, qualityPreset, totalShots, completedShots, failedShots, progress, finalOutputUrl, errorMessage, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        script: { type: string }
+        storyline: { type: string }
+        status: { type: string, enum: [DRAFT, READY, RUNNING, PAUSED, ASSEMBLING, COMPLETED, FAILED, CANCELLED] }
+        targetDurationSeconds: { type: number }
+        generationMode: { type: string }
+        width: { type: number }
+        height: { type: number }
+        fps: { type: number }
+        qualityPreset: { type: string }
+        characterIds: { type: array, items: { type: string } }
+        settingId: { type: ["string", "null"] }
+        totalShots: { type: number }
+        completedShots: { type: number }
+        failedShots: { type: number }
+        progress: { type: number }
+        finalOutputUrl: { type: ["string", "null"] }
+        errorMessage: { type: ["string", "null"] }
+        startedAt: { type: ["string", "null"] }
+        completedAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    LongFormShot:
+      type: object
+      required: [id, sceneNumber, shotNumber, title, prompt, dialogue, cameraInstructions, motionInstructions, continuityNote, transition, durationSeconds, status, retryCount, characterIds, settingId, generationId, serverName, outputUrl, errorMessage]
+      properties:
+        id: { type: string }
+        sceneNumber: { type: number }
+        shotNumber: { type: number }
+        title: { type: string }
+        prompt: { type: string }
+        dialogue: { type: string }
+        cameraInstructions: { type: string }
+        motionInstructions: { type: string }
+        continuityNote: { type: string }
+        transition: { type: string, enum: [CUT, DISSOLVE, FADE] }
+        durationSeconds: { type: number }
+        status: { type: string, enum: [PLANNED, QUEUED, RENDERING, COMPLETED, FAILED, CANCELLED] }
+        retryCount: { type: number }
+        characterIds: { type: array, items: { type: string } }
+        settingId: { type: ["string", "null"] }
+        generationId: { type: ["string", "null"] }
+        serverName: { type: ["string", "null"] }
+        outputUrl: { type: ["string", "null"] }
+        errorMessage: { type: ["string", "null"] }
+    LongFormShotUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        prompt: { type: string, minLength: 1, maxLength: 10000 }
+        dialogue: { type: string, maxLength: 5000 }
+        cameraInstructions: { type: string, maxLength: 5000 }
+        motionInstructions: { type: string, maxLength: 5000 }
+        continuityNote: { type: string, maxLength: 5000 }
+        transition: { type: string, enum: [CUT, DISSOLVE, FADE] }
+        durationSeconds: { type: number, minimum: 2, maximum: 30 }
+    LongFormProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/LongFormProject"
+        - type: object
+          required: [shots]
+          properties:
+            shots:
+              type: array
+              items:
+                $ref: "#/components/schemas/LongFormShot"
 

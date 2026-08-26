@@ -6,6 +6,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -121,6 +122,7 @@ export const generationJobsTable = pgTable("obtv_generation_jobs", {
   workflowTemplateId: uuid("workflow_template_id").references(
     () => workflowTemplatesTable.id,
   ),
+  longFormShotId: uuid("long_form_shot_id"),
   comfyServerId: uuid("comfy_server_id").references(() => comfyServersTable.id),
   comfyPromptId: text("comfy_prompt_id"),
   prompt: text("prompt").notNull(),
@@ -153,6 +155,73 @@ export const generationJobsTable = pgTable("obtv_generation_jobs", {
     .$onUpdate(() => new Date()),
 });
 
+export const longFormProjectsTable = pgTable("obtv_long_form_projects", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  script: text("script").notNull(),
+  storyline: text("storyline").notNull().default(""),
+  status: text("status").notNull().default("DRAFT"),
+  targetDurationSeconds: integer("target_duration_seconds").notNull(),
+  generationMode: text("generation_mode").notNull(),
+  negativePrompt: text("negative_prompt").notNull().default(""),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  fps: integer("fps").notNull(),
+  qualityPreset: text("quality_preset").notNull(),
+  characterIds: text("character_ids").array().notNull().default([]),
+  settingId: uuid("setting_id").references(() => settingsTable.id),
+  totalShots: integer("total_shots").notNull().default(0),
+  completedShots: integer("completed_shots").notNull().default(0),
+  failedShots: integer("failed_shots").notNull().default(0),
+  progress: real("progress").notNull().default(0),
+  finalOutputStorageKey: text("final_output_storage_key"),
+  finalOutputMimeType: text("final_output_mime_type"),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const longFormShotsTable = pgTable(
+  "obtv_long_form_shots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => longFormProjectsTable.id, { onDelete: "cascade" }),
+    sceneNumber: integer("scene_number").notNull(),
+    shotNumber: integer("shot_number").notNull(),
+    title: text("title").notNull(),
+    prompt: text("prompt").notNull(),
+    dialogue: text("dialogue").notNull().default(""),
+    cameraInstructions: text("camera_instructions").notNull().default(""),
+    motionInstructions: text("motion_instructions").notNull().default(""),
+    continuityNote: text("continuity_note").notNull().default(""),
+    transition: text("transition").notNull().default("CUT"),
+    durationSeconds: real("duration_seconds").notNull(),
+    status: text("status").notNull().default("PLANNED"),
+    characterIds: text("character_ids").array().notNull().default([]),
+    settingId: uuid("setting_id").references(() => settingsTable.id),
+    generationJobId: uuid("generation_job_id").references(() => generationJobsTable.id),
+    assignedServerId: uuid("assigned_server_id").references(() => comfyServersTable.id),
+    retryCount: integer("retry_count").notNull().default(0),
+    outputStorageKey: text("output_storage_key"),
+    outputMimeType: text("output_mime_type"),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("obtv_long_form_shots_project_scene_shot_unique").on(
+      table.projectId,
+      table.sceneNumber,
+      table.shotNumber,
+    ),
+  ],
+);
+
 export const generationCharactersTable = pgTable("obtv_generation_characters", {
   id: uuid("id").defaultRandom().primaryKey(),
   generationJobId: uuid("generation_job_id")
@@ -179,3 +248,5 @@ export type Setting = typeof settingsTable.$inferSelect;
 export type ComfyServer = typeof comfyServersTable.$inferSelect;
 export type WorkflowTemplate = typeof workflowTemplatesTable.$inferSelect;
 export type GenerationJob = typeof generationJobsTable.$inferSelect;
+export type LongFormProject = typeof longFormProjectsTable.$inferSelect;
+export type LongFormShot = typeof longFormShotsTable.$inferSelect;
