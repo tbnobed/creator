@@ -929,6 +929,16 @@ export const GetLongFormProjectResponse = zod.object({
 
 
 /**
+ * @summary Delete a non-active long-form project
+ */
+export const DeleteLongFormProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteLongFormProjectResponse = zod.void()
+
+
+/**
  * @summary Start or resume a long-form project
  */
 export const StartLongFormProjectParams = zod.object({

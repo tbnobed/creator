@@ -474,6 +474,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LongFormProjectDetail"
+    delete:
+      operationId: deleteLongFormProject
+      tags: [long-form-projects]
+      summary: Delete a non-active long-form project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Long-form project not found
+        "409":
+          description: Active projects must be paused or cancelled before deletion
   /long-form-projects/{id}/start:
     post:
       operationId: startLongFormProject

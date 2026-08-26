@@ -1,11 +1,30 @@
-import { useListLongFormProjects } from "@workspace/api-client-react";
+import { getListLongFormProjectsQueryKey, useDeleteLongFormProject, useListLongFormProjects } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { MouseEvent } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Plus, Clapperboard, Clock, AlertTriangle, CheckCircle2, PlayCircle, Loader2, Film } from "lucide-react";
+import { Plus, Clapperboard, Clock, AlertTriangle, CheckCircle2, PlayCircle, Loader2, Film, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function ProjectsPage() {
   const { data: projects = [], isLoading, error } = useListLongFormProjects();
+  const queryClient = useQueryClient();
+  const deleteProject = useDeleteLongFormProject();
+
+  const handleDelete = (event: MouseEvent, projectId: string, title: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!window.confirm(`Delete "${title}"? This removes the project, its shot plan, and any project-only generated media.`)) return;
+    deleteProject.mutate({ id: projectId }, {
+      onSuccess: () => {
+        queryClient.setQueryData(
+          getListLongFormProjectsQueryKey(),
+          (current: typeof projects) => current.filter((project) => project.id !== projectId),
+        );
+        void queryClient.invalidateQueries({ queryKey: getListLongFormProjectsQueryKey() });
+      },
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -74,7 +93,8 @@ export default function ProjectsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map(project => (
-              <Link key={project.id} href={`/projects/${project.id}`}>
+              <div key={project.id} className="relative h-full">
+                <Link href={`/projects/${project.id}`} className="block h-full">
                 <div className="group relative flex flex-col h-full bg-card rounded-xl border border-card-border overflow-hidden hover:border-primary/50 transition-all hover-elevate cursor-pointer">
                   
                   {project.finalOutputUrl ? (
@@ -139,7 +159,20 @@ export default function ProjectsPage() {
                     </div>
                   </div>
                 </div>
-              </Link>
+                </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-3 top-3 z-10 bg-background/80 text-muted-foreground shadow-sm backdrop-blur hover:bg-destructive/15 hover:text-destructive"
+                  onClick={(event) => handleDelete(event, project.id, project.title)}
+                  disabled={deleteProject.isPending || ["RUNNING", "ASSEMBLING"].includes(project.status)}
+                  title={["RUNNING", "ASSEMBLING"].includes(project.status) ? "Stop the active project before deleting it" : "Delete project"}
+                  aria-label={["RUNNING", "ASSEMBLING"].includes(project.status) ? "Stop the active project before deleting it" : `Delete ${project.title}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             ))}
           </div>
         )}

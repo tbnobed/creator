@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, useLocation, Link } from "wouter";
 import { 
   useGetLongFormProject,
   useStartLongFormProject,
@@ -7,7 +7,9 @@ import {
   useCancelLongFormProject,
   useUpdateLongFormShot,
   useRetryLongFormShot,
-  getGetLongFormProjectQueryKey
+  getGetLongFormProjectQueryKey,
+  getListLongFormProjectsQueryKey,
+  useDeleteLongFormProject
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -30,11 +32,13 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
-  Pencil
+  Pencil,
+  Trash2
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
   const [, params] = useRoute("/projects/:id");
+  const [, setLocation] = useLocation();
   const id = params?.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -59,6 +63,7 @@ export default function ProjectDetailPage() {
   const startProject = useStartLongFormProject();
   const pauseProject = usePauseLongFormProject();
   const cancelProject = useCancelLongFormProject();
+  const deleteProject = useDeleteLongFormProject();
   const retryShot = useRetryLongFormShot();
 
   const invalidateProject = () => {
@@ -95,6 +100,18 @@ export default function ProjectDetailPage() {
         invalidateProject();
       },
       onError: (err: any) => toast({ title: "Failed to cancel", description: err.message, variant: "destructive" })
+    });
+  };
+
+  const handleDelete = () => {
+    if (!id || !window.confirm(`Delete "${project?.title ?? "this project"}"? This removes the project, its shot plan, and project-only generated media.`)) return;
+    deleteProject.mutate({ id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListLongFormProjectsQueryKey() });
+        toast({ title: "Project deleted" });
+        setLocation("/projects");
+      },
+      onError: (err: any) => toast({ title: "Failed to delete project", description: err.message, variant: "destructive" }),
     });
   };
 
@@ -204,6 +221,17 @@ export default function ProjectDetailPage() {
             {(isRunning || isPaused || isReady) && (
               <Button onClick={handleCancel} disabled={cancelProject.isPending} variant="outline" className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20">
                 <XCircle className="w-4 h-4 mr-2" /> Cancel
+              </Button>
+            )}
+
+            {!isRunning && project.status !== "ASSEMBLING" && (
+              <Button
+                onClick={handleDelete}
+                disabled={deleteProject.isPending}
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
               </Button>
             )}
           </div>

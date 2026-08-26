@@ -62,6 +62,59 @@ type PlannedShot = {
   durationSeconds: number;
 };
 
+type StructuredBeat = {
+  kind: "SHOT" | "B-ROLL";
+  number: number;
+  label: string;
+  body: string;
+};
+
+function normalizeBlock(value: string): string {
+  return value
+    .replaceAll("\r\n", "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function parseStructuredBeats(script: string): StructuredBeat[] | null {
+  const lines = script.replaceAll("\r\n", "\n").split("\n");
+  const headerPattern = /^\s*(SHOT|B-ROLL)\s+(\d+)(?:\s*[—–-]\s*(.*))?\s*$/i;
+  const headers = lines
+    .map((line, index) => {
+      const match = line.match(headerPattern);
+      if (!match) return null;
+      return {
+        index,
+        kind: match[1].toUpperCase() as StructuredBeat["kind"],
+        number: Number(match[2]),
+        label: match[3]?.trim() ?? "",
+      };
+    })
+    .filter((header): header is NonNullable<typeof header> => header !== null);
+  if (headers.length === 0) return null;
+
+  const beats = headers.map((header, index) => ({
+    kind: header.kind,
+    number: header.number,
+    label: header.label,
+    body: normalizeBlock(lines.slice(header.index + 1, headers[index + 1]?.index ?? lines.length).join("\n")),
+  }));
+  return beats.filter((beat) => beat.body.length > 0);
+}
+
+function extractDialogue(body: string): string {
+  const dialogue: string[] = [];
+  const quotedText = /[“"]([^”"]+)[”"]/g;
+  for (const match of body.matchAll(quotedText)) {
+    const value = match[1].trim();
+    if (value && !dialogue.includes(value)) dialogue.push(value);
+  }
+  return dialogue.join("\n");
+}
+
 function normalizeScript(script: string): string[] {
   const paragraphs = script
     .replaceAll("\r\n", "\n")
@@ -104,22 +157,30 @@ function chunkSentences(sentences: string[], desiredCount: number): string[] {
 function planShots(input: LongFormProjectInput): PlannedShot[] {
   const requestedShotDuration = Math.min(MAX_SHOT_DURATION_SECONDS, Math.max(2, input.shotDurationSeconds));
   const desiredCount = Math.max(1, Math.ceil(input.targetDurationSeconds / requestedShotDuration));
-  const chunks = chunkSentences(normalizeScript(input.script), desiredCount);
+  const structuredBeats = parseStructuredBeats(input.script);
+  const chunks = structuredBeats ?? chunkSentences(normalizeScript(input.script), desiredCount);
+  const shotCount = structuredBeats?.length ?? desiredCount;
   const shots: PlannedShot[] = [];
   let remainingDuration = input.targetDurationSeconds;
   let sceneNumber = 1;
   let shotNumber = 1;
 
-  for (let index = 0; index < desiredCount; index += 1) {
-    const durationSeconds = Math.min(requestedShotDuration, remainingDuration);
-    const prompt = chunks[index % chunks.length];
+  for (let index = 0; index < shotCount; index += 1) {
+    const durationSeconds = index === shotCount - 1
+      ? Number(remainingDuration.toFixed(2))
+      : Number(Math.min(MAX_SHOT_DURATION_SECONDS, Math.max(1, remainingDuration / (shotCount - index))).toFixed(2));
+    const structuredBeat = structuredBeats?.[index];
+    const prompt = structuredBeat ? structuredBeat.body : chunks[index % chunks.length] as string;
     const previousPrompt = shots.at(-1)?.prompt;
+    const label = structuredBeat
+      ? `${structuredBeat.kind === "B-ROLL" ? "B-Roll" : "Shot"} ${structuredBeat.number}${structuredBeat.label ? ` · ${structuredBeat.label}` : ""}`
+      : `Scene ${sceneNumber} · Shot ${shotNumber}`;
     shots.push({
       sceneNumber,
       shotNumber,
-      title: `Scene ${sceneNumber} · Shot ${shotNumber}`,
+      title: label,
       prompt: input.storyline ? `${input.storyline.trim()}\n\n${prompt}` : prompt,
-      dialogue: "",
+      dialogue: structuredBeat?.kind === "SHOT" ? extractDialogue(structuredBeat.body) : "",
       cameraInstructions: index % 3 === 0 ? "Establishing cinematic composition, deliberate framing." : index % 3 === 1 ? "Controlled medium shot with subtle tracking." : "Intimate detail shot with natural movement.",
       motionInstructions: "Natural, physically believable movement with consistent character and environment details.",
       continuityNote: previousPrompt
@@ -268,6 +329,54 @@ export async function createLongFormProject(input: LongFormProjectInput) {
     return created;
   });
   return presentLongFormProject(project, true);
+}
+
+export async function deleteLongFormProject(projectId: string): Promise<void> {
+  const deleted = await withProjectLock(projectId, async () => {
+    const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (!project) throw new Error("Long-form project not found");
+    if (["RUNNING", "ASSEMBLING"].includes(project.status)) {
+      throw new Error("Pause or cancel the project before deleting it.");
+    }
+
+    const shots = await db
+      .select()
+      .from(longFormShotsTable)
+      .where(eq(longFormShotsTable.projectId, projectId));
+    const shotIds = shots.map((shot) => shot.id);
+    const linkedJobs = shotIds.length > 0
+      ? await db.select().from(generationJobsTable).where(inArray(generationJobsTable.longFormShotId, shotIds))
+      : [];
+    const linkedJobIds = [...new Set([
+      ...shots.flatMap((shot) => shot.generationJobId ? [shot.generationJobId] : []),
+      ...linkedJobs.map((job) => job.id),
+    ])];
+    const childJobs = linkedJobIds.length > 0
+      ? await db.select().from(generationJobsTable).where(inArray(generationJobsTable.id, linkedJobIds))
+      : [];
+    if (childJobs.some((job) => activeGenerationStatuses.includes(job.status))) {
+      throw new Error("Cancel all active renders before deleting this project.");
+    }
+
+    const mediaKeys = [...new Set([
+      project.finalOutputStorageKey,
+      ...shots.map((shot) => shot.outputStorageKey),
+      ...childJobs.map((job) => job.outputStorageKey),
+    ].filter((key): key is string => Boolean(key)))];
+
+    await db.transaction(async (tx) => {
+      if (linkedJobIds.length > 0) {
+        await tx.update(longFormShotsTable)
+          .set({ generationJobId: null })
+          .where(eq(longFormShotsTable.projectId, projectId));
+        await tx.delete(generationJobsTable).where(inArray(generationJobsTable.id, linkedJobIds));
+      }
+      await tx.delete(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    });
+
+    await Promise.all(mediaKeys.map((key) => mediaStorage.deleteOutput(key)));
+  });
+  if (deleted === null) throw new Error("Project is currently being updated; try again.");
 }
 
 async function findAvailableServer(project: LongFormProject) {

@@ -5,6 +5,7 @@ import {
   CancelLongFormProjectResponse,
   CreateLongFormProjectBody,
   CreateLongFormProjectResponse,
+  DeleteLongFormProjectParams,
   GetLongFormProjectParams,
   GetLongFormProjectResponse,
   ListLongFormProjectsResponse,
@@ -22,6 +23,7 @@ import { db, longFormProjectsTable } from "@workspace/db";
 import {
   cancelLongFormProject,
   createLongFormProject,
+  deleteLongFormProject,
   pauseLongFormProject,
   presentLongFormProject,
   retryLongFormShot,
@@ -66,6 +68,22 @@ router.get("/long-form-projects/:id", async (req, res): Promise<void> => {
     return;
   }
   res.json(GetLongFormProjectResponse.parse(project));
+});
+
+router.delete("/long-form-projects/:id", async (req, res): Promise<void> => {
+  const params = DeleteLongFormProjectParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    await deleteLongFormProject(params.data.id);
+    res.sendStatus(204);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not delete long-form project";
+    const status = message === "Long-form project not found" ? 404 : 409;
+    res.status(status).json({ error: message });
+  }
 });
 
 router.post("/long-form-projects/:id/start", async (req, res): Promise<void> => {
