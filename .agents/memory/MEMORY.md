@@ -2,3 +2,4 @@
 - [Long-form GPU capacity](long-form-gpu-capacity.md) — Treat one render per GPU as the safe default until a workload benchmark proves otherwise.
 - [Structured long-form scripts](structured-long-form-scripts.md) — SHOT and B-ROLL headers are authoritative planning boundaries, not prose to re-chunk.
 - [Long-form project deletion](long-form-project-deletion.md) — Only non-active projects can be deleted; active renders must be stopped first.
+- [Installable mobile workspace](installable-mobile-workspace.md) — Keep API responses network-only while caching only the app shell for PWA installation.

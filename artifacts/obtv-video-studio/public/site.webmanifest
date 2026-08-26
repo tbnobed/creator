@@ -2,20 +2,46 @@
   "name": "OBTV CreatorAi",
   "short_name": "CreatorAi",
   "description": "An AI video production workspace by OBTV.",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
   "background_color": "#0B0C10",
   "theme_color": "#0B0C10",
+  "categories": ["video", "productivity", "business"],
   "icons": [
     {
-      "src": "favicon-48x48.png",
-      "sizes": "48x48",
+      "src": "android-chrome-192x192.png",
+      "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "android-chrome-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Production Queue",
+      "short_name": "Queue",
+      "url": "./generations",
+      "icons": [{ "src": "android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Long-Form Productions",
+      "short_name": "Productions",
+      "url": "./projects",
+      "icons": [{ "src": "android-chrome-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

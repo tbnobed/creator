@@ -187,6 +187,11 @@
   }
 
   input[type='search']::-webkit-search-cancel-button { @apply hidden; }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .mobile-shell-content { padding-bottom: max(65px, calc(65px + env(safe-area-inset-bottom))); }
+  @media (min-width: 768px) {
+    .mobile-shell-content { padding-bottom: 0; }
+  }
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
