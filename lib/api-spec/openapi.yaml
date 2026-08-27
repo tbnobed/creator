@@ -501,6 +501,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}/reassemble:
+    post:
+      operationId: reassembleLongFormProject
+      tags: [long-form-projects]
+      summary: Rebuild the final video from completed shot outputs
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Long-form project queued for assembly
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LongFormProjectDetail"
+        "409":
+          description: Project cannot be reassembled from its current shot state
   /long-form-projects/{id}/pause:
     post:
       operationId: pauseLongFormProject

@@ -2427,6 +2427,77 @@ export const useStartLongFormProject = <TError = ErrorType<unknown>,
       return useMutation(getStartLongFormProjectMutationOptions(options));
     }
 
+export const getReassembleLongFormProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/reassemble`
+}
+
+/**
+ * @summary Rebuild the final video from completed shot outputs
+ */
+export const reassembleLongFormProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getReassembleLongFormProjectUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReassembleLongFormProjectMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reassembleLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reassembleLongFormProject>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['reassembleLongFormProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reassembleLongFormProject>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reassembleLongFormProject(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReassembleLongFormProjectMutationResult = NonNullable<Awaited<ReturnType<typeof reassembleLongFormProject>>>
+
+    export type ReassembleLongFormProjectMutationError = ErrorType<void>
+
+    /**
+ * @summary Rebuild the final video from completed shot outputs
+ */
+export const useReassembleLongFormProject = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reassembleLongFormProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reassembleLongFormProject>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getReassembleLongFormProjectMutationOptions(options));
+    }
+
 export const getPauseLongFormProjectUrl = (id: string,) => {
 
 

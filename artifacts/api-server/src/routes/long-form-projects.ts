@@ -11,6 +11,8 @@ import {
   ListLongFormProjectsResponse,
   PauseLongFormProjectParams,
   PauseLongFormProjectResponse,
+  ReassembleLongFormProjectParams,
+  ReassembleLongFormProjectResponse,
   RetryLongFormShotParams,
   RetryLongFormShotResponse,
   StartLongFormProjectParams,
@@ -26,6 +28,7 @@ import {
   deleteLongFormProject,
   pauseLongFormProject,
   presentLongFormProject,
+  reassembleLongFormProject,
   retryLongFormShot,
   startLongFormProject,
   updateLongFormShot,
@@ -96,6 +99,19 @@ router.post("/long-form-projects/:id/start", async (req, res): Promise<void> => 
     res.json(StartLongFormProjectResponse.parse(await startLongFormProject(params.data.id)));
   } catch (error) {
     res.status(409).json({ error: error instanceof Error ? error.message : "Could not start project" });
+  }
+});
+
+router.post("/long-form-projects/:id/reassemble", async (req, res): Promise<void> => {
+  const params = ReassembleLongFormProjectParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    res.json(ReassembleLongFormProjectResponse.parse(await reassembleLongFormProject(params.data.id)));
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : "Could not reassemble project" });
   }
 });
 

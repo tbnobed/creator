@@ -3,6 +3,7 @@ import { useRoute, useLocation, Link } from "wouter";
 import { 
   useGetLongFormProject,
   useStartLongFormProject,
+  useReassembleLongFormProject,
   usePauseLongFormProject,
   useCancelLongFormProject,
   useUpdateLongFormShot,
@@ -63,6 +64,7 @@ export default function ProjectDetailPage() {
 
   // Mutations
   const startProject = useStartLongFormProject();
+  const reassembleProject = useReassembleLongFormProject();
   const pauseProject = usePauseLongFormProject();
   const cancelProject = useCancelLongFormProject();
   const deleteProject = useDeleteLongFormProject();
@@ -91,6 +93,17 @@ export default function ProjectDetailPage() {
         invalidateProject();
       },
       onError: (err: any) => toast({ title: "Failed to pause", description: err.message, variant: "destructive" })
+    });
+  };
+
+  const handleReassemble = () => {
+    if (!id || !window.confirm("Rebuild the final video from the completed shots? Existing shot renders will be reused.")) return;
+    reassembleProject.mutate({ id }, {
+      onSuccess: () => {
+        toast({ title: "Reassembly started", description: "Rebuilding the final video with audio from the existing shots." });
+        invalidateProject();
+      },
+      onError: (err: any) => toast({ title: "Failed to reassemble", description: err.message, variant: "destructive" })
     });
   };
 
@@ -211,6 +224,15 @@ export default function ProjectDetailPage() {
             {(isReady || isPaused || isDraft) && (
               <Button onClick={handleStart} disabled={startProject.isPending} size="sm" className="md:h-10 md:px-4 brand-glow bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg text-xs md:text-sm">
                 <Play className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Start<span className="hidden sm:inline">&nbsp;Production</span>
+              </Button>
+            )}
+
+            {isDone && (
+              <Button onClick={handleReassemble} disabled={reassembleProject.isPending} size="sm" variant="secondary" className="md:h-10 md:px-4 text-xs md:text-sm">
+                {reassembleProject.isPending
+                  ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 animate-spin" />
+                  : <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />}
+                Reassemble<span className="hidden sm:inline">&nbsp;Video</span>
               </Button>
             )}
             

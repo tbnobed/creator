@@ -995,6 +995,62 @@ export const StartLongFormProjectResponse = zod.object({
 
 
 /**
+ * @summary Rebuild the final video from completed shot outputs
+ */
+export const ReassembleLongFormProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReassembleLongFormProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
  * @summary Pause future dispatch for a long-form project
  */
 export const PauseLongFormProjectParams = zod.object({

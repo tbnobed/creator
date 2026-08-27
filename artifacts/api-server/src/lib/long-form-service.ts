@@ -455,18 +455,26 @@ async function runMediaTool(command: "ffmpeg" | "ffprobe", args: string[]) {
   await execFileAsync(command, args, { maxBuffer: 10 * 1024 * 1024 });
 }
 
-async function validateShotMedia(shot: LongFormShot): Promise<void> {
+async function validateShotMedia(shot: LongFormShot): Promise<{ durationSeconds: number; hasAudio: boolean }> {
   if (!shot.outputStorageKey) throw new Error(`Shot ${shot.title} has no output file`);
   const result = await execFileAsync("ffprobe", [
     "-v", "error",
-    "-show_entries", "format=duration",
+    "-show_entries", "format=duration:stream=codec_type",
     "-of", "json",
     mediaStorage.resolvePath(shot.outputStorageKey),
   ]);
-  const parsed = JSON.parse(result.stdout) as { format?: { duration?: string } };
-  if (!parsed.format?.duration || Number(parsed.format.duration) <= 0) {
+  const parsed = JSON.parse(result.stdout) as {
+    format?: { duration?: string };
+    streams?: Array<{ codec_type?: string }>;
+  };
+  const durationSeconds = Number(parsed.format?.duration);
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
     throw new Error(`Shot ${shot.title} is not a playable video`);
   }
+  return {
+    durationSeconds,
+    hasAudio: parsed.streams?.some((stream) => stream.codec_type === "audio") ?? false,
+  };
 }
 
 async function assembleProject(project: LongFormProject, shots: LongFormShot[]): Promise<void> {
@@ -476,19 +484,46 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
     await mkdir(workDir, { recursive: true });
     const normalizedPaths: string[] = [];
     for (const [index, shot] of shots.entries()) {
-      await validateShotMedia(shot);
+      const mediaInfo = await validateShotMedia(shot);
       const normalizedPath = path.join(workDir, `shot-${String(index).padStart(3, "0")}.mp4`);
-      await runMediaTool("ffmpeg", [
+      const ffmpegArgs = [
         "-y", "-i", mediaStorage.resolvePath(shot.outputStorageKey!),
+      ];
+      if (!mediaInfo.hasAudio) {
+        ffmpegArgs.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
+      }
+      ffmpegArgs.push(
+        "-map", "0:v:0",
+        "-map", mediaInfo.hasAudio ? "0:a:0" : "1:a:0",
         "-vf", `scale=${project.width}:${project.height}:force_original_aspect_ratio=decrease,pad=${project.width}:${project.height}:(ow-iw)/2:(oh-ih)/2,fps=${project.fps}`,
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", normalizedPath,
-      ]);
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-ar", "48000",
+        "-ac", "2",
+        "-b:a", "192k",
+        "-af", "apad",
+        "-t", String(mediaInfo.durationSeconds),
+        "-movflags", "+faststart",
+        normalizedPath,
+      );
+      await runMediaTool("ffmpeg", ffmpegArgs);
       normalizedPaths.push(normalizedPath);
     }
     const listPath = path.join(workDir, "inputs.txt");
     await writeFile(listPath, normalizedPaths.map((file) => `file '${file.replaceAll("'", "'\\''")}'`).join("\n"));
     const finalPath = path.join(workDir, "final.mp4");
-    await runMediaTool("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-movflags", "+faststart", finalPath]);
+    await runMediaTool("ffmpeg", [
+      "-y",
+      "-f", "concat",
+      "-safe", "0",
+      "-i", listPath,
+      "-map", "0:v:0",
+      "-map", "0:a:0",
+      "-c", "copy",
+      "-movflags", "+faststart",
+      finalPath,
+    ]);
     const storageKey = await mediaStorage.storeOutput(`${project.title}.mp4`, "video/mp4", await readFile(finalPath));
     await db.update(longFormProjectsTable).set({
       status: "COMPLETED",
@@ -498,6 +533,11 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
       completedAt: new Date(),
       errorMessage: null,
     }).where(eq(longFormProjectsTable.id, project.id));
+    if (project.finalOutputStorageKey && project.finalOutputStorageKey !== storageKey) {
+      await mediaStorage.deleteOutput(project.finalOutputStorageKey).catch((error) => {
+        logger.warn({ err: error, projectId: project.id }, "Could not remove superseded long-form output");
+      });
+    }
   } catch (error) {
     await db.update(longFormProjectsTable).set({
       status: "FAILED",
@@ -616,6 +656,42 @@ export async function startLongFormProject(projectId: string) {
     .where(and(eq(longFormProjectsTable.id, projectId), inArray(longFormProjectsTable.status, ["READY", "PAUSED", "FAILED"])))
     .returning();
   if (!project) throw new Error("Project cannot be started from its current status");
+  void orchestrateLongFormProject(project.id);
+  return presentLongFormProject(project, true);
+}
+
+export async function reassembleLongFormProject(projectId: string) {
+  const project = await withProjectLock(projectId, async () => {
+    const [current] = await db
+      .select()
+      .from(longFormProjectsTable)
+      .where(eq(longFormProjectsTable.id, projectId));
+    if (!current) throw new Error("Long-form project not found");
+    if (!["COMPLETED", "FAILED"].includes(current.status)) {
+      throw new Error("Only completed projects or failed assemblies can be reassembled");
+    }
+
+    const shots = await db
+      .select()
+      .from(longFormShotsTable)
+      .where(eq(longFormShotsTable.projectId, projectId));
+    if (shots.length === 0 || shots.some((shot) => shot.status !== "COMPLETED" || !shot.outputStorageKey)) {
+      throw new Error("All shots must be completed before rebuilding the final video");
+    }
+
+    const [updated] = await db
+      .update(longFormProjectsTable)
+      .set({
+        status: "ASSEMBLING",
+        progress: 99,
+        completedAt: null,
+        errorMessage: null,
+      })
+      .where(eq(longFormProjectsTable.id, projectId))
+      .returning();
+    return updated;
+  });
+  if (!project) throw new Error("Project is currently being updated; try again.");
   void orchestrateLongFormProject(project.id);
   return presentLongFormProject(project, true);
 }
