@@ -81,7 +81,7 @@ function normalizeBlock(value: string): string {
 
 function parseStructuredBeats(script: string): StructuredBeat[] | null {
   const lines = script.replaceAll("\r\n", "\n").split("\n");
-  const headerPattern = /^\s*(SHOT|B-ROLL)\s+(\d+)(?:\s*[—–-]\s*(.*))?\s*$/i;
+  const headerPattern = /^\s*(SHOT|B-ROLL)\s+(\d+)(?:\s*(?::|[—–-])\s*(.*))?\s*$/i;
   const headers = lines
     .map((line, index) => {
       const match = line.match(headerPattern);

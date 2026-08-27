@@ -1,0 +1,297 @@
+Cold open — master control, night (0:00–0:20)
+
+Shot 1: Medium wide, from behind.
+
+Camera: slow push in on Elias's back.
+Action: Elias walks in from frame left holding a mug, stops dead in the center of the room, looks up at a wall of monitor feeds.
+Expression: exhaustion, held steady. Not defeated.
+Dialogue: none.
+Light: teal monitor wash frontally on him, single warm amber practical behind, deep navy room.
+
+Shot 2: Close, 85mm.
+
+Camera: static, almost imperceptible push.
+Action: Elias's eyes track slowly left to right across the feeds. He takes one breath.
+Expression: private, unguarded. A flicker of something like pride he'd never say out loud.
+Dialogue: none.
+Light: teal key from screens, amber rim from behind camera-left.
+
+Shot 3: Medium two-shot, deep focus.
+
+Camera: static.
+Action: Tessa enters through a door behind him, satchel still across her body. She slows, follows his eyeline up to the feeds, then back to him.
+Expression: Tessa — fond, faintly exasperated. Elias doesn't turn.
+Dialogue: Tessa: "You've been here all night again."
+Light: teal on both, warm amber spill from the open door behind her.
+
+Shot 4: Medium two-shot, 35mm.
+
+Camera: slow arc from profile toward a clean two-shot.
+Action: Elias turns to face her, lowers the mug. Tessa steps closer, tilts her head.
+Expression: Elias — tired, wry, a half-smile that doesn't fully land. Tessa — reading him, then curious.
+Dialogue: Elias: "I wanted to see if it held." / Tessa: "Did it?" / Elias: "Come look."
+Light: amber key from frame right, teal fill from screens behind.
+Act one — creation (0:20–0:50)
+
+Shot 5: Medium, 50mm, slightly high.
+
+Camera: settles as she sits, then holds static.
+Action: Tessa drops into a chair, swings the satchel off, pulls the chair in with both hands, starts typing fast.
+Expression: skeptical, mouth slightly pursed. Humoring him.
+Dialogue: Tessa: "Desert highway. Golden hour. One figure walking away."
+Light: magenta and teal interface glow across her face, warm amber practical behind.
+
+Shot 6: Medium close, over Tessa's shoulder onto Elias.
+
+Camera: static.
+Action: Elias stands behind her chair, arms crossed, weight on one leg. He gives a single small nod at the screen.
+Expression: quiet amusement. He already knows what's coming.
+Dialogue: none.
+Light: teal screen bounce on his chest and jaw, amber rim from behind.
+
+Shot 7: ⚙ Insert — full frame render.
+
+Camera: slow forward dolly.
+Action: empty desert highway at golden hour, heat shimmer off the asphalt, a lone figure walking away into the distance.
+Expression: none, no people in frame.
+Dialogue: none.
+Light: 35mm anamorphic, warm amber grade, long shadows.
+
+Shot 8: Close, 85mm.
+
+Camera: very slow push in.
+Action: Tessa leans forward toward the screen, one hand coming off the keyboard and hovering.
+Expression: the turn — skepticism collapsing into open surprise, then delight. Eyebrows up, mouth opening slightly.
+Dialogue: Tessa: "That's forty seconds."
+Light: warm amber wash from the render filling her face, teal fading off.
+
+Shot 9: Medium close, two-shot, tight.
+
+Camera: static.
+Action: Elias leans down past her shoulder into frame and points at the screen with two fingers.
+Expression: flat, matter-of-fact. He's not selling it.
+Dialogue: Elias: "On our GPUs. In our building. Nothing left the rack."
+Light: both faces in warm amber screen light, teal rim behind.
+
+Shot 10: Close, low angle from her eyeline.
+
+Camera: static.
+Action: Tessa swivels the chair and looks up at him, one hand still on the desk.
+Expression: a grin starting at one corner. Competitive.
+Dialogue: Tessa: "So what else can it do?"
+Light: amber key from the screen below, teal from above.
+Act two — language (0:50–1:15)
+
+Shot 11: Medium, 50mm, profile.
+
+Camera: slow lateral dolly right to left past her.
+Action: Noor sits very upright at a desk, over-ear headphones on, one finger tracing a waveform on screen. She mouths a word silently.
+Expression: total concentration, unreadable.
+Dialogue: none.
+Light: teal screen key from frame left, warm amber practical low behind her.
+
+Shot 12: Macro insert.
+
+Camera: static, extreme shallow focus.
+Action: Noor's finger presses a single key. Hold on the stillness after.
+Expression: none, no face in frame.
+Dialogue: none.
+Light: hard teal edge light on the key, everything else falling to black.
+
+Shot 13: Close, 85mm.
+
+Camera: static, tiny push.
+Action: Noor pulls one headphone cup off her ear and tilts her head, going very still.
+Expression: precision breaking open — eyes widening, lips parting. She forgets to be composed.
+Dialogue: Noor: "That's her voice. That's actually her voice."
+Light: teal key, amber rim, faint bloom off the screen.
+
+Shot 14: Medium wide, deep focus, doorway.
+
+Camera: static.
+Action: Elias leans against the doorframe in the background, arms folded, one ankle crossed over the other.
+Expression: quiet, contained satisfaction. Doesn't move.
+Dialogue: Elias: "Speaking Portuguese. She doesn't speak Portuguese."
+Light: warm amber corridor light behind him, teal room light in front.
+
+Shot 15: Medium, 50mm.
+
+Camera: static.
+Action: Noor turns her chair fully to face him and pulls the headphones down around her neck, shaking her head slowly.
+Expression: half a disbelieving laugh. Genuinely moved and slightly annoyed about it.
+Dialogue: Noor: "Do you know how long this used to take us?"
+Light: amber key from frame right now dominant, teal fill behind.
+Act three — connection (1:15–1:45)
+
+The emotional floor. No jokes, no beats of cleverness, no one explains the technology. Play it completely straight.
+
+Shot 16: Wide, 35mm, static.
+
+Camera: locked off, no movement at all.
+Action: Mara sits alone at a desk in a large quiet room of empty chairs. She adjusts her cardigan and folds her hands. Waits.
+Expression: patient, settled, entirely unhurried.
+Dialogue: none.
+Light: single warm amber desk lamp, cool teal ambient from windows behind, long soft shadows.
+
+Shot 17: ⚙ Macro insert.
+
+Camera: static.
+Action: a desk phone in its cradle. A line indicator lights amber.
+Expression: none, no people in frame.
+Dialogue: none.
+Light: single amber source, everything else black, extreme shallow focus.
+
+Shot 18: ⚙ Macro insert.
+
+Camera: gentle tilt up following the movement.
+Action: Mara's hands lift the handset from the cradle without hurry.
+Expression: none, no face in frame.
+Dialogue: none.
+Light: warm amber, shallow focus, soft.
+
+Shot 19: Close, 85mm.
+
+Camera: static, imperceptible push.
+Action: Mara brings the handset to her ear and goes still, head tilting slightly toward it. One small nod.
+Expression: neutral softening into complete attention. She is entirely with whoever is on the line.
+Dialogue: Mara, softly: "I'm here. Take your time."
+Light: warm amber key frame left, deep falloff to navy on the right.
+
+Shot 20: Medium wide, over her shoulder.
+
+Camera: slow push past her toward the screen.
+Action: behind Mara, a monitor fills with text transcribing in real time as she speaks. She never looks at it. She never knows it's there.
+Expression: her posture stays completely unchanged.
+Dialogue: none.
+Light: teal screen glow behind, warm amber on her from the lamp.
+
+Shot 21: Close, 85mm.
+
+Camera: static.
+Action: Mara closes her eyes briefly, then opens them. Her free hand comes to rest flat on the desk.
+Expression: a small warm smile that reaches the eyes. Real tenderness.
+Dialogue: Mara: "No, honey. You're not a bother."
+Light: warm amber only. Let the teal drop entirely out of this frame.
+Act four — memory (1:45–2:10)
+
+Shot 22: Medium wide, walk-and-talk.
+
+Camera: lateral tracking dolly moving alongside them down the aisle.
+Action: Tessa and Elias walk an aisle of shelved books, shelves stretching past camera on both sides. Tessa trails her hand along the spines.
+Expression: Tessa — looking up and around, taking the scale in. Elias — looking straight ahead.
+Dialogue: Tessa: "Four thousand titles?" / Elias: "And change."
+Light: warm amber shelf lighting, dust suspended in the air, teal spill from a far window.
+
+Shot 23: Medium close, 50mm.
+
+Camera: settles as she stops, then static.
+Action: Tessa stops, pulls a book off the shelf, opens it and thumbs slowly through the pages.
+Expression: reverent. The delight from act one replaced by something quieter.
+Dialogue: Tessa: "Somebody spent three years on this one."
+Light: warm amber from above, her face half in shadow.
+
+Shot 24: Close, 85mm.
+
+Camera: static.
+Action: Elias looks down the length of the aisle, jaw set, not at her.
+Expression: something close to frustration. This is the thing that actually bothers him.
+Dialogue: Elias: "And nobody's opened it since 2011."
+Light: amber key, deep navy falloff, single teal edge.
+
+Shot 25: Medium close, two-shot.
+
+Camera: static.
+Action: Tessa slides the book back into the shelf, keeps her hand on it, and turns to look at him directly.
+Expression: serious now. She's caught up.
+Dialogue: Tessa: "So what are you building?"
+Light: warm amber between them, shelves falling off into darkness behind.
+
+Shot 26: Close, 85mm.
+
+Camera: very slow push in.
+Action: Elias finally turns to meet her eyes.
+Expression: half hope, half caution. He's careful about this one.
+Dialogue: Elias: "Something you can ask a question. That answers from all of them."
+Light: warm amber key, soft bloom, shallow focus dropping the shelves entirely.
+Act five — foundation (2:10–2:45)
+
+Shot 27: Medium wide, 35mm.
+
+Camera: slow dolly backward ahead of them as they walk toward camera.
+Action: Elias and Tessa walk the rack aisle. He raises one hand and gestures down the row without looking at it.
+Expression: Elias — proprietary, matter-of-fact. Tessa — glancing up at the racks as they pass.
+Dialogue: Elias: "This is ours. Every card in here."
+Light: teal indicator lights breathing in sequence, warm amber floor accent, anamorphic flare.
+
+Shot 28: ⚙ Macro insert.
+
+Camera: slow orbit.
+Action: a single high-end graphics card on a matte black surface under hero lighting, heatsink fins in sharp detail.
+Expression: none, no people in frame.
+Dialogue: none.
+Light: teal rim, warm amber key, black studio surround.
+
+Shot 29: Medium close, walking, 50mm.
+
+Camera: tracking alongside Tessa.
+Action: Tessa looks up at the racks, then across at him.
+Expression: impressed but pushing — she's found the obvious hole in the story.
+Dialogue: Tessa: "And when it's not enough?"
+Light: teal key, amber rim, moving light passing across her face as they walk.
+
+Shot 30: Wide, 35mm — the reveal.
+
+Camera: static as the door opens, then a single slow push forward.
+Action: they step through a doorway and both stop walking. Beyond them, rows of immersion cooling tanks, server blades submerged vertically in clear dielectric fluid. Total stillness. No cables, no fans.
+Expression: Tessa's mouth opens slightly. Elias watches her instead of the tanks.
+Dialogue: none.
+Light: refracted teal light rippling up from the tanks across both faces and the floor.
+
+Shot 31: ⚙ Macro insert.
+
+Camera: static, extreme shallow focus.
+Action: tiny bubbles rise slowly past submerged heatsinks inside the tank, caustic light patterns moving across the metal.
+Expression: none, no people in frame.
+Dialogue: none.
+Light: warm amber refracting through clear coolant, teal beyond.
+
+Shot 32: Close, two-shot, 85mm.
+
+Camera: static.
+Action: Tessa doesn't take her eyes off the tanks. Elias turns his head toward her.
+Expression: Tessa — genuine awe, quiet. Elias — the closest he gets to a smile in the whole piece.
+Dialogue: Tessa: "It's silent." / Elias: "No fans. It's all liquid."
+Light: rippling teal caustics across both faces, single warm amber overhead.
+
+Shot 33: Wide, 35mm, both small in frame.
+
+Camera: slow pull back, widening them against the scale of the hall.
+Action: Elias turns fully to face her. Tessa finally looks away from the tanks and back at him.
+Expression: Elias — settled, certain. Tessa — taking it in.
+Dialogue: Elias: "Our hardware. Our data. We pick where it lives."
+Light: teal fill from the tanks, warm amber pool where they stand.
+Close — master control (2:45–3:00)
+
+Shot 34: ⚙ Wide, silhouette.
+
+Camera: static.
+Action: Elias and Tessa walk away from camera out of the immersion hall. The door swings closed behind them, cutting the teal light to black.
+Expression: none, silhouettes only.
+Dialogue: none.
+Light: teal from behind, hard black foreground.
+
+Shot 35: Medium two-shot, 50mm.
+
+Camera: static.
+Action: back in master control, both standing before the wall of feeds — the exact framing of shot 1, but two people now instead of one. Tessa looks at the wall, then across at him.
+Expression: Tessa — energized, ready. Elias — still tired, but differently.
+Dialogue: Tessa: "Okay. What's next?"
+Light: warm amber now dominant, teal reduced to a rim. Deliberately warmer than shot 1.
+
+Shot 36: Close, 85mm — mirrors shot 2.
+
+Camera: static. Hold longer than feels comfortable.
+Action: Elias looks up at the feeds. Doesn't answer right away.
+Expression: a small, settled smile. The first unqualified one he's given.
+Dialogue: Elias: "Reach further. Say it clearly. Leave nobody out."
+Light: warm amber key, teal rim, soft bloom. Hold two seconds after the line, then cut to black for the logo.
