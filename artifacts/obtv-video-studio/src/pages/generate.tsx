@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { 
   useListCharacters, 
   useListSettings, 
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Check, Clapperboard, Users, Map, Settings2, Play, Video, Pencil } from "lucide-react";
+import { Check, Clapperboard, Users, Map, Settings2, Play, Pencil } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -151,7 +151,7 @@ export default function GeneratePage() {
                 </p>
                 <p className="mt-1 text-muted-foreground">
                   {sourceJob
-                    ? "The prompt and render settings were copied. Reselect the cast and environment, or open the Reference Video workspace if this workflow requires one, then send it to render."
+                    ? "The prompt and render settings were copied. Reselect the cast and environment as needed, then send it to render."
                     : "Return to Queue & History and try opening the generation again."}
                 </p>
               </div>
@@ -257,37 +257,6 @@ export default function GeneratePage() {
                 </div>
               </div>
 
-              <Card className="space-y-3 border-border/50 bg-card/20 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 rounded-md bg-primary/15 p-2">
-                    <Video className="size-4 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Label htmlFor="reference-video" className="text-base font-semibold">
-                      Reference video <span className="text-muted-foreground">(optional)</span>
-                    </Label>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Upload and preview presenter footage in its dedicated workspace. Up to 250 MB.
-                    </p>
-                  </div>
-                </div>
-                {referenceVideoKey ? (
-                  <div className="flex flex-col gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="flex items-center gap-2 text-xs text-emerald-500">
-                      <Check className="size-3.5" /> Reference video loaded and ready to send.
-                    </p>
-                    <Link href="/reference-video?returnTo=/">
-                      <Button type="button" variant="outline" size="sm">Change video</Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <Link href="/reference-video?returnTo=/">
-                    <Button type="button" variant="outline" className="w-full border-primary/30 text-primary hover:bg-primary/10">
-                      <Video className="mr-2 size-4" /> Open Reference Video Workspace
-                    </Button>
-                  </Link>
-                )}
-              </Card>
             </TabsContent>
 
             <TabsContent value="prompt" className="space-y-4 mt-0">
