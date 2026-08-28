@@ -79,7 +79,7 @@ export default function CharactersPage() {
             <Card key={char.id} className="overflow-hidden group flex flex-col border-border/50 hover:border-primary/50 transition-colors bg-card/30 backdrop-blur-sm">
               <div className="aspect-video bg-secondary/30 relative flex items-center justify-center border-b border-border/50 overflow-hidden">
                 {char.thumbnail ? (
-                  <img src={char.thumbnail} alt={char.name} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <img src={char.thumbnail} alt={char.name} loading="lazy" decoding="async" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
                 ) : (
                   <ImageIcon className="size-10 text-muted-foreground/30" />
                 )}

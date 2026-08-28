@@ -205,7 +205,7 @@ export default function GeneratePage() {
                       >
                         <div className="aspect-[3/4] bg-secondary/50 relative">
                           {char.thumbnail && (
-                            <img src={char.thumbnail} className="w-full h-full object-cover opacity-80" alt={char.name} />
+                            <img src={char.thumbnail} loading="lazy" decoding="async" className="w-full h-full object-cover opacity-80" alt={char.name} />
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-3">
                             <span className="font-medium text-white text-sm">{char.name}</span>
@@ -247,7 +247,7 @@ export default function GeneratePage() {
                       >
                         <div className="w-24 h-16 bg-secondary/50 relative flex-shrink-0">
                           {setting.thumbnail && (
-                            <img src={setting.thumbnail} className="w-full h-full object-cover opacity-80" alt={setting.name} />
+                            <img src={setting.thumbnail} loading="lazy" decoding="async" className="w-full h-full object-cover opacity-80" alt={setting.name} />
                           )}
                           {isSelected && (
                             <div className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_0_12px_rgba(255,31,98,0.55)]">

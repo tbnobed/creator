@@ -79,7 +79,7 @@ export default function SettingsPage() {
             <Card key={setting.id} className="overflow-hidden group flex flex-col border-border/50 hover:border-primary/50 transition-colors bg-card/30 backdrop-blur-sm">
               <div className="aspect-[21/9] bg-secondary/30 relative flex items-center justify-center border-b border-border/50 overflow-hidden">
                 {setting.thumbnail ? (
-                  <img src={setting.thumbnail} alt={setting.name} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <img src={setting.thumbnail} alt={setting.name} loading="lazy" decoding="async" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
                 ) : (
                   <ImageIcon className="size-10 text-muted-foreground/30" />
                 )}
