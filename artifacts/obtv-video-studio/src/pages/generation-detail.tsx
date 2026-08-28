@@ -60,8 +60,8 @@ export default function GenerationDetailPage() {
                 <video 
                   src={job.outputUrl} 
                   controls 
-                  autoPlay 
                   loop 
+                  preload="none"
                   className="w-full h-full object-contain"
                 />
               ) : isRunning ? (

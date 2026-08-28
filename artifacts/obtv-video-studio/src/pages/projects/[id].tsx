@@ -320,7 +320,7 @@ export default function ProjectDetailPage() {
             <div className="p-3 md:p-4">
               {project.finalOutputUrl ? (
                 <div className="w-full rounded-lg overflow-hidden border border-border shadow-lg bg-black">
-                  <video src={project.finalOutputUrl} controls className="w-full" playsInline />
+                  <video src={project.finalOutputUrl} controls className="w-full" playsInline preload="none" />
                 </div>
               ) : project.status === 'ASSEMBLING' ? (
                 <div className="w-full aspect-video rounded-lg border border-primary/30 bg-primary/5 flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(255,31,98,0.2)] text-primary">
@@ -390,7 +390,7 @@ export default function ProjectDetailPage() {
                       <div className="w-20 md:w-24 flex-shrink-0">
                         {shot.outputUrl ? (
                           <div className="w-full aspect-video bg-black rounded-md overflow-hidden relative border border-border">
-                            <video src={shot.outputUrl} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                            <video src={shot.outputUrl} className="w-full h-full object-cover" muted loop playsInline preload="none" />
                           </div>
                         ) : (
                           <div className="w-full aspect-video bg-muted rounded-md flex flex-col items-center justify-center border border-border">
