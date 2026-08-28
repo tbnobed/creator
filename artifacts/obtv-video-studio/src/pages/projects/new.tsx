@@ -58,7 +58,17 @@ export default function NewProjectPage() {
   const { data: workflows = [] } = useListWorkflows();
   const workflowModes = workflows.filter(
     (workflow, index, collection) =>
-      collection.findIndex((candidate) => candidate.generationMode === workflow.generationMode) === index,
+      workflow.active &&
+      workflow.apiWorkflow &&
+      !workflow.mappings?.referenceVideo &&
+      Object.keys(workflow.mappings ?? {}).some((field) => /^referenceImage\d+$/.test(field)) &&
+      collection.findIndex((candidate) => (
+        candidate.active &&
+        candidate.apiWorkflow &&
+        !candidate.mappings?.referenceVideo &&
+        Object.keys(candidate.mappings ?? {}).some((field) => /^referenceImage\d+$/.test(field)) &&
+        candidate.generationMode === workflow.generationMode
+      )) === index,
   );
 
   const createProject = useCreateLongFormProject();

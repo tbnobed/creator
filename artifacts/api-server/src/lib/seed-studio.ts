@@ -112,12 +112,33 @@ async function seedConfiguredWorkers(): Promise<void> {
   ])).filter((worker): worker is WorkerSeed => worker !== null);
   if (workers.length === 0) return;
 
-  const existing = await db.select({ displayName: comfyServersTable.displayName }).from(comfyServersTable);
-  const existingNames = new Set(existing.map((worker) => worker.displayName));
-  const missingWorkers = workers.filter((worker) => !existingNames.has(worker.displayName));
+  const existing = await db
+    .select({
+      id: comfyServersTable.id,
+      displayName: comfyServersTable.displayName,
+      tags: comfyServersTable.tags,
+    })
+    .from(comfyServersTable);
+  const existingByName = new Map(existing.map((worker) => [worker.displayName, worker]));
+  const missingWorkers = workers.filter((worker) => !existingByName.has(worker.displayName));
   if (missingWorkers.length > 0) {
     await db.insert(comfyServersTable).values(missingWorkers);
   }
+  await Promise.all(workers.flatMap((worker) => {
+    const current = existingByName.get(worker.displayName);
+    if (!current) return [];
+    const canonicalTags = new Set(worker.tags.map((tag) => tag.toLowerCase()));
+    const mergedTags = [
+      ...worker.tags,
+      ...current.tags.filter((tag) => !canonicalTags.has(tag.toLowerCase())),
+    ];
+    if (mergedTags.join("\u0000") === current.tags.join("\u0000")) return [];
+    return [
+      db.update(comfyServersTable)
+        .set({ tags: mergedTags })
+        .where(eq(comfyServersTable.id, current.id)),
+    ];
+  }));
 }
 
 async function seedWorkflowDefinitions(): Promise<void> {

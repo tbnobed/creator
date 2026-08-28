@@ -15,7 +15,7 @@ import {
 } from "@workspace/db";
 import { logger } from "./logger";
 import { ComfyUIClient } from "./comfy/client";
-import { selectServer } from "./comfy/scheduler";
+import { hasRequiredTags, isLongFormWorkflow, selectServer } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
 
@@ -195,8 +195,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     .where(and(eq(workflowTemplatesTable.generationMode, input.generationMode), eq(workflowTemplatesTable.active, true)))
     .orderBy(desc(workflowTemplatesTable.version));
   const compatibleWorkflows = workflows.filter((candidate) => (
-    candidate.apiWorkflow &&
-    Boolean((candidate.mappings as ParameterMappings).referenceVideo) === wantsReferenceVideo
+    wantsReferenceVideo
+      ? Boolean(candidate.apiWorkflow && (candidate.mappings as ParameterMappings).referenceVideo)
+      : isLongFormWorkflow(candidate)
   ));
   const servers = await db.select().from(comfyServersTable);
   const requestedServer = input.preferredServerId
@@ -206,7 +207,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     ? compatibleWorkflows.filter((candidate) => (
       requestedServer.enabled &&
       requestedServer.status === "ONLINE" &&
-      candidate.compatibleServerTags.every((tag) => requestedServer.tags.includes(tag))
+      hasRequiredTags(requestedServer.tags, candidate.compatibleServerTags)
     ))
     : compatibleWorkflows;
   const selected = workflowsForRequestedServer

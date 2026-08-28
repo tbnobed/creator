@@ -14,9 +14,11 @@ import {
   pool,
   settingsTable,
   workflowTemplatesTable,
+  type ComfyServer,
   type LongFormProject,
   type LongFormShot,
 } from "@workspace/db";
+import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { mediaStorage } from "./storage-service";
@@ -383,7 +385,12 @@ export async function deleteLongFormProject(projectId: string): Promise<void> {
   if (deleted === null) throw new Error("Project is currently being updated; try again.");
 }
 
-async function findAvailableServer(project: LongFormProject) {
+type DispatchAvailability = {
+  server: ComfyServer | null;
+  reason: string | null;
+};
+
+async function findDispatchAvailability(project: LongFormProject): Promise<DispatchAvailability> {
   const [servers, workflows, activeJobs] = await Promise.all([
     db.select().from(comfyServersTable),
     db.select().from(workflowTemplatesTable).where(and(eq(workflowTemplatesTable.generationMode, project.generationMode), eq(workflowTemplatesTable.active, true))),
@@ -396,21 +403,48 @@ async function findAvailableServer(project: LongFormProject) {
   for (const job of activeJobs) {
     if (job.comfyServerId) activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
   }
-  const compatibleWorkflows = workflows.filter((workflow) => workflow.apiWorkflow && !("referenceVideo" in workflow.mappings));
-  return servers
-    .filter((server) => {
-      const activeCount = activeByServer.get(server.id) ?? 0;
-      const capacity = server.maxConcurrentJobs ?? 1;
-      return server.enabled &&
-        server.status === "ONLINE" &&
-        activeCount < capacity &&
-        compatibleWorkflows.some((workflow) => workflow.compatibleServerTags.every((tag) => server.tags.includes(tag)));
-    })
+  const compatibleWorkflows = workflows.filter(isLongFormWorkflow);
+  if (compatibleWorkflows.length === 0) {
+    return {
+      server: null,
+      reason: `Waiting for an active ${project.generationMode} workflow that accepts character and environment references.`,
+    };
+  }
+  const onlineCompatibleServers = servers.filter((server) => (
+    server.enabled &&
+    server.status === "ONLINE" &&
+    compatibleWorkflows.some((workflow) => hasRequiredTags(server.tags, workflow.compatibleServerTags))
+  ));
+  if (onlineCompatibleServers.length === 0) {
+    return {
+      server: null,
+      reason: `Waiting for an online GPU worker compatible with the ${project.generationMode} workflow.`,
+    };
+  }
+  const availableServers = onlineCompatibleServers.filter((server) => {
+    const activeCount = activeByServer.get(server.id) ?? 0;
+    return activeCount < (server.maxConcurrentJobs ?? 1);
+  });
+  const server = availableServers
     .sort((a, b) => (
       (activeByServer.get(a.id) ?? 0) - (activeByServer.get(b.id) ?? 0) ||
       a.queueSize - b.queueSize ||
       a.priority - b.priority
     ))[0] ?? null;
+  return {
+    server,
+    reason: server
+      ? null
+      : `Waiting for a free GPU slot on ${onlineCompatibleServers.map((candidate) => candidate.displayName).join(", ")}.`,
+  };
+}
+
+async function recordDispatchBlock(project: LongFormProject, reason: string): Promise<void> {
+  if (project.errorMessage === reason) return;
+  await db.update(longFormProjectsTable)
+    .set({ errorMessage: reason })
+    .where(and(eq(longFormProjectsTable.id, project.id), eq(longFormProjectsTable.status, "RUNNING")));
+  logger.warn({ projectId: project.id, generationMode: project.generationMode, reason }, "Long-form dispatch waiting");
 }
 
 async function reconcileShotJobs(project: LongFormProject, shots: LongFormShot[]) {
@@ -591,13 +625,19 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
     return;
   }
 
-  let server = await findAvailableServer(project);
+  let availability = await findDispatchAvailability(project);
+  let server = availability.server;
+  if (!server) {
+    await recordDispatchBlock(project, availability.reason ?? "Waiting for a compatible GPU worker.");
+    return;
+  }
   let nextShot = remaining[0];
   while (server && nextShot) {
     const dispatched = await (async () => {
       const [currentProject] = await db.select({ status: longFormProjectsTable.status }).from(longFormProjectsTable).where(eq(longFormProjectsTable.id, project.id));
       if (currentProject?.status !== "RUNNING") return false;
-      const confirmedServer = await findAvailableServer(project);
+      const confirmedAvailability = await findDispatchAvailability(project);
+      const confirmedServer = confirmedAvailability.server;
       if (confirmedServer?.id !== server.id) return false;
       const [claimed] = await db.update(longFormShotsTable)
         .set({ status: "QUEUED", assignedServerId: server.id, errorMessage: null, startedAt: new Date() })
@@ -632,6 +672,9 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
           assignedServerId: job.comfyServerId ?? server.id,
         }).where(and(eq(longFormShotsTable.id, claimed.id), eq(longFormShotsTable.generationJobId, job.id), eq(longFormShotsTable.status, "QUEUED")));
         logger.info({ projectId: project.id, shotId: claimed.id, jobId: job.id, server: server.displayName }, "Long-form shot dispatched");
+        if (project.errorMessage) {
+          await db.update(longFormProjectsTable).set({ errorMessage: null }).where(eq(longFormProjectsTable.id, project.id));
+        }
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not submit shot";
@@ -641,17 +684,28 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
             ? { status: "PLANNED", assignedServerId: null, startedAt: null, errorMessage: null }
             : { status: "FAILED", errorMessage: message },
         ).where(and(eq(longFormShotsTable.id, claimed.id), eq(longFormShotsTable.status, "QUEUED")));
+        logger.warn({ err: error, projectId: project.id, shotId: claimed.id, server: server.displayName, deferred }, "Long-form shot dispatch failed");
         return false;
       }
     })();
     if (!dispatched) break;
-    server = await findAvailableServer(project);
+    availability = await findDispatchAvailability(project);
+    server = availability.server;
     nextShot = (await db.select().from(longFormShotsTable).where(and(eq(longFormShotsTable.projectId, project.id), eq(longFormShotsTable.status, "PLANNED"))).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber)))[0];
+  }
+  if (!server && nextShot && availability.reason) {
+    await recordDispatchBlock(project, availability.reason);
   }
 }
 
 export async function orchestrateLongFormProject(projectId: string): Promise<void> {
   await withProjectLock(projectId, () => orchestrateProjectUnlocked(projectId));
+}
+
+function scheduleLongFormOrchestration(projectId: string, source: string): void {
+  void orchestrateLongFormProject(projectId).catch((error) => {
+    logger.error({ err: error, projectId, source }, "Could not orchestrate long-form project");
+  });
 }
 
 export async function startLongFormProject(projectId: string) {
@@ -660,7 +714,7 @@ export async function startLongFormProject(projectId: string) {
     .where(and(eq(longFormProjectsTable.id, projectId), inArray(longFormProjectsTable.status, ["READY", "PAUSED", "FAILED"])))
     .returning();
   if (!project) throw new Error("Project cannot be started from its current status");
-  void orchestrateLongFormProject(project.id);
+  scheduleLongFormOrchestration(project.id, "start");
   return presentLongFormProject(project, true);
 }
 
@@ -696,7 +750,7 @@ export async function reassembleLongFormProject(projectId: string) {
     return updated;
   });
   if (!project) throw new Error("Project is currently being updated; try again.");
-  void orchestrateLongFormProject(project.id);
+  scheduleLongFormOrchestration(project.id, "reassemble");
   return presentLongFormProject(project, true);
 }
 
@@ -759,7 +813,7 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
   }).where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId), inArray(longFormShotsTable.status, ["FAILED", "CANCELLED"]))).returning();
   if (!shot) throw new Error("Only failed or cancelled shots can be retried");
   await db.update(longFormProjectsTable).set({ status: "RUNNING", errorMessage: null }).where(eq(longFormProjectsTable.id, projectId));
-  void orchestrateLongFormProject(projectId);
+  scheduleLongFormOrchestration(projectId, "retry-shot");
   return presentShot(shot);
 }
 
@@ -767,9 +821,16 @@ export async function startLongFormOrchestrator(): Promise<void> {
   if (orchestratorTimer) return;
   const tick = async () => {
     const projects = await db.select({ id: longFormProjectsTable.id }).from(longFormProjectsTable).where(inArray(longFormProjectsTable.status, ["RUNNING", "ASSEMBLING"]));
-    await Promise.allSettled(projects.map((project) => orchestrateLongFormProject(project.id)));
+    const results = await Promise.allSettled(projects.map((project) => orchestrateLongFormProject(project.id)));
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        logger.error({ err: result.reason, projectId: projects[index]?.id }, "Long-form orchestrator tick failed");
+      }
+    });
   };
   await tick();
-  orchestratorTimer = setInterval(() => void tick(), ORCHESTRATOR_INTERVAL_MS);
+  orchestratorTimer = setInterval(() => {
+    void tick().catch((error) => logger.error({ err: error }, "Long-form orchestrator polling failed"));
+  }, ORCHESTRATOR_INTERVAL_MS);
   logger.info("Long-form project orchestrator started");
 }
