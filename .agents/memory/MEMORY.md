@@ -6,3 +6,4 @@
 - [AI prompt review safety](ai-prompt-review-safety.md) — Keep AI prompt edits as reviewable drafts; never silently replace newer creator input.
 - [Presenter audio preservation](presenter-audio-preservation.md) — Presenter-video outputs preserve source audio; generated audio can drift into gibberish on longer clips.
 - [Long-form worker compatibility](long-form-worker-compatibility.md) — Health alone is insufficient; seeded worker tags must migrate and match eligible image-reference workflows.
+- [Long-form speech conditioning](long-form-speech-conditioning.md) — Keep dialogue early and allocate enough clip time; late or compressed speech degrades into gibberish.

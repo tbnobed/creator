@@ -202,25 +202,73 @@ function chunkSentences(sentences: string[], desiredCount: number): string[] {
   return chunks;
 }
 
+function minimumShotDuration(dialogue: string): number {
+  if (!dialogue.trim()) return 2;
+  const wordCount = dialogue.match(/[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+  const requiredSeconds = wordCount / 2.25 + 1.5;
+  if (requiredSeconds > MAX_SHOT_DURATION_SECONDS) {
+    throw new Error(`A spoken line needs about ${Math.ceil(requiredSeconds)} seconds. Split it across multiple shots so each line fits within ${MAX_SHOT_DURATION_SECONDS} seconds.`);
+  }
+  return Math.ceil(Math.max(2, requiredSeconds) * 10) / 10;
+}
+
+function allocateShotDurations(minimums: number[], targetDurationSeconds: number): number[] {
+  const minimumTotal = minimums.reduce((sum, duration) => sum + duration, 0);
+  const maximumTotal = minimums.length * MAX_SHOT_DURATION_SECONDS;
+  if (targetDurationSeconds > maximumTotal) {
+    throw new Error(`The requested duration needs more shots. Add shot headers so no shot exceeds ${MAX_SHOT_DURATION_SECONDS} seconds.`);
+  }
+  const plannedTotal = Math.max(targetDurationSeconds, minimumTotal);
+  if (plannedTotal > 600) {
+    throw new Error("The spoken script needs more than 10 minutes. Shorten the dialogue or split it into another project.");
+  }
+
+  const durations = [...minimums];
+  let remaining = plannedTotal - minimumTotal;
+  while (remaining > 0.001) {
+    const available = durations
+      .map((duration, index) => ({ duration, index }))
+      .filter(({ duration }) => duration < MAX_SHOT_DURATION_SECONDS - 0.001);
+    if (available.length === 0) break;
+    const share = remaining / available.length;
+    let added = 0;
+    for (const { duration, index } of available) {
+      const increment = Math.min(share, MAX_SHOT_DURATION_SECONDS - duration);
+      durations[index] += increment;
+      added += increment;
+    }
+    if (added <= 0.001) break;
+    remaining -= added;
+  }
+  return durations.map((duration) => Number(duration.toFixed(2)));
+}
+
 function planShots(input: LongFormProjectInput): PlannedShot[] {
   const requestedShotDuration = Math.min(MAX_SHOT_DURATION_SECONDS, Math.max(2, input.shotDurationSeconds));
   const desiredCount = Math.max(1, Math.ceil(input.targetDurationSeconds / requestedShotDuration));
   const structuredBeats = parseStructuredBeats(input.script);
   const chunks = structuredBeats ?? chunkSentences(normalizeScript(input.script), desiredCount);
   const shotCount = structuredBeats?.length ?? desiredCount;
+  const shotInputs = Array.from({ length: shotCount }, (_, index) => {
+    const structuredBeat = structuredBeats?.[index];
+    const shotBody = structuredBeat ? structuredBeat.body : chunks[index % chunks.length] as string;
+    const dialogue = structuredBeat?.kind === "SHOT" ? extractDialogue(shotBody) : "";
+    return {
+      structuredBeat,
+      dialogue,
+      prompt: dialogue ? removeDialogueFromPrompt(shotBody) : shotBody,
+    };
+  });
+  const durations = allocateShotDurations(
+    shotInputs.map(({ dialogue }) => minimumShotDuration(dialogue)),
+    input.targetDurationSeconds,
+  );
   const shots: PlannedShot[] = [];
-  let remainingDuration = input.targetDurationSeconds;
   let sceneNumber = 1;
   let shotNumber = 1;
 
   for (let index = 0; index < shotCount; index += 1) {
-    const durationSeconds = index === shotCount - 1
-      ? Number(remainingDuration.toFixed(2))
-      : Number(Math.min(MAX_SHOT_DURATION_SECONDS, Math.max(1, remainingDuration / (shotCount - index))).toFixed(2));
-    const structuredBeat = structuredBeats?.[index];
-    const shotBody = structuredBeat ? structuredBeat.body : chunks[index % chunks.length] as string;
-    const dialogue = structuredBeat?.kind === "SHOT" ? extractDialogue(shotBody) : "";
-    const prompt = dialogue ? removeDialogueFromPrompt(shotBody) : shotBody;
+    const { structuredBeat, dialogue, prompt } = shotInputs[index];
     const previousPrompt = shots.at(-1)?.prompt;
     const label = structuredBeat
       ? `${structuredBeat.kind === "B-ROLL" ? "B-Roll" : "Shot"} ${structuredBeat.number}${structuredBeat.label ? ` · ${structuredBeat.label}` : ""}`
@@ -229,7 +277,7 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
       sceneNumber,
       shotNumber,
       title: label,
-      prompt: input.storyline ? `${input.storyline.trim()}\n\n${prompt}` : prompt,
+      prompt: input.storyline ? `${prompt}\n\nPROJECT VISUAL DIRECTION\n${input.storyline.trim()}` : prompt,
       dialogue,
       cameraInstructions: index % 3 === 0 ? "Establishing cinematic composition, deliberate framing." : index % 3 === 1 ? "Controlled medium shot with subtle tracking." : "Intimate detail shot with natural movement.",
       motionInstructions: "Natural, physically believable movement with consistent character and environment details.",
@@ -237,9 +285,8 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
         ? `Continue visual identity, wardrobe, lighting, and narrative action from the previous shot. Previous beat: ${previousPrompt.slice(0, 220)}`
         : "Establish the visual identity, setting, lighting, and character continuity for the sequence.",
       transition: index === 0 ? "CUT" : index % 6 === 0 ? "DISSOLVE" : "CUT",
-      durationSeconds,
+      durationSeconds: durations[index],
     });
-    remainingDuration -= durationSeconds;
     shotNumber += 1;
     if (shotNumber > 4) {
       sceneNumber += 1;
@@ -347,6 +394,7 @@ export async function createLongFormProject(input: LongFormProjectInput) {
   }
   if (input.targetDurationSeconds > 600) throw new Error("Long-form projects are limited to 10 minutes.");
   const shots = planShots(input);
+  const plannedDurationSeconds = shots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
   const project = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(longFormProjectsTable)
@@ -355,7 +403,7 @@ export async function createLongFormProject(input: LongFormProjectInput) {
       script: input.script.trim(),
       storyline: input.storyline?.trim() ?? "",
       status: "READY",
-      targetDurationSeconds: input.targetDurationSeconds,
+      targetDurationSeconds: plannedDurationSeconds,
       generationMode: input.generationMode,
       negativePrompt: input.negativePrompt ?? "",
       width: input.width,
@@ -689,6 +737,12 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
         .returning();
       if (!claimed) return false;
       try {
+        const renderDurationSeconds = Math.max(claimed.durationSeconds, minimumShotDuration(claimed.dialogue));
+        if (renderDurationSeconds !== claimed.durationSeconds) {
+          await db.update(longFormShotsTable)
+            .set({ durationSeconds: renderDurationSeconds })
+            .where(eq(longFormShotsTable.id, claimed.id));
+        }
         const job = await createAndSubmitGeneration({
           characterIds: project.characterIds,
           settingId: project.settingId ?? undefined,
@@ -698,7 +752,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
           dialogue: claimed.dialogue,
           motionInstructions: claimed.motionInstructions,
           generationMode: project.generationMode,
-          durationSeconds: Math.min(MAX_SHOT_DURATION_SECONDS, claimed.durationSeconds),
+          durationSeconds: renderDurationSeconds,
           fps: project.fps,
           width: project.width,
           height: project.height,

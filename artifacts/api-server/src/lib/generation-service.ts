@@ -76,8 +76,8 @@ function compilePrompt(
       ? `CHARACTERS\n${characters.map((character) => `${character.name}: ${character.promptDescription}`).join("\n\n")}`
       : "",
     setting?.promptDescription ? `SETTING\n${setting.promptDescription}` : "",
-    `ACTION\n${input.prompt}`,
     input.dialogue ? `DIALOGUE\n${input.dialogue}` : "",
+    `ACTION\n${input.prompt}`,
     input.cameraInstructions ? `CAMERA\n${input.cameraInstructions}` : "",
     input.motionInstructions ? `MOTION\n${input.motionInstructions}` : "",
     input.audioInstructions ? `AUDIO\n${input.audioInstructions}` : "",
