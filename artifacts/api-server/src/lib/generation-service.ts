@@ -453,24 +453,101 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
 
 async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId: string) {
   const timeoutAt = Date.now() + generationTimeoutMs;
-  while (Date.now() < timeoutAt) {
-    try {
-      const [currentJob] = await db
-        .select({ status: generationJobsTable.status })
-        .from(generationJobsTable)
-        .where(eq(generationJobsTable.id, jobId));
-      if (!currentJob || currentJob.status === "CANCELLED") return;
-      if (await downloadCompletedOutput(jobId, client, promptId)) return;
-      const [running] = await db
-        .update(generationJobsTable)
-        .set({ status: "RUNNING", currentNode: "ComfyUI processing" })
-        .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
-        .returning({ id: generationJobsTable.id });
-      if (!running) return;
-    } catch (error) {
-      logger.warn({ err: error, jobId }, "Generation monitor retrying after ComfyUI error");
+  const nodeProgress = new Map<string, number>();
+  let lastProgressWriteAt = 0;
+  let lastProgress = -1;
+  const persistProgress = (progress: number, currentNode: string | null) => {
+    const normalized = Math.min(0.99, Math.max(0, progress));
+    const now = Date.now();
+    if (
+      now - lastProgressWriteAt < 400 &&
+      Math.abs(normalized - lastProgress) < 0.01 &&
+      currentNode
+    ) {
+      return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 5_000));
+    lastProgressWriteAt = now;
+    lastProgress = normalized;
+    void db
+      .update(generationJobsTable)
+      .set({ progress: normalized, currentNode })
+      .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+      .catch((error) => logger.warn({ err: error, jobId }, "Could not persist ComfyUI progress"));
+  };
+
+  let disconnectProgress: (() => void) | null = null;
+  try {
+    disconnectProgress = client.connectProgress(jobId, (message) => {
+      const data = message.data;
+      if (!data || typeof data !== "object") return;
+      const payload = data as Record<string, unknown>;
+      if (typeof payload.prompt_id === "string" && payload.prompt_id !== promptId) return;
+
+      if (message.type === "execution_start") {
+        persistProgress(0, "ComfyUI processing");
+        return;
+      }
+
+      if (message.type === "progress") {
+        const value = typeof payload.value === "number" ? payload.value : null;
+        const max = typeof payload.max === "number" ? payload.max : null;
+        if (value === null || max === null || max <= 0) return;
+        const node = typeof payload.node === "string" ? payload.node : "current";
+        nodeProgress.set(node, Math.min(1, Math.max(0, value / max)));
+        persistProgress(nodeProgress.get(node) ?? 0, typeof payload.node === "string" ? `ComfyUI node ${payload.node}` : "ComfyUI processing");
+        return;
+      }
+
+      if (message.type === "progress_state" && payload.nodes && typeof payload.nodes === "object") {
+        const entries = Object.entries(payload.nodes as Record<string, unknown>);
+        if (!entries.length) return;
+        let total = 0;
+        let activeNode: string | null = null;
+        for (const [nodeId, rawNode] of entries) {
+          if (!rawNode || typeof rawNode !== "object") continue;
+          const node = rawNode as Record<string, unknown>;
+          const state = typeof node.state === "string" ? node.state : "";
+          const value = typeof node.value === "number" ? node.value : 0;
+          const max = typeof node.max === "number" && node.max > 0 ? node.max : 1;
+          const nodeValue = state === "finished" ? 1 : Math.min(1, Math.max(0, value / max));
+          total += nodeValue;
+          if (state === "running") activeNode = nodeId;
+        }
+        const progress = total / entries.length;
+        persistProgress(progress, activeNode ? `ComfyUI node ${activeNode}` : "ComfyUI processing");
+        return;
+      }
+
+      if (message.type === "executing" && typeof payload.node === "string") {
+        persistProgress(nodeProgress.get(payload.node) ?? 0, `ComfyUI node ${payload.node}`);
+      }
+    });
+  } catch (error) {
+    logger.warn({ err: error, jobId }, "ComfyUI progress WebSocket unavailable; using HTTP monitor");
+  }
+
+  try {
+    while (Date.now() < timeoutAt) {
+      try {
+        const [currentJob] = await db
+          .select({ status: generationJobsTable.status })
+          .from(generationJobsTable)
+          .where(eq(generationJobsTable.id, jobId));
+        if (!currentJob || currentJob.status === "CANCELLED") return;
+        if (await downloadCompletedOutput(jobId, client, promptId)) return;
+        const [running] = await db
+          .update(generationJobsTable)
+          .set({ status: "RUNNING", currentNode: "ComfyUI processing" })
+          .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+          .returning({ id: generationJobsTable.id });
+        if (!running) return;
+      } catch (error) {
+        logger.warn({ err: error, jobId }, "Generation monitor retrying after ComfyUI error");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+    }
+  } finally {
+    disconnectProgress?.();
   }
   await db
     .update(generationJobsTable)

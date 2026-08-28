@@ -13,7 +13,16 @@ export default function GenerationDetailPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const id = params.id as string;
-  const { data: job, isLoading } = useGetGeneration(id, { query: { enabled: !!id, queryKey: getGetGenerationQueryKey(id) } });
+  const { data: job, isLoading } = useGetGeneration(id, {
+    query: {
+      enabled: !!id,
+      queryKey: getGetGenerationQueryKey(id),
+      refetchInterval: (query) => {
+        const currentJob = query.state.data;
+        return currentJob && ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(currentJob.status) ? 2_000 : false;
+      },
+    },
+  });
 
   if (isLoading) {
     return (
@@ -80,12 +89,18 @@ export default function GenerationDetailPage() {
                   <Loader2 className="size-12 animate-spin" />
                   <div className="text-center">
                     <p className="font-medium text-lg mb-2">Processing...</p>
-                    {job.progress !== null && job.progress !== undefined && (
-                      <div className="w-64 space-y-2">
+                    <div className="w-64 space-y-2">
+                      {job.progress !== null && job.progress !== undefined ? (
                         <Progress value={job.progress * 100} className="h-2" />
-                        <p className="text-xs text-muted-foreground">{(job.progress * 100).toFixed(0)}% complete</p>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-primary/20">
+                          <div className="h-full w-1/3 rounded-full bg-primary animate-pulse" />
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {job.progress !== null && job.progress !== undefined ? `${(job.progress * 100).toFixed(0)}% complete` : "Waiting for worker progress..."}
+                      </p>
+                    </div>
                     {job.currentNode && (
                       <p className="text-xs font-mono text-muted-foreground mt-2">Node: {job.currentNode}</p>
                     )}

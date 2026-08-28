@@ -8,6 +8,14 @@ export type PrivateComfyServer = {
 
 type FetchOptions = RequestInit & { timeoutMs?: number };
 
+type ComfyWebSocket = {
+  onmessage: ((event: { data: unknown }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  close: () => void;
+};
+
+type ComfyWebSocketConstructor = new (url: string) => ComfyWebSocket;
+
 function isBlockedAddress(address: string): boolean {
   return (
     address === "169.254.169.254" ||
@@ -112,6 +120,35 @@ export class ComfyUIClient {
       body: JSON.stringify({ prompt: workflow, client_id: clientId }),
       timeoutMs: 60_000,
     });
+  }
+
+  connectProgress(clientId: string, onMessage: (message: Record<string, unknown>) => void): () => void {
+    const WebSocketConstructor = (globalThis as unknown as { WebSocket?: ComfyWebSocketConstructor }).WebSocket;
+    if (!WebSocketConstructor) {
+      throw new Error("This server runtime does not support ComfyUI progress WebSockets");
+    }
+    const target = new URL(this.server.websocketUrl);
+    target.searchParams.set("clientId", clientId);
+    const socket = new WebSocketConstructor(target.toString());
+    socket.onmessage = (event) => {
+      if (typeof event.data !== "string") return;
+      try {
+        const message = JSON.parse(event.data) as unknown;
+        if (message && typeof message === "object") {
+          onMessage(message as Record<string, unknown>);
+        }
+      } catch {
+        // Ignore non-JSON WebSocket frames from ComfyUI.
+      }
+    };
+    socket.onerror = () => {
+      // The normal HTTP monitor continues if a worker's WebSocket is unavailable.
+    };
+    return () => {
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.close();
+    };
   }
 
   removeQueuedPrompt(promptId: string) {
