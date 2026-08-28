@@ -102,7 +102,7 @@ export default function ProjectsPage() {
                       <video 
                         src={project.finalOutputUrl}
                         className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                        autoPlay muted loop playsInline
+                        muted loop playsInline preload="none"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                     </div>
