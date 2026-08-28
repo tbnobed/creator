@@ -103,6 +103,41 @@ async function serveMedia(req: Request, res: Response): Promise<void> {
   }
 }
 
+async function serveVideoPreview(req: Request, res: Response): Promise<void> {
+  const raw = Array.isArray(req.params.key) ? req.params.key.join("/") : req.params.key;
+  if (!raw) {
+    res.status(400).json({ error: "Media key is required" });
+    return;
+  }
+
+  try {
+    const filePath = await mediaStorage.videoPreviewPath(raw);
+    const fileInfo = await stat(filePath);
+    res.set({
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-length": String(fileInfo.size),
+      "content-type": "image/jpeg",
+    });
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+    const stream = createReadStream(filePath);
+    stream.on("error", (error) => {
+      if (!res.headersSent) {
+        res.status(404).json({ error: "Video preview is not available" });
+      } else {
+        res.destroy(error);
+      }
+    });
+    stream.pipe(res);
+  } catch {
+    res.status(404).json({ error: "Video preview is not available" });
+  }
+}
+
+router.get("/media-preview/{*key}", serveVideoPreview);
+router.head("/media-preview/{*key}", serveVideoPreview);
 router.get("/media/{*key}", serveMedia);
 router.head("/media/{*key}", serveMedia);
 

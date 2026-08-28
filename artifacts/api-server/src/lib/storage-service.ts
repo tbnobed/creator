@@ -1,7 +1,8 @@
 import { createReadStream } from "node:fs";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
 
 const root = path.resolve(process.env.OBTV_MEDIA_ROOT ?? "data/obtv-media");
 
@@ -9,6 +10,26 @@ const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const VIDEO_MIME_TYPES = new Set(["video/mp4", "video/webm"]);
 const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
+const previewJobs = new Map<string, Promise<string>>();
+const PREVIEW_CONCURRENCY = 2;
+const PREVIEW_TIMEOUT_MS = 30_000;
+const MAX_FFMPEG_ERROR_BYTES = 8 * 1024;
+const previewWaiters: Array<() => void> = [];
+let activePreviewJobs = 0;
+
+async function acquirePreviewSlot(): Promise<void> {
+  if (activePreviewJobs < PREVIEW_CONCURRENCY) {
+    activePreviewJobs += 1;
+    return;
+  }
+  await new Promise<void>((resolve) => previewWaiters.push(resolve));
+}
+
+function releasePreviewSlot(): void {
+  const next = previewWaiters.shift();
+  if (next) next();
+  else activePreviewJobs = Math.max(0, activePreviewJobs - 1);
+}
 
 function safeExtension(originalName: string, mimeType: string): string {
   const supplied = path.extname(originalName).toLowerCase();
@@ -97,6 +118,84 @@ export class LocalMediaStorage {
 
   resolvePath(key: string): string {
     return resolveKey(key);
+  }
+
+  async videoPreviewPath(key: string): Promise<string> {
+    const normalized = key.replaceAll("\\", "/");
+    if (!/^(generations|reference-videos)\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(normalized)) {
+      throw new Error("Invalid video preview key");
+    }
+    const source = resolveKey(normalized);
+    await stat(source);
+
+    const previewDirectory = path.join(root, "previews");
+    const previewName = `${createHash("sha256").update(normalized).digest("hex")}.jpg`;
+    const destination = path.join(previewDirectory, previewName);
+    try {
+      const existing = await stat(destination);
+      if (existing.isFile() && existing.size > 0) return destination;
+    } catch {
+      // Generate and cache the preview below.
+    }
+
+    const existingJob = previewJobs.get(destination);
+    if (existingJob) return existingJob;
+
+    const job = (async () => {
+      await mkdir(previewDirectory, { recursive: true });
+      const temporary = `${destination}.${randomUUID()}.tmp.jpg`;
+      await acquirePreviewSlot();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const process = spawn("ffmpeg", [
+            "-v", "error",
+            "-ss", "0.1",
+            "-i", source,
+            "-frames:v", "1",
+            "-vf", "scale=640:-2:force_original_aspect_ratio=decrease",
+            "-q:v", "3",
+            "-y", temporary,
+          ]);
+          let stderr = "";
+          let settled = false;
+          let timedOut = false;
+          const finish = (error?: Error) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            if (error) reject(error);
+            else resolve();
+          };
+          const timeout = setTimeout(() => {
+            timedOut = true;
+            process.kill("SIGKILL");
+          }, PREVIEW_TIMEOUT_MS);
+          process.stderr.on("data", (chunk) => {
+            if (stderr.length < MAX_FFMPEG_ERROR_BYTES) {
+              stderr += String(chunk).slice(0, MAX_FFMPEG_ERROR_BYTES - stderr.length);
+            }
+          });
+          process.on("error", (error) => finish(error));
+          process.on("close", (code) => {
+            if (timedOut) finish(new Error("Video preview generation timed out"));
+            else if (code === 0) finish();
+            else finish(new Error(stderr.trim() || `ffmpeg exited with code ${code}`));
+          });
+        });
+        await rename(temporary, destination);
+        return destination;
+      } finally {
+        releasePreviewSlot();
+        await unlink(temporary).catch(() => undefined);
+      }
+    })();
+
+    previewJobs.set(destination, job);
+    try {
+      return await job;
+    } finally {
+      previewJobs.delete(destination);
+    }
   }
 
   async deleteOutput(key: string): Promise<void> {

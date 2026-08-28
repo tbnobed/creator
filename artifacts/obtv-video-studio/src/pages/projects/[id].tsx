@@ -8,6 +8,8 @@ import {
   useCancelLongFormProject,
   useUpdateLongFormShot,
   useRetryLongFormShot,
+  useListCharacters,
+  useListSettings,
   getGetLongFormProjectQueryKey,
   getListLongFormProjectsQueryKey,
   useDeleteLongFormProject
@@ -35,7 +37,14 @@ import {
   AlertTriangle,
   Pencil,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Maximize2,
+  UserRound,
+  MapPin,
+  Camera,
+  Move3d,
+  MessageSquare,
+  Link2
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
@@ -48,6 +57,7 @@ export default function ProjectDetailPage() {
   const queryClient = useQueryClient();
 
   const [editingShot, setEditingShot] = useState<any>(null);
+  const [previewShot, setPreviewShot] = useState<any>(null);
 
   // Queries
   const { data: project, isLoading, error } = useGetLongFormProject(id as string, {
@@ -62,6 +72,8 @@ export default function ProjectDetailPage() {
       }
     }
   });
+  const { data: characters = [] } = useListCharacters();
+  const { data: settings = [] } = useListSettings();
 
   // Mutations
   const startProject = useStartLongFormProject();
@@ -171,6 +183,13 @@ export default function ProjectDetailPage() {
   const isReady = project.status === "READY";
   const isDraft = project.status === "DRAFT";
   const isDone = project.status === "COMPLETED";
+  const projectCharacterIds = project.characterIds ?? [];
+  const characterById = new Map(characters.map((character) => [character.id, character]));
+  const settingById = new Map(settings.map((setting) => [setting.id, setting]));
+  const projectCharacters = projectCharacterIds
+    .map((characterId) => characterById.get(characterId))
+    .filter(Boolean);
+  const projectSetting = project.settingId ? settingById.get(project.settingId) : undefined;
 
   // Group shots by scene
   const scenes = project.shots.reduce((acc: any, shot: any) => {
@@ -321,7 +340,7 @@ export default function ProjectDetailPage() {
             <div className="p-3 md:p-4">
               {project.finalOutputUrl ? (
                 <div className="w-full rounded-lg overflow-hidden border border-border shadow-lg bg-black">
-                  <video src={project.finalOutputUrl} controls className="w-full" playsInline preload="none" />
+                  <video src={project.finalOutputUrl} poster={videoPosterUrl(project.finalOutputUrl)} controls className="w-full" playsInline preload="metadata" />
                 </div>
               ) : project.status === 'ASSEMBLING' ? (
                 <div className="w-full aspect-video rounded-lg border border-primary/30 bg-primary/5 flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(255,31,98,0.2)] text-primary">
@@ -341,6 +360,46 @@ export default function ProjectDetailPage() {
                   <p className="break-words">{project.errorMessage}</p>
                 </div>
               )}
+            </div>
+
+            <div className="border-t border-border/50 bg-muted/10 p-3 md:p-4">
+              <h3 className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Production Assets</h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                    <UserRound className="w-3.5 h-3.5 text-primary" /> Cast
+                  </div>
+                  <div className="space-y-2">
+                    {projectCharacters.length > 0 ? projectCharacters.map((character: any) => (
+                      <div key={character.id} className="flex items-center gap-2.5 rounded-lg border border-border/50 bg-background/40 p-2">
+                        <AssetThumbnail src={character.thumbnail} alt={character.name} fallback={<UserRound className="w-3.5 h-3.5 text-muted-foreground" />} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">{character.name}</p>
+                          <p className="text-[10px] text-muted-foreground line-clamp-2">{character.description || character.promptDescription || "No character description provided."}</p>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-xs text-muted-foreground">{projectCharacterIds.length ? "Loading character details..." : "No characters assigned."}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                    <MapPin className="w-3.5 h-3.5 text-primary" /> Setting / Environment
+                  </div>
+                  {projectSetting ? (
+                    <div className="flex items-center gap-2.5 rounded-lg border border-border/50 bg-background/40 p-2">
+                      <AssetThumbnail src={projectSetting.thumbnail} alt={projectSetting.name} fallback={<MapPin className="w-3.5 h-3.5 text-muted-foreground" />} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate">{projectSetting.name}</p>
+                        <p className="text-[10px] text-muted-foreground line-clamp-2">{projectSetting.description || projectSetting.promptDescription || "No environment description provided."}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{project.settingId ? "Loading environment details..." : "No environment assigned."}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="border-t border-border/50 bg-muted/10 p-3 md:p-4">
@@ -390,9 +449,25 @@ export default function ProjectDetailPage() {
                     >
                       <div className="w-20 md:w-24 flex-shrink-0">
                         {shot.outputUrl ? (
-                          <div className="w-full aspect-video bg-black rounded-md overflow-hidden relative border border-border">
-                            <video src={shot.outputUrl} className="w-full h-full object-cover" muted loop playsInline preload="none" />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewShot(shot)}
+                            className="w-full aspect-video bg-black rounded-md overflow-hidden relative border border-border group/preview focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            aria-label={`Open preview for ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                          >
+                            <img
+                              src={videoPosterUrl(shot.outputUrl)}
+                              alt={`Preview frame for ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/70 via-black/10 to-transparent">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2 py-1 text-[10px] font-semibold text-white shadow-lg backdrop-blur-sm transition-transform group-hover/preview:scale-105">
+                                <Maximize2 className="w-3 h-3" /> Open
+                              </span>
+                            </span>
+                          </button>
                         ) : (
                           <div className="w-full aspect-video bg-muted rounded-md flex flex-col items-center justify-center border border-border">
                             {getShotStatusIcon(shot.status)}
@@ -425,6 +500,14 @@ export default function ProjectDetailPage() {
                         <p className="text-xs md:text-sm text-muted-foreground line-clamp-3 md:line-clamp-2 leading-relaxed">
                           {shot.prompt}
                         </p>
+
+                        <ShotMetadata
+                          shot={shot}
+                          characters={characters}
+                          settings={settings}
+                          fallbackCharacterIds={projectCharacterIds}
+                          fallbackSettingId={project.settingId}
+                        />
                         
                         {shot.errorMessage && (
                           <div className="mt-2 md:mt-2.5 text-[10px] md:text-xs text-destructive bg-destructive/10 p-2 rounded">
@@ -451,7 +534,177 @@ export default function ProjectDetailPage() {
           generationMode={project.generationMode}
         />
       )}
+
+      {previewShot && (
+        <ShotPreviewDialog
+          shot={previewShot}
+          open={!!previewShot}
+          onOpenChange={(open) => !open && setPreviewShot(null)}
+          characters={characters}
+          settings={settings}
+          fallbackCharacterIds={projectCharacterIds}
+          fallbackSettingId={project.settingId}
+        />
+      )}
     </div>
+  );
+}
+
+function AssetThumbnail({ src, alt, fallback }: { src?: string | null, alt: string, fallback: React.ReactNode }) {
+  return (
+    <div className="size-9 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/60 flex items-center justify-center">
+      {src ? <img src={src} alt={alt} loading="lazy" decoding="async" className="h-full w-full object-cover" /> : fallback}
+    </div>
+  );
+}
+
+function videoPosterUrl(outputUrl?: string | null): string | undefined {
+  return outputUrl?.startsWith("/api/media/")
+    ? outputUrl.replace("/api/media/", "/api/media-preview/")
+    : undefined;
+}
+
+function ShotMetadata({
+  shot,
+  characters,
+  settings,
+  fallbackCharacterIds,
+  fallbackSettingId,
+  expanded = false,
+}: {
+  shot: any,
+  characters: any[],
+  settings: any[],
+  fallbackCharacterIds: string[],
+  fallbackSettingId?: string | null,
+  expanded?: boolean,
+}) {
+  const characterById = new Map(characters.map((character) => [character.id, character]));
+  const settingById = new Map(settings.map((setting) => [setting.id, setting]));
+  const characterIds = shot.characterIds?.length ? shot.characterIds : fallbackCharacterIds;
+  const shotCharacters = characterIds.map((id: string) => characterById.get(id)).filter(Boolean);
+  const setting = settingById.get(shot.settingId ?? fallbackSettingId);
+  const details = [
+    { icon: Camera, label: "Camera & framing", value: shot.cameraInstructions },
+    { icon: Move3d, label: "Subject motion", value: shot.motionInstructions },
+    { icon: MessageSquare, label: "Dialogue / VO", value: shot.dialogue },
+    { icon: Link2, label: "Continuity", value: shot.continuityNote },
+  ];
+  const detailsGrid = (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <div className="sm:col-span-2 rounded-lg border border-border/50 bg-background/30 p-2.5">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cast</p>
+        <div className="space-y-2">
+          {shotCharacters.length ? shotCharacters.map((character: any) => (
+            <div key={character.id} className="flex items-start gap-2">
+              <AssetThumbnail src={character.thumbnail} alt={character.name} fallback={<UserRound className="w-3 h-3 text-muted-foreground" />} />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold">{character.name}</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">{character.description || character.promptDescription || "No character description provided."}</p>
+              </div>
+            </div>
+          )) : <p className="text-xs text-muted-foreground">Character details are not available yet.</p>}
+        </div>
+      </div>
+      <div className="sm:col-span-2 rounded-lg border border-border/50 bg-background/30 p-2.5">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Setting / environment</p>
+        <div className="flex items-start gap-2">
+          <AssetThumbnail src={setting?.thumbnail} alt={setting?.name || "Setting"} fallback={<MapPin className="w-3 h-3 text-muted-foreground" />} />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold">{setting?.name || "Environment details unavailable"}</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">{setting?.description || setting?.promptDescription || "No environment description provided."}</p>
+          </div>
+        </div>
+      </div>
+      {details.map(({ icon: Icon, label, value }) => (
+        <div key={label} className="rounded-lg border border-border/50 bg-background/30 p-2.5">
+          <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Icon className="w-3 h-3 text-primary" /> {label}</p>
+          <p className="text-xs leading-relaxed text-foreground/80">{value || "Not specified"}</p>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className={`mt-3 border-t border-border/50 pt-2.5 ${expanded ? "space-y-3" : ""}`}>
+      <div className="flex flex-wrap gap-1.5">
+        <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] text-foreground/80">
+          <UserRound className="w-3 h-3 text-primary" />
+          {shotCharacters.length ? shotCharacters.map((character: any) => character.name).join(", ") : "Cast loading"}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/40 px-2 py-1 text-[10px] text-foreground/80">
+          <MapPin className="w-3 h-3 text-primary" />
+          {setting?.name || (shot.settingId || fallbackSettingId ? "Environment loading" : "No setting")}
+        </span>
+        <span className="rounded-full border border-border/70 bg-background/40 px-2 py-1 text-[10px] text-muted-foreground">
+          {shot.transition || "CUT"} transition
+        </span>
+      </div>
+      {expanded ? detailsGrid : (
+        <details className="group/details rounded-lg border border-border/50 bg-background/20">
+          <summary className="cursor-pointer list-none px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Maximize2 className="w-3 h-3 text-primary" />
+              View production details
+            </span>
+          </summary>
+          <div className="border-t border-border/50 p-2">{detailsGrid}</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ShotPreviewDialog({
+  shot,
+  open,
+  onOpenChange,
+  characters,
+  settings,
+  fallbackCharacterIds,
+  fallbackSettingId,
+}: {
+  shot: any,
+  open: boolean,
+  onOpenChange: (open: boolean) => void,
+  characters: any[],
+  settings: any[],
+  fallbackCharacterIds: string[],
+  fallbackSettingId?: string | null,
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[95vw] max-w-5xl border-border/70 bg-card p-3 md:p-5">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Play className="w-4 h-4 text-primary fill-current" />
+            {shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`} preview
+          </DialogTitle>
+        </DialogHeader>
+        <div className="overflow-hidden rounded-xl border border-border bg-black shadow-2xl">
+          {shot.outputUrl ? (
+            <video key={shot.outputUrl} src={shot.outputUrl} poster={videoPosterUrl(shot.outputUrl)} controls autoPlay playsInline preload="auto" className="aspect-video w-full object-contain" />
+          ) : (
+            <div className="flex aspect-video items-center justify-center text-sm text-muted-foreground">Preview is not available for this shot.</div>
+          )}
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/30 p-3 md:p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Shot details</p>
+            <span className="text-xs font-mono text-muted-foreground">{shot.durationSeconds}s · {shot.status}</span>
+          </div>
+          <p className="text-sm leading-relaxed text-foreground/80">{shot.prompt}</p>
+          <ShotMetadata
+            shot={shot}
+            characters={characters}
+            settings={settings}
+            fallbackCharacterIds={fallbackCharacterIds}
+            fallbackSettingId={fallbackSettingId}
+            expanded
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
