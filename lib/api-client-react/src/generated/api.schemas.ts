@@ -365,6 +365,47 @@ export interface ReferenceVideoUpload {
   mimeType: ReferenceVideoUploadMimeType;
 }
 
+export type PromptPolishInputShotKind = typeof PromptPolishInputShotKind[keyof typeof PromptPolishInputShotKind];
+
+
+export const PromptPolishInputShotKind = {
+  SHOT: 'SHOT',
+  'B-ROLL': 'B-ROLL',
+} as const;
+
+export interface PromptPolishInput {
+  /**
+     * @minLength 1
+     * @maxLength 10000
+     */
+  prompt: string;
+  /** @maxLength 5000 */
+  cameraInstructions?: string;
+  /** @maxLength 5000 */
+  motionInstructions?: string;
+  /** @maxLength 5000 */
+  negativePrompt?: string;
+  /** @maxLength 5000 */
+  dialogue?: string;
+  /** @maxLength 5000 */
+  continuityNote?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  generationMode: string;
+  shotKind?: PromptPolishInputShotKind;
+}
+
+export interface PromptPolishResult {
+  prompt: string;
+  cameraInstructions: string;
+  motionInstructions: string;
+  negativePrompt: string;
+  dialogue: string;
+  continuityNote: string;
+}
+
 export interface DashboardSummary {
   characterCount: number;
   settingCount: number;

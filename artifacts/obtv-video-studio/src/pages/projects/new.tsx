@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Wand2 } from "lucide-react";
+import { ScriptGuidance } from "@/components/script-guidance";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required").max(180),
@@ -181,6 +182,7 @@ export default function NewProjectPage() {
                     )}
                   />
                 </div>
+                <ScriptGuidance script={form.watch("script")} storyline={form.watch("storyline")} />
               </div>
 
               {/* CAST & CREW */}

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 
 export default function GeneratePage() {
   const [, setLocation] = useLocation();
@@ -340,6 +341,19 @@ export default function GeneratePage() {
             </TabsContent>
 
             <TabsContent value="prompt" className="space-y-4 mt-0">
+              <PromptGuidancePanel
+                prompt={prompt}
+                onPromptChange={setPrompt}
+                cameraInstructions={cameraInstructions}
+                onCameraChange={setCameraInstructions}
+                motionInstructions={motionInstructions}
+                onMotionChange={setMotionInstructions}
+                negativePrompt={negativePrompt}
+                onNegativeChange={setNegativePrompt}
+                generationMode={generationMode}
+                requiresReference={workflowRequiresReferenceVideo}
+                hasReference={hasReferenceVideo}
+              />
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Action & Composition (Main Prompt)</Label>
                 <Textarea 

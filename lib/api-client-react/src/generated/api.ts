@@ -33,6 +33,8 @@ import type {
   LongFormProjectInput,
   LongFormShot,
   LongFormShotUpdate,
+  PromptPolishInput,
+  PromptPolishResult,
   QueueSnapshot,
   ReferenceVideoUpload,
   ServerConnectionConfiguration,
@@ -1981,6 +1983,77 @@ export const useUploadReferenceVideo = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUploadReferenceVideoMutationOptions(options));
+    }
+
+export const getPolishPromptUrl = () => {
+
+
+
+
+  return `/api/prompt-guidance/polish`
+}
+
+/**
+ * @summary Improve a video prompt while preserving creator intent
+ */
+export const polishPrompt = async (promptPolishInput: PromptPolishInput, options?: Parameters<typeof customFetch>[1]): Promise<PromptPolishResult> => {
+
+  return customFetch<PromptPolishResult>(getPolishPromptUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(promptPolishInput)
+  }
+);}
+
+
+
+
+
+export const getPolishPromptMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof polishPrompt>>, TError,{data: BodyType<PromptPolishInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof polishPrompt>>, TError,{data: BodyType<PromptPolishInput>}, TContext> => {
+
+const mutationKey = ['polishPrompt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof polishPrompt>>, {data: BodyType<PromptPolishInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  polishPrompt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PolishPromptMutationResult = NonNullable<Awaited<ReturnType<typeof polishPrompt>>>
+    export type PolishPromptMutationBody = BodyType<PromptPolishInput>
+    export type PolishPromptMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Improve a video prompt while preserving creator intent
+ */
+export const usePolishPrompt = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof polishPrompt>>, TError,{data: BodyType<PromptPolishInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof polishPrompt>>,
+        TError,
+        {data: BodyType<PromptPolishInput>},
+        TContext
+      > => {
+      return useMutation(getPolishPromptMutationOptions(options));
     }
 
 export const getGetDashboardSummaryUrl = () => {

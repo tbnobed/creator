@@ -8,6 +8,7 @@ import generationsRouter from "./generations";
 import mediaRouter from "./media";
 import referenceVideosRouter from "./reference-videos";
 import longFormProjectsRouter from "./long-form-projects";
+import promptGuidanceRouter from "./prompt-guidance";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use(workflowsRouter);
 router.use(generationsRouter);
 router.use(referenceVideosRouter);
 router.use(longFormProjectsRouter);
+router.use(promptGuidanceRouter);
 router.use(mediaRouter);
 
 export default router;

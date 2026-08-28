@@ -417,6 +417,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReferenceVideoUpload"
+  /prompt-guidance/polish:
+    post:
+      operationId: polishPrompt
+      tags: [generations]
+      summary: Improve a video prompt while preserving creator intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromptPolishInput"
+      responses:
+        "200":
+          description: Editable polished prompt fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromptPolishResult"
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -851,6 +869,28 @@ components:
         storageKey: { type: string }
         mediaUrl: { type: string }
         mimeType: { type: string, enum: [video/mp4, video/webm] }
+    PromptPolishInput:
+      type: object
+      required: [prompt, generationMode]
+      properties:
+        prompt: { type: string, minLength: 1, maxLength: 10000 }
+        cameraInstructions: { type: string, maxLength: 5000 }
+        motionInstructions: { type: string, maxLength: 5000 }
+        negativePrompt: { type: string, maxLength: 5000 }
+        dialogue: { type: string, maxLength: 5000 }
+        continuityNote: { type: string, maxLength: 5000 }
+        generationMode: { type: string, minLength: 1, maxLength: 100 }
+        shotKind: { type: string, enum: [SHOT, B-ROLL] }
+    PromptPolishResult:
+      type: object
+      required: [prompt, cameraInstructions, motionInstructions, negativePrompt, dialogue, continuityNote]
+      properties:
+        prompt: { type: string }
+        cameraInstructions: { type: string }
+        motionInstructions: { type: string }
+        negativePrompt: { type: string }
+        dialogue: { type: string }
+        continuityNote: { type: string }
     DashboardSummary:
       type: object
       required: [characterCount, settingCount, onlineServerCount, activeGenerationCount, completedGenerationCount, latestGenerations]

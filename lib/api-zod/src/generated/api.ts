@@ -714,6 +714,46 @@ export const UploadReferenceVideoResponse = zod.object({
 
 
 /**
+ * @summary Improve a video prompt while preserving creator intent
+ */
+export const polishPromptBodyPromptMax = 10000;
+
+export const polishPromptBodyCameraInstructionsMax = 5000;
+
+export const polishPromptBodyMotionInstructionsMax = 5000;
+
+export const polishPromptBodyNegativePromptMax = 5000;
+
+export const polishPromptBodyDialogueMax = 5000;
+
+export const polishPromptBodyContinuityNoteMax = 5000;
+
+export const polishPromptBodyGenerationModeMax = 100;
+
+
+
+export const PolishPromptBody = zod.object({
+  "prompt": zod.string().min(1).max(polishPromptBodyPromptMax),
+  "cameraInstructions": zod.string().max(polishPromptBodyCameraInstructionsMax).optional(),
+  "motionInstructions": zod.string().max(polishPromptBodyMotionInstructionsMax).optional(),
+  "negativePrompt": zod.string().max(polishPromptBodyNegativePromptMax).optional(),
+  "dialogue": zod.string().max(polishPromptBodyDialogueMax).optional(),
+  "continuityNote": zod.string().max(polishPromptBodyContinuityNoteMax).optional(),
+  "generationMode": zod.string().min(1).max(polishPromptBodyGenerationModeMax),
+  "shotKind": zod.enum(['SHOT', 'B-ROLL']).optional()
+})
+
+export const PolishPromptResponse = zod.object({
+  "prompt": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "negativePrompt": zod.string(),
+  "dialogue": zod.string(),
+  "continuityNote": zod.string()
+})
+
+
+/**
  * @summary Read studio summary data
  */
 export const GetDashboardSummaryResponse = zod.object({

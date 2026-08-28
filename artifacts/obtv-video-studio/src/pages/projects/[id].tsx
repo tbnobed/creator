@@ -38,6 +38,7 @@ import {
   MoreVertical
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 
 export default function ProjectDetailPage() {
   const [, params] = useRoute("/projects/:id");
@@ -447,6 +448,7 @@ export default function ProjectDetailPage() {
           open={!!editingShot} 
           onOpenChange={(open) => !open && setEditingShot(null)}
           projectId={project.id}
+          generationMode={project.generationMode}
         />
       )}
     </div>
@@ -464,7 +466,7 @@ const shotFormSchema = z.object({
   durationSeconds: z.coerce.number().min(2).max(30).optional(),
 });
 
-function EditShotDialog({ shot, open, onOpenChange, projectId }: { shot: any, open: boolean, onOpenChange: (o: boolean) => void, projectId: string }) {
+function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }: { shot: any, open: boolean, onOpenChange: (o: boolean) => void, projectId: string, generationMode: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateShot = useUpdateLongFormShot();
@@ -534,6 +536,23 @@ function EditShotDialog({ shot, open, onOpenChange, projectId }: { shot: any, op
               />
             </div>
 
+            <PromptGuidancePanel
+              prompt={form.watch("prompt") ?? ""}
+              onPromptChange={(value) => form.setValue("prompt", value, { shouldDirty: true })}
+              cameraInstructions={form.watch("cameraInstructions") ?? ""}
+              onCameraChange={(value) => form.setValue("cameraInstructions", value, { shouldDirty: true })}
+              motionInstructions={form.watch("motionInstructions") ?? ""}
+              onMotionChange={(value) => form.setValue("motionInstructions", value, { shouldDirty: true })}
+              negativePrompt=""
+              onNegativeChange={() => undefined}
+              dialogue={form.watch("dialogue") ?? ""}
+              onDialogueChange={(value) => form.setValue("dialogue", value, { shouldDirty: true })}
+              continuityNote={form.watch("continuityNote") ?? ""}
+              onContinuityChange={(value) => form.setValue("continuityNote", value, { shouldDirty: true })}
+              generationMode={generationMode}
+              shotKind={/^b[- ]?roll/i.test(shot.title ?? "") ? "B-ROLL" : "SHOT"}
+            />
+
             <FormField
               control={form.control}
               name="prompt"
@@ -542,6 +561,20 @@ function EditShotDialog({ shot, open, onOpenChange, projectId }: { shot: any, op
                   <FormLabel className="text-xs md:text-sm">Base Prompt</FormLabel>
                   <FormControl>
                     <Textarea className="h-24 md:h-32 text-sm resize-none" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="dialogue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs md:text-sm">Dialogue</FormLabel>
+                  <FormControl>
+                    <Textarea className="h-20 text-sm resize-none" placeholder="Spoken words for this shot. Leave empty for B-roll." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

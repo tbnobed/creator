@@ -3,3 +3,4 @@
 - [Structured long-form scripts](structured-long-form-scripts.md) — SHOT and B-ROLL headers are authoritative planning boundaries, not prose to re-chunk.
 - [Long-form project deletion](long-form-project-deletion.md) — Only non-active projects can be deleted; active renders must be stopped first.
 - [Installable mobile workspace](installable-mobile-workspace.md) — Keep API responses network-only while caching only the app shell for PWA installation.
+- [AI prompt review safety](ai-prompt-review-safety.md) — Keep AI prompt edits as reviewable drafts; never silently replace newer creator input.

@@ -96,13 +96,17 @@ function parseStructuredBeats(script: string): StructuredBeat[] | null {
     .filter((header): header is NonNullable<typeof header> => header !== null);
   if (headers.length === 0) return null;
 
-  const beats = headers.map((header, index) => ({
-    kind: header.kind,
-    number: header.number,
-    label: header.label,
-    body: normalizeBlock(lines.slice(header.index + 1, headers[index + 1]?.index ?? lines.length).join("\n")),
-  }));
-  return beats.filter((beat) => beat.body.length > 0);
+  const beats = headers.map((header, index) => {
+    const followingBody = normalizeBlock(lines.slice(header.index + 1, headers[index + 1]?.index ?? lines.length).join("\n"));
+    return {
+      kind: header.kind,
+      number: header.number,
+      label: followingBody ? header.label : "",
+      body: followingBody || header.label,
+    };
+  });
+  const validBeats = beats.filter((beat) => beat.body.length > 0);
+  return validBeats.length > 0 ? validBeats : null;
 }
 
 function extractDialogue(body: string): string {
