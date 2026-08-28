@@ -525,7 +525,20 @@ export const UpdateWorkflowResponse = zod.object({
 /**
  * @summary List generation history
  */
-export const ListGenerationsResponseItem = zod.object({
+export const listGenerationsQueryPageDefault = 1;
+
+export const listGenerationsQueryPageSizeDefault = 12;
+export const listGenerationsQueryPageSizeMax = 50;
+
+
+
+export const ListGenerationsQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).default(listGenerationsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listGenerationsQueryPageSizeMax).default(listGenerationsQueryPageSizeDefault)
+})
+
+export const ListGenerationsResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
@@ -548,8 +561,12 @@ export const ListGenerationsResponseItem = zod.object({
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),
   "completedAt": zod.string().nullish()
+})),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalItems": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListGenerationsResponse = zod.array(ListGenerationsResponseItem)
 
 
 /**

@@ -327,15 +327,22 @@ paths:
       operationId: listGenerations
       tags: [generations]
       summary: List generation history
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: pageSize
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
       responses:
         "200":
-          description: Generation history
+          description: Paginated generation history
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/GenerationJob"
+                $ref: "#/components/schemas/PaginatedGenerations"
     post:
       operationId: createGeneration
       tags: [generations]
@@ -862,6 +869,18 @@ components:
         createdAt: { type: string }
         queuedAt: { type: ["string", "null"] }
         completedAt: { type: ["string", "null"] }
+    PaginatedGenerations:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GenerationJob"
+        page: { type: number }
+        pageSize: { type: number }
+        totalItems: { type: number }
+        totalPages: { type: number }
     ReferenceVideoUpload:
       type: object
       required: [storageKey, mediaUrl, mimeType]

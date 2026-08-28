@@ -351,6 +351,14 @@ export interface GenerationJob {
   completedAt?: string | null;
 }
 
+export interface PaginatedGenerations {
+  items: GenerationJob[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 export type ReferenceVideoUploadMimeType = typeof ReferenceVideoUploadMimeType[keyof typeof ReferenceVideoUploadMimeType];
 
 
@@ -610,5 +618,17 @@ export interface LongFormShotUpdate {
 
 export type LongFormProjectDetail = LongFormProject & {
   shots: LongFormShot[];
+};
+
+export type ListGenerationsParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+pageSize?: number;
 };
 

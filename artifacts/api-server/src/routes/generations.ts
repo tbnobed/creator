@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateGenerationBody,
@@ -7,6 +7,7 @@ import {
   GetGenerationParams,
   GetGenerationResponse,
   ListGenerationsResponse,
+  ListGenerationsQueryParams,
 } from "@workspace/api-zod";
 import {
   charactersTable,
@@ -31,9 +32,30 @@ async function present(job: typeof generationJobsTable.$inferSelect) {
   return presentGeneration(job, server[0]?.displayName ?? null, workflow[0]?.name ?? null);
 }
 
-router.get("/generations", async (_req, res): Promise<void> => {
-  const jobs = await db.select().from(generationJobsTable).orderBy(desc(generationJobsTable.createdAt));
-  res.json(ListGenerationsResponse.parse(await Promise.all(jobs.map(present))));
+router.get("/generations", async (req, res): Promise<void> => {
+  const parsed = ListGenerationsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const page = Math.max(1, parsed.data.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, parsed.data.pageSize ?? 12));
+  const [{ total }] = await db.select({ total: count() }).from(generationJobsTable);
+  const totalItems = Number(total);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const jobs = await db.select()
+    .from(generationJobsTable)
+    .orderBy(desc(generationJobsTable.createdAt), desc(generationJobsTable.id))
+    .limit(pageSize)
+    .offset((safePage - 1) * pageSize);
+  res.json(ListGenerationsResponse.parse({
+    items: await Promise.all(jobs.map(present)),
+    page: safePage,
+    pageSize,
+    totalItems,
+    totalPages,
+  }));
 });
 
 router.post("/generations", async (req, res): Promise<void> => {
