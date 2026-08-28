@@ -111,14 +111,56 @@ function parseStructuredBeats(script: string): StructuredBeat[] | null {
   return validBeats.length > 0 ? validBeats : null;
 }
 
+const dialogueLabelPattern = /^\s*(?:andrea\s+(?:voice[-\s]?over|says|speaks?)|(?:voice[-\s]?over|narration|dialogue|spoken\s+dialogue))\b.*:\s*(.*)$/i;
+const quotedLinePattern = /^\s*[“"]([^”"]+)[”"]\s*$/;
+
+function getDialogueLabelValue(line: string): string | null {
+  const match = line.match(dialogueLabelPattern);
+  return match ? match[1].trim() : null;
+}
+
 function extractDialogue(body: string): string {
   const dialogue: string[] = [];
-  const quotedText = /[“"]([^”"]+)[”"]/g;
-  for (const match of body.matchAll(quotedText)) {
-    const value = match[1].trim();
-    if (value && !dialogue.includes(value)) dialogue.push(value);
+  let awaitingQuotedDialogue = false;
+  for (const line of body.replaceAll("\r\n", "\n").split("\n")) {
+    const labelValue = getDialogueLabelValue(line);
+    if (labelValue !== null) {
+      const inlineQuote = labelValue.match(/^[“"]([^”"]+)[”"]$/);
+      if (inlineQuote?.[1]?.trim()) dialogue.push(inlineQuote[1].trim());
+      awaitingQuotedDialogue = !inlineQuote;
+      continue;
+    }
+    if (awaitingQuotedDialogue) {
+      const quotedLine = line.match(quotedLinePattern);
+      if (quotedLine?.[1]?.trim()) {
+        dialogue.push(quotedLine[1].trim());
+        awaitingQuotedDialogue = false;
+      } else if (line.trim()) {
+        awaitingQuotedDialogue = false;
+      }
+    }
   }
-  return dialogue.join("\n");
+  return [...new Set(dialogue)].join("\n");
+}
+
+function removeDialogueFromPrompt(body: string): string {
+  const visualLines: string[] = [];
+  let omitQuotedDialogue = false;
+  for (const line of body.replaceAll("\r\n", "\n").split("\n")) {
+    const labelValue = getDialogueLabelValue(line);
+    if (labelValue !== null) {
+      const inlineQuote = labelValue.match(/^[“"]([^”"]+)[”"]$/);
+      omitQuotedDialogue = !inlineQuote;
+      continue;
+    }
+    if (omitQuotedDialogue && quotedLinePattern.test(line)) {
+      omitQuotedDialogue = false;
+      continue;
+    }
+    omitQuotedDialogue = false;
+    visualLines.push(line);
+  }
+  return normalizeBlock(visualLines.join("\n"));
 }
 
 function normalizeScript(script: string): string[] {
@@ -176,7 +218,9 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
       ? Number(remainingDuration.toFixed(2))
       : Number(Math.min(MAX_SHOT_DURATION_SECONDS, Math.max(1, remainingDuration / (shotCount - index))).toFixed(2));
     const structuredBeat = structuredBeats?.[index];
-    const prompt = structuredBeat ? structuredBeat.body : chunks[index % chunks.length] as string;
+    const shotBody = structuredBeat ? structuredBeat.body : chunks[index % chunks.length] as string;
+    const dialogue = structuredBeat?.kind === "SHOT" ? extractDialogue(shotBody) : "";
+    const prompt = dialogue ? removeDialogueFromPrompt(shotBody) : shotBody;
     const previousPrompt = shots.at(-1)?.prompt;
     const label = structuredBeat
       ? `${structuredBeat.kind === "B-ROLL" ? "B-Roll" : "Shot"} ${structuredBeat.number}${structuredBeat.label ? ` · ${structuredBeat.label}` : ""}`
@@ -186,7 +230,7 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
       shotNumber,
       title: label,
       prompt: input.storyline ? `${input.storyline.trim()}\n\n${prompt}` : prompt,
-      dialogue: structuredBeat?.kind === "SHOT" ? extractDialogue(structuredBeat.body) : "",
+      dialogue,
       cameraInstructions: index % 3 === 0 ? "Establishing cinematic composition, deliberate framing." : index % 3 === 1 ? "Controlled medium shot with subtle tracking." : "Intimate detail shot with natural movement.",
       motionInstructions: "Natural, physically believable movement with consistent character and environment details.",
       continuityNote: previousPrompt
@@ -648,7 +692,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
         const job = await createAndSubmitGeneration({
           characterIds: project.characterIds,
           settingId: project.settingId ?? undefined,
-          prompt: claimed.prompt,
+          prompt: claimed.dialogue ? removeDialogueFromPrompt(claimed.prompt) : claimed.prompt,
           negativePrompt: project.negativePrompt,
           cameraInstructions: claimed.cameraInstructions,
           dialogue: claimed.dialogue,
