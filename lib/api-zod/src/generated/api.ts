@@ -527,8 +527,8 @@ export const UpdateWorkflowResponse = zod.object({
  */
 export const listGenerationsQueryPageDefault = 1;
 
-export const listGenerationsQueryPageSizeDefault = 12;
-export const listGenerationsQueryPageSizeMax = 50;
+export const listGenerationsQueryPageSizeDefault = 24;
+export const listGenerationsQueryPageSizeMax = 100;
 
 
 
@@ -555,6 +555,10 @@ export const ListGenerationsResponse = zod.object({
   "currentNode": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
+  "longFormProjectId": zod.string().nullable(),
+  "longFormProjectTitle": zod.string().nullable(),
+  "longFormSceneNumber": zod.number().nullable(),
+  "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
   "errorMessage": zod.string().nullish(),
@@ -635,6 +639,10 @@ export const CreateGenerationResponse = zod.object({
   "currentNode": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
+  "longFormProjectId": zod.string().nullable(),
+  "longFormProjectTitle": zod.string().nullable(),
+  "longFormSceneNumber": zod.number().nullable(),
+  "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
   "errorMessage": zod.string().nullish(),
@@ -668,6 +676,10 @@ export const GetGenerationResponse = zod.object({
   "currentNode": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
+  "longFormProjectId": zod.string().nullable(),
+  "longFormProjectTitle": zod.string().nullable(),
+  "longFormSceneNumber": zod.number().nullable(),
+  "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
   "errorMessage": zod.string().nullish(),
@@ -711,6 +723,10 @@ export const CancelGenerationResponse = zod.object({
   "currentNode": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
+  "longFormProjectId": zod.string().nullable(),
+  "longFormProjectTitle": zod.string().nullable(),
+  "longFormSceneNumber": zod.number().nullable(),
+  "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
   "errorMessage": zod.string().nullish(),
@@ -796,6 +812,10 @@ export const GetDashboardSummaryResponse = zod.object({
   "currentNode": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
+  "longFormProjectId": zod.string().nullable(),
+  "longFormProjectTitle": zod.string().nullable(),
+  "longFormSceneNumber": zod.number().nullable(),
+  "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
   "errorMessage": zod.string().nullish(),

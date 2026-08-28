@@ -81,6 +81,12 @@ export function presentGeneration(
   job: GenerationJob,
   serverName: string | null,
   workflowName: string | null,
+  longFormContext: {
+    projectId: string;
+    projectTitle: string;
+    sceneNumber: number;
+    shotNumber: number;
+  } | null = null,
 ) {
   return {
     id: job.id,
@@ -99,6 +105,10 @@ export function presentGeneration(
     currentNode: job.currentNode,
     serverName,
     workflowName,
+    longFormProjectId: longFormContext?.projectId ?? null,
+    longFormProjectTitle: longFormContext?.projectTitle ?? null,
+    longFormSceneNumber: longFormContext?.sceneNumber ?? null,
+    longFormShotNumber: longFormContext?.shotNumber ?? null,
     comfyPromptId: job.comfyPromptId,
     outputUrl: job.outputStorageKey ? `/api/media/${job.outputStorageKey}` : null,
     errorMessage: job.errorMessage,

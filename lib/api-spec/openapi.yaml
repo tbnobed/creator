@@ -335,7 +335,7 @@ paths:
         - in: query
           name: pageSize
           required: false
-          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+          schema: { type: integer, minimum: 1, maximum: 100, default: 24 }
       responses:
         "200":
           description: Paginated generation history
@@ -845,7 +845,7 @@ components:
         seed: { type: ["number", "null"], minimum: 0 }
     GenerationJob:
       type: object
-      required: [id, title, status, prompt, compiledPrompt, generationMode, qualityPreset, width, height, fps, durationSeconds, progress, currentNode, serverName, workflowName, createdAt]
+      required: [id, title, status, prompt, compiledPrompt, generationMode, qualityPreset, width, height, fps, durationSeconds, progress, currentNode, serverName, workflowName, longFormProjectId, longFormProjectTitle, longFormSceneNumber, longFormShotNumber, createdAt]
       properties:
         id: { type: string }
         title: { type: string }
@@ -863,6 +863,10 @@ components:
         currentNode: { type: ["string", "null"] }
         serverName: { type: ["string", "null"] }
         workflowName: { type: ["string", "null"] }
+        longFormProjectId: { type: ["string", "null"] }
+        longFormProjectTitle: { type: ["string", "null"] }
+        longFormSceneNumber: { type: ["number", "null"] }
+        longFormShotNumber: { type: ["number", "null"] }
         comfyPromptId: { type: ["string", "null"] }
         outputUrl: { type: ["string", "null"] }
         errorMessage: { type: ["string", "null"] }

@@ -30,6 +30,14 @@ export interface GenerationJob {
   /** @nullable */
   workflowName: string | null;
   /** @nullable */
+  longFormProjectId: string | null;
+  /** @nullable */
+  longFormProjectTitle: string | null;
+  /** @nullable */
+  longFormSceneNumber: number | null;
+  /** @nullable */
+  longFormShotNumber: number | null;
+  /** @nullable */
   comfyPromptId?: string | null;
   /** @nullable */
   outputUrl?: string | null;

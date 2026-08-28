@@ -4,3 +4,4 @@
 - [Long-form project deletion](long-form-project-deletion.md) — Only non-active projects can be deleted; active renders must be stopped first.
 - [Installable mobile workspace](installable-mobile-workspace.md) — Keep API responses network-only while caching only the app shell for PWA installation.
 - [AI prompt review safety](ai-prompt-review-safety.md) — Keep AI prompt edits as reviewable drafts; never silently replace newer creator input.
+- [Presenter audio preservation](presenter-audio-preservation.md) — Presenter-video outputs preserve source audio; generated audio can drift into gibberish on longer clips.

@@ -195,9 +195,10 @@ async function seedWorkflowDefinitions(): Promise<void> {
     const variant = videoVariants.find((candidate) => candidate.name === workflow.name);
     const apiWorkflow = workflow.apiWorkflow as Record<string, { class_type?: unknown; inputs?: Record<string, unknown> }> | null;
     const node136 = apiWorkflow?.["136"];
+    const node130 = apiWorkflow?.["130"];
     const node137 = apiWorkflow?.["137"];
     const node139 = apiWorkflow?.["139"];
-    const isStaleVideoSeed = Boolean(
+    const hasLegacyImageNodes = Boolean(
       variant &&
       node136?.inputs?.["ref_videos.ref_video_0"] &&
       node137?.class_type === "LoadImage" &&
@@ -205,10 +206,14 @@ async function seedWorkflowDefinitions(): Promise<void> {
       node139?.class_type === "LoadImage" &&
       node139.inputs?.image === "reference-character-2.png",
     );
+    const audioLink = node130?.inputs?.audio;
+    const usesGeneratedAudio = Array.isArray(audioLink) && audioLink[0] === "121";
+    const isStaleVideoSeed = Boolean(variant && (hasLegacyImageNodes || usesGeneratedAudio));
     return isStaleVideoSeed && variant ? [{ workflow, variant }] : [];
   });
   await Promise.all(staleVideoWorkflowRecords.map(({ workflow, variant }) => (
     db.update(workflowTemplatesTable).set({
+      description: variant.description,
       apiWorkflow: variant.createWorkflow(variant.clipName),
       mappings: variant.mappings,
       expectedInputs: Object.keys(variant.mappings),

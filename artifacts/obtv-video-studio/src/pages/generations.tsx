@@ -16,12 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 
-const PAGE_SIZES = ["6", "12", "24", "48"];
+const PAGE_SIZES = ["24", "48", "96"];
 const ACTIVE_STATUSES = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 
 export default function GenerationsPage() {
   const [page, setPage] = useStateFromUrl("page", 1);
-  const [pageSize, setPageSize] = useStateFromUrl("pageSize", 12);
+  const [pageSize, setPageSize] = useStateFromUrl("pageSize", 24);
   const queryClient = useQueryClient();
   const listQueryKey = getListGenerationsQueryKey({ page, pageSize });
   const { data, isLoading, isFetching, isPlaceholderData } = useListGenerations(
@@ -81,9 +81,9 @@ export default function GenerationsPage() {
         <EmptyState />
       ) : (
         <>
-          <div className="grid items-start gap-4 xl:grid-cols-[minmax(210px,0.8fr)_minmax(280px,1.15fr)_minmax(320px,1.7fr)]">
-            <SummaryColumn data={data!} activeCount={activeJobs.length} historyCount={historyJobs.length} />
-            <JobColumn
+          <div className="space-y-7">
+            <SummaryStrip data={data!} activeCount={activeJobs.length} historyCount={historyJobs.length} />
+            <JobSection
               title="Active queue"
               icon={<Activity className="size-4 text-primary" />}
               description={`${activeJobs.length} active on this page`}
@@ -94,7 +94,7 @@ export default function GenerationsPage() {
               cancelPending={cancelJob.isPending}
               deletePending={deleteJob.isPending}
             />
-            <JobColumn
+            <HistorySection
               title="History"
               icon={<Film className="size-4 text-muted-foreground" />}
               description={`${historyJobs.length} completed or archived on this page`}
@@ -141,27 +141,28 @@ function useStateFromUrl(key: string, fallback: number): [number, (value: number
   return [value, update];
 }
 
-function SummaryColumn({ data, activeCount, historyCount }: { data: { totalItems: number; totalPages: number; page: number; pageSize: number }; activeCount: number; historyCount: number }) {
+function SummaryStrip({ data, activeCount, historyCount }: { data: { totalItems: number; totalPages: number; page: number; pageSize: number }; activeCount: number; historyCount: number }) {
   return (
-    <div className="space-y-4 xl:sticky xl:top-5">
-      <Card className="border-primary/20 bg-primary/[0.04] p-5">
-        <div className="mb-5 flex items-center gap-3">
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)]">
+      <Card className="border-primary/20 bg-primary/[0.04] p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary"><Activity className="size-5" /></div>
-          <div><p className="text-sm font-semibold">Studio pulse</p><p className="text-xs text-muted-foreground">Page {data.page} of {data.totalPages}</p></div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Metric label="On page" value={activeCount + historyCount} />
-          <Metric label="All time" value={data.totalItems} />
-          <Metric label="Active" value={activeCount} accent />
-          <Metric label="History" value={historyCount} />
+          <div className="min-w-28"><p className="text-sm font-semibold">Studio pulse</p><p className="text-xs text-muted-foreground">Page {data.page} of {data.totalPages}</p></div>
+          <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+            <Metric label="On page" value={activeCount + historyCount} />
+            <Metric label="All time" value={data.totalItems} />
+            <Metric label="Active" value={activeCount} accent />
+            <Metric label="History" value={historyCount} />
+          </div>
         </div>
       </Card>
-      <Card className="p-5">
-        <div className="mb-4 flex items-center gap-2"><Server className="size-4 text-muted-foreground" /><h2 className="text-sm font-semibold">Queue overview</h2></div>
-        <div className="space-y-3 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between"><span>Items per page</span><span className="font-medium text-foreground">{data.pageSize}</span></div>
-          <div className="flex items-center justify-between"><span>Newest first</span><Badge variant="outline" className="h-5 text-[10px]">Live order</Badge></div>
-          <p className="border-t border-border/60 pt-3 leading-relaxed">Generations are ordered newest first. Use the page controls below to move through older renders.</p>
+      <Card className="flex items-center p-4">
+        <div className="w-full">
+          <div className="mb-3 flex items-center gap-2"><Server className="size-4 text-muted-foreground" /><h2 className="text-sm font-semibold">Queue overview</h2></div>
+          <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+            <span>{data.pageSize} per page</span>
+            <Badge variant="outline" className="h-5 text-[10px]">Newest first</Badge>
+          </div>
         </div>
       </Card>
     </div>
@@ -172,29 +173,92 @@ function Metric({ label, value, accent = false }: { label: string; value: number
   return <div className="rounded-lg border border-border/60 bg-background/30 p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p><p className={`mt-1 text-xl font-semibold ${accent ? "text-primary" : ""}`}>{value}</p></div>;
 }
 
-function JobColumn({ title, icon, description, jobs, emptyLabel, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
+function JobSection({ title, icon, description, jobs, emptyLabel, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
   return (
     <section className="min-w-0">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div><h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2><p className="mt-0.5 text-xs text-muted-foreground">{description}</p></div>
       </div>
-      <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {jobs.length === 0 ? <Card className="flex min-h-36 items-center justify-center border-dashed bg-card/20 p-5 text-center text-xs text-muted-foreground">{emptyLabel}</Card> : jobs.map((job) => <GenerationCard key={job.id} job={job} onCancel={onCancel} onDelete={onDelete} cancelPending={cancelPending} deletePending={deletePending} />)}
       </div>
     </section>
   );
 }
 
-function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending }: { job: GenerationJob; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
+function HistorySection({ title, icon, description, jobs, emptyLabel, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
+  const groups = groupHistoryJobs(jobs);
+  return (
+    <section className="min-w-0">
+      <div className="mb-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+      {groups.length === 0 ? (
+        <Card className="flex min-h-36 items-center justify-center border-dashed bg-card/20 p-5 text-center text-xs text-muted-foreground">{emptyLabel}</Card>
+      ) : (
+        <div className="space-y-5">
+          {groups.map((group) => (
+            <div key={group.key} className="space-y-2">
+              <div className="flex min-w-0 items-center gap-2 border-b border-border/50 pb-2">
+                <Film className="size-3.5 shrink-0 text-primary" />
+                {group.projectId ? (
+                  <Link href={`/projects/${group.projectId}`} className="truncate text-xs font-semibold text-foreground hover:text-primary">
+                    {group.label}
+                  </Link>
+                ) : (
+                  <span className="truncate text-xs font-semibold text-muted-foreground">{group.label}</span>
+                )}
+                <Badge variant="outline" className="ml-auto h-5 shrink-0 px-1.5 text-[9px]">{group.jobs.length}</Badge>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {group.jobs.map((job) => (
+                  <GenerationCard key={job.id} job={job} onCancel={onCancel} onDelete={onDelete} cancelPending={cancelPending} deletePending={deletePending} compact />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function groupHistoryJobs(jobs: GenerationJob[]) {
+  const groups = new Map<string, { key: string; label: string; projectId: string | null; jobs: GenerationJob[] }>();
+  for (const job of jobs) {
+    const key = job.longFormProjectId ? `project:${job.longFormProjectId}` : "standalone";
+    const existing = groups.get(key);
+    if (existing) {
+      existing.jobs.push(job);
+    } else {
+      groups.set(key, {
+        key,
+        label: job.longFormProjectTitle || "Standalone generations",
+        projectId: job.longFormProjectId ?? null,
+        jobs: [job],
+      });
+    }
+  }
+  return Array.from(groups.values());
+}
+
+function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending, compact = false }: { job: GenerationJob; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean; compact?: boolean }) {
   const isCancellable = ACTIVE_STATUSES.includes(job.status);
   return (
-    <Card className="group relative flex min-w-0 flex-col gap-3 border-border/60 bg-card/40 p-4 transition-colors hover:border-primary/45">
+    <Card className={`group relative flex min-w-0 flex-col border-border/60 bg-card/40 transition-colors hover:border-primary/45 ${compact ? "gap-2 p-3" : "gap-3 p-4"}`}>
       <Link href={`/generations/${job.id}`} className="min-w-0">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary/60">{job.status === "COMPLETED" && job.outputUrl ? <Video className="size-5 text-primary" /> : job.status === "RUNNING" ? <Loader2 className="size-5 animate-spin text-primary" /> : job.status === "FAILED" ? <XCircle className="size-5 text-destructive" /> : job.status === "QUEUED" ? <Clock className="size-5 text-muted-foreground" /> : <Play className="size-5 text-muted-foreground" />}</div>
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2"><h3 className="truncate text-sm font-semibold group-hover:text-primary">{job.title || "Untitled Job"}</h3><StatusBadge status={job.status} /></div>
-            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{job.prompt}</p>
+            <p className={`${compact ? "line-clamp-1" : "line-clamp-2"} text-xs leading-relaxed text-muted-foreground`}>{job.prompt}</p>
+            {job.longFormProjectId && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                <Badge variant="outline" className="h-5 max-w-full truncate px-1.5 text-[9px]">{job.longFormProjectTitle}</Badge>
+                <span>Scene {job.longFormSceneNumber} · Shot {job.longFormShotNumber}</span>
+              </div>
+            )}
           </div>
         </div>
       </Link>

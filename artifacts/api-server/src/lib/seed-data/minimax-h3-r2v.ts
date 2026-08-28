@@ -190,6 +190,7 @@ export function createMiniMaxH3R2vVideoWorkflow(clipName: string): ApiWorkflow {
     class_type: "GetVideoComponents",
     inputs: { video: ["152", 0] },
   };
+  workflow["130"].inputs.audio = ["153", 1];
   return workflow;
 }
 
@@ -211,13 +212,13 @@ export const miniMaxH3R2vSeed = {
 export const miniMaxH3R2vVideoSeed = {
   a100: {
     name: "MiniMax H3 REF2VA Video (A100)",
-    description: "MiniMax H3 presenter-video reference generation for NVIDIA A100 workers. The uploaded video supplies the reference video and audio.",
+    description: "MiniMax H3 presenter-video reference generation for NVIDIA A100 workers. The uploaded video supplies lip-sync conditioning and its original audio is preserved in the output.",
     tags: ["minimax-h3", "a100"],
     clipName: "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
   },
   blackwell: {
     name: "MiniMax H3 REF2VA Video (Blackwell)",
-    description: "MiniMax H3 presenter-video reference generation for Blackwell workers. The uploaded video supplies the reference video and audio.",
+    description: "MiniMax H3 presenter-video reference generation for Blackwell workers. The uploaded video supplies lip-sync conditioning and its original audio is preserved in the output.",
     tags: ["minimax-h3", "blackwell"],
     clipName: blackwellTextEncoder,
   },
