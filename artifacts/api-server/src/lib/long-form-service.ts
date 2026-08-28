@@ -111,7 +111,7 @@ function parseStructuredBeats(script: string): StructuredBeat[] | null {
   return validBeats.length > 0 ? validBeats : null;
 }
 
-const dialogueLabelPattern = /^\s*(?:(?:[A-Za-z][\w.'’-]*\s+){0,6})(?:voice[-\s]?over|narration|dialogue|spoken\s+dialogue|says|speaks?)\b.*:\s*(.*)$/i;
+const dialogueLabelPattern = /^\s*[^:\n]*\b(?:voice[-\s]?over|narration|dialogue|spoken\s+dialogue|says|speaks?)\b[^:\n]*:\s*(.*)$/iu;
 const quotedLinePattern = /^\s*[“"]([^”"]+)[”"]\s*$/;
 
 function getDialogueLabelValue(line: string): string | null {
