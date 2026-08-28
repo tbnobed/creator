@@ -169,12 +169,13 @@ export default function GeneratePage() {
           </div>
 
           <Tabs defaultValue="assets" className="w-full">
-            <TabsList className="mb-4 grid h-12 w-full grid-cols-2 rounded-lg bg-secondary p-1">
-              <TabsTrigger value="assets" className="rounded-md font-semibold text-muted-foreground data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">1. Select Assets</TabsTrigger>
-              <TabsTrigger value="prompt" className="rounded-md font-semibold text-muted-foreground data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">2. Write Shot</TabsTrigger>
+            <TabsList className="mb-4 grid h-12 w-full grid-cols-3 rounded-lg bg-secondary p-1">
+              <TabsTrigger value="cast" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">1. Cast</TabsTrigger>
+              <TabsTrigger value="environment" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">2. Environment</TabsTrigger>
+              <TabsTrigger value="prompt" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">3. Write Shot</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="assets" className="space-y-6 mt-0">
+            <TabsContent value="cast" className="space-y-6 mt-0">
               {/* Characters Selection */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -217,27 +218,29 @@ export default function GeneratePage() {
                 </div>
               </div>
 
-              {/* Setting Selection */}
+            </TabsContent>
+
+            <TabsContent value="environment" className="space-y-6 mt-0">
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label className="text-base font-semibold flex items-center gap-2">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2 text-base font-semibold">
                     <Map className="size-4 text-primary" /> Environment
                     {hasReferenceVideo && <span className="text-xs font-normal text-muted-foreground">(optional with video reference)</span>}
                   </Label>
                   <span className="text-xs text-muted-foreground">{hasReferenceVideo && !selectedSetting ? "Not needed" : selectedSetting ? "1/1 selected" : "0/1 selected"}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {settings?.map(setting => {
                     const isSelected = selectedSetting === setting.id;
                     return (
-                      <Card 
-                        key={setting.id} 
-                        className={`cursor-pointer overflow-hidden rounded-[10px] border transition-all flex items-center ${isSelected ? 'border-[1.5px] border-primary bg-primary/5 shadow-[0_0_16px_rgba(255,31,98,0.3)]' : 'border-border hover:border-primary/50 bg-card/30'}`}
+                      <Card
+                        key={setting.id}
+                        className={`flex cursor-pointer items-center overflow-hidden rounded-[10px] border transition-all ${isSelected ? 'border-[1.5px] border-primary bg-primary/5 shadow-[0_0_16px_rgba(255,31,98,0.3)]' : 'border-border hover:border-primary/50 bg-card/30'}`}
                         onClick={() => setSelectedSetting(isSelected ? "" : setting.id)}
                       >
-                        <div className="w-24 h-16 bg-secondary/50 relative flex-shrink-0">
+                        <div className="relative h-16 w-24 shrink-0 bg-secondary/50">
                           {setting.thumbnail && (
-                            <img src={setting.thumbnail} loading="lazy" decoding="async" className="w-full h-full object-cover opacity-80" alt={setting.name} />
+                            <img src={setting.thumbnail} loading="lazy" decoding="async" className="h-full w-full object-cover opacity-80" alt={setting.name} />
                           )}
                           {isSelected && (
                             <div className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_0_12px_rgba(255,31,98,0.55)]">
@@ -245,18 +248,17 @@ export default function GeneratePage() {
                             </div>
                           )}
                         </div>
-                        <div className="p-3 font-medium text-sm flex-1">{setting.name}</div>
+                        <div className="flex-1 p-3 text-sm font-medium">{setting.name}</div>
                       </Card>
                     );
                   })}
                   {settings?.length === 0 && (
-                    <div className="col-span-full py-8 text-center text-muted-foreground text-sm bg-card/10 border border-dashed rounded-lg">
+                    <div className="col-span-full rounded-lg border border-dashed bg-card/10 py-8 text-center text-sm text-muted-foreground">
                       No settings available. Add some in the library first.
                     </div>
                   )}
                 </div>
               </div>
-
             </TabsContent>
 
             <TabsContent value="prompt" className="space-y-4 mt-0">
