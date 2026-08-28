@@ -168,7 +168,7 @@ export default function GeneratePage() {
             </div>
           </div>
 
-          <Tabs defaultValue="assets" className="w-full">
+          <Tabs defaultValue="cast" className="w-full">
             <TabsList className="mb-4 grid h-12 w-full grid-cols-3 rounded-lg bg-secondary p-1">
               <TabsTrigger value="cast" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">1. Cast</TabsTrigger>
               <TabsTrigger value="environment" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">2. Environment</TabsTrigger>
