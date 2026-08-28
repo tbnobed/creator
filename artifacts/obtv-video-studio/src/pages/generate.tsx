@@ -4,7 +4,9 @@ import {
   useListCharacters, 
   useListSettings, 
   useCreateGeneration, 
-  useListWorkflows 
+  useListWorkflows,
+  useGetGeneration,
+  getGetGenerationQueryKey,
 } from "@workspace/api-client-react";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Check, Clapperboard, Users, Map, Settings2, Play, Upload, Video } from "lucide-react";
+import { Check, Clapperboard, Users, Map, Settings2, Play, Upload, Video, Pencil } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -26,9 +28,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function GeneratePage() {
   const [, setLocation] = useLocation();
+  const cloneJobId = new URLSearchParams(window.location.search).get("cloneJob");
   const { data: characters } = useListCharacters();
   const { data: settings } = useListSettings();
   const { data: workflows } = useListWorkflows();
+  const { data: sourceJob, isLoading: isLoadingSourceJob } = useGetGeneration(cloneJobId ?? "", {
+    query: {
+      enabled: Boolean(cloneJobId),
+      queryKey: getGetGenerationQueryKey(cloneJobId ?? ""),
+    },
+  });
   const createJob = useCreateGeneration();
 
   const [selectedChars, setSelectedChars] = useState<string[]>([]);
@@ -52,11 +61,27 @@ export default function GeneratePage() {
   const [seedMode, setSeedMode] = useState<"RANDOM" | "FIXED">("RANDOM");
   const [seed, setSeed] = useState<number>(0);
   const hasSelectedInitialMode = useRef(false);
+  const hasPrefilledSourceJob = useRef(false);
   const activeWorkflows = workflows?.filter(w => w.active) || [];
   const activeWorkflowsForMode = activeWorkflows.filter((workflow) => workflow.generationMode === generationMode);
   const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
   const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
   const hasReferenceVideo = Boolean(referenceVideoFile || referenceVideoKey);
+
+  useEffect(() => {
+    if (!sourceJob || hasPrefilledSourceJob.current) return;
+    setPrompt(sourceJob.prompt);
+    setGenerationMode(sourceJob.generationMode);
+    setDuration(sourceJob.durationSeconds);
+    setFps(sourceJob.fps);
+    setWidth(sourceJob.width);
+    setHeight(sourceJob.height);
+    setQualityPreset(sourceJob.qualityPreset as "DRAFT" | "STANDARD" | "HIGH");
+    setSeedMode(sourceJob.seed === null ? "RANDOM" : "FIXED");
+    setSeed(sourceJob.seed ?? 0);
+    hasSelectedInitialMode.current = true;
+    hasPrefilledSourceJob.current = true;
+  }, [sourceJob]);
 
   useEffect(() => {
     if (hasSelectedInitialMode.current || !workflows) return;
@@ -168,6 +193,22 @@ export default function GeneratePage() {
         
         {/* Left Column - Assets & Prompts */}
         <div className="flex-1 space-y-6">
+          {cloneJobId && (
+            <Card className="flex items-start gap-3 border-primary/30 bg-primary/5 p-4">
+              <Pencil className="mt-0.5 size-4 shrink-0 text-primary" />
+              <div className="min-w-0 text-sm">
+                <p className="font-semibold text-foreground">
+                  {isLoadingSourceJob ? "Loading generation settings..." : sourceJob ? "Editing a copy of this generation" : "Could not load the original generation"}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {sourceJob
+                    ? "The prompt and render settings were copied. Reselect the cast and environment, or upload the reference video if this workflow requires one, then send it to render."
+                    : "Return to Queue & History and try opening the generation again."}
+                </p>
+              </div>
+            </Card>
+          )}
+
           <div className="flex items-center gap-3 border-b border-border/50 pb-4">
             <div className="size-10 bg-primary/20 rounded-md flex items-center justify-center">
               <Clapperboard className="size-5 text-primary" />

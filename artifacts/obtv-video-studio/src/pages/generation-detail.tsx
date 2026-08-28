@@ -1,8 +1,8 @@
 import { useGetGeneration } from "@workspace/api-client-react";
 import { Page, PageHeader } from "@/components/layout/page";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { getGetGenerationQueryKey } from "@workspace/api-client-react";
-import { ArrowLeft, Loader2, Video, AlertTriangle, Info, Clock, PlayCircle, HardDrive } from "lucide-react";
+import { ArrowLeft, Loader2, Video, AlertTriangle, Info, Clock, PlayCircle, HardDrive, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { format } from "date-fns";
 
 export default function GenerationDetailPage() {
   const params = useParams();
+  const [, setLocation] = useLocation();
   const id = params.id as string;
   const { data: job, isLoading } = useGetGeneration(id, { query: { enabled: !!id, queryKey: getGetGenerationQueryKey(id) } });
 
@@ -49,6 +50,16 @@ export default function GenerationDetailPage() {
           </h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">ID: {job.id}</p>
         </div>
+        {!isRunning && (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setLocation(`/?cloneJob=${encodeURIComponent(job.id)}`)}
+          >
+            <Pencil className="size-4" />
+            Edit & Regenerate
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
