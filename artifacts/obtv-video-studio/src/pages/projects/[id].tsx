@@ -183,6 +183,10 @@ export default function ProjectDetailPage() {
   const isReady = project.status === "READY";
   const isDraft = project.status === "DRAFT";
   const isDone = project.status === "COMPLETED";
+  const isDispatchWaiting = project.status === "RUNNING" && (
+    project.errorMessage?.startsWith("Waiting for") ||
+    project.errorMessage?.startsWith("All compatible GPUs")
+  );
   const projectCharacterIds = project.characterIds ?? [];
   const characterById = new Map(characters.map((character) => [character.id, character]));
   const settingById = new Map(settings.map((setting) => [setting.id, setting]));
@@ -355,8 +359,14 @@ export default function ProjectDetailPage() {
               )}
 
               {project.errorMessage && (
-                <div className="mt-3 md:mt-4 bg-destructive/10 border border-destructive/20 rounded-lg p-2.5 md:p-3 text-xs md:text-sm text-destructive flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className={`mt-3 md:mt-4 rounded-lg border p-2.5 md:p-3 text-xs md:text-sm flex items-start gap-2 ${
+                  isDispatchWaiting
+                    ? "border-sky-400/20 bg-sky-400/10 text-sky-200"
+                    : "border-destructive/20 bg-destructive/10 text-destructive"
+                }`}>
+                  {isDispatchWaiting
+                    ? <Loader2 className="w-4 h-4 shrink-0 mt-0.5 animate-spin" />
+                    : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
                   <p className="break-words">{project.errorMessage}</p>
                 </div>
               )}

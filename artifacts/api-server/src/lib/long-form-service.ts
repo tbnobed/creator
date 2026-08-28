@@ -435,7 +435,7 @@ async function findDispatchAvailability(project: LongFormProject): Promise<Dispa
     server,
     reason: server
       ? null
-      : `Waiting for a free GPU slot on ${onlineCompatibleServers.map((candidate) => candidate.displayName).join(", ")}.`,
+      : `All compatible GPUs are currently rendering: ${onlineCompatibleServers.map((candidate) => candidate.displayName).join(", ")}. The next shot will start automatically when a slot opens.`,
   };
 }
 
