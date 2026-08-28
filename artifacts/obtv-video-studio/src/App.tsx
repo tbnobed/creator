@@ -8,6 +8,7 @@ import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { Shell } from '@/components/layout/shell';
 
 const GeneratePage = lazy(() => import('@/pages/generate'));
+const ReferenceVideoPage = lazy(() => import('@/pages/reference-video'));
 const CharactersPage = lazy(() => import('@/pages/characters'));
 const SettingsPage = lazy(() => import('@/pages/settings'));
 const ServersPage = lazy(() => import('@/pages/servers'));
@@ -36,6 +37,7 @@ function Router() {
         <Suspense fallback={<PageLoading />}>
           <Switch>
             <Route path="/" component={GeneratePage} />
+            <Route path="/reference-video" component={ReferenceVideoPage} />
             <Route path="/projects" component={ProjectsPage} />
             <Route path="/projects/new" component={NewProjectPage} />
             <Route path="/projects/:id" component={ProjectDetailPage} />

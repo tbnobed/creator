@@ -9,6 +9,7 @@ import {
   Server, 
   Workflow, 
   Settings as SettingsIcon,
+  Video,
   Menu,
   X
 } from "lucide-react";
@@ -29,6 +30,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const links = [
     { href: "/", label: "Generate", icon: Clapperboard },
+    { href: "/reference-video", label: "Reference Video", icon: Video },
     { href: "/projects", label: "Long-Form", icon: Film },
     { href: "/characters", label: "Characters", icon: Users },
     { href: "/settings", label: "Settings", icon: Map },
