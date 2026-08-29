@@ -394,7 +394,9 @@ export async function createLongFormProject(input: LongFormProjectInput) {
   }
   if (input.targetDurationSeconds > 600) throw new Error("Long-form projects are limited to 10 minutes.");
   const shots = planShots(input);
-  const plannedDurationSeconds = shots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
+  // Project totals are stored as integer seconds, while individual shot durations
+  // may remain fractional for accurate dialogue timing.
+  const plannedDurationSeconds = Math.ceil(shots.reduce((sum, shot) => sum + shot.durationSeconds, 0));
   const project = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(longFormProjectsTable)
