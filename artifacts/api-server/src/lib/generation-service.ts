@@ -100,16 +100,26 @@ function extractPromptAudio(prompt: string): { soundscape: string | null; music:
     .find((sentence) => /\b(ambience|ambient|room tone|soundscape|equipment sounds?|music)\b/i.test(sentence));
   if (!audioSentence) return { soundscape: null, music: null };
 
+  const musicIndex = audioSentence.search(/\bmusic\b/i);
+  const beforeMusic = musicIndex >= 0 ? audioSentence.slice(0, musicIndex) : "";
+  const separatorCandidates = [" and ", ", ", "; "]
+    .map((separator) => ({ separator, index: beforeMusic.lastIndexOf(separator) }))
+    .filter((candidate) => candidate.index >= 0)
+    .sort((left, right) => right.index - left.index);
+  const musicStart = separatorCandidates[0]
+    ? separatorCandidates[0].index + separatorCandidates[0].separator.length
+    : 0;
   const sentenceWithoutMusic = audioSentence
-    .replace(/\b(?:and\s+)?(?:restrained\s+)?(?:[a-z]+[- ]+)?music\b[^.!?]*/i, "")
-    .replace(/\s+and\s*$/i, "")
+    .slice(0, musicIndex >= 0 ? musicStart : audioSentence.length)
+    .replace(/^(?:add|include|use)\s+/i, "")
+    .replace(/\s+(?:and|,|;)\s*$/i, "")
     .trim();
   const soundscape = sentenceWithoutMusic.match(
     /\b(?:quiet|subtle|natural|low|soft|steady|realistic|gentle)[^.?!,;]*(?:ambience|ambient|room tone|soundscape|equipment sounds?)[^.?!]*/i,
   )?.[0] ?? null;
-  const music = audioSentence.match(
-    /\b(?:restrained\s+)?(?:[a-z]+[- ]+)?music\b[^.!?]*/i,
-  )?.[0] ?? null;
+  const music = musicIndex >= 0
+    ? audioSentence.slice(musicStart).replace(/^(?:add|include|use)\s+/i, "").trim()
+    : null;
 
   return {
     soundscape: soundscape ? compactPromptText(soundscape) : null,
