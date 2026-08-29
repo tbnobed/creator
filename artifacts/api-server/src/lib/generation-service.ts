@@ -89,6 +89,30 @@ function compactPromptText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function shotPromptOnly(prompt: string): string {
+  return prompt.split(/\bPROJECT\s+VISUAL\s+DIRECTION\b/i)[0].trim();
+}
+
+function extractPromptAudio(prompt: string): { soundscape: string | null; music: string | null } {
+  const audioSentence = prompt
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .find((sentence) => /\b(ambience|ambient|room tone|soundscape|equipment sounds?|music)\b/i.test(sentence));
+  if (!audioSentence) return { soundscape: null, music: null };
+
+  const soundscape = audioSentence.match(
+    /\b(?:quiet|subtle|natural|low|soft|steady|realistic|gentle)[^.?!,;]*(?:ambience|ambient|room tone|soundscape|equipment sounds?)[^.?!]*/i,
+  )?.[0] ?? null;
+  const music = audioSentence.match(
+    /\b(?:restrained|subtle|gentle|soft|quiet|low|cinematic|background|technology[- ]themed)?\s*music\b[^.!?]*/i,
+  )?.[0] ?? null;
+
+  return {
+    soundscape: soundscape ? compactPromptText(soundscape) : null,
+    music: music ? compactPromptText(music) : null,
+  };
+}
+
 function compileMiniMaxH3Prompt(
   characters: { name: string; promptDescription: string }[],
   setting: { name: string; promptDescription: string } | undefined,
@@ -111,12 +135,14 @@ function compileMiniMaxH3Prompt(
   }
 
   const dialogue = input.dialogue?.trim();
+  const shotPrompt = shotPromptOnly(input.prompt);
   const primarySpeaker = characters[0]
     ? "<Subject 1>"
     : input.referenceVideoKey
       ? "The presenter from <Video 1>"
       : "The on-screen speaker";
-  const isVoiceover = /\b(off[- ]screen|voice[- ]?over|narration)\b/i.test(input.prompt);
+  const hasOnScreenSpeech = /\b(speaks?|talks?|says?|addresses?|looks directly into (?:the )?camera)\b/i.test(shotPrompt);
+  const isVoiceover = !hasOnScreenSpeech && /\b(off[- ]screen|voice[- ]?over|narration)\b/i.test(shotPrompt);
   const spokenAction = dialogue
     ? isVoiceover
       ? `${primarySpeaker} (S1) says in an off-screen voiceover: <d>[English] ${dialogue}</d> while the corresponding on-screen character's lips remain completely closed.`
@@ -133,11 +159,15 @@ function compileMiniMaxH3Prompt(
     input.cameraInstructions ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
     input.motionInstructions ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
   ].filter(Boolean).join(" ");
+  const promptAudio = extractPromptAudio(shotPrompt);
   const soundscape = input.audioInstructions?.trim()
     ? compactPromptText(input.audioInstructions)
-    : dialogue
-      ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
-      : "Natural ambient sound and subtle sounds from the visible action.";
+    : promptAudio.soundscape
+      ? `${promptAudio.soundscape}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
+      : dialogue
+        ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
+        : "Natural ambient sound and subtle sounds from the visible action.";
+  const music = promptAudio.music ?? "N/A";
   const taskTypes = input.referenceVideoKey
     ? "[reference generation + audio reuse]"
     : "[reference generation]";
@@ -166,7 +196,7 @@ function compileMiniMaxH3Prompt(
     `retention_analysis:\n${retention.join("\n")}`,
     `detailed_description:\n${timeline}`,
     `overall_soundscape:\n${input.referenceVideoKey ? "Reuse <Audio 1> as the synchronized output audio." : soundscape}`,
-    "non_diegetic_music:\nN/A",
+    `non_diegetic_music:\n${input.referenceVideoKey ? "Reuse any music contained in <Audio 1> as part of the synchronized source audio." : music}`,
   ].join("\n\n");
 }
 
