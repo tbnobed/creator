@@ -477,13 +477,10 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (
-      input.preferredServerId &&
-      (message.includes("safe render capacity") || message.includes("being reserved by another render"))
-    ) {
+    if (message.includes("safe render capacity") || (input.preferredServerId && message.includes("being reserved by another render"))) {
       logger.info(
         { preferredServerId: input.preferredServerId, rejectedServer: server.displayName },
-        "Preferred GPU unavailable; retrying generation on another compatible server",
+        "GPU unavailable; retrying generation on another compatible server",
       );
       return createAndSubmitGeneration({ ...input, preferredServerId: undefined });
     }
