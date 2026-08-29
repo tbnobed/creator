@@ -15,7 +15,7 @@ import {
 } from "@workspace/db";
 import { logger } from "./logger";
 import { ComfyUIClient } from "./comfy/client";
-import { hasRequiredTags, isLongFormWorkflow, selectServer } from "./comfy/scheduler";
+import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
 
@@ -317,7 +317,7 @@ export async function resumeActiveGenerations(): Promise<void> {
     .where(and(eq(generationJobsTable.status, "UPLOADING"), sql`${generationJobsTable.comfyPromptId} IS NULL`));
 }
 
-export async function createAndSubmitGeneration(input: GenerationRequest) {
+export async function createAndSubmitGeneration(input: GenerationRequest): Promise<GenerationJob> {
   const [characters, setting] = await Promise.all([
     input.characterIds?.length
       ? db.select().from(charactersTable).where(inArray(charactersTable.id, input.characterIds))
@@ -344,25 +344,37 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
   const requestedServer = input.preferredServerId
     ? servers.find((server) => server.id === input.preferredServerId)
     : undefined;
-  const workflowsForRequestedServer = requestedServer
-    ? compatibleWorkflows.filter((candidate) => (
-      requestedServer.enabled &&
-      requestedServer.status === "ONLINE" &&
-      hasRequiredTags(requestedServer.tags, candidate.compatibleServerTags)
-    ))
-    : compatibleWorkflows;
-  const selected = workflowsForRequestedServer
-    .map((candidate) => ({
-      workflow: candidate,
-      server: requestedServer ?? selectServer(servers, candidate.compatibleServerTags),
-    }))
-    .filter((candidate) => candidate.server !== null)
+  const activeJobs = await db
+    .select({ comfyServerId: generationJobsTable.comfyServerId })
+    .from(generationJobsTable)
+    .where(inArray(generationJobsTable.status, activeGenerationStatuses));
+  const activeByServer = new Map<string, number>();
+  for (const job of activeJobs) {
+    if (job.comfyServerId) {
+      activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
+    }
+  }
+  const effectiveActiveCount = (server: typeof servers[number]) =>
+    Math.max(activeByServer.get(server.id) ?? 0, server.activeJobCount);
+  const candidates = compatibleWorkflows.flatMap((candidate, workflowIndex) =>
+    servers
+      .filter((server) => (
+        server.enabled &&
+        server.status === "ONLINE" &&
+        hasRequiredTags(server.tags, candidate.compatibleServerTags)
+      ))
+      .map((server) => ({ workflow: candidate, server, workflowIndex })),
+  );
+  const selected = candidates
+    .filter(({ server }) => effectiveActiveCount(server) < (server.maxConcurrentJobs ?? 1))
     .sort((a, b) => (
-      a.server!.queueSize - b.server!.queueSize ||
-      a.server!.activeJobCount - b.server!.activeJobCount ||
-      a.server!.priority - b.server!.priority
+      Number(a.server.id !== requestedServer?.id) - Number(b.server.id !== requestedServer?.id) ||
+      effectiveActiveCount(a.server) - effectiveActiveCount(b.server) ||
+      a.server.queueSize - b.server.queueSize ||
+      a.server.priority - b.server.priority ||
+      a.workflowIndex - b.workflowIndex
     ))[0];
-  const workflow = selected?.workflow ?? workflowsForRequestedServer[0] ?? workflows[0];
+  const workflow = selected?.workflow ?? compatibleWorkflows[0] ?? workflows[0];
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
@@ -370,16 +382,21 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     throw new Error("No active workflow without reference-video input is configured for this generation mode");
   }
   const apiWorkflow = workflow.apiWorkflow;
-  const server = selected?.server ?? requestedServer ?? selectServer(servers, workflow.compatibleServerTags);
+  const server = selected?.server;
   if (!server) {
+    const compatibleServerNames = [...new Set(candidates.map(({ server: candidate }) => candidate.displayName))];
+    if (compatibleServerNames.length > 0) {
+      throw new Error(`All compatible GPUs are at their safe render capacity: ${compatibleServerNames.join(", ")}.`);
+    }
     throw new Error("No healthy, compatible ComfyUI server is available. Configure and test a server first.");
   }
-  return withServerSlotLock(server.id, async () => {
+  try {
+    return await withServerSlotLock(server.id, async () => {
     const activeJobs = await db
       .select({ id: generationJobsTable.id })
       .from(generationJobsTable)
       .where(and(eq(generationJobsTable.comfyServerId, server.id), inArray(generationJobsTable.status, activeGenerationStatuses)));
-    if (activeJobs.length >= (server.maxConcurrentJobs ?? 1)) {
+    if (Math.max(activeJobs.length, server.activeJobCount) >= (server.maxConcurrentJobs ?? 1)) {
       throw new Error(`${server.displayName} is at its safe render capacity.`);
     }
   const compiledPrompt = compilePrompt(workflow.modelFamily, characters, setting[0], input);
@@ -457,7 +474,21 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
       .where(eq(generationJobsTable.id, job.id));
     throw error;
   }
-  });
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (
+      input.preferredServerId &&
+      (message.includes("safe render capacity") || message.includes("being reserved by another render"))
+    ) {
+      logger.info(
+        { preferredServerId: input.preferredServerId, rejectedServer: server.displayName },
+        "Preferred GPU unavailable; retrying generation on another compatible server",
+      );
+      return createAndSubmitGeneration({ ...input, preferredServerId: undefined });
+    }
+    throw error;
+  }
 }
 
 export async function cancelGeneration(jobId: string) {

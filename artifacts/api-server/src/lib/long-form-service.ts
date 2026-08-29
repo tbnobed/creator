@@ -516,12 +516,13 @@ async function findDispatchAvailability(project: LongFormProject): Promise<Dispa
     };
   }
   const availableServers = onlineCompatibleServers.filter((server) => {
-    const activeCount = activeByServer.get(server.id) ?? 0;
+    const activeCount = Math.max(activeByServer.get(server.id) ?? 0, server.activeJobCount);
     return activeCount < (server.maxConcurrentJobs ?? 1);
   });
   const server = availableServers
     .sort((a, b) => (
-      (activeByServer.get(a.id) ?? 0) - (activeByServer.get(b.id) ?? 0) ||
+      Math.max(activeByServer.get(a.id) ?? 0, a.activeJobCount) -
+        Math.max(activeByServer.get(b.id) ?? 0, b.activeJobCount) ||
       a.queueSize - b.queueSize ||
       a.priority - b.priority
     ))[0] ?? null;
