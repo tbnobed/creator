@@ -3,6 +3,22 @@ import { mediaStorage } from "../lib/storage-service";
 
 const router: IRouter = Router();
 
+router.delete("/reference-videos/:name", async (req, res): Promise<void> => {
+  const name = typeof req.params.name === "string" ? req.params.name : "";
+  if (!/^[a-z0-9_-]+\.(mp4|webm)$/i.test(name)) {
+    res.status(400).json({ error: "Invalid reference video" });
+    return;
+  }
+
+  try {
+    await mediaStorage.deleteReferenceVideo(`reference-videos/${name}`);
+    res.status(204).end();
+  } catch (error) {
+    req.log.error({ err: error, name }, "Reference video could not be deleted");
+    res.status(404).json({ error: "Reference video not found" });
+  }
+});
+
 router.get("/reference-videos", async (req, res): Promise<void> => {
   try {
     const items = await mediaStorage.listReferenceVideos();

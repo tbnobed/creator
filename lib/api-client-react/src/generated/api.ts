@@ -2072,6 +2072,77 @@ export const useUploadReferenceVideo = <TError = ErrorType<unknown>,
       return useMutation(getUploadReferenceVideoMutationOptions(options));
     }
 
+export const getDeleteReferenceVideoUrl = (name: string,) => {
+
+
+
+
+  return `/api/reference-videos/${name}`
+}
+
+/**
+ * @summary Delete a previously uploaded reference video
+ */
+export const deleteReferenceVideo = async (name: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteReferenceVideoUrl(name),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteReferenceVideoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReferenceVideo>>, TError,{name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReferenceVideo>>, TError,{name: string}, TContext> => {
+
+const mutationKey = ['deleteReferenceVideo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReferenceVideo>>, {name: string}> = (props) => {
+          const {name} = props ?? {};
+
+          return  deleteReferenceVideo(name,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReferenceVideoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReferenceVideo>>>
+
+    export type DeleteReferenceVideoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a previously uploaded reference video
+ */
+export const useDeleteReferenceVideo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReferenceVideo>>, TError,{name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReferenceVideo>>,
+        TError,
+        {name: string},
+        TContext
+      > => {
+      return useMutation(getDeleteReferenceVideoMutationOptions(options));
+    }
+
 export const getPolishPromptUrl = () => {
 
 

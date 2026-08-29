@@ -3,8 +3,9 @@ import { Link, useLocation } from "wouter";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useListReferenceVideos } from "@workspace/api-client-react";
-import { AlertTriangle, ArrowLeft, CheckCircle2, FileVideo, Loader2, RotateCcw, Upload, Video } from "lucide-react";
+import { getListReferenceVideosQueryKey, useDeleteReferenceVideo, useListReferenceVideos } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ArrowLeft, CheckCircle2, FileVideo, Loader2, RotateCcw, Trash2, Upload, Video } from "lucide-react";
 
 const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
 const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm"];
@@ -61,7 +62,10 @@ export default function ReferenceVideoPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingName, setDeletingName] = useState<string | null>(null);
   const { data: savedReferenceVideos, isLoading: isLoadingSavedVideos } = useListReferenceVideos();
+  const deleteReferenceVideo = useDeleteReferenceVideo();
+  const queryClient = useQueryClient();
   const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
   const returnTo = returnToParam?.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : "/";
   const activeVideoName = file?.name ?? storedVideo?.name ?? "Saved reference video";
@@ -177,6 +181,21 @@ export default function ReferenceVideoPage() {
     window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify(nextStoredVideo));
   };
 
+  const deleteSavedVideo = async (video: NonNullable<typeof savedReferenceVideos>["items"][number]) => {
+    if (!window.confirm(`Delete ${video.name}? This cannot be undone.`)) return;
+    setDeletingName(video.name);
+    setError("");
+    try {
+      await deleteReferenceVideo.mutateAsync({ name: video.name });
+      if (uploadedKey === video.storageKey) clearVideo();
+      await queryClient.invalidateQueries({ queryKey: getListReferenceVideosQueryKey() });
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Reference video could not be deleted.");
+    } finally {
+      setDeletingName(null);
+    }
+  };
+
   return (
     <Page className="max-w-[1400px] mx-auto">
       <PageHeader
@@ -253,25 +272,44 @@ export default function ReferenceVideoPage() {
                     {savedReferenceVideos?.items.map((video) => {
                       const isSelected = uploadedKey === video.storageKey;
                       return (
-                        <button
-                          type="button"
+                        <div
                           key={video.storageKey}
-                          onClick={() => useSavedVideo(video)}
-                          className={`group overflow-hidden rounded-lg border text-left transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-border/60 bg-background/30 hover:border-primary/60"}`}
+                          className={`group overflow-hidden rounded-lg border transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-border/60 bg-background/30"}`}
                         >
-                          <div className="aspect-video overflow-hidden bg-black">
-                            <img
-                              src={video.previewUrl}
-                              alt=""
-                              className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
-                            />
+                          <button
+                            type="button"
+                            onClick={() => useSavedVideo(video)}
+                            className="block w-full text-left hover:bg-primary/5"
+                            aria-label={`Use ${video.name}`}
+                          >
+                            <div className="aspect-video overflow-hidden bg-black">
+                              <img
+                                src={video.previewUrl}
+                                alt=""
+                                className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 p-3">
+                              <FileVideo className="size-4 shrink-0 text-primary" />
+                              <span className="min-w-0 flex-1 truncate text-xs font-medium">{video.name}</span>
+                              {isSelected && <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />}
+                            </div>
+                          </button>
+                          <div className="flex justify-end border-t border-border/40 px-2 py-1.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => deleteSavedVideo(video)}
+                              disabled={deletingName === video.name}
+                              aria-label={`Delete ${video.name}`}
+                            >
+                              {deletingName === video.name ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                              Delete
+                            </Button>
                           </div>
-                          <div className="flex items-center gap-2 p-3">
-                            <FileVideo className="size-4 shrink-0 text-primary" />
-                            <span className="min-w-0 flex-1 truncate text-xs font-medium">{video.name}</span>
-                            {isSelected && <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />}
-                          </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

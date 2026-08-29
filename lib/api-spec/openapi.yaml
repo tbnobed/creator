@@ -435,6 +435,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReferenceVideoUpload"
+  /reference-videos/{name}:
+    delete:
+      operationId: deleteReferenceVideo
+      tags: [media]
+      summary: Delete a previously uploaded reference video
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Reference video deleted
   /prompt-guidance/polish:
     post:
       operationId: polishPrompt

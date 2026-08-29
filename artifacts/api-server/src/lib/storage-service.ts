@@ -130,6 +130,15 @@ export class LocalMediaStorage {
     return videos.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
+  async deleteReferenceVideo(key: string): Promise<void> {
+    if (!/^reference-videos\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(key)) {
+      throw new Error("Invalid reference video");
+    }
+    await unlink(resolveKey(key)).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
+  }
+
   async storeOutput(
     originalName: string,
     mimeType: "video/mp4" | "video/webm",

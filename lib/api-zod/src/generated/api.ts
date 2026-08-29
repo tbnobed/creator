@@ -763,6 +763,16 @@ export const UploadReferenceVideoResponse = zod.object({
 
 
 /**
+ * @summary Delete a previously uploaded reference video
+ */
+export const DeleteReferenceVideoParams = zod.object({
+  "name": zod.coerce.string()
+})
+
+export const DeleteReferenceVideoResponse = zod.void()
+
+
+/**
  * @summary Improve a video prompt while preserving creator intent
  */
 export const polishPromptBodyPromptMax = 10000;
