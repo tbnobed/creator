@@ -100,6 +100,14 @@ function shotPromptOnly(prompt: string): string {
   return prompt.split(/\bPROJECT\s+VISUAL\s+DIRECTION\b/i)[0].trim();
 }
 
+function projectVisualDirectionOnly(prompt: string): string {
+  return prompt.split(/\bPROJECT\s+VISUAL\s+DIRECTION\b/i).slice(1).join(" ").trim();
+}
+
+function ensureSentenceEnding(value: string): string {
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
 function extractPromptAudio(prompt: string): { soundscape: string | null; music: string | null } {
   const audioSentence = prompt
     .split(/(?<=[.!?])\s+/)
@@ -197,11 +205,11 @@ function compileMiniMaxH3Prompt(
     input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
   ].filter(Boolean).join(" ");
   const promptAudio = extractPromptAudio(shotPrompt);
-  const projectAudio = extractPromptAudio(input.prompt);
+  const projectAudio = extractPromptAudio(projectVisualDirectionOnly(input.prompt));
   const soundscape = input.audioInstructions?.trim()
     ? compactPromptText(input.audioInstructions)
     : promptAudio.soundscape
-      ? `${promptAudio.soundscape}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
+      ? `${ensureSentenceEnding(promptAudio.soundscape)}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
       : dialogue
         ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
         : "Natural ambient sound and subtle sounds from the visible action.";
