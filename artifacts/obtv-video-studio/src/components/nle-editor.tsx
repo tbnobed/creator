@@ -18,6 +18,7 @@ export interface ClipMetadata {
 export interface Clip {
   id: string;
   outputUrl: string;
+  posterUrl?: string;
   metadata: ClipMetadata;
   trimStartSeconds?: number;
   trimEndSeconds?: number;
@@ -188,6 +189,8 @@ export function NLEEditor({
                  <video 
                    ref={videoRef}
                    src={selectedClip.outputUrl}
+                   poster={selectedClip.posterUrl}
+                   preload="metadata"
                    className="w-full h-full object-contain"
                    onTimeUpdate={handleTimeUpdate}
                    onEnded={() => setIsPlaying(false)}
@@ -413,18 +416,26 @@ export function NLEEditor({
                  key={clip.id}
                  onClick={() => onSelectedClipIdChange(clip.id)}
                  className={cn(
-                   "h-full min-w-[160px] md:min-w-[200px] flex-shrink-0 rounded-md border-2 transition-all cursor-pointer overflow-hidden relative flex flex-col bg-black",
+                    "h-full w-[160px] md:w-[200px] flex-none rounded-md border-2 transition-all cursor-pointer overflow-hidden relative flex flex-col bg-black",
                    isSelected ? "border-primary shadow-[0_0_15px_rgba(255,31,98,0.3)] ring-1 ring-primary/50" : "border-border/50 hover:border-border",
                    clip.isRemoved && "opacity-40 grayscale"
                  )}
                >
-                 {/* Thumbnail placeholder or video snapshot */}
-                 <div className="flex-1 bg-secondary/20 relative">
-                    <video 
-                      src={clip.outputUrl} 
-                      className="w-full h-full object-cover opacity-60"
-                      preload="metadata"
-                    />
+                  {/* Lightweight generated poster instead of loading every source video. */}
+                  <div className="min-h-0 flex-1 bg-secondary/20 relative">
+                     {clip.posterUrl ? (
+                       <img
+                         src={clip.posterUrl}
+                         alt=""
+                         loading="lazy"
+                         decoding="async"
+                         className="h-full w-full object-cover opacity-80"
+                       />
+                     ) : (
+                       <div className="flex h-full w-full items-center justify-center">
+                         <Video className="h-8 w-8 text-muted-foreground/30" />
+                       </div>
+                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                     
                     {clip.isRemoved && (

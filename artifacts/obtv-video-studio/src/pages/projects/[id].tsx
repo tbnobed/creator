@@ -68,6 +68,7 @@ function editorClipsFromProject(project: any): EditorClip[] {
     return [{
       id: shot.id,
       outputUrl: shot.outputUrl,
+      posterUrl: videoPosterUrl(shot.outputUrl),
       trimStartSeconds: clip.trimStartSeconds,
       trimEndSeconds: clip.trimEndSeconds,
       metadata: {
@@ -84,6 +85,7 @@ function editorClipsFromProject(project: any): EditorClip[] {
     .map((shot: any) => ({
       id: shot.id,
       outputUrl: shot.outputUrl,
+      posterUrl: videoPosterUrl(shot.outputUrl),
       trimStartSeconds: 0,
       trimEndSeconds: shot.durationSeconds,
       isRemoved: true,
