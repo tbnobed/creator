@@ -89,7 +89,8 @@ The Docker deployment includes a private `prompt-ai` container running Ollama
 with the free `qwen2.5:1.5b` model. The model is downloaded into the persistent
 `obtv_prompt_ai_data` volume on the first startup, so the API can use the live
 prompt checker and AI polish without OpenAI, a cloud API key, or an internet
-connection after that initial model download.
+connection after that initial model download. Ollama cloud features are disabled
+explicitly.
 
 The container is limited to two CPU cores (`cpus: "2.0"`), runs one model
 request at a time, and is not published to the host or internet. Change the
