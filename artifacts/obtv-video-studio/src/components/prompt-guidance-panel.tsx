@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Lightbulb, Loader2, RotateCcw, Sparkles, Wand2, X } from "lucide-react";
-import { usePolishPrompt, type PromptPolishResult } from "@workspace/api-client-react";
+import { useCheckPrompt, usePolishPrompt, type PromptCheckResult, type PromptPolishResult } from "@workspace/api-client-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,7 +37,11 @@ export function PromptGuidancePanel(props: Props) {
     snapshot: string;
     selected: Record<keyof PromptPolishResult, boolean>;
   } | null>(null);
+  const [aiReview, setAiReview] = useState<{ result: PromptCheckResult; snapshot: string } | null>(null);
+  const [aiCheckError, setAiCheckError] = useState("");
   const polish = usePolishPrompt();
+  const check = useCheckPrompt();
+  const latestSnapshot = useRef("");
   const issues = useMemo(() => analyzePrompt({
     prompt: props.prompt,
     cameraInstructions: props.cameraInstructions,
@@ -55,8 +59,48 @@ export function PromptGuidancePanel(props: Props) {
     negativePrompt: props.negativePrompt,
     dialogue: props.dialogue ?? "",
     continuityNote: props.continuityNote ?? "",
+    generationMode: props.generationMode,
+    shotKind: props.shotKind ?? "SHOT",
   });
+  latestSnapshot.current = currentSnapshot;
   const suggestionIsStale = Boolean(suggestion && suggestion.snapshot !== currentSnapshot);
+
+  const requestCheck = () => {
+    if (!props.prompt.trim() || check.isPending) return;
+    const snapshot = currentSnapshot;
+    setAiCheckError("");
+    check.mutate({
+      data: {
+        prompt: props.prompt,
+        cameraInstructions: props.cameraInstructions,
+        motionInstructions: props.motionInstructions,
+        negativePrompt: props.negativePrompt,
+        dialogue: props.dialogue,
+        continuityNote: props.continuityNote,
+        generationMode: props.generationMode || "txt2vid",
+        shotKind: props.shotKind,
+      },
+    }, {
+      onSuccess: result => {
+        if (latestSnapshot.current === snapshot) setAiReview({ result, snapshot });
+      },
+      onError: error => {
+        if (latestSnapshot.current === snapshot) {
+          setAiCheckError(error instanceof Error ? error.message : "AI prompt check failed.");
+        }
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (!props.prompt.trim()) {
+      setAiReview(null);
+      setAiCheckError("");
+      return;
+    }
+    const timer = window.setTimeout(requestCheck, 900);
+    return () => window.clearTimeout(timer);
+  }, [currentSnapshot]);
 
   const updateField = (name: keyof PromptFields, value: string) => setFields(current => ({ ...current, [name]: value }));
   const assemble = () => {
@@ -108,10 +152,10 @@ export function PromptGuidancePanel(props: Props) {
       <Accordion type="single" collapsible defaultValue="builder">
         <AccordionItem value="builder" className="border-0 px-4">
           <AccordionTrigger className="hover:no-underline">
-            <span className="flex items-center gap-2"><Wand2 className="size-4 text-primary" /> Prompt Builder & Checker</span>
+            <span className="flex items-center gap-2"><Wand2 className="size-4 text-primary" /> Prompt Builder & Live AI Check</span>
           </AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <p className="text-xs text-muted-foreground">Build a focused shot from visual ingredients, or keep writing directly in the main prompt.</p>
+            <p className="text-xs text-muted-foreground">The AI reviews your current shot after you pause editing. Build from visual ingredients or keep writing directly in the main prompt.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {([
                 ["subject", "Subject", "Who or what is the focus?"],
@@ -139,6 +183,49 @@ export function PromptGuidancePanel(props: Props) {
               </Button>
             </div>
             {polish.isError && <p className="text-xs text-destructive">{(polish.error as Error).message || "AI polish failed. Your prompt was not changed."}</p>}
+
+            <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="size-4 text-primary" /> AI live check</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {check.isPending ? "Reviewing the current draft..." : aiReview ? "Review complete for the current draft." : "Review starts automatically after you pause."}
+                  </p>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={requestCheck} disabled={!props.prompt.trim() || check.isPending}>
+                  {check.isPending ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Sparkles className="mr-2 size-3.5" />} Check now
+                </Button>
+              </div>
+              {aiCheckError && <p className="text-xs text-destructive">{aiCheckError}</p>}
+              {aiReview && (
+                <div className="space-y-3 border-t border-border/50 pt-3">
+                  <p className="text-xs leading-relaxed text-foreground/90">{aiReview.result.summary}</p>
+                  {aiReview.result.strengths.length > 0 && (
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-500">What is working</p>
+                      <ul className="space-y-1">
+                        {aiReview.result.strengths.map((strength, index) => <li key={`${strength}-${index}`} className="flex gap-2 text-xs text-muted-foreground"><CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />{strength}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {aiReview.result.issues.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-500">Needs attention</p>
+                      {aiReview.result.issues.map((issue, index) => (
+                        <div key={`${issue.message}-${index}`} className="rounded border border-border/60 bg-background/50 p-2">
+                          <p className={`text-xs font-medium ${issue.severity === "error" ? "text-destructive" : issue.severity === "warning" ? "text-amber-500" : "text-muted-foreground"}`}>
+                            {issue.severity.toUpperCase()}: {issue.message}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">Fix: {issue.fix}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="flex gap-2 text-xs text-emerald-500"><CheckCircle2 className="size-3.5 shrink-0" /> AI found no meaningful conflicts in this draft.</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {suggestion && (
               <div className="space-y-3 rounded-lg border border-primary/30 bg-background/70 p-3">

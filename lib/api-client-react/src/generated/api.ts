@@ -35,6 +35,7 @@ import type {
   LongFormShot,
   LongFormShotUpdate,
   PaginatedGenerations,
+  PromptCheckResult,
   PromptPolishInput,
   PromptPolishResult,
   QueueSnapshot,
@@ -2212,6 +2213,77 @@ export const usePolishPrompt = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getPolishPromptMutationOptions(options));
+    }
+
+export const getCheckPromptUrl = () => {
+
+
+
+
+  return `/api/prompt-guidance/check`
+}
+
+/**
+ * @summary Review the current video prompt with AI
+ */
+export const checkPrompt = async (promptPolishInput: PromptPolishInput, options?: Parameters<typeof customFetch>[1]): Promise<PromptCheckResult> => {
+
+  return customFetch<PromptCheckResult>(getCheckPromptUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(promptPolishInput)
+  }
+);}
+
+
+
+
+
+export const getCheckPromptMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPrompt>>, TError,{data: BodyType<PromptPolishInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkPrompt>>, TError,{data: BodyType<PromptPolishInput>}, TContext> => {
+
+const mutationKey = ['checkPrompt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkPrompt>>, {data: BodyType<PromptPolishInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  checkPrompt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckPromptMutationResult = NonNullable<Awaited<ReturnType<typeof checkPrompt>>>
+    export type CheckPromptMutationBody = BodyType<PromptPolishInput>
+    export type CheckPromptMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Review the current video prompt with AI
+ */
+export const useCheckPrompt = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPrompt>>, TError,{data: BodyType<PromptPolishInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkPrompt>>,
+        TError,
+        {data: BodyType<PromptPolishInput>},
+        TContext
+      > => {
+      return useMutation(getCheckPromptMutationOptions(options));
     }
 
 export const getGetDashboardSummaryUrl = () => {

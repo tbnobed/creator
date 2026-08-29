@@ -813,6 +813,51 @@ export const PolishPromptResponse = zod.object({
 
 
 /**
+ * @summary Review the current video prompt with AI
+ */
+export const checkPromptBodyPromptMax = 10000;
+
+export const checkPromptBodyCameraInstructionsMax = 5000;
+
+export const checkPromptBodyMotionInstructionsMax = 5000;
+
+export const checkPromptBodyNegativePromptMax = 5000;
+
+export const checkPromptBodyDialogueMax = 5000;
+
+export const checkPromptBodyContinuityNoteMax = 5000;
+
+export const checkPromptBodyGenerationModeMax = 100;
+
+
+
+export const CheckPromptBody = zod.object({
+  "prompt": zod.string().min(1).max(checkPromptBodyPromptMax),
+  "cameraInstructions": zod.string().max(checkPromptBodyCameraInstructionsMax).optional(),
+  "motionInstructions": zod.string().max(checkPromptBodyMotionInstructionsMax).optional(),
+  "negativePrompt": zod.string().max(checkPromptBodyNegativePromptMax).optional(),
+  "dialogue": zod.string().max(checkPromptBodyDialogueMax).optional(),
+  "continuityNote": zod.string().max(checkPromptBodyContinuityNoteMax).optional(),
+  "generationMode": zod.string().min(1).max(checkPromptBodyGenerationModeMax),
+  "shotKind": zod.enum(['SHOT', 'B-ROLL']).optional()
+})
+
+export const checkPromptResponseIssuesMax = 8;
+
+
+
+export const CheckPromptResponse = zod.object({
+  "summary": zod.string(),
+  "strengths": zod.array(zod.string()),
+  "issues": zod.array(zod.object({
+  "severity": zod.enum(['error', 'warning', 'tip']),
+  "message": zod.string(),
+  "fix": zod.string()
+})).max(checkPromptResponseIssuesMax)
+})
+
+
+/**
  * @summary Read studio summary data
  */
 export const GetDashboardSummaryResponse = zod.object({

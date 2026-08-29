@@ -444,6 +444,28 @@ export interface PromptPolishResult {
   continuityNote: string;
 }
 
+export type PromptCheckIssueSeverity = typeof PromptCheckIssueSeverity[keyof typeof PromptCheckIssueSeverity];
+
+
+export const PromptCheckIssueSeverity = {
+  error: 'error',
+  warning: 'warning',
+  tip: 'tip',
+} as const;
+
+export interface PromptCheckIssue {
+  severity: PromptCheckIssueSeverity;
+  message: string;
+  fix: string;
+}
+
+export interface PromptCheckResult {
+  summary: string;
+  strengths: string[];
+  /** @maxItems 8 */
+  issues: PromptCheckIssue[];
+}
+
 export interface DashboardSummary {
   characterCount: number;
   settingCount: number;

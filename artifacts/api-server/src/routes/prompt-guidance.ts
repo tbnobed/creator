@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { PolishPromptBody, PolishPromptResponse } from "@workspace/api-zod";
+import { CheckPromptResponse, PolishPromptBody, PolishPromptResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const WINDOW_MS = 60_000;
@@ -7,6 +7,16 @@ const MAX_REQUESTS_PER_WINDOW = 6;
 const MAX_GLOBAL_CONCURRENCY = 4;
 const clients = new Map<string, { startedAt: number; count: number; active: number }>();
 let globalActive = 0;
+
+function getAiProvider(): { baseUrl: string; apiKey: string; model: string } | null {
+  const localBaseUrl = process.env.PROMPT_AI_BASE_URL;
+  if (!localBaseUrl) return null;
+  return {
+    baseUrl: localBaseUrl,
+    apiKey: process.env.PROMPT_AI_API_KEY || "ollama",
+    model: process.env.PROMPT_AI_MODEL || "qwen2.5:1.5b",
+  };
+}
 
 function acquire(clientId: string): { ok: true; release: () => void } | { ok: false; status: number; error: string } {
   const now = Date.now();
@@ -48,10 +58,9 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
     return;
   }
 
-  const baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  if (!baseUrl || !apiKey) {
-    res.status(503).json({ error: "AI polish is not configured. The prompt builder and checker are still available." });
+  const provider = getAiProvider();
+  if (!provider) {
+    res.status(503).json({ error: "Local AI polish is not configured. Start the Docker prompt-ai service." });
     return;
   }
   const permit = acquire(req.ip || req.socket.remoteAddress || "unknown");
@@ -73,16 +82,16 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
   ].join(" ");
 
   try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+    const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${apiKey}`,
+        authorization: `Bearer ${provider.apiKey}`,
         "content-type": "application/json",
       },
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(120_000),
       body: JSON.stringify({
-        model: "gpt-5.4-mini",
-        max_completion_tokens: 1400,
+        model: provider.model,
+        max_tokens: 1400,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: instructions },
@@ -103,6 +112,72 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
       error: error instanceof Error
         ? `AI polish failed: ${error.message}`
         : "AI polish failed. Your original prompt was not changed.",
+    });
+  } finally {
+    permit.release();
+  }
+});
+
+router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
+  const input = PolishPromptBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.message });
+    return;
+  }
+
+  const provider = getAiProvider();
+  if (!provider) {
+    res.status(503).json({ error: "Local AI prompt checking is not configured. Start the Docker prompt-ai service." });
+    return;
+  }
+  const permit = acquire(req.ip || req.socket.remoteAddress || "unknown");
+  if (!permit.ok) {
+    res.status(429).json({ error: permit.error });
+    return;
+  }
+
+  const instructions = [
+    "You are a live AI quality reviewer for cinematic video prompts.",
+    "Review the creator's current shot without rewriting it.",
+    "Check for contradictions between the prompt, camera, motion, dialogue, shot type, and generation mode.",
+    "Check whether the visual action is physically plausible, whether speech is explicit and timed, and whether B-roll is incorrectly assigned dialogue.",
+    "Respect creator intent. Do not invent characters, brands, dialogue, or requirements.",
+    "Return only JSON with exactly: summary (string), strengths (array of short strings), issues (array of up to 8 objects).",
+    "Each issue must have severity (error, warning, or tip), message (specific finding), and fix (specific next action).",
+    "Return an empty issues array when there are no meaningful concerns. Do not praise generic qualities.",
+  ].join(" ");
+
+  try {
+    const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${provider.apiKey}`,
+        "content-type": "application/json",
+      },
+      signal: AbortSignal.timeout(120_000),
+      body: JSON.stringify({
+        model: provider.model,
+        max_tokens: 800,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: instructions },
+          { role: "user", content: JSON.stringify(input.data) },
+        ],
+      }),
+    });
+    const payload = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      error?: { message?: string };
+    };
+    if (!response.ok) throw new Error(payload.error?.message || `AI service returned ${response.status}`);
+    const content = payload.choices?.[0]?.message?.content;
+    if (!content) throw new Error("AI service returned an empty response");
+    res.json(CheckPromptResponse.parse(extractJson(content)));
+  } catch (error) {
+    res.status(502).json({
+      error: error instanceof Error
+        ? `AI prompt check failed: ${error.message}`
+        : "AI prompt check failed.",
     });
   } finally {
     permit.release();

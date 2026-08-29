@@ -62,7 +62,8 @@ bind mount, make the host directory writable by UID/GID `10001`.
    `COMFY_ALLOWED_HOSTS` to the hostnames or public IPs of the ComfyUI workers.
    Do not put `http://`, `https://`, `ws://`, ports, or paths in the allowlist.
    Set each matching `OBTV_SEED_*_API_URL` and
-   `OBTV_SEED_*_WEBSOCKET_URL` pair to seed that external worker.
+   `OBTV_SEED_*_WEBSOCKET_URL` pair to seed that external worker. The local AI
+   prompt checker is enabled by default and requires no paid API key.
 4. Build and start:
 
    ```sh
@@ -81,6 +82,34 @@ bind mount, make the host directory writable by UID/GID `10001`.
 On a fresh database, the API applies the committed Drizzle migrations before it
 opens its HTTP port. It then seeds the complete studio workflow catalog
 idempotently; existing user-managed records are not overwritten.
+
+### AI prompt review in Docker
+
+The Docker deployment includes a private `prompt-ai` container running Ollama
+with the free `qwen2.5:1.5b` model. The model is downloaded into the persistent
+`obtv_prompt_ai_data` volume on the first startup, so the API can use the live
+prompt checker and AI polish without OpenAI, a cloud API key, or an internet
+connection after that initial model download.
+
+The container is limited to two CPU cores (`cpus: "2.0"`), runs one model
+request at a time, and is not published to the host or internet. Change the
+model before first startup with `PROMPT_AI_MODEL` in `.env` if the host has
+different CPU/RAM capacity:
+
+```sh
+PROMPT_AI_MODEL=qwen2.5:1.5b
+docker compose up -d --build
+```
+
+Watch the initial model download with:
+
+```sh
+docker compose logs -f prompt-ai
+```
+
+The API waits for the model health check before starting. Rendering and GPU
+scheduling use the separate ComfyUI workers and do not consume the two local
+AI CPU cores.
 
 ### MiniMax H3 workflow bootstrap
 

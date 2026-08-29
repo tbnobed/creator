@@ -15,6 +15,34 @@ services:
       retries: 20
       start_period: 10s
 
+  prompt-ai:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_MODEL: ${PROMPT_AI_MODEL:-qwen2.5:1.5b}
+      OLLAMA_NUM_PARALLEL: 1
+      OLLAMA_MAX_LOADED_MODELS: 1
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "ollama serve & server_pid=$$!; until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull \"$$OLLAMA_MODEL\"; wait $$server_pid",
+      ]
+    cpus: "2.0"
+    volumes:
+      - obtv_prompt_ai_data:/root/.ollama
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "ollama list | grep -q \"$$OLLAMA_MODEL\"",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 60
+      start_period: 20s
+
   api:
     build:
       context: .
@@ -26,6 +54,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-obtv}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-obtv}
       OBTV_MEDIA_ROOT: /var/lib/obtv-media
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      PROMPT_AI_BASE_URL: http://prompt-ai:11434/v1
+      PROMPT_AI_API_KEY: ollama
+      PROMPT_AI_MODEL: ${PROMPT_AI_MODEL:-qwen2.5:1.5b}
       COMFY_ALLOWED_HOSTS: ${COMFY_ALLOWED_HOSTS:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
       OBTV_SEED_A100_NAME: ${OBTV_SEED_A100_NAME:-PN A100}
@@ -46,6 +77,8 @@ services:
       - obtv_media_data:/var/lib/obtv-media
     depends_on:
       db:
+        condition: service_healthy
+      prompt-ai:
         condition: service_healthy
     healthcheck:
       test:
@@ -73,3 +106,4 @@ services:
 volumes:
   obtv_postgres_data:
   obtv_media_data:
+  obtv_prompt_ai_data:
