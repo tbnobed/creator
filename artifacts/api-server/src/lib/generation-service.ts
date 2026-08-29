@@ -22,6 +22,8 @@ import { mediaStorage } from "./storage-service";
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
 const generationTimeoutMs = 6 * 60 * 60 * 1000;
+const maxConsecutiveMonitorErrors = 3;
+const workerUnreachableMessage = "ComfyUI worker stopped responding after 3 consecutive checks. Retry the shot when the worker is online.";
 
 async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -625,6 +627,7 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
   const nodeProgress = new Map<string, number>();
   let lastProgressWriteAt = 0;
   let lastProgress = -1;
+  let consecutiveMonitorErrors = 0;
   const persistProgress = (progress: number, currentNode: string | null) => {
     const normalized = Math.min(0.99, Math.max(0, progress));
     const now = Date.now();
@@ -703,7 +706,46 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
           .from(generationJobsTable)
           .where(eq(generationJobsTable.id, jobId));
         if (!currentJob || currentJob.status === "CANCELLED") return;
+      } catch (error) {
+        logger.warn({ err: error, jobId }, "Generation monitor could not read job state");
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+        continue;
+      }
+
+      try {
         if (await downloadCompletedOutput(jobId, client, promptId)) return;
+        consecutiveMonitorErrors = 0;
+      } catch (error) {
+        consecutiveMonitorErrors += 1;
+        logger.warn(
+          { err: error, jobId, consecutiveMonitorErrors, maxConsecutiveMonitorErrors },
+          "Generation monitor could not reach ComfyUI",
+        );
+        if (consecutiveMonitorErrors >= maxConsecutiveMonitorErrors) {
+          const [failed] = await db
+            .update(generationJobsTable)
+            .set({
+              status: "FAILED",
+              currentNode: null,
+              errorMessage: workerUnreachableMessage,
+              failedAt: new Date(),
+            })
+            .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+            .returning({ comfyServerId: generationJobsTable.comfyServerId });
+          if (failed?.comfyServerId) {
+            await db
+              .update(comfyServersTable)
+              .set({ status: "OFFLINE" })
+              .where(eq(comfyServersTable.id, failed.comfyServerId));
+          }
+          logger.error({ err: error, jobId, comfyServerId: failed?.comfyServerId }, workerUnreachableMessage);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+        continue;
+      }
+
+      try {
         const [running] = await db
           .update(generationJobsTable)
           .set({ status: "RUNNING", currentNode: "ComfyUI processing" })
@@ -711,7 +753,7 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
           .returning({ id: generationJobsTable.id });
         if (!running) return;
       } catch (error) {
-        logger.warn({ err: error, jobId }, "Generation monitor retrying after ComfyUI error");
+        logger.warn({ err: error, jobId }, "Generation monitor could not persist running state");
       }
       await new Promise((resolve) => setTimeout(resolve, 5_000));
     }

@@ -448,15 +448,15 @@ export default function ProjectDetailPage() {
                 </h3>
                 <div className="grid gap-2.5 md:gap-3">
                   {scenes[sceneNum].sort((a: any, b: any) => a.shotNumber - b.shotNumber).map((shot: any) => (
-                    <div 
-                      key={shot.id} 
-                      className={`group flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl border transition-all ${
-                        shot.status === 'FAILED' ? 'bg-destructive/5 border-destructive/30' :
-                        shot.status === 'RENDERING' ? 'bg-primary/5 border-primary/30' :
-                        shot.status === 'COMPLETED' ? 'bg-card border-emerald-500/20' :
-                        'bg-card border-card-border md:hover:border-primary/50'
-                      }`}
-                    >
+                      <div
+                        key={shot.id}
+                        className={`group flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl border transition-all ${
+                          shot.status === 'FAILED' || shot.status === 'CANCELLED' ? 'bg-destructive/5 border-destructive/30' :
+                          shot.status === 'RENDERING' ? 'bg-primary/5 border-primary/30' :
+                          shot.status === 'COMPLETED' ? 'bg-card border-emerald-500/20' :
+                          'bg-card border-card-border md:hover:border-primary/50'
+                        }`}
+                      >
                       <div className="w-20 md:w-24 flex-shrink-0">
                         {shot.outputUrl ? (
                           <button
@@ -492,12 +492,23 @@ export default function ProjectDetailPage() {
                         <div className="flex justify-between items-start mb-1 md:mb-1.5 gap-2">
                           <h4 className="font-semibold text-sm md:text-base text-foreground flex items-center gap-1.5 md:gap-2 truncate">
                             <span className="truncate">{shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}</span>
-                            {shot.status === 'FAILED' && <span className="flex-shrink-0 text-[9px] md:text-[10px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">Failed</span>}
+                            {(shot.status === 'FAILED' || shot.status === 'CANCELLED') && (
+                              <span className="flex-shrink-0 text-[9px] md:text-[10px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">
+                                {shot.status === 'FAILED' ? 'Failed' : 'Cancelled'}
+                              </span>
+                            )}
                           </h4>
                           
                           <div className="flex items-center gap-1 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0 -mr-1 md:mr-0 -mt-1 md:mt-0">
-                            {shot.status === 'FAILED' && (
-                              <Button size="icon" variant="ghost" className="w-7 h-7 md:w-7 md:h-7 text-amber-500" onClick={() => handleRetryShot(shot.id)}>
+                            {(shot.status === 'FAILED' || shot.status === 'CANCELLED') && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="w-7 h-7 md:w-7 md:h-7 text-amber-500"
+                                onClick={() => handleRetryShot(shot.id)}
+                                aria-label={`Retry ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                                title="Retry shot"
+                              >
                                 <RefreshCw className="w-3.5 h-3.5" />
                               </Button>
                             )}

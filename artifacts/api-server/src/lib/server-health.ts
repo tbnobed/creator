@@ -3,7 +3,7 @@ import { db, comfyServersTable } from "@workspace/db";
 import { ComfyUIClient } from "./comfy/client";
 import { logger } from "./logger";
 
-const HEALTH_CHECK_INTERVAL_MS = 3 * 60 * 1000; // every 3 minutes
+const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 
 async function pingServer(server: typeof comfyServersTable.$inferSelect): Promise<void> {
   const client = new ComfyUIClient(server);
