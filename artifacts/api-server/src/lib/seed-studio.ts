@@ -242,6 +242,44 @@ async function seedWorkflowDefinitions(): Promise<void> {
     }).where(eq(workflowTemplatesTable.id, workflow.id))
   )));
 
+  const upgradedVideoWorkflowIds = new Set(staleVideoWorkflowRecords.map(({ workflow }) => workflow.id));
+  const staleTurboWorkflowRecords = existing.filter((workflow) => {
+    if (upgradedVideoWorkflowIds.has(workflow.id)) return false;
+    const apiWorkflow = workflow.apiWorkflow as Record<string, { class_type?: unknown; inputs?: Record<string, unknown> }> | null;
+    const node124 = apiWorkflow?.["124"];
+    const node126 = apiWorkflow?.["126"];
+    const node141 = apiWorkflow?.["141"];
+    const node142 = apiWorkflow?.["142"];
+    const node145 = apiWorkflow?.["145"];
+    const node146 = apiWorkflow?.["146"];
+    return Boolean(
+      node124?.class_type === "BasicScheduler" &&
+      Array.isArray(node124.inputs?.steps) &&
+      node124.inputs.steps[0] === "142" &&
+      node126?.class_type === "BasicGuider" &&
+      Array.isArray(node126.inputs?.model) &&
+      node126.inputs.model[0] === "141" &&
+      node141?.class_type === "ComfySwitchNode" &&
+      node142?.class_type === "ComfySwitchNode" &&
+      node145?.class_type === "LoraLoaderModelOnly" &&
+      node145.inputs?.lora_name === "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors" &&
+      node146?.class_type === "PrimitiveBoolean" &&
+      node146.inputs?.value === false
+    );
+  });
+  await Promise.all(staleTurboWorkflowRecords.map((workflow) => {
+    const apiWorkflow = structuredClone(workflow.apiWorkflow) as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+    apiWorkflow["124"].inputs.steps = 20;
+    apiWorkflow["126"].inputs.model = ["127", 0];
+    for (const nodeId of ["141", "142", "143", "144", "145", "146"]) {
+      delete apiWorkflow[nodeId];
+    }
+    return db.update(workflowTemplatesTable).set({
+      apiWorkflow,
+      version: workflow.version + 1,
+    }).where(eq(workflowTemplatesTable.id, workflow.id));
+  }));
+
   if (!existingNames.has("MiniMax H3 FL2VA")) {
     await db.insert(workflowTemplatesTable).values({
       name: "MiniMax H3 FL2VA",

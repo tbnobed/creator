@@ -41,7 +41,7 @@ const baseWorkflow: ApiWorkflow = {
   },
   "124": {
     class_type: "BasicScheduler",
-    inputs: { scheduler: "simple", steps: ["142", 0], denoise: 1, model: ["127", 0] },
+    inputs: { scheduler: "simple", steps: 20, denoise: 1, model: ["127", 0] },
   },
   "125": {
     class_type: "SamplerCustomAdvanced",
@@ -55,7 +55,7 @@ const baseWorkflow: ApiWorkflow = {
   },
   "126": {
     class_type: "BasicGuider",
-    inputs: { model: ["141", 0], conditioning: ["136", 0] },
+    inputs: { model: ["127", 0], conditioning: ["136", 0] },
   },
   "127": {
     class_type: "UNETLoader",
@@ -113,34 +113,6 @@ const baseWorkflow: ApiWorkflow = {
   "139": {
     class_type: "LoadImage",
     inputs: { image: "reference-character-2.png" },
-  },
-  "141": {
-    class_type: "ComfySwitchNode",
-    inputs: { switch: ["146", 0], on_false: ["127", 0], on_true: ["145", 0] },
-  },
-  "142": {
-    class_type: "ComfySwitchNode",
-    inputs: { switch: ["146", 0], on_false: ["143", 0], on_true: ["144", 0] },
-  },
-  "143": {
-    class_type: "PrimitiveInt",
-    inputs: { value: 20 },
-  },
-  "144": {
-    class_type: "PrimitiveInt",
-    inputs: { value: 4 },
-  },
-  "145": {
-    class_type: "LoraLoaderModelOnly",
-    inputs: {
-      lora_name: "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
-      strength_model: 1,
-      model: ["127", 0],
-    },
-  },
-  "146": {
-    class_type: "PrimitiveBoolean",
-    inputs: { value: false },
   },
 };
 
