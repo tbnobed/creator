@@ -91,6 +91,11 @@ function compactPromptText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function escapedWordPattern(value: string): RegExp {
+  const escaped = value.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i");
+}
+
 function shotPromptOnly(prompt: string): string {
   return prompt.split(/\bPROJECT\s+VISUAL\s+DIRECTION\b/i)[0].trim();
 }
@@ -153,50 +158,67 @@ function compileMiniMaxH3Prompt(
 
   const dialogue = input.dialogue?.trim();
   const shotPrompt = shotPromptOnly(input.prompt);
-  const primarySpeaker = characters[0]
-    ? "<Subject 1>"
+  const referencedCharacters = characters.filter((character) => (
+    escapedWordPattern(character.name).test(shotPrompt) ||
+    /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
+  ));
+  const usesSettingReference = Boolean(
+    setting && (
+      escapedWordPattern(setting.name).test(shotPrompt) ||
+      /\b(?:TBN|studio|control room|broadcast facility|broadcast studio|production room)\b/i.test(shotPrompt)
+    ),
+  );
+  const primarySpeaker = referencedCharacters[0]
+    ? `<Subject ${characters.indexOf(referencedCharacters[0]) + 1}>`
     : input.referenceVideoKey
       ? "The presenter from <Video 1>"
       : "The on-screen speaker";
   const hasOnScreenSpeech = /\b(speaks?|talks?|says?|addresses?|looks directly into (?:the )?camera)\b/i.test(shotPrompt);
   const isVoiceover = !hasOnScreenSpeech && /\b(off[- ]screen|voice[- ]?over|narration)\b/i.test(shotPrompt);
+  const hasAuthoredCamera = /\bcamera\s*:/i.test(shotPrompt);
+  const hasAuthoredMotion = /\bmotion\s*:/i.test(shotPrompt);
   const spokenAction = dialogue
     ? isVoiceover
       ? `${primarySpeaker} (S1) says in an off-screen voiceover: <d>[English] ${dialogue}</d> while the corresponding on-screen character's lips remain completely closed.`
       : `${primarySpeaker} (S1) says clearly at a natural speaking rate: <d>[English] ${dialogue}</d>`
     : "";
-  const characterPlacement = characters.map((_, index) => `<Subject ${index + 1}>`).join(", ");
+  const characterPlacement = referencedCharacters
+    .map((character) => `<Subject ${characters.indexOf(character) + 1}>`)
+    .join(", ");
   const timeline = [
     "[Shot 1] Live-action, cinematic.",
     characterPlacement ? `${characterPlacement} appear with their referenced identities fully preserved.` : "",
-    settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
+    usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
     input.referenceVideoKey ? "Follow the timing, movement, and temporal structure of <Video 1>." : "",
     spokenAction,
     compactPromptText(input.prompt),
-    input.cameraInstructions ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
-    input.motionInstructions ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
+    input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
+    input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
   ].filter(Boolean).join(" ");
   const promptAudio = extractPromptAudio(shotPrompt);
+  const projectAudio = extractPromptAudio(input.prompt);
   const soundscape = input.audioInstructions?.trim()
     ? compactPromptText(input.audioInstructions)
     : promptAudio.soundscape
       ? `${promptAudio.soundscape}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
+      : projectAudio.soundscape
+        ? `${projectAudio.soundscape}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
       : dialogue
         ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
         : "Natural ambient sound and subtle sounds from the visible action.";
-  const music = promptAudio.music ?? "N/A";
+  const music = promptAudio.music ?? projectAudio.music ?? "N/A";
   const taskTypes = input.referenceVideoKey
     ? "[reference generation + audio reuse]"
     : "[reference generation]";
   const summarySubjects = [
-    ...characters.map((_, index) => `<Subject ${index + 1}>`),
-    ...(settingSubjectNumber ? [`<Subject ${settingSubjectNumber}>`] : []),
+    ...referencedCharacters.map((character) => `<Subject ${characters.indexOf(character) + 1}>`),
+    ...(usesSettingReference && settingSubjectNumber ? [`<Subject ${settingSubjectNumber}>`] : []),
   ].join(", ");
   const retention = [
-    ...characters.map((_, index) => (
-      `<Subject ${index + 1}> (appears in [Shot 1]): fully_preserved - preserve the referenced identity, appearance, clothing, and recognizable features.`
+    ...referencedCharacters.map((character) => (
+      `<Subject ${characters.indexOf(character) + 1}> (appears in [Shot 1]): fully_preserved - preserve the referenced identity, appearance, clothing, and recognizable features.`
     )),
-    ...(settingSubjectNumber
+    ...(usesSettingReference && settingSubjectNumber
       ? [`<Subject ${settingSubjectNumber}> (appears in [Shot 1]): fully_preserved - preserve the referenced environment, layout, lighting, and production design.`]
       : []),
     ...(input.referenceVideoKey
@@ -209,8 +231,8 @@ function compileMiniMaxH3Prompt(
 
   return [
     `subject_definitions:\n${subjectDefinitions.join("\n")}`,
-    `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the supplied reference content"}${input.referenceVideoKey ? " while reusing <Audio 1>" : ""}.`,
-    `retention_analysis:\n${retention.join("\n")}`,
+    `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the described scene"}${input.referenceVideoKey ? " while reusing <Audio 1>" : ""}.`,
+    `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,
     `detailed_description:\n${timeline}`,
     `overall_soundscape:\n${input.referenceVideoKey ? "Reuse <Audio 1> as the synchronized output audio." : soundscape}`,
     `non_diegetic_music:\n${input.referenceVideoKey ? "Reuse any music contained in <Audio 1> as part of the synchronized source audio." : music}`,

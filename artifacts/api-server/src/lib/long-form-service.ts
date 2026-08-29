@@ -284,8 +284,14 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
       title: label,
       prompt: input.storyline ? `${prompt}\n\nPROJECT VISUAL DIRECTION\n${input.storyline.trim()}` : prompt,
       dialogue,
-      cameraInstructions: index % 3 === 0 ? "Establishing cinematic composition, deliberate framing." : index % 3 === 1 ? "Controlled medium shot with subtle tracking." : "Intimate detail shot with natural movement.",
-      motionInstructions: "Natural, physically believable movement with consistent character and environment details.",
+      cameraInstructions: structuredBeat
+        ? ""
+        : index % 3 === 0
+          ? "Establishing cinematic composition, deliberate framing."
+          : index % 3 === 1
+            ? "Controlled medium shot with subtle tracking."
+            : "Intimate detail shot with natural movement.",
+      motionInstructions: structuredBeat ? "" : "Natural, physically believable movement with consistent character and environment details.",
       continuityNote: previousPrompt
         ? `Continue visual identity, wardrobe, lighting, and narrative action from the previous shot. Previous beat: ${previousPrompt.slice(0, 220)}`
         : "Establish the visual identity, setting, lighting, and character continuity for the sequence.",
