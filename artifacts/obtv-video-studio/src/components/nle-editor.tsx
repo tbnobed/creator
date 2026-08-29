@@ -185,13 +185,13 @@ export function NLEEditor({
         <div className="flex-1 flex flex-col bg-black/60 relative">
           <div className="flex-1 flex items-center justify-center p-4 md:p-8 relative">
             {selectedClip ? (
-              <div className="relative w-full h-full flex items-center justify-center bg-black rounded-lg overflow-hidden border border-border/50 shadow-2xl">
+               <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-black shadow-2xl">
                  <video 
                    ref={videoRef}
                    src={selectedClip.outputUrl}
                    poster={selectedClip.posterUrl}
                    preload="metadata"
-                   className="w-full h-full object-contain"
+                    className="block h-auto max-h-full w-auto max-w-full object-contain"
                    onTimeUpdate={handleTimeUpdate}
                    onEnded={() => setIsPlaying(false)}
                    onClick={handlePlayPause}
