@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -17,6 +17,7 @@ import {
   type ComfyServer,
   type LongFormProject,
   type LongFormShot,
+  type LongFormTimelineClip,
 } from "@workspace/db";
 import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
@@ -62,6 +63,10 @@ type PlannedShot = {
   continuityNote: string;
   transition: "CUT" | "DISSOLVE" | "FADE";
   durationSeconds: number;
+};
+
+export type LongFormTimelineInput = {
+  clips: LongFormTimelineClip[];
 };
 
 type StructuredBeat = {
@@ -322,6 +327,20 @@ function date(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
 
+function defaultTimeline(shots: LongFormShot[]): LongFormTimelineClip[] {
+  return shots
+    .filter((shot) => shot.status === "COMPLETED" && shot.outputStorageKey)
+    .map((shot) => ({
+      shotId: shot.id,
+      trimStartSeconds: 0,
+      trimEndSeconds: shot.durationSeconds,
+    }));
+}
+
+function timelineForProject(project: LongFormProject, shots: LongFormShot[]): LongFormTimelineClip[] {
+  return project.timelineClips?.length ? project.timelineClips : defaultTimeline(shots);
+}
+
 async function presentShot(shot: LongFormShot) {
   const [server] = shot.assignedServerId
     ? await db.select({ displayName: comfyServersTable.displayName }).from(comfyServersTable).where(eq(comfyServersTable.id, shot.assignedServerId))
@@ -355,7 +374,7 @@ export async function presentLongFormProject(project: LongFormProject, includeSh
     title: project.title,
     script: project.script,
     storyline: project.storyline,
-    status: project.status as "DRAFT" | "READY" | "RUNNING" | "PAUSED" | "ASSEMBLING" | "COMPLETED" | "FAILED" | "CANCELLED",
+    status: project.status as "DRAFT" | "READY" | "RUNNING" | "PAUSED" | "EDITING" | "ASSEMBLING" | "COMPLETED" | "FAILED" | "CANCELLED",
     targetDurationSeconds: project.targetDurationSeconds,
     generationMode: project.generationMode,
     width: project.width,
@@ -368,6 +387,7 @@ export async function presentLongFormProject(project: LongFormProject, includeSh
     completedShots: project.completedShots,
     failedShots: project.failedShots,
     progress: project.progress,
+    timelineClips: project.timelineClips ?? [],
     finalOutputUrl: project.finalOutputStorageKey ? `/api/media/${project.finalOutputStorageKey}` : null,
     errorMessage: project.errorMessage,
     startedAt: date(project.startedAt),
@@ -414,6 +434,7 @@ export async function createLongFormProject(input: LongFormProjectInput) {
       qualityPreset: input.qualityPreset,
       characterIds: input.characterIds,
       settingId: input.settingId,
+      timelineClips: [],
       totalShots: shots.length,
       })
       .returning();
@@ -584,8 +605,12 @@ async function reconcileShotJobs(project: LongFormProject, shots: LongFormShot[]
   return db.select().from(longFormShotsTable).where(eq(longFormShotsTable.projectId, project.id)).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber));
 }
 
-async function runMediaTool(command: "ffmpeg" | "ffprobe", args: string[]) {
-  await execFileAsync(command, args, { maxBuffer: 10 * 1024 * 1024 });
+async function runMediaTool(
+  command: "ffmpeg" | "ffprobe" | "zip",
+  args: string[],
+  options: { cwd?: string } = {},
+) {
+  await execFileAsync(command, args, { maxBuffer: 10 * 1024 * 1024, ...options });
 }
 
 async function validateShotMedia(shot: LongFormShot): Promise<{ durationSeconds: number; hasAudio: boolean }> {
@@ -615,12 +640,26 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
   const workDir = path.join(tmpdir(), `obtv-assembly-${project.id}`);
   try {
     await mkdir(workDir, { recursive: true });
+    const shotById = new Map(shots.map((shot) => [shot.id, shot]));
+    const timeline = timelineForProject(project, shots);
+    if (timeline.length === 0) throw new Error("Add at least one completed clip to the timeline before rendering.");
     const normalizedPaths: string[] = [];
-    for (const [index, shot] of shots.entries()) {
+    for (const [index, clip] of timeline.entries()) {
+      const shot = shotById.get(clip.shotId);
+      if (!shot || shot.status !== "COMPLETED" || !shot.outputStorageKey) {
+        throw new Error("The timeline contains a clip that is no longer available.");
+      }
       const mediaInfo = await validateShotMedia(shot);
+      const trimStart = Math.max(0, clip.trimStartSeconds);
+      const trimEnd = Math.min(mediaInfo.durationSeconds, clip.trimEndSeconds);
+      if (trimEnd <= trimStart) {
+        throw new Error(`The trim for ${shot.title} is empty.`);
+      }
       const normalizedPath = path.join(workDir, `shot-${String(index).padStart(3, "0")}.mp4`);
       const ffmpegArgs = [
-        "-y", "-i", mediaStorage.resolvePath(shot.outputStorageKey!),
+        "-y",
+        "-ss", String(trimStart),
+        "-i", mediaStorage.resolvePath(shot.outputStorageKey),
       ];
       if (!mediaInfo.hasAudio) {
         ffmpegArgs.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
@@ -636,7 +675,7 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
         "-ac", "2",
         "-b:a", "192k",
         "-af", "apad",
-        "-t", String(mediaInfo.durationSeconds),
+        "-t", String(trimEnd - trimStart),
         "-movflags", "+faststart",
         normalizedPath,
       );
@@ -682,6 +721,157 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
   }
 }
 
+function safeExportName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80) || "obtv-project";
+}
+
+function csvCell(value: string | number): string {
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function timecode(seconds: number, fps: number): string {
+  const totalFrames = Math.max(0, Math.round(seconds * fps));
+  const frames = totalFrames % fps;
+  const totalSeconds = Math.floor(totalFrames / fps);
+  const secs = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+  return [hours, minutes, secs, frames].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+export async function createLongFormNlePackage(projectId: string): Promise<{
+  filePath: string;
+  filename: string;
+}> {
+  const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+  if (!project) throw new Error("Long-form project not found");
+  const shots = await db
+    .select()
+    .from(longFormShotsTable)
+    .where(eq(longFormShotsTable.projectId, projectId))
+    .orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber));
+  if (shots.length === 0 || shots.some((shot) => shot.status !== "COMPLETED" || !shot.outputStorageKey)) {
+    throw new Error("All clips must be completed before exporting the NLE package.");
+  }
+
+  const shotById = new Map(shots.map((shot) => [shot.id, shot]));
+  const timeline = timelineForProject(project, shots);
+  if (timeline.length === 0) throw new Error("Add at least one completed clip to the timeline before exporting.");
+
+  const workDir = path.join(tmpdir(), `obtv-nle-${project.id}`);
+  const mediaDir = path.join(workDir, "media");
+  await mkdir(mediaDir, { recursive: true });
+  const sourceFilenameByShotId = new Map<string, string>();
+  const sourceClips: Array<Record<string, unknown>> = [];
+  const manifestClips: Array<Record<string, unknown>> = [];
+  const csvRows = [
+    ["sequence", "shot_id", "filename", "source_in", "source_out", "duration_seconds", "timeline_in", "timeline_out", "transition"].join(","),
+  ];
+  const edlRows = [`TITLE: ${project.title}`, "FCM: NON-DROP FRAME", ""];
+  let timelineCursor = 0;
+
+  try {
+    for (const shot of shots) {
+      const filename = `scene-${String(shot.sceneNumber).padStart(3, "0")}_shot-${String(shot.shotNumber).padStart(3, "0")}_${safeExportName(shot.title)}.mp4`;
+      sourceFilenameByShotId.set(shot.id, filename);
+      await copyFile(mediaStorage.resolvePath(shot.outputStorageKey!), path.join(mediaDir, filename));
+      sourceClips.push({
+        shotId: shot.id,
+        sceneNumber: shot.sceneNumber,
+        shotNumber: shot.shotNumber,
+        title: shot.title,
+        filename: `media/${filename}`,
+      });
+    }
+
+    for (const [index, clip] of timeline.entries()) {
+      const shot = shotById.get(clip.shotId);
+      if (!shot || !shot.outputStorageKey) throw new Error("The timeline contains a clip that is no longer available.");
+      const mediaInfo = await validateShotMedia(shot);
+      const trimStart = Math.max(0, clip.trimStartSeconds);
+      const trimEnd = Math.min(mediaInfo.durationSeconds, clip.trimEndSeconds);
+      if (trimEnd <= trimStart) throw new Error(`The trim for ${shot.title} is empty.`);
+
+      const filename = sourceFilenameByShotId.get(shot.id);
+      if (!filename) throw new Error("The timeline contains a clip that is no longer available.");
+      const relativeFilename = `media/${filename}`;
+      const duration = trimEnd - trimStart;
+      csvRows.push([
+        index + 1,
+        csvCell(shot.id),
+        csvCell(relativeFilename),
+        trimStart.toFixed(3),
+        trimEnd.toFixed(3),
+        duration.toFixed(3),
+        timelineCursor.toFixed(3),
+        (timelineCursor + duration).toFixed(3),
+        csvCell(shot.transition),
+      ].join(","));
+      edlRows.push(
+        `${String(index + 1).padStart(3, "0")}  AX       V     C        ${timecode(trimStart, project.fps)} ${timecode(trimEnd, project.fps)} ${timecode(timelineCursor, project.fps)} ${timecode(timelineCursor + duration, project.fps)}`,
+        `* FROM CLIP NAME: ${filename}`,
+        `* SOURCE FILE: ${relativeFilename}`,
+        "",
+      );
+      manifestClips.push({
+        sequence: index + 1,
+        shotId: shot.id,
+        title: shot.title,
+        filename: relativeFilename,
+        sourceInSeconds: trimStart,
+        sourceOutSeconds: trimEnd,
+        durationSeconds: duration,
+        timelineInSeconds: timelineCursor,
+        timelineOutSeconds: timelineCursor + duration,
+        transition: shot.transition,
+      });
+      timelineCursor += duration;
+    }
+
+    await writeFile(path.join(workDir, "OBTV-sequence.csv"), `${csvRows.join("\n")}\n`);
+    await writeFile(path.join(workDir, "OBTV-sequence.edl"), `${edlRows.join("\n")}\n`);
+    await writeFile(path.join(workDir, "OBTV-sequence.json"), JSON.stringify({
+      format: "OBTV NLE sequence",
+      version: 1,
+      project: {
+        id: project.id,
+        title: project.title,
+        width: project.width,
+        height: project.height,
+        fps: project.fps,
+      },
+      sourceClips,
+      timeline: manifestClips,
+    }, null, 2));
+    await writeFile(path.join(workDir, "README.txt"), [
+      "OBTV AI Video Studio NLE package",
+      "",
+      "Import every file in media/ into your editor. This folder contains every original generated source clip, including clips omitted from the saved cut.",
+      "OBTV-sequence.edl contains the ordered video edit with source in/out points.",
+      "OBTV-sequence.csv is a human-readable edit decision list and OBTV-sequence.json contains the full project metadata.",
+      "The media files are untouched source renders; the trim decisions are non-destructive.",
+      "",
+      `Project: ${project.title}`,
+      `Sequence duration: ${timelineCursor.toFixed(3)} seconds`,
+      `Frame rate: ${project.fps} fps`,
+    ].join("\n"));
+
+    const zipPath = path.join(tmpdir(), `${safeExportName(project.title)}-nle-package-${project.id}.zip`);
+    await rm(zipPath, { force: true });
+    await runMediaTool("zip", ["-q", "-r", zipPath, "."], { cwd: workDir });
+    return { filePath: zipPath, filename: `${safeExportName(project.title)}-nle-package.zip` };
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+}
+
 async function updateProjectProgress(project: LongFormProject, shots: LongFormShot[]) {
   const completedShots = shots.filter((shot) => shot.status === "COMPLETED");
   const completedSeconds = completedShots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
@@ -692,6 +882,20 @@ async function updateProjectProgress(project: LongFormProject, shots: LongFormSh
     failedShots,
     progress,
   }).where(eq(longFormProjectsTable.id, project.id));
+}
+
+async function openProjectEditor(project: LongFormProject, shots: LongFormShot[]): Promise<void> {
+  await db
+    .update(longFormProjectsTable)
+    .set({
+      status: "EDITING",
+      progress: 100,
+      completedShots: shots.length,
+      failedShots: 0,
+      timelineClips: project.timelineClips.length ? project.timelineClips : defaultTimeline(shots),
+      errorMessage: null,
+    })
+    .where(eq(longFormProjectsTable.id, project.id));
 }
 
 async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
@@ -715,7 +919,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
     if (failed.length > 0) {
       await db.update(longFormProjectsTable).set({ status: "FAILED", errorMessage: `${failed.length} shot${failed.length === 1 ? "" : "s"} need a retry.` }).where(eq(longFormProjectsTable.id, project.id));
     } else if (shots.length > 0 && shots.every((shot) => shot.status === "COMPLETED")) {
-      await assembleProject(project, shots);
+      await openProjectEditor(project, shots);
     }
     return;
   }
@@ -826,8 +1030,8 @@ export async function reassembleLongFormProject(projectId: string) {
       .from(longFormProjectsTable)
       .where(eq(longFormProjectsTable.id, projectId));
     if (!current) throw new Error("Long-form project not found");
-    if (!["COMPLETED", "FAILED"].includes(current.status)) {
-      throw new Error("Only completed projects or failed assemblies can be reassembled");
+    if (!["EDITING", "COMPLETED", "FAILED"].includes(current.status)) {
+      throw new Error("Only projects with completed clips can render a final video");
     }
 
     const shots = await db
@@ -853,6 +1057,66 @@ export async function reassembleLongFormProject(projectId: string) {
   if (!project) throw new Error("Project is currently being updated; try again.");
   scheduleLongFormOrchestration(project.id, "reassemble");
   return presentLongFormProject(project, true);
+}
+
+export async function updateLongFormTimeline(projectId: string, input: LongFormTimelineInput) {
+  const result = await withProjectLock(projectId, async () => {
+    const [project] = await db
+      .select()
+      .from(longFormProjectsTable)
+      .where(eq(longFormProjectsTable.id, projectId));
+    if (!project) throw new Error("Long-form project not found");
+    if (!["EDITING", "COMPLETED", "FAILED"].includes(project.status)) {
+      throw new Error("The timeline can only be changed after all clips are generated.");
+    }
+
+    const shots = await db
+      .select()
+      .from(longFormShotsTable)
+      .where(eq(longFormShotsTable.projectId, projectId))
+      .orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber));
+    if (shots.length === 0 || shots.some((shot) => shot.status !== "COMPLETED" || !shot.outputStorageKey)) {
+      throw new Error("All clips must be completed before editing the timeline.");
+    }
+
+    const shotById = new Map(shots.map((shot) => [shot.id, shot]));
+    const seen = new Set<string>();
+    const clips: LongFormTimelineClip[] = [];
+    for (const clip of input.clips) {
+      const shot = shotById.get(clip.shotId);
+      if (!shot || !shot.outputStorageKey) throw new Error("The timeline contains an unknown clip.");
+      if (seen.has(clip.shotId)) throw new Error("Each source clip can appear only once in the timeline.");
+      seen.add(clip.shotId);
+      const mediaInfo = await validateShotMedia(shot);
+      const trimStartSeconds = Number(clip.trimStartSeconds.toFixed(3));
+      const trimEndSeconds = Number(Math.min(clip.trimEndSeconds, mediaInfo.durationSeconds).toFixed(3));
+      if (trimStartSeconds < 0 || trimEndSeconds <= trimStartSeconds) {
+        throw new Error(`The trim points for ${shot.title} are outside the source clip.`);
+      }
+      clips.push({ shotId: shot.id, trimStartSeconds, trimEndSeconds });
+    }
+
+    const [updated] = await db
+      .update(longFormProjectsTable)
+      .set({
+        status: "EDITING",
+        timelineClips: clips,
+        finalOutputStorageKey: null,
+        finalOutputMimeType: null,
+        completedAt: null,
+        errorMessage: null,
+      })
+      .where(eq(longFormProjectsTable.id, projectId))
+      .returning();
+    return { updated, previousFinalOutputKey: project.finalOutputStorageKey };
+  });
+  if (!result) throw new Error("Project is currently being updated; try again.");
+  if (result.previousFinalOutputKey) {
+    await mediaStorage.deleteOutput(result.previousFinalOutputKey).catch((error) => {
+      logger.warn({ err: error, projectId }, "Could not remove superseded long-form output");
+    });
+  }
+  return presentLongFormProject(result.updated, true);
 }
 
 export async function pauseLongFormProject(projectId: string) {

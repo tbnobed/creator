@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { 
   useGetLongFormProject,
@@ -13,6 +13,8 @@ import {
   getGetLongFormProjectQueryKey,
   getListLongFormProjectsQueryKey,
   useDeleteLongFormProject
+  ,useUpdateLongFormTimeline
+  ,downloadLongFormNlePackage
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,52 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
+import { NLEEditor, type Clip as EditorClip } from "@/components/nle-editor";
+
+function editorClipsFromProject(project: any): EditorClip[] {
+  const completedShots = project.shots.filter((shot: any) => shot.status === "COMPLETED" && shot.outputUrl);
+  const shotById = new Map(completedShots.map((shot: any) => [shot.id, shot]));
+  const timeline = project.timelineClips?.length
+    ? project.timelineClips
+    : completedShots.map((shot: any) => ({
+        shotId: shot.id,
+        trimStartSeconds: 0,
+        trimEndSeconds: shot.durationSeconds,
+      }));
+  const active = timeline.flatMap((clip: any) => {
+    const shot: any = shotById.get(clip.shotId);
+    if (!shot) return [];
+    return [{
+      id: shot.id,
+      outputUrl: shot.outputUrl,
+      trimStartSeconds: clip.trimStartSeconds,
+      trimEndSeconds: clip.trimEndSeconds,
+      metadata: {
+        description: shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`,
+        duration: shot.durationSeconds,
+        sceneNumber: shot.sceneNumber,
+        shotNumber: shot.shotNumber,
+      },
+    }];
+  });
+  const activeIds = new Set(active.map((clip: EditorClip) => clip.id));
+  const removed = completedShots
+    .filter((shot: any) => !activeIds.has(shot.id))
+    .map((shot: any) => ({
+      id: shot.id,
+      outputUrl: shot.outputUrl,
+      trimStartSeconds: 0,
+      trimEndSeconds: shot.durationSeconds,
+      isRemoved: true,
+      metadata: {
+        description: shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`,
+        duration: shot.durationSeconds,
+        sceneNumber: shot.sceneNumber,
+        shotNumber: shot.shotNumber,
+      },
+    }));
+  return [...active, ...removed];
+}
 
 export default function ProjectDetailPage() {
   const [, params] = useRoute("/projects/:id");
@@ -58,6 +106,10 @@ export default function ProjectDetailPage() {
 
   const [editingShot, setEditingShot] = useState<any>(null);
   const [previewShot, setPreviewShot] = useState<any>(null);
+  const [timelineClips, setTimelineClips] = useState<EditorClip[]>([]);
+  const [selectedTimelineClipId, setSelectedTimelineClipId] = useState<string | null>(null);
+  const [timelineDirty, setTimelineDirty] = useState(false);
+  const [isDownloadingPackage, setIsDownloadingPackage] = useState(false);
 
   // Queries
   const { data: project, isLoading, error } = useGetLongFormProject(id as string, {
@@ -82,6 +134,15 @@ export default function ProjectDetailPage() {
   const cancelProject = useCancelLongFormProject();
   const deleteProject = useDeleteLongFormProject();
   const retryShot = useRetryLongFormShot();
+  const updateTimeline = useUpdateLongFormTimeline();
+
+  useEffect(() => {
+    if (!project || !["EDITING", "COMPLETED", "FAILED"].includes(project.status)) return;
+    const clips = editorClipsFromProject(project);
+    setTimelineClips(clips);
+    setSelectedTimelineClipId((selected) => selected && clips.some((clip) => clip.id === selected) ? selected : clips[0]?.id ?? null);
+    setTimelineDirty(false);
+  }, [project?.id, project?.updatedAt, project?.status]);
 
   const invalidateProject = () => {
     queryClient.invalidateQueries({ queryKey: getGetLongFormProjectQueryKey(id as string) });
@@ -153,6 +214,62 @@ export default function ProjectDetailPage() {
     });
   };
 
+  const handleTimelineChange = (clips: EditorClip[]) => {
+    setTimelineClips(clips);
+    setTimelineDirty(true);
+  };
+
+  const handleSaveTimeline = () => {
+    if (!id) return;
+    const clips = timelineClips.filter((clip) => !clip.isRemoved);
+    if (clips.length === 0) {
+      toast({ title: "Timeline is empty", description: "Restore at least one clip before saving.", variant: "destructive" });
+      return;
+    }
+    updateTimeline.mutate({
+      id,
+      data: {
+        clips: clips.map((clip) => ({
+          shotId: clip.id,
+          trimStartSeconds: clip.trimStartSeconds ?? 0,
+          trimEndSeconds: clip.trimEndSeconds ?? clip.metadata.duration ?? 0,
+        })),
+      },
+    }, {
+      onSuccess: (updatedProject) => {
+        queryClient.setQueryData(getGetLongFormProjectQueryKey(id), updatedProject);
+        setTimelineDirty(false);
+        toast({ title: "Timeline saved", description: "The next final render will use this clip order and these trim points." });
+      },
+      onError: (err: any) => toast({ title: "Could not save timeline", description: err.message, variant: "destructive" }),
+    });
+  };
+
+  const handleDownloadNlePackage = async () => {
+    if (!id || !project) return;
+    if (timelineDirty) {
+      toast({ title: "Save the timeline first", description: "The download package uses the last saved clip order and trim points." });
+      return;
+    }
+    setIsDownloadingPackage(true);
+    try {
+      const blob = await downloadLongFormNlePackage(id, { responseType: "blob" });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `${project.title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-") || "obtv-project"}-nle-package.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast({ title: "NLE package downloaded", description: "Includes original clips, EDL, CSV, JSON, and import instructions." });
+    } catch (err: any) {
+      toast({ title: "Could not download clips", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDownloadingPackage(false);
+    }
+  };
+
   if (!id) return null;
   
   if (isLoading) {
@@ -183,6 +300,8 @@ export default function ProjectDetailPage() {
   const isReady = project.status === "READY";
   const isDraft = project.status === "DRAFT";
   const isDone = project.status === "COMPLETED";
+  const isEditing = project.status === "EDITING";
+  const allClipsGenerated = project.shots.length > 0 && project.shots.every((shot: any) => shot.status === "COMPLETED" && shot.outputUrl);
   const isDispatchWaiting = project.status === "RUNNING" && (
     project.errorMessage?.startsWith("Waiting for") ||
     project.errorMessage?.startsWith("All compatible GPUs")
@@ -227,6 +346,7 @@ export default function ProjectDetailPage() {
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight break-words pr-2">{project.title}</h1>
               <span className={`px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded border ${
                 project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                project.status === 'EDITING' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' :
                 project.status === 'FAILED' ? 'bg-destructive/10 text-destructive border-destructive/20' :
                 project.status === 'RUNNING' || project.status === 'ASSEMBLING' ? 'bg-primary/10 text-primary border-primary/20 animate-pulse' :
                 'bg-muted text-muted-foreground border-border'
@@ -251,12 +371,12 @@ export default function ProjectDetailPage() {
               </Button>
             )}
 
-            {isDone && (
+            {(isDone || isEditing) && (
               <Button onClick={handleReassemble} disabled={reassembleProject.isPending} size="sm" variant="secondary" className="md:h-10 md:px-4 text-xs md:text-sm">
                 {reassembleProject.isPending
                   ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 animate-spin" />
                   : <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />}
-                Reassemble<span className="hidden sm:inline">&nbsp;Video</span>
+                Render<span className="hidden sm:inline">&nbsp;Final Cut</span>
               </Button>
             )}
             
@@ -330,6 +450,25 @@ export default function ProjectDetailPage() {
 
       {/* CONTENT */}
       <div className="flex-1 overflow-y-auto px-3 py-4 md:p-8 flex flex-col lg:grid lg:grid-cols-12 gap-6 md:gap-8 pb-10">
+        {allClipsGenerated && (
+          <div className="order-0 min-h-[720px] lg:col-span-12">
+            <NLEEditor
+              projectTitle={`${project.title} · Final Cut`}
+              clips={timelineClips}
+              selectedClipId={selectedTimelineClipId}
+              onSelectedClipIdChange={setSelectedTimelineClipId}
+              onChange={handleTimelineChange}
+              onSave={handleSaveTimeline}
+              isSaving={updateTimeline.isPending}
+              onDownloadPackage={isDownloadingPackage ? undefined : handleDownloadNlePackage}
+            />
+            {timelineDirty && (
+              <p className="mt-2 text-xs text-amber-400">
+                Timeline changes are not saved yet. Save before rendering or downloading the NLE package.
+              </p>
+            )}
+          </div>
+        )}
         
         {/* RIGHT PANEL (takes 4 cols) - Move above shot list on mobile */}
         <div className="lg:col-span-5 xl:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">

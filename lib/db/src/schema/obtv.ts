@@ -174,6 +174,10 @@ export const longFormProjectsTable = pgTable("obtv_long_form_projects", {
   completedShots: integer("completed_shots").notNull().default(0),
   failedShots: integer("failed_shots").notNull().default(0),
   progress: real("progress").notNull().default(0),
+  timelineClips: jsonb("timeline_clips")
+    .$type<LongFormTimelineClip[]>()
+    .notNull()
+    .default([]),
   finalOutputStorageKey: text("final_output_storage_key"),
   finalOutputMimeType: text("final_output_mime_type"),
   errorMessage: text("error_message"),
@@ -182,6 +186,12 @@ export const longFormProjectsTable = pgTable("obtv_long_form_projects", {
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   ...timestamps,
 });
+
+export type LongFormTimelineClip = {
+  shotId: string;
+  trimStartSeconds: number;
+  trimEndSeconds: number;
+};
 
 export const longFormShotsTable = pgTable(
   "obtv_long_form_shots",

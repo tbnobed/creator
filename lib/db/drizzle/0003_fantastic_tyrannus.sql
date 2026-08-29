@@ -1,0 +1,1 @@
+ALTER TABLE "obtv_long_form_projects" ADD COLUMN "timeline_clips" jsonb DEFAULT '[]'::jsonb NOT NULL;

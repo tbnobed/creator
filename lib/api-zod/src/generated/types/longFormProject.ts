@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LongFormProjectStatus } from './longFormProjectStatus';
+import type { LongFormTimelineClip } from './longFormTimelineClip';
 
 export interface LongFormProject {
   id: string;
@@ -26,6 +27,7 @@ export interface LongFormProject {
   completedShots: number;
   failedShots: number;
   progress: number;
+  timelineClips: LongFormTimelineClip[];
   /** @nullable */
   finalOutputUrl: string | null;
   /** @nullable */

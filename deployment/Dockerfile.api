@@ -17,7 +17,7 @@ ENV NODE_ENV=production \
     OBTV_MEDIA_ROOT=/var/lib/obtv-media
 
 RUN apt-get update \
-  && apt-get install --yes --no-install-recommends ffmpeg \
+  && apt-get install --yes --no-install-recommends ffmpeg zip \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 10001 obtv \
   && useradd --system --uid 10001 --gid obtv --home-dir /app --shell /usr/sbin/nologin obtv \

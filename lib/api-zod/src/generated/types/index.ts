@@ -31,6 +31,8 @@ export * from './longFormShotStatus';
 export * from './longFormShotTransition';
 export * from './longFormShotUpdate';
 export * from './longFormShotUpdateTransition';
+export * from './longFormTimelineClip';
+export * from './longFormTimelineInput';
 export * from './paginatedGenerations';
 export * from './parameterMapping';
 export * from './promptCheckIssue';

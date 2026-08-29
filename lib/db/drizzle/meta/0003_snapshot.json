@@ -1,0 +1,1371 @@
+{
+  "id": "2ba217e4-39e0-447d-badf-4c7010fc00e0",
+  "prevId": "1c3011d6-9d5e-4cdb-bf1b-cf780e146c27",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.obtv_character_assets": {
+      "name": "obtv_character_assets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_name": {
+          "name": "original_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "angle": {
+          "name": "angle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obtv_character_assets_character_id_obtv_characters_id_fk": {
+          "name": "obtv_character_assets_character_id_obtv_characters_id_fk",
+          "tableFrom": "obtv_character_assets",
+          "tableTo": "obtv_characters",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_characters": {
+      "name": "obtv_characters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "prompt_description": {
+          "name": "prompt_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "thumbnail": {
+          "name": "thumbnail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "voice_profile": {
+          "name": "voice_profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_comfy_servers": {
+      "name": "obtv_comfy_servers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hostname": {
+          "name": "hostname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_base_url": {
+          "name": "api_base_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "websocket_url": {
+          "name": "websocket_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpu_name": {
+          "name": "gpu_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vram_gb": {
+          "name": "vram_gb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "max_concurrent_jobs": {
+          "name": "max_concurrent_jobs",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UNKNOWN'"
+        },
+        "queue_size": {
+          "name": "queue_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_job_count": {
+          "name": "active_job_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "memory_used_gb": {
+          "name": "memory_used_gb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_heartbeat": {
+          "name": "last_heartbeat",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_generation_characters": {
+      "name": "obtv_generation_characters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "generation_job_id": {
+          "name": "generation_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obtv_generation_characters_generation_job_id_obtv_generation_jobs_id_fk": {
+          "name": "obtv_generation_characters_generation_job_id_obtv_generation_jobs_id_fk",
+          "tableFrom": "obtv_generation_characters",
+          "tableTo": "obtv_generation_jobs",
+          "columnsFrom": [
+            "generation_job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "obtv_generation_characters_character_id_obtv_characters_id_fk": {
+          "name": "obtv_generation_characters_character_id_obtv_characters_id_fk",
+          "tableFrom": "obtv_generation_characters",
+          "tableTo": "obtv_characters",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_generation_jobs": {
+      "name": "obtv_generation_jobs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "workflow_template_id": {
+          "name": "workflow_template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "long_form_shot_id": {
+          "name": "long_form_shot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comfy_server_id": {
+          "name": "comfy_server_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comfy_prompt_id": {
+          "name": "comfy_prompt_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "compiled_prompt": {
+          "name": "compiled_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "negative_prompt": {
+          "name": "negative_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fps": {
+          "name": "fps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "frame_count": {
+          "name": "frame_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_seconds": {
+          "name": "duration_seconds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seed": {
+          "name": "seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generation_mode": {
+          "name": "generation_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quality_preset": {
+          "name": "quality_preset",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "progress": {
+          "name": "progress",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_node": {
+          "name": "current_node",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "output_storage_key": {
+          "name": "output_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "output_mime_type": {
+          "name": "output_mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_generation_id": {
+          "name": "parent_generation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "queued_at": {
+          "name": "queued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obtv_generation_jobs_workflow_template_id_obtv_workflow_templates_id_fk": {
+          "name": "obtv_generation_jobs_workflow_template_id_obtv_workflow_templates_id_fk",
+          "tableFrom": "obtv_generation_jobs",
+          "tableTo": "obtv_workflow_templates",
+          "columnsFrom": [
+            "workflow_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "obtv_generation_jobs_comfy_server_id_obtv_comfy_servers_id_fk": {
+          "name": "obtv_generation_jobs_comfy_server_id_obtv_comfy_servers_id_fk",
+          "tableFrom": "obtv_generation_jobs",
+          "tableTo": "obtv_comfy_servers",
+          "columnsFrom": [
+            "comfy_server_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_generation_settings": {
+      "name": "obtv_generation_settings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "generation_job_id": {
+          "name": "generation_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "setting_id": {
+          "name": "setting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obtv_generation_settings_generation_job_id_obtv_generation_jobs_id_fk": {
+          "name": "obtv_generation_settings_generation_job_id_obtv_generation_jobs_id_fk",
+          "tableFrom": "obtv_generation_settings",
+          "tableTo": "obtv_generation_jobs",
+          "columnsFrom": [
+            "generation_job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "obtv_generation_settings_setting_id_obtv_settings_id_fk": {
+          "name": "obtv_generation_settings_setting_id_obtv_settings_id_fk",
+          "tableFrom": "obtv_generation_settings",
+          "tableTo": "obtv_settings",
+          "columnsFrom": [
+            "setting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_long_form_projects": {
+      "name": "obtv_long_form_projects",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "script": {
+          "name": "script",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storyline": {
+          "name": "storyline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "target_duration_seconds": {
+          "name": "target_duration_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generation_mode": {
+          "name": "generation_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "negative_prompt": {
+          "name": "negative_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fps": {
+          "name": "fps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quality_preset": {
+          "name": "quality_preset",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "character_ids": {
+          "name": "character_ids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "setting_id": {
+          "name": "setting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_shots": {
+          "name": "total_shots",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "completed_shots": {
+          "name": "completed_shots",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "failed_shots": {
+          "name": "failed_shots",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "progress": {
+          "name": "progress",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "timeline_clips": {
+          "name": "timeline_clips",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "final_output_storage_key": {
+          "name": "final_output_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_output_mime_type": {
+          "name": "final_output_mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obtv_long_form_projects_setting_id_obtv_settings_id_fk": {
+          "name": "obtv_long_form_projects_setting_id_obtv_settings_id_fk",
+          "tableFrom": "obtv_long_form_projects",
+          "tableTo": "obtv_settings",
+          "columnsFrom": [
+            "setting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_long_form_shots": {
+      "name": "obtv_long_form_shots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scene_number": {
+          "name": "scene_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shot_number": {
+          "name": "shot_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dialogue": {
+          "name": "dialogue",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "camera_instructions": {
+          "name": "camera_instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "motion_instructions": {
+          "name": "motion_instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "continuity_note": {
+          "name": "continuity_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "transition": {
+          "name": "transition",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'CUT'"
+        },
+        "duration_seconds": {
+          "name": "duration_seconds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PLANNED'"
+        },
+        "character_ids": {
+          "name": "character_ids",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "setting_id": {
+          "name": "setting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generation_job_id": {
+          "name": "generation_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_server_id": {
+          "name": "assigned_server_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retry_count": {
+          "name": "retry_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "output_storage_key": {
+          "name": "output_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "output_mime_type": {
+          "name": "output_mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "obtv_long_form_shots_project_scene_shot_unique": {
+          "name": "obtv_long_form_shots_project_scene_shot_unique",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "scene_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "shot_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "obtv_long_form_shots_project_id_obtv_long_form_projects_id_fk": {
+          "name": "obtv_long_form_shots_project_id_obtv_long_form_projects_id_fk",
+          "tableFrom": "obtv_long_form_shots",
+          "tableTo": "obtv_long_form_projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "obtv_long_form_shots_setting_id_obtv_settings_id_fk": {
+          "name": "obtv_long_form_shots_setting_id_obtv_settings_id_fk",
+          "tableFrom": "obtv_long_form_shots",
+          "tableTo": "obtv_settings",
+          "columnsFrom": [
+            "setting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "obtv_long_form_shots_generation_job_id_obtv_generation_jobs_id_fk": {
+          "name": "obtv_long_form_shots_generation_job_id_obtv_generation_jobs_id_fk",
+          "tableFrom": "obtv_long_form_shots",
+          "tableTo": "obtv_generation_jobs",
+          "columnsFrom": [
+            "generation_job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "obtv_long_form_shots_assigned_server_id_obtv_comfy_servers_id_fk": {
+          "name": "obtv_long_form_shots_assigned_server_id_obtv_comfy_servers_id_fk",
+          "tableFrom": "obtv_long_form_shots",
+          "tableTo": "obtv_comfy_servers",
+          "columnsFrom": [
+            "assigned_server_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_setting_assets": {
+      "name": "obtv_setting_assets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "setting_id": {
+          "name": "setting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_name": {
+          "name": "original_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obtv_setting_assets_setting_id_obtv_settings_id_fk": {
+          "name": "obtv_setting_assets_setting_id_obtv_settings_id_fk",
+          "tableFrom": "obtv_setting_assets",
+          "tableTo": "obtv_settings",
+          "columnsFrom": [
+            "setting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_settings": {
+      "name": "obtv_settings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "prompt_description": {
+          "name": "prompt_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "thumbnail": {
+          "name": "thumbnail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.obtv_workflow_templates": {
+      "name": "obtv_workflow_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "generation_mode": {
+          "name": "generation_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model_family": {
+          "name": "model_family",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_workflow": {
+          "name": "api_workflow",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "compatible_server_tags": {
+          "name": "compatible_server_tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "mappings": {
+          "name": "mappings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "expected_inputs": {
+          "name": "expected_inputs",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "expected_outputs": {
+          "name": "expected_outputs",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

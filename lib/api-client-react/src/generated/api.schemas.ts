@@ -547,11 +547,20 @@ export const LongFormProjectStatus = {
   READY: 'READY',
   RUNNING: 'RUNNING',
   PAUSED: 'PAUSED',
+  EDITING: 'EDITING',
   ASSEMBLING: 'ASSEMBLING',
   COMPLETED: 'COMPLETED',
   FAILED: 'FAILED',
   CANCELLED: 'CANCELLED',
 } as const;
+
+export interface LongFormTimelineClip {
+  shotId: string;
+  /** @minimum 0 */
+  trimStartSeconds: number;
+  /** @exclusiveMinimum 0 */
+  trimEndSeconds: number;
+}
 
 export interface LongFormProject {
   id: string;
@@ -572,6 +581,7 @@ export interface LongFormProject {
   completedShots: number;
   failedShots: number;
   progress: number;
+  timelineClips: LongFormTimelineClip[];
   /** @nullable */
   finalOutputUrl: string | null;
   /** @nullable */
@@ -666,6 +676,14 @@ export interface LongFormShotUpdate {
      * @maximum 30
      */
   durationSeconds?: number;
+}
+
+export interface LongFormTimelineInput {
+  /**
+     * @minItems 1
+     * @maxItems 1000
+     */
+  clips: LongFormTimelineClip[];
 }
 
 export type LongFormProjectDetail = LongFormProject & {

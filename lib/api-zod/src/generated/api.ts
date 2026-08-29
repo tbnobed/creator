@@ -900,12 +900,18 @@ export const GetDashboardSummaryResponse = zod.object({
 /**
  * @summary List long-form video projects
  */
+export const listLongFormProjectsResponseTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const listLongFormProjectsResponseTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const ListLongFormProjectsResponseItem = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -918,6 +924,11 @@ export const ListLongFormProjectsResponseItem = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(listLongFormProjectsResponseTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(listLongFormProjectsResponseTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -971,12 +982,18 @@ export const CreateLongFormProjectBody = zod.object({
   "qualityPreset": zod.enum(['DRAFT', 'STANDARD', 'HIGH'])
 })
 
+export const createLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const createLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const CreateLongFormProjectResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -989,6 +1006,11 @@ export const CreateLongFormProjectResponse = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(createLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(createLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1027,12 +1049,18 @@ export const GetLongFormProjectParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const getLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const GetLongFormProjectResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -1045,6 +1073,11 @@ export const GetLongFormProjectResponse = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(getLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(getLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1093,12 +1126,18 @@ export const StartLongFormProjectParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const startLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const startLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const StartLongFormProjectResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -1111,6 +1150,11 @@ export const StartLongFormProjectResponse = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(startLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(startLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1149,12 +1193,18 @@ export const ReassembleLongFormProjectParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const reassembleLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const reassembleLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const ReassembleLongFormProjectResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -1167,6 +1217,11 @@ export const ReassembleLongFormProjectResponse = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(reassembleLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(reassembleLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1205,12 +1260,18 @@ export const PauseLongFormProjectParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const pauseLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const pauseLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const PauseLongFormProjectResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -1223,6 +1284,11 @@ export const PauseLongFormProjectResponse = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(pauseLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(pauseLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1261,12 +1327,18 @@ export const CancelLongFormProjectParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const cancelLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const cancelLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
 export const CancelLongFormProjectResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "script": zod.string(),
   "storyline": zod.string(),
-  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "targetDurationSeconds": zod.number(),
   "generationMode": zod.string(),
   "width": zod.number(),
@@ -1279,6 +1351,11 @@ export const CancelLongFormProjectResponse = zod.object({
   "completedShots": zod.number(),
   "failedShots": zod.number(),
   "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(cancelLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(cancelLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1398,5 +1475,98 @@ export const RetryLongFormShotResponse = zod.object({
   "outputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable()
 })
+
+
+/**
+ * @summary Save the ordered trim decisions for a long-form project
+ */
+export const UpdateLongFormTimelineParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateLongFormTimelineBodyClipsItemTrimStartSecondsMin = 0;
+
+export const updateLongFormTimelineBodyClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const updateLongFormTimelineBodyClipsMax = 1000;
+
+
+
+export const UpdateLongFormTimelineBody = zod.object({
+  "clips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(updateLongFormTimelineBodyClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(updateLongFormTimelineBodyClipsItemTrimEndSecondsExclusiveMin)
+})).min(1).max(updateLongFormTimelineBodyClipsMax)
+})
+
+export const updateLongFormTimelineResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const updateLongFormTimelineResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+
+
+export const UpdateLongFormTimelineResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(updateLongFormTimelineResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(updateLongFormTimelineResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Download source clips and an NLE edit package
+ */
+export const DownloadLongFormNlePackageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadLongFormNlePackageResponse = zod.unknown()
 
 

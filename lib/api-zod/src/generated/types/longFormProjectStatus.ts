@@ -14,6 +14,7 @@ export const LongFormProjectStatus = {
   READY: 'READY',
   RUNNING: 'RUNNING',
   PAUSED: 'PAUSED',
+  EDITING: 'EDITING',
   ASSEMBLING: 'ASSEMBLING',
   COMPLETED: 'COMPLETED',
   FAILED: 'FAILED',

@@ -34,6 +34,7 @@ import type {
   LongFormProjectInput,
   LongFormShot,
   LongFormShotUpdate,
+  LongFormTimelineInput,
   PaginatedGenerations,
   PromptCheckResult,
   PromptPolishInput,
@@ -149,13 +150,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getListCharactersUrl = () => {
 
 
@@ -226,13 +220,6 @@ export function useListCharacters<TData = Awaited<ReturnType<typeof listCharacte
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateCharacterUrl = () => {
 
 
@@ -517,13 +504,6 @@ export function useListSettings<TData = Awaited<ReturnType<typeof listSettings>>
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateSettingUrl = () => {
 
 
@@ -808,13 +788,6 @@ export function useListServers<TData = Awaited<ReturnType<typeof listServers>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateServerUrl = () => {
 
 
@@ -1099,13 +1072,6 @@ export function useGetServerConfiguration<TData = Awaited<ReturnType<typeof getS
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getTestServerConnectionUrl = (id: string,) => {
 
 
@@ -1247,13 +1213,6 @@ export function useGetServerQueue<TData = Awaited<ReturnType<typeof getServerQue
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getListWorkflowsUrl = () => {
 
 
@@ -1324,13 +1283,6 @@ export function useListWorkflows<TData = Awaited<ReturnType<typeof listWorkflows
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateWorkflowUrl = () => {
 
 
@@ -1472,13 +1424,6 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getUpdateWorkflowUrl = (id: string,) => {
 
 
@@ -1628,13 +1573,6 @@ export function useListGenerations<TData = Awaited<ReturnType<typeof listGenerat
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateGenerationUrl = () => {
 
 
@@ -1776,13 +1714,6 @@ export function useGetGeneration<TData = Awaited<ReturnType<typeof getGeneration
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getDeleteGenerationUrl = (id: string,) => {
 
 
@@ -1995,13 +1926,6 @@ export function useListReferenceVideos<TData = Awaited<ReturnType<typeof listRef
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getUploadReferenceVideoUrl = () => {
 
 
@@ -3090,3 +3014,145 @@ export const useRetryLongFormShot = <TError = ErrorType<unknown>,
       return useMutation(getRetryLongFormShotMutationOptions(options));
     }
 
+export const getUpdateLongFormTimelineUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/timeline`
+}
+
+/**
+ * @summary Save the ordered trim decisions for a long-form project
+ */
+export const updateLongFormTimeline = async (id: string,
+    longFormTimelineInput: LongFormTimelineInput, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getUpdateLongFormTimelineUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(longFormTimelineInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateLongFormTimelineMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormTimeline>>, TError,{id: string;data: BodyType<LongFormTimelineInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLongFormTimeline>>, TError,{id: string;data: BodyType<LongFormTimelineInput>}, TContext> => {
+
+const mutationKey = ['updateLongFormTimeline'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLongFormTimeline>>, {id: string;data: BodyType<LongFormTimelineInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateLongFormTimeline(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLongFormTimelineMutationResult = NonNullable<Awaited<ReturnType<typeof updateLongFormTimeline>>>
+    export type UpdateLongFormTimelineMutationBody = BodyType<LongFormTimelineInput>
+    export type UpdateLongFormTimelineMutationError = ErrorType<void>
+
+    /**
+ * @summary Save the ordered trim decisions for a long-form project
+ */
+export const useUpdateLongFormTimeline = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormTimeline>>, TError,{id: string;data: BodyType<LongFormTimelineInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLongFormTimeline>>,
+        TError,
+        {id: string;data: BodyType<LongFormTimelineInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateLongFormTimelineMutationOptions(options));
+    }
+
+export const getDownloadLongFormNlePackageUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/nle-package`
+}
+
+/**
+ * @summary Download source clips and an NLE edit package
+ */
+export const downloadLongFormNlePackage = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadLongFormNlePackageUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadLongFormNlePackageQueryKey = (id: string,) => {
+    return [
+    `/api/long-form-projects/${id}/nle-package`
+    ] as const;
+    }
+
+
+export const getDownloadLongFormNlePackageQueryOptions = <TData = Awaited<ReturnType<typeof downloadLongFormNlePackage>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadLongFormNlePackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadLongFormNlePackageQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadLongFormNlePackage>>> = ({ signal }) => downloadLongFormNlePackage(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadLongFormNlePackage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadLongFormNlePackageQueryResult = NonNullable<Awaited<ReturnType<typeof downloadLongFormNlePackage>>>
+export type DownloadLongFormNlePackageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download source clips and an NLE edit package
+ */
+
+export function useDownloadLongFormNlePackage<TData = Awaited<ReturnType<typeof downloadLongFormNlePackage>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadLongFormNlePackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadLongFormNlePackageQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

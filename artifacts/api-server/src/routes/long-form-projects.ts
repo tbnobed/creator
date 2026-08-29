@@ -1,3 +1,5 @@
+import { createReadStream } from "node:fs";
+import { rm, stat } from "node:fs/promises";
 import { desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
@@ -20,10 +22,15 @@ import {
   UpdateLongFormShotBody,
   UpdateLongFormShotParams,
   UpdateLongFormShotResponse,
+  UpdateLongFormTimelineBody,
+  UpdateLongFormTimelineParams,
+  UpdateLongFormTimelineResponse,
+  DownloadLongFormNlePackageParams,
 } from "@workspace/api-zod";
 import { db, longFormProjectsTable } from "@workspace/db";
 import {
   cancelLongFormProject,
+  createLongFormNlePackage,
   createLongFormProject,
   deleteLongFormProject,
   pauseLongFormProject,
@@ -32,6 +39,7 @@ import {
   retryLongFormShot,
   startLongFormProject,
   updateLongFormShot,
+  updateLongFormTimeline,
 } from "../lib/long-form-service";
 
 const router: IRouter = Router();
@@ -169,6 +177,59 @@ router.post("/long-form-projects/:id/shots/:shotId/retry", async (req, res): Pro
     res.json(RetryLongFormShotResponse.parse(await retryLongFormShot(params.data.id, params.data.shotId)));
   } catch (error) {
     res.status(409).json({ error: error instanceof Error ? error.message : "Could not retry shot" });
+  }
+});
+
+router.patch("/long-form-projects/:id/timeline", async (req, res): Promise<void> => {
+  const params = UpdateLongFormTimelineParams.safeParse(req.params);
+  const input = UpdateLongFormTimelineBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!input.success) {
+    res.status(400).json({ error: input.error.message });
+    return;
+  }
+  try {
+    res.json(UpdateLongFormTimelineResponse.parse(await updateLongFormTimeline(params.data.id, input.data)));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not update timeline";
+    res.status(message === "Long-form project not found" ? 404 : 409).json({ error: message });
+  }
+});
+
+router.get("/long-form-projects/:id/nle-package", async (req, res): Promise<void> => {
+  const params = DownloadLongFormNlePackageParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    const bundle = await createLongFormNlePackage(params.data.id);
+    const fileInfo = await stat(bundle.filePath);
+    res.set({
+      "content-disposition": `attachment; filename="${bundle.filename}"`,
+      "content-length": String(fileInfo.size),
+      "content-type": "application/zip",
+      "cache-control": "no-store",
+    });
+    const cleanup = () => {
+      void rm(bundle.filePath, { force: true }).catch((error) => {
+        req.log.warn({ err: error, projectId: params.data.id }, "Could not remove temporary NLE package");
+      });
+    };
+    res.once("close", cleanup);
+    const stream = createReadStream(bundle.filePath);
+    stream.on("error", (error) => {
+      req.log.error({ err: error, projectId: params.data.id }, "Could not stream NLE package");
+      if (!res.headersSent) res.status(500).json({ error: "Could not download NLE package" });
+      else res.destroy(error);
+    });
+    stream.pipe(res);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not create NLE package";
+    res.status(message === "Long-form project not found" ? 404 : 409).json({ error: message });
   }
 });
 
