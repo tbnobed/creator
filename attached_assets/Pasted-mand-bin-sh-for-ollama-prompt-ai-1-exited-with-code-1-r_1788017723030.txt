@@ -1,0 +1,532 @@
+mand "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
+prompt-ai-1  | Error: unknown command "/bin/sh" for "ollama"
+prompt-ai-1 exited with code 1 (restarting)
