@@ -38,6 +38,7 @@ import type {
   PromptPolishInput,
   PromptPolishResult,
   QueueSnapshot,
+  ReferenceVideoList,
   ReferenceVideoUpload,
   ServerConnectionConfiguration,
   ServerCreateInput,
@@ -1922,6 +1923,83 @@ export const useCancelGeneration = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCancelGenerationMutationOptions(options));
     }
+
+export const getListReferenceVideosUrl = () => {
+
+
+
+
+  return `/api/reference-videos`
+}
+
+/**
+ * @summary List previously uploaded reference videos
+ */
+export const listReferenceVideos = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReferenceVideoList> => {
+
+  return customFetch<ReferenceVideoList>(getListReferenceVideosUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReferenceVideosQueryKey = () => {
+    return [
+    `/api/reference-videos`
+    ] as const;
+    }
+
+
+export const getListReferenceVideosQueryOptions = <TData = Awaited<ReturnType<typeof listReferenceVideos>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReferenceVideos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReferenceVideosQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReferenceVideos>>> = ({ signal }) => listReferenceVideos({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReferenceVideos>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReferenceVideosQueryResult = NonNullable<Awaited<ReturnType<typeof listReferenceVideos>>>
+export type ListReferenceVideosQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List previously uploaded reference videos
+ */
+
+export function useListReferenceVideos<TData = Awaited<ReturnType<typeof listReferenceVideos>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReferenceVideos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReferenceVideosQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUploadReferenceVideoUrl = () => {
 

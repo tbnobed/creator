@@ -3,6 +3,22 @@ import { mediaStorage } from "../lib/storage-service";
 
 const router: IRouter = Router();
 
+router.get("/reference-videos", async (req, res): Promise<void> => {
+  try {
+    const items = await mediaStorage.listReferenceVideos();
+    res.json({
+      items: items.map((item) => ({
+        ...item,
+        mediaUrl: `/api/media/${item.storageKey}`,
+        previewUrl: `/api/media-preview/${item.storageKey}`,
+      })),
+    });
+  } catch (error) {
+    req.log.error({ err: error }, "Reference video library could not be loaded");
+    res.status(500).json({ error: "Reference video library could not be loaded" });
+  }
+});
+
 router.post(
   "/reference-videos",
   express.raw({ type: ["video/mp4", "video/webm"], limit: "250mb" }),

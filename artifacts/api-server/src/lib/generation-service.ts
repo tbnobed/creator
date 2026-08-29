@@ -100,11 +100,15 @@ function extractPromptAudio(prompt: string): { soundscape: string | null; music:
     .find((sentence) => /\b(ambience|ambient|room tone|soundscape|equipment sounds?|music)\b/i.test(sentence));
   if (!audioSentence) return { soundscape: null, music: null };
 
-  const soundscape = audioSentence.match(
+  const sentenceWithoutMusic = audioSentence
+    .replace(/\b(?:and\s+)?(?:restrained\s+)?(?:[a-z]+[- ]+)?music\b[^.!?]*/i, "")
+    .replace(/\s+and\s*$/i, "")
+    .trim();
+  const soundscape = sentenceWithoutMusic.match(
     /\b(?:quiet|subtle|natural|low|soft|steady|realistic|gentle)[^.?!,;]*(?:ambience|ambient|room tone|soundscape|equipment sounds?)[^.?!]*/i,
   )?.[0] ?? null;
   const music = audioSentence.match(
-    /\b(?:restrained|subtle|gentle|soft|quiet|low|cinematic|background|technology[- ]themed)?\s*music\b[^.!?]*/i,
+    /\b(?:restrained\s+)?(?:[a-z]+[- ]+)?music\b[^.!?]*/i,
   )?.[0] ?? null;
 
   return {

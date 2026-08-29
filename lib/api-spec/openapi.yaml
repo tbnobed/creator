@@ -402,6 +402,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/GenerationJob"
   /reference-videos:
+    get:
+      operationId: listReferenceVideos
+      tags: [media]
+      summary: List previously uploaded reference videos
+      responses:
+        "200":
+          description: Reference video library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferenceVideoList"
     post:
       operationId: uploadReferenceVideo
       tags: [media]
@@ -892,6 +903,25 @@ components:
         storageKey: { type: string }
         mediaUrl: { type: string }
         mimeType: { type: string, enum: [video/mp4, video/webm] }
+    ReferenceVideo:
+      type: object
+      required: [storageKey, name, mimeType, size, createdAt, mediaUrl, previewUrl]
+      properties:
+        storageKey: { type: string }
+        name: { type: string }
+        mimeType: { type: string, enum: [video/mp4, video/webm] }
+        size: { type: number }
+        createdAt: { type: string }
+        mediaUrl: { type: string }
+        previewUrl: { type: string }
+    ReferenceVideoList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferenceVideo"
     PromptPolishInput:
       type: object
       required: [prompt, generationMode]

@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useListReferenceVideos } from "@workspace/api-client-react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, FileVideo, Loader2, RotateCcw, Upload, Video } from "lucide-react";
 
 const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
@@ -15,6 +16,7 @@ type StoredReferenceVideo = {
   name: string;
   mimeType: string;
   size: number;
+  previewUrl?: string;
 };
 
 function readStoredReferenceVideo(): StoredReferenceVideo | null {
@@ -33,6 +35,7 @@ function readStoredReferenceVideo(): StoredReferenceVideo | null {
       name: parsed.name,
       mimeType: typeof parsed.mimeType === "string" ? parsed.mimeType : "video/mp4",
       size: typeof parsed.size === "number" ? parsed.size : 0,
+      previewUrl: typeof parsed.previewUrl === "string" ? parsed.previewUrl : undefined,
     };
   } catch {
     return null;
@@ -58,6 +61,7 @@ export default function ReferenceVideoPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const { data: savedReferenceVideos, isLoading: isLoadingSavedVideos } = useListReferenceVideos();
   const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
   const returnTo = returnToParam?.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : "/";
   const activeVideoName = file?.name ?? storedVideo?.name ?? "Saved reference video";
@@ -131,6 +135,7 @@ export default function ReferenceVideoPage() {
         name: file.name,
         mimeType: file.type,
         size: file.size,
+        previewUrl: undefined,
       };
       setStoredVideo(nextStoredVideo);
       window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify(nextStoredVideo));
@@ -153,6 +158,23 @@ export default function ReferenceVideoPage() {
     setUploadedMediaUrl(null);
     setError("");
     window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
+  };
+
+  const useSavedVideo = (video: NonNullable<typeof savedReferenceVideos>["items"][number]) => {
+    const nextStoredVideo: StoredReferenceVideo = {
+      storageKey: video.storageKey,
+      mediaUrl: video.mediaUrl,
+      name: video.name,
+      mimeType: video.mimeType,
+      size: video.size,
+      previewUrl: video.previewUrl,
+    };
+    setFile(null);
+    setStoredVideo(nextStoredVideo);
+    setUploadedKey(video.storageKey);
+    setUploadedMediaUrl(video.mediaUrl);
+    setError("");
+    window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify(nextStoredVideo));
   };
 
   return (
@@ -213,6 +235,47 @@ export default function ReferenceVideoPage() {
                   <p className="text-xs text-muted-foreground">{activeVideoSize} · {activeVideoType}</p>
                 </div>
                 {uploadedKey ? <CheckCircle2 className="size-5 shrink-0 text-emerald-500" /> : <Button type="button" variant="ghost" size="sm" onClick={clearVideo}>Remove</Button>}
+              </div>
+            )}
+
+            {(isLoadingSavedVideos || (savedReferenceVideos?.items.length ?? 0) > 0) && (
+              <div className="space-y-3 border-t border-border/50 pt-5">
+                <div>
+                  <h3 className="text-sm font-semibold">Previously uploaded videos</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Choose an existing reference video instead of uploading it again.</p>
+                </div>
+                {isLoadingSavedVideos ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Loading saved videos...
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {savedReferenceVideos?.items.map((video) => {
+                      const isSelected = uploadedKey === video.storageKey;
+                      return (
+                        <button
+                          type="button"
+                          key={video.storageKey}
+                          onClick={() => useSavedVideo(video)}
+                          className={`group overflow-hidden rounded-lg border text-left transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-border/60 bg-background/30 hover:border-primary/60"}`}
+                        >
+                          <div className="aspect-video overflow-hidden bg-black">
+                            <img
+                              src={video.previewUrl}
+                              alt=""
+                              className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 p-3">
+                            <FileVideo className="size-4 shrink-0 text-primary" />
+                            <span className="min-w-0 flex-1 truncate text-xs font-medium">{video.name}</span>
+                            {isSelected && <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

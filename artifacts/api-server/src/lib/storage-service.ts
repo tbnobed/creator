@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(process.env.OBTV_MEDIA_ROOT ?? "data/obtv-media");
@@ -100,6 +100,34 @@ export class LocalMediaStorage {
       mimeType,
       bytes: await readFile(resolveKey(key)),
     };
+  }
+
+  async listReferenceVideos(): Promise<Array<{ storageKey: string; name: string; mimeType: "video/mp4" | "video/webm"; size: number; createdAt: string }>> {
+    const directory = path.join(root, "reference-videos");
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+
+    const videos = await Promise.all(entries
+      .filter((entry) => entry.isFile() && /\.(mp4|webm)$/i.test(entry.name))
+      .map(async (entry) => {
+        const storageKey = `reference-videos/${entry.name}`;
+        const fileInfo = await stat(path.join(directory, entry.name));
+        const mimeType = entry.name.toLowerCase().endsWith(".webm") ? "video/webm" as const : "video/mp4" as const;
+        return {
+          storageKey,
+          name: entry.name,
+          mimeType,
+          size: fileInfo.size,
+          createdAt: fileInfo.birthtime.toISOString(),
+        };
+      }));
+
+    return videos.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
   async storeOutput(

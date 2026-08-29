@@ -381,6 +381,28 @@ export interface ReferenceVideoUpload {
   mimeType: ReferenceVideoUploadMimeType;
 }
 
+export type ReferenceVideoMimeType = typeof ReferenceVideoMimeType[keyof typeof ReferenceVideoMimeType];
+
+
+export const ReferenceVideoMimeType = {
+  'video/mp4': 'video/mp4',
+  'video/webm': 'video/webm',
+} as const;
+
+export interface ReferenceVideo {
+  storageKey: string;
+  name: string;
+  mimeType: ReferenceVideoMimeType;
+  size: number;
+  createdAt: string;
+  mediaUrl: string;
+  previewUrl: string;
+}
+
+export interface ReferenceVideoList {
+  items: ReferenceVideo[];
+}
+
 export type PromptPolishInputShotKind = typeof PromptPolishInputShotKind[keyof typeof PromptPolishInputShotKind];
 
 

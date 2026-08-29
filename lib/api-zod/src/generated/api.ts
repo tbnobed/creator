@@ -737,6 +737,22 @@ export const CancelGenerationResponse = zod.object({
 
 
 /**
+ * @summary List previously uploaded reference videos
+ */
+export const ListReferenceVideosResponse = zod.object({
+  "items": zod.array(zod.object({
+  "storageKey": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.enum(['video/mp4', 'video/webm']),
+  "size": zod.number(),
+  "createdAt": zod.string(),
+  "mediaUrl": zod.string(),
+  "previewUrl": zod.string()
+}))
+})
+
+
+/**
  * @summary Upload a reference video for a generation
  */
 export const UploadReferenceVideoResponse = zod.object({
