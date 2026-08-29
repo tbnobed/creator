@@ -140,22 +140,7 @@ function compileMiniMaxH3Prompt(
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
-  const subjectDefinitions = characters.map((character, index) => (
-    `<Subject ${index + 1}> is ${character.name}, whose appearance and identity are defined by the supplied reference images: ${compactPromptText(character.promptDescription)}`
-  ));
   const settingSubjectNumber = setting ? characters.length + 1 : null;
-  if (setting && settingSubjectNumber) {
-    subjectDefinitions.push(
-      `<Subject ${settingSubjectNumber}> is the referenced environment: ${compactPromptText(setting.promptDescription)}`,
-    );
-  }
-  if (input.referenceVideoKey) {
-    subjectDefinitions.push(
-      "<Video 1> is the source presenter video providing the target timing, movement, camera behavior, and temporal structure.",
-      "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
-    );
-  }
-
   const dialogue = input.dialogue?.trim();
   const shotPrompt = shotPromptOnly(input.prompt);
   const referencedCharacters = characters.filter((character) => (
@@ -168,6 +153,20 @@ function compileMiniMaxH3Prompt(
       /\b(?:TBN|studio|control room|broadcast facility|broadcast studio|production room)\b/i.test(shotPrompt)
     ),
   );
+  const subjectDefinitions = referencedCharacters.map((character) => (
+    `<Subject ${characters.indexOf(character) + 1}> is ${character.name}, whose appearance and identity are defined by the supplied reference images: ${compactPromptText(character.promptDescription)}`
+  ));
+  if (setting && settingSubjectNumber && usesSettingReference) {
+    subjectDefinitions.push(
+      `<Subject ${settingSubjectNumber}> is the referenced environment: ${compactPromptText(setting.promptDescription)}`,
+    );
+  }
+  if (input.referenceVideoKey) {
+    subjectDefinitions.push(
+      "<Video 1> is the source presenter video providing the target timing, movement, camera behavior, and temporal structure.",
+      "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
+    );
+  }
   const primarySpeaker = referencedCharacters[0]
     ? `<Subject ${characters.indexOf(referencedCharacters[0]) + 1}>`
     : input.referenceVideoKey
@@ -187,7 +186,9 @@ function compileMiniMaxH3Prompt(
     .join(", ");
   const timeline = [
     "[Shot 1] Live-action, cinematic.",
-    characterPlacement ? `${characterPlacement} appear with their referenced identities fully preserved.` : "",
+    characterPlacement
+      ? `${characterPlacement} ${referencedCharacters.length === 1 ? "appears" : "appear"} with ${referencedCharacters.length === 1 ? "the referenced identity" : "their referenced identities"} fully preserved.`
+      : "",
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
     input.referenceVideoKey ? "Follow the timing, movement, and temporal structure of <Video 1>." : "",
     spokenAction,
@@ -201,8 +202,6 @@ function compileMiniMaxH3Prompt(
     ? compactPromptText(input.audioInstructions)
     : promptAudio.soundscape
       ? `${promptAudio.soundscape}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
-      : projectAudio.soundscape
-        ? `${projectAudio.soundscape}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
       : dialogue
         ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
         : "Natural ambient sound and subtle sounds from the visible action.";
@@ -230,7 +229,7 @@ function compileMiniMaxH3Prompt(
   ];
 
   return [
-    `subject_definitions:\n${subjectDefinitions.join("\n")}`,
+    `subject_definitions:\n${subjectDefinitions.join("\n") || "No supplied reference subject is required to appear in this shot."}`,
     `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the described scene"}${input.referenceVideoKey ? " while reusing <Audio 1>" : ""}.`,
     `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,
     `detailed_description:\n${timeline}`,
