@@ -66,7 +66,7 @@ export type GenerationRequest = {
   onJobCreated?: (job: GenerationJob) => Promise<void>;
 };
 
-function compilePrompt(
+function compileGenericPrompt(
   characters: { name: string; promptDescription: string }[],
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
@@ -83,6 +83,102 @@ function compilePrompt(
     input.audioInstructions ? `AUDIO\n${input.audioInstructions}` : "",
   ];
   return sections.filter(Boolean).join("\n\n");
+}
+
+function compactPromptText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function compileMiniMaxH3Prompt(
+  characters: { name: string; promptDescription: string }[],
+  setting: { name: string; promptDescription: string } | undefined,
+  input: GenerationRequest,
+): string {
+  const subjectDefinitions = characters.map((character, index) => (
+    `<Subject ${index + 1}> is ${character.name}, whose appearance and identity are defined by the supplied reference images: ${compactPromptText(character.promptDescription)}`
+  ));
+  const settingSubjectNumber = setting ? characters.length + 1 : null;
+  if (setting && settingSubjectNumber) {
+    subjectDefinitions.push(
+      `<Subject ${settingSubjectNumber}> is the referenced environment: ${compactPromptText(setting.promptDescription)}`,
+    );
+  }
+  if (input.referenceVideoKey) {
+    subjectDefinitions.push(
+      "<Video 1> is the source presenter video providing the target timing, movement, camera behavior, and temporal structure.",
+      "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
+    );
+  }
+
+  const dialogue = input.dialogue?.trim();
+  const primarySpeaker = characters[0]
+    ? "<Subject 1>"
+    : input.referenceVideoKey
+      ? "The presenter from <Video 1>"
+      : "The on-screen speaker";
+  const isVoiceover = /\b(off[- ]screen|voice[- ]?over|narration)\b/i.test(input.prompt);
+  const spokenAction = dialogue
+    ? isVoiceover
+      ? `${primarySpeaker} (S1) says in an off-screen voiceover: <d>[English] ${dialogue}</d> while the corresponding on-screen character's lips remain completely closed.`
+      : `${primarySpeaker} (S1) says clearly at a natural speaking rate: <d>[English] ${dialogue}</d>`
+    : "";
+  const characterPlacement = characters.map((_, index) => `<Subject ${index + 1}>`).join(", ");
+  const timeline = [
+    "[Shot 1] Live-action, cinematic.",
+    characterPlacement ? `${characterPlacement} appear with their referenced identities fully preserved.` : "",
+    settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
+    input.referenceVideoKey ? "Follow the timing, movement, and temporal structure of <Video 1>." : "",
+    spokenAction,
+    compactPromptText(input.prompt),
+    input.cameraInstructions ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
+    input.motionInstructions ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
+  ].filter(Boolean).join(" ");
+  const soundscape = input.audioInstructions?.trim()
+    ? compactPromptText(input.audioInstructions)
+    : dialogue
+      ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
+      : "Natural ambient sound and subtle sounds from the visible action.";
+  const taskTypes = input.referenceVideoKey
+    ? "[reference generation + audio reuse]"
+    : "[reference generation]";
+  const summarySubjects = [
+    ...characters.map((_, index) => `<Subject ${index + 1}>`),
+    ...(settingSubjectNumber ? [`<Subject ${settingSubjectNumber}>`] : []),
+  ].join(", ");
+  const retention = [
+    ...characters.map((_, index) => (
+      `<Subject ${index + 1}> (appears in [Shot 1]): fully_preserved - preserve the referenced identity, appearance, clothing, and recognizable features.`
+    )),
+    ...(settingSubjectNumber
+      ? [`<Subject ${settingSubjectNumber}> (appears in [Shot 1]): fully_preserved - preserve the referenced environment, layout, lighting, and production design.`]
+      : []),
+    ...(input.referenceVideoKey
+      ? [
+        "<Video 1> (timing, movement, and temporal structure): fully_preserved - follow the source presenter's performance timing and motion.",
+        "<Audio 1>: copied - reuse the synchronized original audio signal without regenerating or rewriting it.",
+      ]
+      : []),
+  ];
+
+  return [
+    `subject_definitions:\n${subjectDefinitions.join("\n")}`,
+    `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the supplied reference content"}${input.referenceVideoKey ? " while reusing <Audio 1>" : ""}.`,
+    `retention_analysis:\n${retention.join("\n")}`,
+    `detailed_description:\n${timeline}`,
+    `overall_soundscape:\n${input.referenceVideoKey ? "Reuse <Audio 1> as the synchronized output audio." : soundscape}`,
+    "non_diegetic_music:\nN/A",
+  ].join("\n\n");
+}
+
+function compilePrompt(
+  modelFamily: string,
+  characters: { name: string; promptDescription: string }[],
+  setting: { name: string; promptDescription: string } | undefined,
+  input: GenerationRequest,
+): string {
+  return modelFamily.trim().toLowerCase() === "minimax h3"
+    ? compileMiniMaxH3Prompt(characters, setting, input)
+    : compileGenericPrompt(characters, setting, input);
 }
 
 async function uploadMappedReferences(
@@ -241,7 +337,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest) {
     if (activeJobs.length >= (server.maxConcurrentJobs ?? 1)) {
       throw new Error(`${server.displayName} is at its safe render capacity.`);
     }
-  const compiledPrompt = compilePrompt(characters, setting[0], input);
+  const compiledPrompt = compilePrompt(workflow.modelFamily, characters, setting[0], input);
   const frameCount = Math.round(input.durationSeconds * input.fps);
   const [job] = await db
     .insert(generationJobsTable)
