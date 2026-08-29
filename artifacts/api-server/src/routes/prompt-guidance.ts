@@ -8,12 +8,11 @@ const MAX_GLOBAL_CONCURRENCY = 4;
 const clients = new Map<string, { startedAt: number; count: number; active: number }>();
 let globalActive = 0;
 
-function getAiProvider(): { baseUrl: string; apiKey: string; model: string } | null {
+function getAiProvider(): { baseUrl: string; model: string } | null {
   const localBaseUrl = process.env.PROMPT_AI_BASE_URL;
   if (!localBaseUrl) return null;
   return {
     baseUrl: localBaseUrl,
-    apiKey: process.env.PROMPT_AI_API_KEY || "ollama",
     model: process.env.PROMPT_AI_MODEL || "qwen2.5:1.5b",
   };
 }
@@ -51,6 +50,37 @@ function extractJson(value: string): unknown {
   return JSON.parse(trimmed);
 }
 
+async function callLocalModel(
+  provider: { baseUrl: string; model: string },
+  messages: Array<{ role: "system" | "user"; content: string }>,
+  maxTokens: number,
+): Promise<string> {
+  const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/api/chat`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(180_000),
+    body: JSON.stringify({
+      model: provider.model,
+      stream: false,
+      format: "json",
+      options: {
+        temperature: 0.1,
+        num_ctx: 2048,
+        num_predict: maxTokens,
+        num_thread: 2,
+      },
+      messages,
+    }),
+  });
+  const payload = await response.json() as {
+    message?: { content?: string };
+    error?: string;
+  };
+  if (!response.ok) throw new Error(payload.error || `Local AI service returned ${response.status}`);
+  if (!payload.message?.content) throw new Error("Local AI service returned an empty response");
+  return payload.message.content;
+}
+
 router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
   const input = PolishPromptBody.safeParse(req.body);
   if (!input.success) {
@@ -82,30 +112,10 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
   ].join(" ");
 
   try {
-    const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${provider.apiKey}`,
-        "content-type": "application/json",
-      },
-      signal: AbortSignal.timeout(120_000),
-      body: JSON.stringify({
-        model: provider.model,
-        max_tokens: 1400,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: instructions },
-          { role: "user", content: JSON.stringify(input.data) },
-        ],
-      }),
-    });
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-      error?: { message?: string };
-    };
-    if (!response.ok) throw new Error(payload.error?.message || `AI service returned ${response.status}`);
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error("AI service returned an empty response");
+    const content = await callLocalModel(provider, [
+      { role: "system", content: instructions },
+      { role: "user", content: JSON.stringify(input.data) },
+    ], 900);
     res.json(PolishPromptResponse.parse(extractJson(content)));
   } catch (error) {
     res.status(502).json({
@@ -148,30 +158,10 @@ router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
   ].join(" ");
 
   try {
-    const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${provider.apiKey}`,
-        "content-type": "application/json",
-      },
-      signal: AbortSignal.timeout(120_000),
-      body: JSON.stringify({
-        model: provider.model,
-        max_tokens: 800,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: instructions },
-          { role: "user", content: JSON.stringify(input.data) },
-        ],
-      }),
-    });
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-      error?: { message?: string };
-    };
-    if (!response.ok) throw new Error(payload.error?.message || `AI service returned ${response.status}`);
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error("AI service returned an empty response");
+    const content = await callLocalModel(provider, [
+      { role: "system", content: instructions },
+      { role: "user", content: JSON.stringify(input.data) },
+    ], 350);
     res.json(CheckPromptResponse.parse(extractJson(content)));
   } catch (error) {
     res.status(502).json({

@@ -92,8 +92,9 @@ prompt checker and AI polish without OpenAI, a cloud API key, or an internet
 connection after that initial model download. Ollama cloud features are disabled
 explicitly.
 
-The container is limited to two CPU cores (`cpus: "2.0"`), runs one model
-request at a time, and is not published to the host or internet. Change the
+The container is limited to two CPU cores (`cpus: "2.0"`), and each review
+request explicitly uses two inference threads with one model request at a time.
+The service is not published to the host or internet. Change the
 model before first startup with `PROMPT_AI_MODEL` in `.env` if the host has
 different CPU/RAM capacity:
 

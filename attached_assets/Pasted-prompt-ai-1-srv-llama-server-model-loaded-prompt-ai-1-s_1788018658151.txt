@@ -1,0 +1,67 @@
+prompt-ai-1  | srv  llama_server: model loaded
+prompt-ai-1  | srv  llama_server: listening on http://127.0.0.1:40573
+prompt-ai-1  | srv  update_slots: all slots are idle
+prompt-ai-1  | time=2026-08-29T15:48:20.622Z level=INFO source=llama_server.go:1362 msg="llama-server started in 3.90 seconds"
+prompt-ai-1  | time=2026-08-29T15:48:20.680Z level=INFO source=images.go:381 msg="template selection" model=registry.ollama.ai/library/qwen2.5:1.5b selected=go_template renderer="" parser="" go_template="[completion tools]" chat_template="[tools completion]" harmony=null renderer_parser=null
+prompt-ai-1  | time=2026-08-29T15:48:20.680Z level=INFO source=sched.go:728 msg="loaded runners" count=1
+prompt-ai-1  | time=2026-08-29T15:48:20.681Z level=INFO source=llama_server.go:1295 msg="waiting for llama-server to start responding"
+prompt-ai-1  | time=2026-08-29T15:48:20.682Z level=INFO source=llama_server.go:1362 msg="llama-server started in 3.96 seconds"
+prompt-ai-1  | srv  server_strea: conv_id= (empty=1)
+prompt-ai-1  | slot get_availabl: id  0 | task -1 |  - skipping, slot is empty
+prompt-ai-1  | slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+prompt-ai-1  | srv  get_availabl: updating prompt cache
+prompt-ai-1  | srv          load:  - looking for better prompt, base f_keep = -1.000, f_sim = 0.000
+prompt-ai-1  | srv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 4096 tokens, 8589934592 est)
+prompt-ai-1  | srv  get_availabl: prompt cache update took 0.03 ms
+prompt-ai-1  | slot launch_slot_: id  0 | task -1 | sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> ?top-p -> ?min-p -> ?xtc -> ?temp-ext -> dist
+prompt-ai-1  | slot launch_slot_: id  0 | task -1 | sampler params:
+prompt-ai-1  |  repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+prompt-ai-1  |  dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+prompt-ai-1  |  top_k = 40, top_p = 1.000, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 1.000
+prompt-ai-1  |  mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+prompt-ai-1  | slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+prompt-ai-1  | slot   operator(): id  0 | task 0 | new prompt, n_ctx_slot = 4096, n_keep = 4, task.n_tokens = 362
+prompt-ai-1  | slot   operator(): id  0 | task 0 | cached n_tokens = 0, memory_seq_rm [0, end)
+prompt-ai-1  | slot init_sampler: id  0 | task 0 | init sampler, took 0.18 ms, tokens: text = 362, total = 362
+prompt-ai-1  | [GIN] 2026/08/29 - 15:48:23 | 200 |      76.246µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:48:23 | 200 |   76.607616ms |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:48:39 | 200 |     103.014µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:48:39 | 200 |     749.377µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:48:55 | 200 |      39.503µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:48:55 | 200 |     338.005µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:49:11 | 200 |     133.708µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:49:11 | 200 |     357.927µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:49:28 | 200 |      66.718µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:49:28 | 200 |      422.15µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:49:44 | 200 |     105.964µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:49:44 | 200 |     454.309µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:00 | 200 |      52.106µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:00 | 200 |     766.141µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:16 | 500 |          2m0s |      172.30.0.5 | POST     "/v1/chat/completions"
+prompt-ai-1  | srv  server_strea: conv_id= (empty=1)
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:17 | 200 |      75.833µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:17 | 200 |     571.085µs |       127.0.0.1 | GET      "/api/tags"
+prompt-ai-1  | srv          stop: cancel task, id_task = 0
+prompt-ai-1  | slot get_availabl: id  0 | task 0 |  - skipping, is_processing = 1
+prompt-ai-1  | slot      release: id  0 | task 0 | stop processing: n_tokens = 395, truncated = 0
+prompt-ai-1  | slot get_availabl: id  0 | task -1 |  - checking sim = 0.019 (6/315) > 0.100
+prompt-ai-1  | slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 142018311187
+prompt-ai-1  | srv  get_availabl: updating prompt cache
+prompt-ai-1  | srv   prompt_save:  - saving prompt with length 395, total state size = 10.806 MiB (draft: 0.000 MiB)
+prompt-ai-1  | srv          load:  - looking for better prompt, base f_keep = 0.015, f_sim = 0.019
+prompt-ai-1  | srv          load:    - prompt with length     395, lcp =       6, f_keep = 0.015, f_sim = 0.019
+prompt-ai-1  | srv        update:  - cache state: 1 prompts, 10.806 MiB (limits: 8192.000 MiB, 4096 tokens, 299449 est)
+prompt-ai-1  | srv        update:    - prompt 0x2ebddf70:     395 tokens, checkpoints:  0,    10.806 MiB
+prompt-ai-1  | srv  get_availabl: prompt cache update took 8.09 ms
+prompt-ai-1  | slot launch_slot_: id  0 | task -1 | sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> ?top-p -> ?min-p -> ?xtc -> ?temp-ext -> dist
+prompt-ai-1  | slot launch_slot_: id  0 | task -1 | sampler params:
+prompt-ai-1  |  repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+prompt-ai-1  |  dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+prompt-ai-1  |  top_k = 40, top_p = 1.000, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 1.000
+prompt-ai-1  |  mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+prompt-ai-1  | slot launch_slot_: id  0 | task 35 | processing task, is_child = 0
+prompt-ai-1  | slot   operator(): id  0 | task 35 | new prompt, n_ctx_slot = 4096, n_keep = 4, task.n_tokens = 315
+prompt-ai-1  | slot   operator(): id  0 | task 35 | cached n_tokens = 6, memory_seq_rm [6, end)
+prompt-ai-1  | slot init_sampler: id  0 | task 35 | init sampler, took 0.08 ms, tokens: text = 315, total = 315
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:33 | 200 |      47.335µs |       127.0.0.1 | HEAD     "/"
+prompt-ai-1  | [GIN] 2026/08/29 - 15:50:33 | 200 |     428.399µs |       127.0.0.1 | GET      "/api/tags"
