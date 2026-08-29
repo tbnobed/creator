@@ -48,6 +48,7 @@ export default function GeneratePage() {
   );
   
   const [prompt, setPrompt] = useState("");
+  const [dialogue, setDialogue] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("ugly, distorted, blurry, low resolution, bad anatomy");
   const [cameraInstructions, setCameraInstructions] = useState("");
   const [motionInstructions, setMotionInstructions] = useState("");
@@ -107,6 +108,17 @@ export default function GeneratePage() {
     if (workflowRequiresReferenceVideo && !referenceVideoKey) {
       return alert("The selected workflow requires a reference video.");
     }
+    const requestsSpeech = /\b(narration|narrator|voice[- ]?over|dialogue|speaks?|talks?|says?|reads?|announces?)\b/i.test(prompt);
+    if (!hasReferenceVideo && requestsSpeech && !dialogue.trim()) {
+      return alert("This shot requests narration or speech, but no exact dialogue was entered. Add the words to speak before rendering.");
+    }
+    if (!hasReferenceVideo && dialogue.trim()) {
+      const wordCount = dialogue.trim().split(/\s+/).length;
+      const minimumSpeechDuration = Math.ceil(wordCount / 2.5 + 1.5);
+      if (duration < minimumSpeechDuration) {
+        return alert(`The dialogue needs about ${minimumSpeechDuration} seconds. Increase the shot duration or shorten the spoken line.`);
+      }
+    }
 
     try {
       const res = await createJob.mutateAsync({
@@ -114,6 +126,7 @@ export default function GeneratePage() {
           characterIds: selectedChars.length ? selectedChars : undefined,
           settingId: selectedSetting || undefined,
           prompt,
+          dialogue: dialogue.trim() || undefined,
           negativePrompt,
           cameraInstructions,
           motionInstructions,
@@ -271,6 +284,8 @@ export default function GeneratePage() {
                 onMotionChange={setMotionInstructions}
                 negativePrompt={negativePrompt}
                 onNegativeChange={setNegativePrompt}
+                dialogue={dialogue}
+                onDialogueChange={setDialogue}
                 generationMode={generationMode}
                 requiresReference={workflowRequiresReferenceVideo}
                 hasReference={hasReferenceVideo}
@@ -283,6 +298,21 @@ export default function GeneratePage() {
                   className="h-32 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
                   placeholder="Describe what is happening in the shot... e.g. Character walks slowly towards the camera, looking determined."
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Exact Dialogue / Narration</Label>
+                <Textarea
+                  value={dialogue}
+                  onChange={event => setDialogue(event.target.value)}
+                  className="h-24 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
+                  placeholder={hasReferenceVideo
+                    ? "Optional conditioning text. The uploaded reference video's original audio remains in the output."
+                    : "Enter only the exact words that should be spoken. Leave blank for a silent shot."}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Keep visual direction in the main prompt. Spoken words are placed first in model conditioning to reduce invented or garbled speech.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

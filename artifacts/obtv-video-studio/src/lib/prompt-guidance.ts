@@ -16,6 +16,7 @@ export type PromptFields = {
 
 const ACTION_WORDS = /\b(walks?|runs?|turns?|looks?|speaks?|talks?|smiles?|reaches?|holds?|sits?|stands?|moves?|enters?|exits?|opens?|closes?|drives?|flies?|falls?|rises?|gestures?|reacts?|watches?|reveals?|shows?)\b/i;
 const SUBJECT_WORDS = /\b(person|character|woman|man|child|presenter|host|guest|camera|car|animal|product|building|landscape|crowd|hands?|face|subject)\b/i;
+const SPEECH_WORDS = /\b(narration|narrator|voice[- ]?over|dialogue|speaks?|talks?|says?|reads?|announces?)\b/i;
 
 export function buildPrompt(fields: PromptFields): string {
   return [
@@ -60,6 +61,17 @@ export function analyzePrompt(input: {
   }
   if (input.requiresReference && !input.hasReference) {
     issues.push({ level: "error", message: "This workflow requires a reference video before rendering." });
+  }
+  if (SPEECH_WORDS.test(prompt) && !input.dialogue?.trim()) {
+    issues.push({
+      level: input.hasReference ? "warning" : "error",
+      message: input.hasReference
+        ? "No dialogue is entered. The uploaded reference video's original audio will be preserved; prompt text will not create reliable new narration."
+        : "This prompt requests speech but provides no exact dialogue. Enter the words to speak or remove the narration request.",
+    });
+  }
+  if (input.dialogue?.trim() && prompt.length > 800) {
+    issues.push({ level: "warning", message: "This spoken shot has extensive visual direction. Shorten the main prompt so dialogue conditioning remains dominant." });
   }
   if (prompt.length > 1200) issues.push({ level: "tip", message: "This prompt is long. Shorter, prioritized direction is often more reliable." });
   if (!input.cameraInstructions?.trim()) issues.push({ level: "tip", message: "Add camera framing or movement for more predictable composition." });
