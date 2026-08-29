@@ -7,17 +7,71 @@ import { AlertTriangle, ArrowLeft, CheckCircle2, FileVideo, Loader2, RotateCcw, 
 
 const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
 const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm"];
+const REFERENCE_VIDEO_STORAGE_KEY = "obtv.referenceVideo";
+
+type StoredReferenceVideo = {
+  storageKey: string;
+  mediaUrl: string;
+  name: string;
+  mimeType: string;
+  size: number;
+};
+
+function readStoredReferenceVideo(): StoredReferenceVideo | null {
+  try {
+    const raw = window.localStorage.getItem(REFERENCE_VIDEO_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredReferenceVideo>;
+    if (
+      typeof parsed.storageKey !== "string" ||
+      typeof parsed.mediaUrl !== "string" ||
+      typeof parsed.name !== "string"
+    ) return null;
+    return {
+      storageKey: parsed.storageKey,
+      mediaUrl: parsed.mediaUrl,
+      name: parsed.name,
+      mimeType: typeof parsed.mimeType === "string" ? parsed.mimeType : "video/mp4",
+      size: typeof parsed.size === "number" ? parsed.size : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function withReferenceVideoKey(path: string, storageKey: string): string {
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set("referenceVideoKey", storageKey);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
 
 export default function ReferenceVideoPage() {
   const [, setLocation] = useLocation();
   const [file, setFile] = useState<File | null>(null);
-  const [uploadedKey, setUploadedKey] = useState<string | null>(null);
-  const [uploadedMediaUrl, setUploadedMediaUrl] = useState<string | null>(null);
+  const [storedVideo, setStoredVideo] = useState<StoredReferenceVideo | null>(() => readStoredReferenceVideo());
+  const [uploadedKey, setUploadedKey] = useState<string | null>(() => (
+    new URLSearchParams(window.location.search).get("referenceVideoKey") ?? readStoredReferenceVideo()?.storageKey ?? null
+  ));
+  const [uploadedMediaUrl, setUploadedMediaUrl] = useState<string | null>(() => (
+    readStoredReferenceVideo()?.mediaUrl ?? null
+  ));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
   const returnTo = returnToParam?.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : "/";
+  const activeVideoName = file?.name ?? storedVideo?.name ?? "Saved reference video";
+  const activeVideoSize = file ? formatBytes(file.size) : storedVideo?.size ? formatBytes(storedVideo.size) : "Previously uploaded";
+  const activeVideoType = file?.type === "video/webm" || storedVideo?.mimeType === "video/webm" ? "WebM" : "MP4";
+
+  useEffect(() => {
+    const queryKey = new URLSearchParams(window.location.search).get("referenceVideoKey");
+    const saved = readStoredReferenceVideo();
+    if (queryKey && saved?.storageKey === queryKey) {
+      setStoredVideo(saved);
+      setUploadedMediaUrl(saved.mediaUrl);
+    }
+  }, []);
 
   useEffect(() => {
     if (!file) {
@@ -31,8 +85,10 @@ export default function ReferenceVideoPage() {
 
   const selectFile = (nextFile: File | null) => {
     setError("");
+    setStoredVideo(null);
     setUploadedKey(null);
     setUploadedMediaUrl(null);
+    window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
     if (!nextFile) {
       setFile(null);
       return;
@@ -69,6 +125,15 @@ export default function ReferenceVideoPage() {
       }
       setUploadedKey(payload.storageKey);
       setUploadedMediaUrl(payload.mediaUrl);
+      const nextStoredVideo: StoredReferenceVideo = {
+        storageKey: payload.storageKey,
+        mediaUrl: payload.mediaUrl,
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+      };
+      setStoredVideo(nextStoredVideo);
+      window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify(nextStoredVideo));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Reference video upload failed.");
     } finally {
@@ -78,15 +143,16 @@ export default function ReferenceVideoPage() {
 
   const useInComposer = () => {
     if (!uploadedKey) return;
-    const separator = returnTo.includes("?") ? "&" : "?";
-    setLocation(`${returnTo}${separator}referenceVideoKey=${encodeURIComponent(uploadedKey)}`);
+    setLocation(withReferenceVideoKey(returnTo, uploadedKey));
   };
 
   const clearVideo = () => {
     setFile(null);
+    setStoredVideo(null);
     setUploadedKey(null);
     setUploadedMediaUrl(null);
     setError("");
+    window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
   };
 
   return (
@@ -139,12 +205,12 @@ export default function ReferenceVideoPage() {
               />
             </label>
 
-            {file && (
+            {(file || uploadedKey) && (
               <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/40 p-3">
                 <FileVideo className="size-5 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatBytes(file.size)} · {file.type === "video/webm" ? "WebM" : "MP4"}</p>
+                  <p className="truncate text-sm font-medium">{activeVideoName}</p>
+                  <p className="text-xs text-muted-foreground">{activeVideoSize} · {activeVideoType}</p>
                 </div>
                 {uploadedKey ? <CheckCircle2 className="size-5 shrink-0 text-emerald-500" /> : <Button type="button" variant="ghost" size="sm" onClick={clearVideo}>Remove</Button>}
               </div>
@@ -177,10 +243,10 @@ export default function ReferenceVideoPage() {
             <p className="mt-1 text-xs text-muted-foreground">Review the footage before sending it to the composer.</p>
           </div>
           <div className="space-y-4 p-5">
-            {file ? (
+            {file || uploadedKey ? (
               <div className="overflow-hidden rounded-lg border border-border bg-black shadow-lg">
                 <video
-                  key={uploadedMediaUrl ?? previewUrl ?? file.name}
+                  key={uploadedMediaUrl ?? previewUrl ?? activeVideoName}
                   src={uploadedMediaUrl ?? previewUrl ?? undefined}
                   controls
                   playsInline

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { 
   useListCharacters, 
   useListSettings, 
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Check, Clapperboard, Users, Map, Settings2, Play, Pencil } from "lucide-react";
+import { Check, Clapperboard, Users, Map, Settings2, Play, Pencil, Video } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -27,9 +27,52 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 
+const REFERENCE_VIDEO_STORAGE_KEY = "obtv.referenceVideo";
+const COMPOSER_DRAFT_STORAGE_KEY = "obtv.composerDraft";
+
+type ComposerDraft = {
+  selectedChars?: string[];
+  selectedSetting?: string;
+  prompt?: string;
+  dialogue?: string;
+  negativePrompt?: string;
+  cameraInstructions?: string;
+  motionInstructions?: string;
+  generationMode?: string;
+  duration?: number;
+  fps?: number;
+  width?: number;
+  height?: number;
+  qualityPreset?: "DRAFT" | "STANDARD" | "HIGH";
+  seedMode?: "RANDOM" | "FIXED";
+  seed?: number;
+};
+
+function readComposerDraft(): ComposerDraft {
+  try {
+    const raw = window.localStorage.getItem(COMPOSER_DRAFT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as ComposerDraft : {};
+  } catch {
+    return {};
+  }
+}
+
+function readReferenceVideoKey(): string | null {
+  try {
+    const raw = window.localStorage.getItem(REFERENCE_VIDEO_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { storageKey?: unknown };
+    return typeof parsed.storageKey === "string" ? parsed.storageKey : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function GeneratePage() {
   const [, setLocation] = useLocation();
   const cloneJobId = new URLSearchParams(window.location.search).get("cloneJob");
+  const queryReferenceVideoKey = new URLSearchParams(window.location.search).get("referenceVideoKey");
+  const [draft] = useState<ComposerDraft>(() => readComposerDraft());
   const { data: characters } = useListCharacters();
   const { data: settings } = useListSettings();
   const { data: workflows } = useListWorkflows();
@@ -41,26 +84,26 @@ export default function GeneratePage() {
   });
   const createJob = useCreateGeneration();
 
-  const [selectedChars, setSelectedChars] = useState<string[]>([]);
-  const [selectedSetting, setSelectedSetting] = useState<string>("");
-  const [referenceVideoKey] = useState<string | null>(
-    () => new URLSearchParams(window.location.search).get("referenceVideoKey"),
+  const [selectedChars, setSelectedChars] = useState<string[]>(() => draft.selectedChars ?? []);
+  const [selectedSetting, setSelectedSetting] = useState<string>(() => draft.selectedSetting ?? "");
+  const [referenceVideoKey, setReferenceVideoKey] = useState<string | null>(
+    () => queryReferenceVideoKey ?? readReferenceVideoKey(),
   );
   
-  const [prompt, setPrompt] = useState("");
-  const [dialogue, setDialogue] = useState("");
-  const [negativePrompt, setNegativePrompt] = useState("ugly, distorted, blurry, low resolution, bad anatomy");
-  const [cameraInstructions, setCameraInstructions] = useState("");
-  const [motionInstructions, setMotionInstructions] = useState("");
+  const [prompt, setPrompt] = useState(() => draft.prompt ?? "");
+  const [dialogue, setDialogue] = useState(() => draft.dialogue ?? "");
+  const [negativePrompt, setNegativePrompt] = useState(() => draft.negativePrompt ?? "ugly, distorted, blurry, low resolution, bad anatomy");
+  const [cameraInstructions, setCameraInstructions] = useState(() => draft.cameraInstructions ?? "");
+  const [motionInstructions, setMotionInstructions] = useState(() => draft.motionInstructions ?? "");
   
-  const [generationMode, setGenerationMode] = useState("txt2vid");
-  const [duration, setDuration] = useState(4);
-  const [fps, setFps] = useState(24);
-  const [width, setWidth] = useState(1280);
-  const [height, setHeight] = useState(720);
-  const [qualityPreset, setQualityPreset] = useState<"DRAFT" | "STANDARD" | "HIGH">("STANDARD");
-  const [seedMode, setSeedMode] = useState<"RANDOM" | "FIXED">("RANDOM");
-  const [seed, setSeed] = useState<number>(0);
+  const [generationMode, setGenerationMode] = useState(() => draft.generationMode ?? "txt2vid");
+  const [duration, setDuration] = useState(() => draft.duration ?? 4);
+  const [fps, setFps] = useState(() => draft.fps ?? 24);
+  const [width, setWidth] = useState(() => draft.width ?? 1280);
+  const [height, setHeight] = useState(() => draft.height ?? 720);
+  const [qualityPreset, setQualityPreset] = useState<"DRAFT" | "STANDARD" | "HIGH">(() => draft.qualityPreset ?? "STANDARD");
+  const [seedMode, setSeedMode] = useState<"RANDOM" | "FIXED">(() => draft.seedMode ?? "RANDOM");
+  const [seed, setSeed] = useState<number>(() => draft.seed ?? 0);
   const hasSelectedInitialMode = useRef(false);
   const hasPrefilledSourceJob = useRef(false);
   const activeWorkflows = workflows?.filter(w => w.active) || [];
@@ -68,6 +111,36 @@ export default function GeneratePage() {
   const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
   const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
   const hasReferenceVideo = Boolean(referenceVideoKey);
+  const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
+
+  useEffect(() => {
+    window.localStorage.setItem(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
+      selectedChars,
+      selectedSetting,
+      prompt,
+      dialogue,
+      negativePrompt,
+      cameraInstructions,
+      motionInstructions,
+      generationMode,
+      duration,
+      fps,
+      width,
+      height,
+      qualityPreset,
+      seedMode,
+      seed,
+    } satisfies ComposerDraft));
+  }, [
+    selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
+    motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed,
+  ]);
+
+  useEffect(() => {
+    if (queryReferenceVideoKey) {
+      setReferenceVideoKey(queryReferenceVideoKey);
+    }
+  }, [queryReferenceVideoKey]);
 
   useEffect(() => {
     if (!sourceJob || hasPrefilledSourceJob.current) return;
@@ -141,6 +214,7 @@ export default function GeneratePage() {
           referenceVideoKey: referenceVideoKey || undefined,
         }
       });
+      window.localStorage.removeItem(COMPOSER_DRAFT_STORAGE_KEY);
       setLocation(`/generations/${res.id}`);
     } catch (err: any) {
       alert("Failed to submit job: " + (err.message || "Unknown error"));
@@ -180,6 +254,51 @@ export default function GeneratePage() {
               <p className="text-muted-foreground text-sm">Compose your scene using studio assets.</p>
             </div>
           </div>
+
+          <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="rounded-lg bg-primary/15 p-2">
+                <Video className="size-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {hasReferenceVideo ? "Reference video attached" : "Reference video"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {hasReferenceVideo
+                    ? "Your video supplies the presenter, movement, timing, and audio. Character and environment selections are optional."
+                    : "Attach presenter footage if the video should supply the subject, movement, timing, and audio. No character or environment selection is required when it is attached."}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {hasReferenceVideo && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setReferenceVideoKey(null);
+                    window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
+                    setLocation("/");
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+              <Link href={referenceVideoHref}>
+                <Button type="button" variant={hasReferenceVideo ? "outline" : "default"} size="sm">
+                  {hasReferenceVideo ? "Change video" : "Add reference video"}
+                </Button>
+              </Link>
+            </div>
+          </Card>
+
+          {hasReferenceVideo && (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">
+              You can render directly with the reference video. Cast and environment are optional modifiers, not required inputs.
+            </div>
+          )}
 
           <Tabs defaultValue="cast" className="w-full">
             <TabsList className="mb-4 grid h-12 w-full grid-cols-3 rounded-lg bg-secondary p-1">
