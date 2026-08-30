@@ -1159,8 +1159,8 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
   const result = await withProjectLock(projectId, async () => {
     const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
     if (!project) throw new Error("Long-form project not found");
-    if (!["READY", "PAUSED", "FAILED", "EDITING", "COMPLETED"].includes(project.status)) {
-      throw new Error("A shot cannot be edited while the project is actively rendering");
+    if (!["READY", "PAUSED", "FAILED", "EDITING", "COMPLETED", "RUNNING"].includes(project.status)) {
+      throw new Error("A shot cannot be edited while the final video is being assembled");
     }
 
     const [existingShot] = await db
