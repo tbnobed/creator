@@ -100,10 +100,6 @@ function shotPromptOnly(prompt: string): string {
   return prompt.split(/\bPROJECT\s+VISUAL\s+DIRECTION\b/i)[0].trim();
 }
 
-function projectVisualDirectionOnly(prompt: string): string {
-  return prompt.split(/\bPROJECT\s+VISUAL\s+DIRECTION\b/i).slice(1).join(" ").trim();
-}
-
 function ensureSentenceEnding(value: string): string {
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
@@ -200,12 +196,11 @@ function compileMiniMaxH3Prompt(
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
     input.referenceVideoKey ? "Follow the timing, movement, and temporal structure of <Video 1>." : "",
     spokenAction,
-    compactPromptText(input.prompt),
+    compactPromptText(shotPrompt),
     input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
     input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
   ].filter(Boolean).join(" ");
   const promptAudio = extractPromptAudio(shotPrompt);
-  const projectAudio = extractPromptAudio(projectVisualDirectionOnly(input.prompt));
   const soundscape = input.audioInstructions?.trim()
     ? compactPromptText(input.audioInstructions)
     : promptAudio.soundscape
@@ -213,7 +208,7 @@ function compileMiniMaxH3Prompt(
       : dialogue
         ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
         : "Natural ambient sound and subtle sounds from the visible action.";
-  const music = promptAudio.music ?? projectAudio.music ?? "N/A";
+  const music = promptAudio.music ?? "N/A";
   const taskTypes = input.referenceVideoKey
     ? "[reference generation + audio reuse]"
     : "[reference generation]";
