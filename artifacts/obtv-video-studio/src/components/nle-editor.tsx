@@ -180,10 +180,10 @@ export function NLEEditor({
       </div>
       
       {/* Workspace Main */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-[400px]">
+      <div className="flex min-h-[400px] flex-1 flex-col overflow-hidden md:min-h-0 md:flex-row">
         {/* Video Player Area */}
-        <div className="flex-1 flex flex-col bg-black/60 relative">
-          <div className="flex-1 flex items-center justify-center p-4 md:p-8 relative">
+        <div className="relative flex min-h-0 flex-1 flex-col bg-black/60">
+          <div className="relative flex min-h-0 flex-1 items-center justify-center p-4 md:p-8">
             {selectedClip ? (
                <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-black shadow-2xl">
                  <video 
@@ -191,7 +191,7 @@ export function NLEEditor({
                    src={selectedClip.outputUrl}
                    poster={selectedClip.posterUrl}
                    preload="metadata"
-                    className="block h-auto max-h-full w-auto max-w-full object-contain"
+                    className="absolute inset-0 block h-full w-full object-contain"
                    onTimeUpdate={handleTimeUpdate}
                    onEnded={() => setIsPlaying(false)}
                    onClick={handlePlayPause}

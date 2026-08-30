@@ -10,3 +10,4 @@
 - [ComfyUI inactive-node validation](comfyui-inactive-node-validation.md) — Disabled branches still need valid model selections; remove optional unavailable nodes from submitted workflows.
 - [MiniMax H3 prompt and audio rules](minimax-h3-prompt-audio.md) — Use native full-reference sections and separate semantic speech failures from ComfyUI sampler distortion.
 - [Ollama Compose bootstrap](ollama-compose-bootstrap.md) — Override Ollama’s image entrypoint and pass bootstrap as one shell argument; retry model pulls without restarting the server.
+- [NLE player containment](nle-player-containment.md) — Nested editor flex panes must be allowed to shrink before object-contain can prevent video-frame clipping.
