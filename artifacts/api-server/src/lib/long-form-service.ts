@@ -1156,15 +1156,68 @@ export async function cancelLongFormProject(projectId: string) {
 }
 
 export async function updateLongFormShot(projectId: string, shotId: string, input: LongFormShotUpdate) {
-  const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
-  if (!project) throw new Error("Long-form project not found");
-  if (!["READY", "PAUSED", "FAILED"].includes(project.status)) throw new Error("Pause the project before editing a shot");
-  const [shot] = await db.update(longFormShotsTable)
-    .set(input)
-    .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId), eq(longFormShotsTable.status, "PLANNED")))
-    .returning();
-  if (!shot) throw new Error("Only planned shots can be edited");
-  return presentShot(shot);
+  const result = await withProjectLock(projectId, async () => {
+    const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (!project) throw new Error("Long-form project not found");
+    if (!["READY", "PAUSED", "FAILED", "EDITING", "COMPLETED"].includes(project.status)) {
+      throw new Error("A shot cannot be edited while the project is actively rendering");
+    }
+
+    const [existingShot] = await db
+      .select()
+      .from(longFormShotsTable)
+      .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId)));
+    if (!existingShot) throw new Error("Long-form shot not found");
+    if (activeShotStatuses.includes(existingShot.status)) {
+      throw new Error("This shot is currently rendering and cannot be edited");
+    }
+
+    const regenerate = existingShot.status === "COMPLETED";
+    const [shot] = await db.update(longFormShotsTable)
+      .set(regenerate
+        ? {
+            ...input,
+            status: "PLANNED",
+            generationJobId: null,
+            assignedServerId: null,
+            outputStorageKey: null,
+            outputMimeType: null,
+            errorMessage: null,
+            completedAt: null,
+            retryCount: existingShot.retryCount + 1,
+          }
+        : input)
+      .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId)))
+      .returning();
+
+    if (regenerate) {
+      await db.update(longFormProjectsTable)
+        .set({
+          status: "RUNNING",
+          completedShots: Math.max(0, project.completedShots - 1),
+          progress: Math.min(99, project.progress),
+          finalOutputStorageKey: null,
+          finalOutputMimeType: null,
+          completedAt: null,
+          errorMessage: null,
+        })
+        .where(eq(longFormProjectsTable.id, projectId));
+    }
+
+    return {
+      shot,
+      regenerate,
+      previousFinalOutputKey: regenerate ? project.finalOutputStorageKey : null,
+    };
+  });
+  if (!result) throw new Error("Project is currently being updated; try again.");
+  if (result.previousFinalOutputKey) {
+    await mediaStorage.deleteOutput(result.previousFinalOutputKey).catch((error) => {
+      logger.warn({ err: error, projectId }, "Could not remove stale long-form final output");
+    });
+  }
+  if (result.regenerate) scheduleLongFormOrchestration(projectId, "edit-completed-shot");
+  return presentShot(result.shot);
 }
 
 export async function retryLongFormShot(projectId: string, shotId: string) {

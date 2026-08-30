@@ -885,6 +885,7 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }:
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateShot = useUpdateLongFormShot();
+  const willRegenerate = shot.status === "COMPLETED";
 
   const form = useForm<z.infer<typeof shotFormSchema>>({
     resolver: zodResolver(shotFormSchema),
@@ -903,7 +904,10 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }:
   const onSubmit = (data: z.infer<typeof shotFormSchema>) => {
     updateShot.mutate({ id: projectId, shotId: shot.id, data }, {
       onSuccess: () => {
-        toast({ title: "Shot updated" });
+        toast({
+          title: willRegenerate ? "Shot queued for regeneration" : "Shot updated",
+          description: willRegenerate ? "Only this shot will render again. The other completed clips are preserved." : undefined,
+        });
         queryClient.invalidateQueries({ queryKey: getGetLongFormProjectQueryKey(projectId) });
         onOpenChange(false);
       },
@@ -1043,7 +1047,7 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }:
               <Button type="button" variant="outline" size="sm" className="md:h-10 md:px-4" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={updateShot.isPending} size="sm" className="md:h-10 md:px-4 brand-glow">
                 {updateShot.isPending && <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 animate-spin" />}
-                Save Changes
+                {willRegenerate ? "Save & Regenerate Shot" : "Save Changes"}
               </Button>
             </div>
           </form>
