@@ -178,7 +178,9 @@ function compileMiniMaxH3Prompt(
   }
   if (input.referenceVideoKey) {
     subjectDefinitions.push(
-      "<Video 1> is the source presenter video providing the target timing, movement, camera behavior, and temporal structure.",
+      replacesReferenceAudio
+        ? "<Video 1> is the source presenter video providing body movement, camera behavior, framing, and temporal structure. The presenter's mouth and facial speech articulation must be regenerated for the replacement dialogue."
+        : "<Video 1> is the source presenter video providing the target timing, movement, camera behavior, and temporal structure.",
       replacesReferenceAudio
         ? "<Audio 1> is the synchronized source audio from <Video 1>, used only as a reference for the presenter's voice identity, tone, and speaking characteristics. Its original words must not be copied."
         : "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
@@ -207,7 +209,11 @@ function compileMiniMaxH3Prompt(
       ? `${characterPlacement} ${referencedCharacters.length === 1 ? "appears" : "appear"} with ${referencedCharacters.length === 1 ? "the referenced identity" : "their referenced identities"} fully preserved.`
       : "",
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
-    input.referenceVideoKey ? "Follow the timing, movement, and temporal structure of <Video 1>." : "",
+    input.referenceVideoKey
+      ? replacesReferenceAudio
+        ? "Preserve the body movement, camera behavior, framing, and overall timing of <Video 1>, but replace the original mouth movement and facial speech articulation so they synchronize precisely with the supplied dialogue."
+        : "Follow the timing, movement, and temporal structure of <Video 1>."
+      : "",
     replacesReferenceAudio
       ? "Clone the presenter's voice characteristics from <Audio 1>, replace the original spoken content completely, and speak only the exact dialogue supplied below."
       : "",
@@ -243,7 +249,9 @@ function compileMiniMaxH3Prompt(
       : []),
     ...(input.referenceVideoKey
       ? [
-        "<Video 1> (timing, movement, and temporal structure): fully_preserved - follow the source presenter's performance timing and motion.",
+        replacesReferenceAudio
+          ? "<Video 1> (body movement, camera behavior, framing, and temporal structure): selectively_preserved - preserve the source performance except for mouth movement and facial speech articulation, which must be regenerated to lip-sync the supplied dialogue."
+          : "<Video 1> (timing, movement, and temporal structure): fully_preserved - follow the source presenter's performance timing and motion.",
         replacesReferenceAudio
           ? "<Audio 1> (voice identity only): voice_preserved_content_replaced - clone the presenter's voice characteristics, discard the original spoken words, and generate only the supplied dialogue."
           : "<Audio 1>: copied - reuse the synchronized original audio signal without regenerating or rewriting it.",
@@ -272,6 +280,31 @@ function compileMiniMaxH3Prompt(
     `overall_soundscape:\n${outputSoundscape}`,
     `non_diegetic_music:\n${outputMusic}`,
   ].join("\n\n");
+}
+
+function routeMiniMaxReferenceVideoAudio(
+  workflow: Record<string, unknown>,
+  generateReplacementDialogue: boolean,
+): void {
+  type WorkflowNode = { class_type?: unknown; inputs?: Record<string, unknown> };
+  const nodes = workflow as Record<string, WorkflowNode>;
+  const createVideo = Object.values(nodes).find((node) => node.class_type === "CreateVideo");
+  if (!createVideo?.inputs) {
+    throw new Error("MiniMax H3 reference-video workflow is missing its CreateVideo output node");
+  }
+
+  const audioNode = Object.entries(nodes).find(([, node]) => (
+    node.class_type === (generateReplacementDialogue ? "VAEDecodeAudio" : "GetVideoComponents")
+  ));
+  if (!audioNode) {
+    throw new Error(
+      generateReplacementDialogue
+        ? "MiniMax H3 reference-video workflow cannot output replacement dialogue because it has no VAEDecodeAudio node"
+        : "MiniMax H3 reference-video workflow cannot preserve source audio because it has no GetVideoComponents node",
+    );
+  }
+
+  createVideo.inputs.audio = [audioNode[0], generateReplacementDialogue ? 0 : 1];
 }
 
 function compilePrompt(
@@ -517,6 +550,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       ...assetParameters,
       ...referenceVideoParameters,
     });
+    if (referenceVideo && workflow.modelFamily.trim().toLowerCase() === "minimax h3") {
+      routeMiniMaxReferenceVideoAudio(submittedWorkflow, Boolean(input.dialogue?.trim()));
+    }
     const submitted = await client.submitWorkflow(submittedWorkflow, job.id);
     const [queuedJob] = await db
       .update(generationJobsTable)

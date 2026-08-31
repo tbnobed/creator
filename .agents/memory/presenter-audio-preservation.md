@@ -7,4 +7,4 @@ Presenter-video outputs should preserve the uploaded source audio when no replac
 
 **Why:** Unconditionally preserving source audio contradicts explicit voice-cloning requests, while unconditionally generating audio risks gibberish and needless loss of a valid source track.
 
-**How to apply:** Branch on exact dialogue. Without dialogue, copy the synchronized source track. With dialogue, mark source audio as voice-reference-only and state that its spoken content must be discarded and replaced exactly.
+**How to apply:** Branch on exact dialogue in both conditioning and output routing. Without dialogue, mux the synchronized source track. With dialogue, use source audio as voice-reference-only, allow mouth articulation to change, and mux the model-decoded audio. Prompt wording cannot override a graph that still routes source audio to the output.
