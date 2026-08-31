@@ -145,6 +145,9 @@ function extractDialogue(body: string): string {
       }
     }
   }
+  for (const match of body.matchAll(/[“"]([^”"\n]+)[”"]/g)) {
+    if (match[1]?.trim()) dialogue.push(match[1].trim());
+  }
   return [...new Set(dialogue)].join("\n");
 }
 
@@ -165,7 +168,12 @@ function removeDialogueFromPrompt(body: string): string {
     omitQuotedDialogue = false;
     visualLines.push(line);
   }
-  return normalizeBlock(visualLines.join("\n"));
+  return normalizeBlock(
+    visualLines
+      .join("\n")
+      .replace(/[“"]([^”"\n]+)[”"]/g, "")
+      .replace(/\s+([,.;!?])/g, "$1"),
+  );
 }
 
 function normalizeScript(script: string): string[] {

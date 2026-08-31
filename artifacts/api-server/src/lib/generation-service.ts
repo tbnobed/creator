@@ -139,11 +139,123 @@ function extractPromptAudio(prompt: string): { soundscape: string | null; music:
   };
 }
 
-function compileMiniMaxH3Prompt(
+function compileMiniMaxH3StandardPrompt(
   characters: { name: string; promptDescription: string }[],
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
+  const settingSubjectNumber = setting ? characters.length + 1 : null;
+  const dialogue = input.dialogue?.trim();
+  const shotPrompt = shotPromptOnly(input.prompt);
+  const referencedCharacters = characters.filter((character) => (
+    escapedWordPattern(character.name).test(shotPrompt) ||
+    /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
+  ));
+  const speakerCharacter = dialogue ? characters[0] : undefined;
+  const definedCharacters = speakerCharacter && !referencedCharacters.includes(speakerCharacter)
+    ? [...referencedCharacters, speakerCharacter]
+    : referencedCharacters;
+  const usesSettingReference = Boolean(
+    setting && (
+      escapedWordPattern(setting.name).test(shotPrompt) ||
+      /\b(?:TBN|studio|control room|broadcast facility|broadcast studio|production room)\b/i.test(shotPrompt)
+    ),
+  );
+  const subjectDefinitions = definedCharacters.map((character) => (
+    character === speakerCharacter && !referencedCharacters.includes(character)
+      ? `<Subject ${characters.indexOf(character) + 1}> is ${character.name}, the selected off-screen narrator. The narrator's identity and voice gender must match this cast reference: ${compactPromptText(character.promptDescription)}`
+      : `<Subject ${characters.indexOf(character) + 1}> is ${character.name}, whose appearance and identity are defined by the supplied reference images: ${compactPromptText(character.promptDescription)}`
+  ));
+  if (setting && settingSubjectNumber && usesSettingReference) {
+    subjectDefinitions.push(
+      `<Subject ${settingSubjectNumber}> is the referenced environment: ${compactPromptText(setting.promptDescription)}`,
+    );
+  }
+  const primarySpeaker = speakerCharacter
+    ? `<Subject ${characters.indexOf(speakerCharacter) + 1}>`
+    : referencedCharacters[0]
+      ? `<Subject ${characters.indexOf(referencedCharacters[0]) + 1}>`
+    : "The on-screen speaker";
+  const hasOnScreenSpeech = /\b(speaks?|talks?|says?|addresses?|looks directly into (?:the )?camera)\b/i.test(shotPrompt);
+  const isVoiceover = !hasOnScreenSpeech && (
+    /\b(off[- ]screen|voice[- ]?over|narration)\b/i.test(shotPrompt) ||
+    Boolean(speakerCharacter && !referencedCharacters.includes(speakerCharacter))
+  );
+  const speakerDescription = speakerCharacter
+    ? `${speakerCharacter.name} ${speakerCharacter.promptDescription}`
+    : "";
+  const voiceCue = /\b(woman|female|girl|she|her)\b/i.test(speakerDescription)
+    ? "in a clearly female voice"
+    : /\b(man|male|boy|he|his)\b/i.test(speakerDescription)
+      ? "in a clearly male voice"
+      : "in a voice consistent with the selected cast identity";
+  const hasAuthoredCamera = /\bcamera\s*:/i.test(shotPrompt);
+  const hasAuthoredMotion = /\bmotion\s*:/i.test(shotPrompt);
+  const spokenAction = dialogue
+    ? isVoiceover
+      ? `${primarySpeaker} (S1) speaks ${voiceCue} in an off-screen voiceover: <d>[English] ${dialogue}</d> No male substitute voice. No on-screen character lip movement.`
+      : `${primarySpeaker} (S1) speaks ${voiceCue}, clearly and at a natural speaking rate: <d>[English] ${dialogue}</d>`
+    : "";
+  const characterPlacement = referencedCharacters
+    .map((character) => `<Subject ${characters.indexOf(character) + 1}>`)
+    .join(", ");
+  const timeline = [
+    "[Shot 1] Live-action, cinematic.",
+    characterPlacement
+      ? `${characterPlacement} ${referencedCharacters.length === 1 ? "appears" : "appear"} with ${referencedCharacters.length === 1 ? "the referenced identity" : "their referenced identities"} fully preserved.`
+      : "",
+    usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
+    spokenAction,
+    compactPromptText(shotPrompt),
+    input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
+    input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
+  ].filter(Boolean).join(" ");
+  const promptAudio = extractPromptAudio(shotPrompt);
+  const soundscape = input.audioInstructions?.trim()
+    ? compactPromptText(input.audioInstructions)
+    : promptAudio.soundscape
+      ? `${ensureSentenceEnding(promptAudio.soundscape)}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
+      : dialogue
+        ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
+        : "Natural ambient sound and subtle sounds from the visible action.";
+  const music = promptAudio.music ?? "N/A";
+  const summarySubjects = [
+    ...referencedCharacters.map((character) => `<Subject ${characters.indexOf(character) + 1}>`),
+    ...(speakerCharacter && !referencedCharacters.includes(speakerCharacter)
+      ? [`<Subject ${characters.indexOf(speakerCharacter) + 1}> as the off-screen narrator`]
+      : []),
+    ...(usesSettingReference && settingSubjectNumber ? [`<Subject ${settingSubjectNumber}>`] : []),
+  ].join(", ");
+  const retention = [
+    ...referencedCharacters.map((character) => (
+      `<Subject ${characters.indexOf(character) + 1}> (appears in [Shot 1]): fully_preserved - preserve the referenced identity, appearance, clothing, and recognizable features.`
+    )),
+    ...(speakerCharacter && !referencedCharacters.includes(speakerCharacter)
+      ? [`<Subject ${characters.indexOf(speakerCharacter) + 1}> (off-screen narrator in [Shot 1]): voice_gender_preserved - use the selected cast identity and ${voiceCue}; do not substitute a male narrator or show this subject on screen.`]
+      : []),
+    ...(usesSettingReference && settingSubjectNumber
+      ? [`<Subject ${settingSubjectNumber}> (appears in [Shot 1]): fully_preserved - preserve the referenced environment, layout, lighting, and production design.`]
+      : []),
+  ];
+
+  return [
+    `subject_definitions:\n${subjectDefinitions.join("\n") || "No supplied reference subject is required to appear in this shot."}`,
+    `summary:\n[reference generation] Create a single-shot target video using ${summarySubjects || "the described scene"}.`,
+    `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,
+    `detailed_description:\n${timeline}`,
+    `overall_soundscape:\n${soundscape}`,
+    `non_diegetic_music:\n${music}`,
+  ].join("\n\n");
+}
+
+function compileMiniMaxH3ReferenceVideoPrompt(
+  characters: { name: string; promptDescription: string }[],
+  setting: { name: string; promptDescription: string } | undefined,
+  input: GenerationRequest,
+): string {
+  if (!input.referenceVideoKey) {
+    throw new Error("Reference-video prompt compilation requires an uploaded reference video");
+  }
   const settingSubjectNumber = setting ? characters.length + 1 : null;
   const dialogue = input.dialogue?.trim();
   const replacesReferenceAudio = Boolean(input.referenceVideoKey && dialogue);
@@ -313,9 +425,12 @@ function compilePrompt(
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
-  return modelFamily.trim().toLowerCase() === "minimax h3"
-    ? compileMiniMaxH3Prompt(characters, setting, input)
-    : compileGenericPrompt(characters, setting, input);
+  if (modelFamily.trim().toLowerCase() !== "minimax h3") {
+    return compileGenericPrompt(characters, setting, input);
+  }
+  return input.referenceVideoKey
+    ? compileMiniMaxH3ReferenceVideoPrompt(characters, setting, input)
+    : compileMiniMaxH3StandardPrompt(characters, setting, input);
 }
 
 async function uploadMappedReferences(
