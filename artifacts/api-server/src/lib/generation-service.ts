@@ -149,6 +149,15 @@ function compileMiniMaxH3Prompt(
   const replacesReferenceAudio = Boolean(input.referenceVideoKey && dialogue);
   const reusesReferenceAudio = Boolean(input.referenceVideoKey && !dialogue);
   const shotPrompt = shotPromptOnly(input.prompt);
+  const visualShotPrompt = replacesReferenceAudio
+    ? shotPrompt
+      .replace(
+        /\bclone\s+(?:the\s+)?voice\s+(?:to|and)\s+(?:just\s+|only\s+)?say\s+(?:the\s+)?exact\s+dialogue\s+provided\b[.!]?/gi,
+        "",
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+    : shotPrompt;
   const referencedCharacters = characters.filter((character) => (
     escapedWordPattern(character.name).test(shotPrompt) ||
     /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
@@ -203,7 +212,7 @@ function compileMiniMaxH3Prompt(
       ? "Clone the presenter's voice characteristics from <Audio 1>, replace the original spoken content completely, and speak only the exact dialogue supplied below."
       : "",
     spokenAction,
-    compactPromptText(shotPrompt),
+    visualShotPrompt ? compactPromptText(visualShotPrompt) : "",
     input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
     input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
   ].filter(Boolean).join(" ");
