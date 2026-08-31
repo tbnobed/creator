@@ -9,6 +9,12 @@ MiniMax H3 full-reference workflows should use the official six-section schema: 
 
 **How to apply:** Compile reference jobs into the native schema, distinguish on-screen speech from off-screen voiceover, keep dialogue within clip duration, preserve reference-video source audio when exactness matters, and require an updated ComfyUI build with native audio/video sampling fixes.
 
+Keep each section concise and non-redundant. Dialogue appears once inside `<d>` in the shot description; soundscape does not repeat it, retention does not carry speaker IDs, and ordinary voice attributes do not need defensive negative instructions.
+
+**Why:** The official MiniMax guide requires detailed visual/audio timing, not repeated policy prose. Redundant gender, lip-motion, clarity, and fallback warnings compete with the actual shot.
+
+**How to apply:** Use one short subject definition, one short retention relationship, and a direct `(S1) says: <d>…</d>` event. Do not append generic camera or motion defaults when the shot already authors them.
+
 Authored `Camera:` and `Motion:` lines in structured long-form blocks take precedence over planner defaults. Only describe a selected character or setting as appearing in the H3 shot when the shot text actually calls for that reference.
 
 **Why:** Appending generic framing after authored direction creates contradictory H3 prompts, while forcing every project reference into every shot makes B-roll and alternate environments reproduce the wrong subject or set.

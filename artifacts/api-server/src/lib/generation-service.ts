@@ -163,7 +163,7 @@ function compileMiniMaxH3StandardPrompt(
   );
   const subjectDefinitions = definedCharacters.map((character) => (
     character === speakerCharacter && !referencedCharacters.includes(character)
-      ? `<Subject ${characters.indexOf(character) + 1}> is ${character.name}, the selected off-screen narrator. The narrator's identity and voice gender must match this cast reference: ${compactPromptText(character.promptDescription)}`
+      ? `<Subject ${characters.indexOf(character) + 1}> is ${character.name}, an off-screen narrator: ${compactPromptText(character.promptDescription)}`
       : `<Subject ${characters.indexOf(character) + 1}> is ${character.name}, whose appearance and identity are defined by the supplied reference images: ${compactPromptText(character.promptDescription)}`
   ));
   if (setting && settingSubjectNumber && usesSettingReference) {
@@ -185,16 +185,16 @@ function compileMiniMaxH3StandardPrompt(
     ? `${speakerCharacter.name} ${speakerCharacter.promptDescription}`
     : "";
   const voiceCue = /\b(woman|female|girl|she|her)\b/i.test(speakerDescription)
-    ? "in a clearly female voice"
+    ? "a female voice"
     : /\b(man|male|boy|he|his)\b/i.test(speakerDescription)
-      ? "in a clearly male voice"
-      : "in a voice consistent with the selected cast identity";
-  const hasAuthoredCamera = /\bcamera\s*:/i.test(shotPrompt);
-  const hasAuthoredMotion = /\bmotion\s*:/i.test(shotPrompt);
+      ? "a male voice"
+      : "the selected narrator's voice";
+  const hasAuthoredCamera = /\bcamera\b|\b(?:wide|close-up|medium shot|orbit|pan|tilt|dolly|tracking|push(?:es)? in|move(?:s)? closer)\b/i.test(shotPrompt);
+  const hasAuthoredMotion = /\bmotion\s*:|\b(?:walks?|runs?|turns?|moves?|enters?|exits?|opens?|closes?|operat(?:es|ing)|rotates?|rises?|falls?)\b/i.test(shotPrompt);
   const spokenAction = dialogue
     ? isVoiceover
-      ? `${primarySpeaker} (S1) speaks ${voiceCue} in an off-screen voiceover: <d>[English] ${dialogue}</d> No male substitute voice. No on-screen character lip movement.`
-      : `${primarySpeaker} (S1) speaks ${voiceCue}, clearly and at a natural speaking rate: <d>[English] ${dialogue}</d>`
+      ? `${primarySpeaker}, an off-screen narrator with ${voiceCue} (S1), says: <d>[English] ${dialogue}</d>`
+      : `${primarySpeaker}, speaking with ${voiceCue} (S1), says: <d>[English] ${dialogue}</d>`
     : "";
   const characterPlacement = referencedCharacters
     .map((character) => `<Subject ${characters.indexOf(character) + 1}>`)
@@ -207,22 +207,22 @@ function compileMiniMaxH3StandardPrompt(
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
     spokenAction,
     compactPromptText(shotPrompt),
-    input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
-    input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
+    input.cameraInstructions && !hasAuthoredCamera ? compactPromptText(input.cameraInstructions) : "",
+    input.motionInstructions && !hasAuthoredMotion ? compactPromptText(input.motionInstructions) : "",
   ].filter(Boolean).join(" ");
   const promptAudio = extractPromptAudio(shotPrompt);
   const soundscape = input.audioInstructions?.trim()
     ? compactPromptText(input.audioInstructions)
     : promptAudio.soundscape
-      ? `${ensureSentenceEnding(promptAudio.soundscape)}${dialogue ? " The spoken dialogue remains clear and intelligible." : ""}`
+      ? ensureSentenceEnding(promptAudio.soundscape)
       : dialogue
-        ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
+        ? "Natural room tone and subtle sounds from the visible action."
         : "Natural ambient sound and subtle sounds from the visible action.";
   const music = promptAudio.music ?? "N/A";
   const summarySubjects = [
     ...referencedCharacters.map((character) => `<Subject ${characters.indexOf(character) + 1}>`),
     ...(speakerCharacter && !referencedCharacters.includes(speakerCharacter)
-      ? [`<Subject ${characters.indexOf(speakerCharacter) + 1}> as the off-screen narrator`]
+      ? [`<Subject ${characters.indexOf(speakerCharacter) + 1}> as off-screen narrator`]
       : []),
     ...(usesSettingReference && settingSubjectNumber ? [`<Subject ${settingSubjectNumber}>`] : []),
   ].join(", ");
@@ -231,7 +231,7 @@ function compileMiniMaxH3StandardPrompt(
       `<Subject ${characters.indexOf(character) + 1}> (appears in [Shot 1]): fully_preserved - preserve the referenced identity, appearance, clothing, and recognizable features.`
     )),
     ...(speakerCharacter && !referencedCharacters.includes(speakerCharacter)
-      ? [`<Subject ${characters.indexOf(speakerCharacter) + 1}> (off-screen narrator in [Shot 1]): voice_gender_preserved - use the selected cast identity and ${voiceCue}; do not substitute a male narrator or show this subject on screen.`]
+      ? [`<Subject ${characters.indexOf(speakerCharacter) + 1}>: reference - use ${voiceCue} for the off-screen narration.`]
       : []),
     ...(usesSettingReference && settingSubjectNumber
       ? [`<Subject ${settingSubjectNumber}> (appears in [Shot 1]): fully_preserved - preserve the referenced environment, layout, lighting, and production design.`]
