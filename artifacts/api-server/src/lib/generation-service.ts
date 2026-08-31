@@ -146,6 +146,8 @@ function compileMiniMaxH3Prompt(
 ): string {
   const settingSubjectNumber = setting ? characters.length + 1 : null;
   const dialogue = input.dialogue?.trim();
+  const replacesReferenceAudio = Boolean(input.referenceVideoKey && dialogue);
+  const reusesReferenceAudio = Boolean(input.referenceVideoKey && !dialogue);
   const shotPrompt = shotPromptOnly(input.prompt);
   const referencedCharacters = characters.filter((character) => (
     escapedWordPattern(character.name).test(shotPrompt) ||
@@ -168,7 +170,9 @@ function compileMiniMaxH3Prompt(
   if (input.referenceVideoKey) {
     subjectDefinitions.push(
       "<Video 1> is the source presenter video providing the target timing, movement, camera behavior, and temporal structure.",
-      "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
+      replacesReferenceAudio
+        ? "<Audio 1> is the synchronized source audio from <Video 1>, used only as a reference for the presenter's voice identity, tone, and speaking characteristics. Its original words must not be copied."
+        : "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
     );
   }
   const primarySpeaker = referencedCharacters[0]
@@ -195,6 +199,9 @@ function compileMiniMaxH3Prompt(
       : "",
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
     input.referenceVideoKey ? "Follow the timing, movement, and temporal structure of <Video 1>." : "",
+    replacesReferenceAudio
+      ? "Clone the presenter's voice characteristics from <Audio 1>, replace the original spoken content completely, and speak only the exact dialogue supplied below."
+      : "",
     spokenAction,
     compactPromptText(shotPrompt),
     input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
@@ -209,9 +216,11 @@ function compileMiniMaxH3Prompt(
         ? "Natural room tone and subtle sounds from the visible action; the spoken dialogue remains clear and intelligible."
         : "Natural ambient sound and subtle sounds from the visible action.";
   const music = promptAudio.music ?? "N/A";
-  const taskTypes = input.referenceVideoKey
-    ? "[reference generation + audio reuse]"
-    : "[reference generation]";
+  const taskTypes = replacesReferenceAudio
+    ? "[reference generation + voice cloning + dialogue replacement]"
+    : reusesReferenceAudio
+      ? "[reference generation + audio reuse]"
+      : "[reference generation]";
   const summarySubjects = [
     ...referencedCharacters.map((character) => `<Subject ${characters.indexOf(character) + 1}>`),
     ...(usesSettingReference && settingSubjectNumber ? [`<Subject ${settingSubjectNumber}>`] : []),
@@ -226,18 +235,33 @@ function compileMiniMaxH3Prompt(
     ...(input.referenceVideoKey
       ? [
         "<Video 1> (timing, movement, and temporal structure): fully_preserved - follow the source presenter's performance timing and motion.",
-        "<Audio 1>: copied - reuse the synchronized original audio signal without regenerating or rewriting it.",
+        replacesReferenceAudio
+          ? "<Audio 1> (voice identity only): voice_preserved_content_replaced - clone the presenter's voice characteristics, discard the original spoken words, and generate only the supplied dialogue."
+          : "<Audio 1>: copied - reuse the synchronized original audio signal without regenerating or rewriting it.",
       ]
       : []),
   ];
+  const summaryAudio = replacesReferenceAudio
+    ? " while cloning the presenter voice from <Audio 1> to speak only the supplied dialogue"
+    : reusesReferenceAudio
+      ? " while reusing <Audio 1>"
+      : "";
+  const outputSoundscape = replacesReferenceAudio
+    ? `${soundscape} Do not copy or repeat the original spoken words from <Audio 1>.`
+    : reusesReferenceAudio
+      ? "Reuse <Audio 1> as the synchronized output audio."
+      : soundscape;
+  const outputMusic = reusesReferenceAudio
+    ? "Reuse any music contained in <Audio 1> as part of the synchronized source audio."
+    : music;
 
   return [
     `subject_definitions:\n${subjectDefinitions.join("\n") || "No supplied reference subject is required to appear in this shot."}`,
-    `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the described scene"}${input.referenceVideoKey ? " while reusing <Audio 1>" : ""}.`,
+    `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the described scene"}${summaryAudio}.`,
     `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,
     `detailed_description:\n${timeline}`,
-    `overall_soundscape:\n${input.referenceVideoKey ? "Reuse <Audio 1> as the synchronized output audio." : soundscape}`,
-    `non_diegetic_music:\n${input.referenceVideoKey ? "Reuse any music contained in <Audio 1> as part of the synchronized source audio." : music}`,
+    `overall_soundscape:\n${outputSoundscape}`,
+    `non_diegetic_music:\n${outputMusic}`,
   ].join("\n\n");
 }
 

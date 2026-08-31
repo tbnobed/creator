@@ -184,13 +184,13 @@ export const miniMaxH3R2vSeed = {
 export const miniMaxH3R2vVideoSeed = {
   a100: {
     name: "MiniMax H3 REF2VA Video (A100)",
-    description: "MiniMax H3 presenter-video reference generation for NVIDIA A100 workers. The uploaded video supplies lip-sync conditioning and its original audio is preserved in the output.",
+    description: "MiniMax H3 presenter-video reference generation for NVIDIA A100 workers. The uploaded video supplies lip-sync conditioning; original audio is preserved unless exact replacement dialogue is provided.",
     tags: ["minimax-h3", "a100"],
     clipName: "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
   },
   blackwell: {
     name: "MiniMax H3 REF2VA Video (Blackwell)",
-    description: "MiniMax H3 presenter-video reference generation for Blackwell workers. The uploaded video supplies lip-sync conditioning and its original audio is preserved in the output.",
+    description: "MiniMax H3 presenter-video reference generation for Blackwell workers. The uploaded video supplies lip-sync conditioning; original audio is preserved unless exact replacement dialogue is provided.",
     tags: ["minimax-h3", "blackwell"],
     clipName: blackwellTextEncoder,
   },

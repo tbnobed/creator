@@ -1,10 +1,10 @@
 ---
-name: Presenter audio preservation
-description: Why presenter-video workflows should retain the uploaded source track instead of decoded model audio.
+name: Presenter audio preservation and replacement
+description: When presenter-video workflows should preserve source audio versus clone its voice for exact replacement dialogue.
 ---
 
-Presenter-video outputs should preserve the uploaded source audio while still using it to condition lip sync. Do not replace that track with model-decoded audio unless the workflow is explicitly intended to synthesize speech.
+Presenter-video outputs should preserve the uploaded source audio when no replacement dialogue is supplied. Explicit exact dialogue changes the operation: use source audio only as a voice-identity reference, replace the original words completely, and synthesize only the supplied line.
 
-**Why:** Model-generated audio can begin correctly and drift into nonsensical speech partway through longer clips. Exact presenter dialogue is more important than regenerated ambience.
+**Why:** Unconditionally preserving source audio contradicts explicit voice-cloning requests, while unconditionally generating audio risks gibberish and needless loss of a valid source track.
 
-**How to apply:** For reference-video workflows, feed source audio into the model for conditioning and route the original source audio to the final video mux. Treat generated speech or TTS as a separate, explicit workflow.
+**How to apply:** Branch on exact dialogue. Without dialogue, copy the synchronized source track. With dialogue, mark source audio as voice-reference-only and state that its spoken content must be discarded and replaced exactly.
