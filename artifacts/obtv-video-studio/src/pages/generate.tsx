@@ -48,6 +48,21 @@ type ComposerDraft = {
   seed?: number;
 };
 
+const SPEECH_REQUEST_PATTERN = /\b(narration|narrator|voice[- ]?over|dialogue|speaks?|talks?|says?|asks?|replies?|reads?|announces?)\b/i;
+
+function extractQuotedDialogue(prompt: string): { dialogue: string; visualPrompt: string } | null {
+  if (!SPEECH_REQUEST_PATTERN.test(prompt)) return null;
+  const quotedLines = [...prompt.matchAll(/[“"]([^”"\n]{2,})[”"]/g)];
+  if (quotedLines.length === 0) return null;
+  const dialogue = quotedLines.map((match) => match[1].trim()).filter(Boolean).join(" ");
+  if (!dialogue) return null;
+  const visualPrompt = prompt
+    .replace(/[“"]([^”"\n]{2,})[”"]/g, "the exact supplied dialogue")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { dialogue, visualPrompt };
+}
+
 function readComposerDraft(): ComposerDraft {
   try {
     const raw = window.localStorage.getItem(COMPOSER_DRAFT_STORAGE_KEY);
@@ -112,6 +127,7 @@ export default function GeneratePage() {
   const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
   const hasReferenceVideo = Boolean(referenceVideoKey);
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
+  const inferredDialogue = extractQuotedDialogue(prompt);
 
   useEffect(() => {
     window.localStorage.setItem(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
@@ -181,16 +197,15 @@ export default function GeneratePage() {
     if (workflowRequiresReferenceVideo && !referenceVideoKey) {
       return alert("The selected workflow requires a reference video.");
     }
-    const requestsSpeech = /\b(narration|narrator|voice[- ]?over|dialogue|speaks?|talks?|says?|reads?|announces?)\b/i.test(prompt);
-    if (!hasReferenceVideo && requestsSpeech && !dialogue.trim()) {
-      return alert("This shot requests narration or speech, but no exact dialogue was entered. Add the words to speak before rendering.");
-    }
-    if (!hasReferenceVideo && dialogue.trim()) {
-      const wordCount = dialogue.trim().split(/\s+/).length;
+    const resolvedDialogue = dialogue.trim() || inferredDialogue?.dialogue || "";
+    const resolvedPrompt = !dialogue.trim() && inferredDialogue?.visualPrompt
+      ? inferredDialogue.visualPrompt
+      : prompt.trim();
+    let resolvedDuration = duration;
+    if (!hasReferenceVideo && resolvedDialogue) {
+      const wordCount = resolvedDialogue.split(/\s+/).length;
       const minimumSpeechDuration = Math.ceil(wordCount / 2.5 + 1.5);
-      if (duration < minimumSpeechDuration) {
-        return alert(`The dialogue needs about ${minimumSpeechDuration} seconds. Increase the shot duration or shorten the spoken line.`);
-      }
+      resolvedDuration = Math.min(30, Math.max(duration, minimumSpeechDuration));
     }
 
     try {
@@ -198,13 +213,13 @@ export default function GeneratePage() {
         data: {
           characterIds: selectedChars.length ? selectedChars : undefined,
           settingId: selectedSetting || undefined,
-          prompt,
-          dialogue: dialogue.trim() || undefined,
+          prompt: resolvedPrompt,
+          dialogue: resolvedDialogue || undefined,
           negativePrompt,
           cameraInstructions,
           motionInstructions,
           generationMode,
-          durationSeconds: duration,
+          durationSeconds: resolvedDuration,
           fps: fps as 24 | 25 | 30,
           width,
           height,
@@ -300,7 +315,7 @@ export default function GeneratePage() {
             </div>
           )}
 
-          <Tabs defaultValue="cast" className="w-full">
+            <Tabs defaultValue="prompt" className="w-full">
             <TabsList className="mb-4 grid h-12 w-full grid-cols-3 rounded-lg bg-secondary p-1">
               <TabsTrigger value="cast" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">1. Cast</TabsTrigger>
               <TabsTrigger value="environment" className="rounded-md text-xs font-semibold text-muted-foreground sm:text-sm data-[state=active]:bg-[linear-gradient(90deg,#FF1F62_0%,#8B2BE2_100%)] data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_14px_rgba(255,31,98,0.25)]">2. Environment</TabsTrigger>
@@ -394,6 +409,64 @@ export default function GeneratePage() {
             </TabsContent>
 
             <TabsContent value="prompt" className="space-y-4 mt-0">
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Paste Your Shot Prompt</Label>
+                <Textarea
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  className="min-h-56 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
+                  placeholder={'Paste the complete shot prompt here. Put spoken words in quotes, for example: Andrea looks at camera and says, "Welcome to the show."'}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Paste and generate. Spoken words inside quotation marks are automatically extracted as exact dialogue for H3.
+                </p>
+              </div>
+
+              <details className="rounded-lg border border-border/60 bg-card/20">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Optional advanced controls</summary>
+                <div className="space-y-4 border-t border-border/60 p-4">
+                  <div className="space-y-2">
+                    <Label>Exact Dialogue Override</Label>
+                    <Textarea
+                      value={dialogue}
+                      onChange={event => setDialogue(event.target.value)}
+                      className="h-24 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
+                      placeholder={hasReferenceVideo
+                        ? "Optional conditioning text. The reference video's original audio remains in the output."
+                        : "Optional. Leave blank to extract quoted speech from the main prompt."}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Camera Movement</Label>
+                      <Input
+                        value={cameraInstructions}
+                        onChange={e => setCameraInstructions(e.target.value)}
+                        className="bg-secondary/20"
+                        placeholder="e.g. slow pan right, tracking shot..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Motion Dynamics</Label>
+                      <Input
+                        value={motionInstructions}
+                        onChange={e => setMotionInstructions(e.target.value)}
+                        className="bg-secondary/20"
+                        placeholder="e.g. high motion, cinematic physics..."
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <Label className="text-muted-foreground text-sm">Negative Prompt</Label>
+                    <Textarea
+                      value={negativePrompt}
+                      onChange={e => setNegativePrompt(e.target.value)}
+                      className="h-16 bg-secondary/5 text-xs text-muted-foreground border-border/50"
+                    />
+                  </div>
+                </div>
+              </details>
+
               <PromptGuidancePanel
                 prompt={prompt}
                 onPromptChange={setPrompt}
@@ -403,66 +476,12 @@ export default function GeneratePage() {
                 onMotionChange={setMotionInstructions}
                 negativePrompt={negativePrompt}
                 onNegativeChange={setNegativePrompt}
-                dialogue={dialogue}
+                dialogue={dialogue.trim() || inferredDialogue?.dialogue || ""}
                 onDialogueChange={setDialogue}
                 generationMode={generationMode}
                 requiresReference={workflowRequiresReferenceVideo}
                 hasReference={hasReferenceVideo}
               />
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Action & Composition (Main Prompt)</Label>
-                <Textarea 
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                  className="h-32 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
-                  placeholder="Describe what is happening in the shot... e.g. Character walks slowly towards the camera, looking determined."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Exact Dialogue / Narration</Label>
-                <Textarea
-                  value={dialogue}
-                  onChange={event => setDialogue(event.target.value)}
-                  className="h-24 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
-                  placeholder={hasReferenceVideo
-                    ? "Optional conditioning text. The uploaded reference video's original audio remains in the output."
-                    : "Enter only the exact words that should be spoken. Leave blank for a silent shot."}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Keep visual direction in the main prompt. Spoken words are placed first in model conditioning to reduce invented or garbled speech.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Camera Movement</Label>
-                  <Input 
-                    value={cameraInstructions}
-                    onChange={e => setCameraInstructions(e.target.value)}
-                    className="bg-secondary/20"
-                    placeholder="e.g. slow pan right, tracking shot..." 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Motion Dynamics</Label>
-                  <Input 
-                    value={motionInstructions}
-                    onChange={e => setMotionInstructions(e.target.value)}
-                    className="bg-secondary/20"
-                    placeholder="e.g. high motion, cinematic physics..." 
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <Label className="text-muted-foreground text-sm">Negative Prompt (Exclusions)</Label>
-                <Textarea 
-                  value={negativePrompt}
-                  onChange={e => setNegativePrompt(e.target.value)}
-                  className="h-16 bg-secondary/5 text-xs text-muted-foreground border-border/50"
-                />
-              </div>
             </TabsContent>
           </Tabs>
         </div>

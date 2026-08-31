@@ -149,7 +149,7 @@ export function PromptGuidancePanel(props: Props) {
 
   return (
     <Card className="overflow-hidden border-primary/25 bg-primary/[0.035]">
-      <Accordion type="single" collapsible defaultValue="builder">
+      <Accordion type="single" collapsible>
         <AccordionItem value="builder" className="border-0 px-4">
           <AccordionTrigger className="hover:no-underline">
             <span className="flex items-center gap-2"><Wand2 className="size-4 text-primary" /> Prompt Builder & Live AI Check</span>
