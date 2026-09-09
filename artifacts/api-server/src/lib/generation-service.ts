@@ -15,7 +15,7 @@ import {
   type GenerationJob,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { ComfyUIClient } from "./comfy/client";
+import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
@@ -37,7 +37,11 @@ const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
 const generationTimeoutMs = 6 * 60 * 60 * 1000;
 const maxConsecutiveMonitorErrors = 3;
-const workerUnreachableMessage = "ComfyUI worker stopped responding after 3 consecutive checks. Retry the shot when the worker is online.";
+
+function repeatedComfyRequestFailureMessage(error: unknown): string {
+  const detail = error instanceof Error ? error.message : "Unknown ComfyUI request error";
+  return `ComfyUI request failed ${maxConsecutiveMonitorErrors} consecutive times. Last error: ${detail}`;
+}
 
 async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -490,21 +494,28 @@ type ComfyOutputFile = {
   type?: unknown;
 };
 
-function chooseOutput(history: Record<string, unknown>): { filename: string; subfolder: string; type: string } | null {
-  const first = Object.values(history)[0];
-  if (!first || typeof first !== "object") return null;
-  const outputs = (first as { outputs?: Record<string, Record<string, unknown>> }).outputs;
-  if (!outputs) return null;
+function chooseOutput(
+  history: Record<string, unknown>,
+  promptId: string,
+): { filename: string; subfolder: string; type: string } | null {
+  const records = Object.values(history);
+  const requested = history[promptId] ?? (records.length === 1 ? records[0] : null);
+  if (!requested || typeof requested !== "object" || Array.isArray(requested)) return null;
+  const outputs = (requested as { outputs?: unknown }).outputs;
+  if (!outputs || typeof outputs !== "object" || Array.isArray(outputs)) return null;
   for (const output of Object.values(outputs)) {
+    if (!output || typeof output !== "object" || Array.isArray(output)) continue;
     for (const collectionName of ["gifs", "videos", "images"]) {
-      const collection = output[collectionName];
+      const collection = (output as Record<string, unknown>)[collectionName];
       if (!Array.isArray(collection)) continue;
-      for (const file of collection as ComfyOutputFile[]) {
-        if (typeof file.filename === "string" && file.filename.match(/\.(mp4|webm|mov|mkv)$/i)) {
+      for (const file of collection as unknown[]) {
+        if (!file || typeof file !== "object" || Array.isArray(file)) continue;
+        const candidate = file as ComfyOutputFile;
+        if (typeof candidate.filename === "string" && candidate.filename.match(/\.(mp4|webm|mov|mkv)$/i)) {
           return {
-            filename: file.filename,
-            subfolder: typeof file.subfolder === "string" ? file.subfolder : "",
-            type: typeof file.type === "string" ? file.type : "output",
+            filename: candidate.filename,
+            subfolder: typeof candidate.subfolder === "string" ? candidate.subfolder : "",
+            type: typeof candidate.type === "string" ? candidate.type : "output",
           };
         }
       }
@@ -543,6 +554,12 @@ export async function resumeActiveGenerations(): Promise<void> {
       .where(eq(comfyServersTable.id, job.comfyServerId));
     if (!server) {
       logger.warn({ jobId: job.id, serverId: job.comfyServerId }, "Cannot resume generation: ComfyUI server is missing");
+      await db.update(generationJobsTable).set({
+        status: "FAILED",
+        currentNode: null,
+        errorMessage: "The ComfyUI server assigned to this generation no longer exists.",
+        failedAt: new Date(),
+      }).where(and(eq(generationJobsTable.id, job.id), inArray(generationJobsTable.status, activeGenerationStatuses)));
       continue;
     }
     void monitorGeneration(job.id, new ComfyUIClient(server), job.comfyPromptId);
@@ -1127,7 +1144,7 @@ async function downloadCompletedOutput(
   allowTimedOutFailure = false,
 ): Promise<boolean> {
   const history = await client.getHistory(promptId);
-  const output = chooseOutput(history);
+  const output = chooseOutput(history, promptId);
   if (!output) return false;
 
   const eligibleStatus = allowTimedOutFailure
@@ -1211,17 +1228,19 @@ async function downloadCompletedOutput(
       .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
     return true;
   } catch (error) {
-    await db
-      .update(generationJobsTable)
-      .set({
-        status: allowTimedOutFailure ? "FAILED" : "RUNNING",
-        currentNode: null,
-        errorMessage: allowTimedOutFailure
-          ? generationTimeoutMessage
-          : error instanceof Error ? error.message : "Output download failed",
-        failedAt: allowTimedOutFailure ? new Date() : null,
-      })
-      .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+    try {
+      await db
+        .update(generationJobsTable)
+        .set({
+          status: allowTimedOutFailure ? "FAILED" : "RUNNING",
+          currentNode: null,
+          errorMessage: error instanceof Error ? error.message : "Output finalization failed",
+          failedAt: allowTimedOutFailure ? new Date() : null,
+        })
+        .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+    } catch (statusError) {
+      logger.error({ err: statusError, jobId }, "Could not restore generation status after output finalization failed");
+    }
     throw error;
   }
 }
@@ -1404,29 +1423,39 @@ async function monitorGeneration(jobId: string, client: ComfyUIClient, promptId:
         if (await downloadCompletedOutput(jobId, client, promptId)) return;
         consecutiveMonitorErrors = 0;
       } catch (error) {
+        const transientWorkerFailure = isTransientComfyUIRequestError(error);
+        if (!transientWorkerFailure) {
+          const message = error instanceof Error ? error.message : "Generation output processing failed";
+          await db
+            .update(generationJobsTable)
+            .set({
+              status: "FAILED",
+              currentNode: null,
+              errorMessage: message,
+              failedAt: new Date(),
+            })
+            .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+          logger.error({ err: error, jobId }, "Generation output finalization failed");
+          return;
+        }
         consecutiveMonitorErrors += 1;
         logger.warn(
           { err: error, jobId, consecutiveMonitorErrors, maxConsecutiveMonitorErrors },
           "Generation monitor could not reach ComfyUI",
         );
         if (consecutiveMonitorErrors >= maxConsecutiveMonitorErrors) {
-          const [failed] = await db
+          const failureMessage = repeatedComfyRequestFailureMessage(error);
+          await db
             .update(generationJobsTable)
             .set({
               status: "FAILED",
               currentNode: null,
-              errorMessage: workerUnreachableMessage,
+              errorMessage: failureMessage,
               failedAt: new Date(),
             })
             .where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
-            .returning({ comfyServerId: generationJobsTable.comfyServerId });
-          if (failed?.comfyServerId) {
-            await db
-              .update(comfyServersTable)
-              .set({ status: "OFFLINE" })
-              .where(eq(comfyServersTable.id, failed.comfyServerId));
-          }
-          logger.error({ err: error, jobId, comfyServerId: failed?.comfyServerId }, workerUnreachableMessage);
+            .returning({ id: generationJobsTable.id });
+          logger.error({ err: error, jobId }, failureMessage);
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 5_000));

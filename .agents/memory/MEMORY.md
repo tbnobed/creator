@@ -16,3 +16,4 @@
 - [Voice cloning activation](voice-cloning-activation.md) — Voice cloning is an explicit per-generation option and must never be enabled by default.
 - [Paid provider job recovery](paid-provider-job-recovery.md) — Persist provider queue endpoints and keep paid jobs recoverable through transient failures and restarts.
 - [Portable auth enrollment](portable-auth-enrollment.md) — Separate operator bootstrap and legacy credential enrollment from ordinary tenant invitations.
+- [Comfy monitor error classification](comfy-monitor-error-classification.md) — Only transient Comfy request failures count toward worker reachability; preserve finalization errors.

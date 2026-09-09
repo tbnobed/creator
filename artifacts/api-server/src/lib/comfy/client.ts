@@ -8,6 +8,34 @@ export type PrivateComfyServer = {
 
 type FetchOptions = RequestInit & { timeoutMs?: number };
 
+export type ComfyUIRequestErrorKind = "configuration" | "network" | "http" | "invalid-response";
+
+export class ComfyUIRequestError extends Error {
+  constructor(
+    message: string,
+    readonly kind: ComfyUIRequestErrorKind,
+    options?: ErrorOptions & { status?: number },
+  ) {
+    super(message, options);
+    this.name = "ComfyUIRequestError";
+    this.status = options?.status;
+  }
+
+  readonly status?: number;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function isTransientComfyUIRequestError(error: unknown): error is ComfyUIRequestError {
+  return error instanceof ComfyUIRequestError
+    && (
+      error.kind === "network"
+      || (error.kind === "http" && Boolean(error.status && (error.status >= 500 || error.status === 429 || error.status === 408)))
+    );
+}
+
 type ComfyWebSocket = {
   onmessage: ((event: { data: unknown }) => void) | null;
   onerror: ((event: unknown) => void) | null;
@@ -53,20 +81,57 @@ export class ComfyUIClient {
   constructor(private readonly server: PrivateComfyServer) {}
 
   private async request<T>(pathname: string, options: FetchOptions = {}): Promise<T> {
-    const baseUrl = await assertTrustedComfyUrl(this.server.apiBaseUrl);
+    let baseUrl: URL;
+    try {
+      baseUrl = await assertTrustedComfyUrl(this.server.apiBaseUrl);
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI request configuration is invalid: ${errorMessage(error)}`,
+        "configuration",
+        { cause: error },
+      );
+    }
     const target = new URL(pathname, baseUrl);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 15_000);
+    let response: Response;
     try {
-      const response = await fetch(target, { ...options, signal: controller.signal });
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(`ComfyUI ${response.status}: ${message.slice(0, 500)}`);
-      }
-      const responseText = await response.text();
-      return (responseText ? JSON.parse(responseText) : undefined) as T;
+      response = await fetch(target, { ...options, signal: controller.signal });
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI request to ${pathname} failed: ${errorMessage(error)}`,
+        "network",
+        { cause: error },
+      );
     } finally {
       clearTimeout(timer);
+    }
+    let responseText: string;
+    try {
+      responseText = await response.text();
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI response from ${pathname} was interrupted: ${errorMessage(error)}`,
+        "network",
+        { cause: error },
+      );
+    }
+    if (!response.ok) {
+      throw new ComfyUIRequestError(
+        `ComfyUI ${pathname} returned HTTP ${response.status}${responseText ? `: ${responseText.slice(0, 500)}` : ""}`,
+        "http",
+        { status: response.status },
+      );
+    }
+    if (!responseText) return undefined as T;
+    try {
+      return JSON.parse(responseText) as T;
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI ${pathname} returned invalid JSON`,
+        "invalid-response",
+        { cause: error },
+      );
     }
   }
 
@@ -78,8 +143,13 @@ export class ComfyUIClient {
     return this.request<{ queue_running?: unknown[]; queue_pending?: unknown[] }>("/queue");
   }
 
-  getHistory(promptId: string) {
-    return this.request<Record<string, unknown>>(`/history/${encodeURIComponent(promptId)}`);
+  async getHistory(promptId: string): Promise<Record<string, unknown>> {
+    const pathname = `/history/${encodeURIComponent(promptId)}`;
+    const history = await this.request<unknown>(pathname);
+    if (!history || typeof history !== "object" || Array.isArray(history)) {
+      throw new ComfyUIRequestError(`ComfyUI ${pathname} returned an invalid history object`, "invalid-response");
+    }
+    return history as Record<string, unknown>;
   }
 
   getModels(folder: string) {
@@ -110,14 +180,46 @@ export class ComfyUIClient {
   }
 
   async getOutputFile(filename: string, subfolder = "", type = "output"): Promise<Buffer> {
-    const baseUrl = await assertTrustedComfyUrl(this.server.apiBaseUrl);
+    let baseUrl: URL;
+    try {
+      baseUrl = await assertTrustedComfyUrl(this.server.apiBaseUrl);
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI output request configuration is invalid: ${errorMessage(error)}`,
+        "configuration",
+        { cause: error },
+      );
+    }
     const target = new URL("/view", baseUrl);
     target.searchParams.set("filename", filename);
     target.searchParams.set("subfolder", subfolder);
     target.searchParams.set("type", type);
-    const response = await fetch(target, { signal: AbortSignal.timeout(120_000) });
-    if (!response.ok) throw new Error(`ComfyUI output retrieval failed: ${response.status}`);
-    return Buffer.from(await response.arrayBuffer());
+    let response: Response;
+    try {
+      response = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI output retrieval failed: ${errorMessage(error)}`,
+        "network",
+        { cause: error },
+      );
+    }
+    if (!response.ok) {
+      throw new ComfyUIRequestError(
+        `ComfyUI output retrieval returned HTTP ${response.status}`,
+        "http",
+        { status: response.status },
+      );
+    }
+    try {
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      throw new ComfyUIRequestError(
+        `ComfyUI output transfer was interrupted: ${errorMessage(error)}`,
+        "network",
+        { cause: error },
+      );
+    }
   }
 
   submitWorkflow(workflow: Record<string, unknown>, clientId: string) {
