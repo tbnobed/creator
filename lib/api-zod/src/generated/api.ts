@@ -9,6 +9,88 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get public authentication settings
+ */
+export const GetAuthConfigResponse = zod.object({
+  "registrationEnabled": zod.boolean(),
+  "bootstrapAvailable": zod.boolean()
+})
+
+
+/**
+ * @summary Create an account and start a session
+ */
+export const registerBodyEmailMax = 320;
+
+export const registerBodyPasswordMin = 12;
+export const registerBodyPasswordMax = 128;
+
+export const registerBodyDisplayNameMax = 160;
+
+export const registerBodyInvitationTokenMin = 32;
+export const registerBodyInvitationTokenMax = 256;
+
+export const registerBodyBootstrapTokenMin = 32;
+export const registerBodyBootstrapTokenMax = 256;
+
+
+
+export const RegisterBody = zod.object({
+  "email": zod.string().max(registerBodyEmailMax),
+  "password": zod.string().min(registerBodyPasswordMin).max(registerBodyPasswordMax),
+  "displayName": zod.string().min(1).max(registerBodyDisplayNameMax),
+  "invitationToken": zod.string().min(registerBodyInvitationTokenMin).max(registerBodyInvitationTokenMax).optional(),
+  "bootstrapToken": zod.string().min(registerBodyBootstrapTokenMin).max(registerBodyBootstrapTokenMax).optional()
+})
+
+export const RegisterResponse = zod.void()
+
+
+/**
+ * @summary Start a session with email and password
+ */
+export const loginBodyEmailMax = 320;
+
+export const loginBodyPasswordMin = 12;
+export const loginBodyPasswordMax = 128;
+
+
+
+export const LoginBody = zod.object({
+  "email": zod.string().max(loginBodyEmailMax),
+  "password": zod.string().min(loginBodyPasswordMin).max(loginBodyPasswordMax)
+})
+
+export const LoginResponse = zod.void()
+
+
+/**
+ * @summary End the current session
+ */
+export const LogoutResponse = zod.void()
+
+
+/**
+ * @summary Accept a workspace invitation for the authenticated account
+ */
+export const acceptTenantInvitationBodyTokenMin = 32;
+export const acceptTenantInvitationBodyTokenMax = 256;
+
+
+
+export const AcceptTenantInvitationBody = zod.object({
+  "token": zod.string().min(acceptTenantInvitationBodyTokenMin).max(acceptTenantInvitationBodyTokenMax)
+})
+
+export const AcceptTenantInvitationResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+
+
+/**
  * @summary List safe generation options available to the active tenant
  */
 export const GetGenerationCapabilitiesResponseItem = zod.object({
@@ -105,7 +187,7 @@ export const ListTenantMembersResponse = zod.array(ListTenantMembersResponseItem
 
 
 /**
- * @summary Add or update an existing local user
+ * @summary Create a recipient-confirmed workspace invitation
  */
 export const AddTenantMemberParams = zod.object({
   "id": zod.coerce.string()
@@ -117,10 +199,10 @@ export const AddTenantMemberBody = zod.object({
 })
 
 export const AddTenantMemberResponse = zod.object({
-  "userId": zod.string(),
-  "email": zod.string().nullable(),
-  "displayName": zod.string(),
-  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+  "email": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER']),
+  "token": zod.string(),
+  "expiresAt": zod.string()
 })
 
 

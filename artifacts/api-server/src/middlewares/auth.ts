@@ -1,12 +1,13 @@
-import { clerkClient, getAuth } from "@clerk/express";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import {
+  authSessionsTable,
   db,
   tenantMembershipsTable,
   tenantsTable,
   usersTable,
 } from "@workspace/db";
+import { AUTH_COOKIE_NAME, digestSessionToken } from "../lib/auth-service";
 
 export type RequestContext = {
   user: typeof usersTable.$inferSelect;
@@ -22,85 +23,41 @@ declare global {
   }
 }
 
-function personalTenantName(displayName: string): string {
-  return `${displayName.trim() || "My"} Studio`;
-}
-
-async function clerkProfile(userId: string): Promise<{ email: string | null; displayName: string }> {
-  const remote = await clerkClient.users.getUser(userId);
-  const email = remote.primaryEmailAddress?.emailAddress?.trim().toLowerCase()
-    ?? remote.emailAddresses[0]?.emailAddress?.trim().toLowerCase()
-    ?? null;
-  const displayName = remote.fullName?.trim()
-    || remote.username?.trim()
-    || email?.split("@")[0]
-    || "OBTV User";
-  return { email, displayName: displayName.slice(0, 160) };
-}
-
-async function provisionUser(userId: string) {
-  const existing = await db.query.usersTable.findFirst({ where: eq(usersTable.id, userId) });
-  if (existing) return existing;
-  const profile = await clerkProfile(userId);
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('obtv:first-user'))`);
-    const concurrent = await tx.query.usersTable.findFirst({ where: eq(usersTable.id, userId) });
-    if (concurrent) return concurrent;
-    const [priorUser] = await tx.select({ id: usersTable.id })
-      .from(usersTable)
-      .where(ne(usersTable.id, "__obtv_legacy__"))
-      .limit(1);
-    const first = !priorUser;
-    const [created] = await tx.insert(usersTable).values({
-      id: userId,
-      email: profile.email,
-      displayName: profile.displayName,
-      siteRole: first ? "SITE_ADMIN" : "USER",
-    }).returning();
-    let tenant = first
-      ? (await tx.select().from(tenantsTable).where(eq(tenantsTable.isDefault, true)).limit(1))[0]
-      : undefined;
-    if (!tenant) {
-      [tenant] = await tx.insert(tenantsTable).values({
-        name: first ? "OBTV" : personalTenantName(profile.displayName),
-        slug: `${first ? "obtv" : "studio"}-${crypto.randomUUID().slice(0, 8)}`,
-        isDefault: first,
-        createdByUserId: userId,
-      }).returning();
-    } else if (!tenant.createdByUserId || tenant.createdByUserId === "__obtv_legacy__") {
-      [tenant] = await tx.update(tenantsTable)
-        .set({ createdByUserId: userId })
-        .where(eq(tenantsTable.id, tenant.id))
-        .returning();
-    }
-    await tx.insert(tenantMembershipsTable).values({
-      tenantId: tenant.id,
-      userId,
-      role: "OWNER",
-    }).onConflictDoNothing();
-    const [updated] = await tx.update(usersTable)
-      .set({ activeTenantId: tenant.id })
-      .where(eq(usersTable.id, userId))
-      .returning();
-    return updated ?? created;
-  });
-}
-
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const auth = getAuth(req);
-  const claimedUserId = auth?.sessionClaims?.userId;
-  const userId = typeof claimedUserId === "string" ? claimedUserId : auth?.userId;
-  if (!userId) {
+  const token = req.cookies?.[AUTH_COOKIE_NAME];
+  if (typeof token !== "string" || !token) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
   try {
-    const user = await provisionUser(userId);
+    const digest = digestSessionToken(token);
+    const [result] = await db.select({
+      session: authSessionsTable,
+      user: usersTable,
+    }).from(authSessionsTable)
+      .innerJoin(usersTable, eq(usersTable.id, authSessionsTable.userId))
+      .where(eq(authSessionsTable.id, digest))
+      .limit(1);
+    if (!result) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    if (result.session.expiresAt.getTime() <= Date.now()) {
+      await db.delete(authSessionsTable).where(eq(authSessionsTable.id, digest));
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    if (Date.now() - result.session.lastSeenAt.getTime() >= 5 * 60 * 1000) {
+      await db.update(authSessionsTable)
+        .set({ lastSeenAt: new Date() })
+        .where(eq(authSessionsTable.id, digest));
+    }
+    const user = result.user;
     req.context = { user, tenant: null, membership: null };
     next();
   } catch (error) {
-    req.log.error({ err: error, clerkUserId: userId }, "Could not provision authenticated user");
-    res.status(503).json({ error: "Account provisioning is temporarily unavailable" });
+    req.log.error({ err: error }, "Could not resolve authenticated session");
+    res.status(503).json({ error: "Authentication is temporarily unavailable" });
   }
 }
 

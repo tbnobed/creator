@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './authConfig';
+export * from './authLoginInput';
+export * from './authRegistrationInput';
 export * from './character';
 export * from './characterInput';
 export * from './characterVoiceSampleResult';
@@ -64,6 +67,8 @@ export * from './siteRole';
 export * from './studioImageGenerationInput';
 export * from './studioImageGenerationResult';
 export * from './tenantInput';
+export * from './tenantInvitation';
+export * from './tenantInvitationAcceptanceInput';
 export * from './tenantMember';
 export * from './tenantMemberInput';
 export * from './tenantRole';

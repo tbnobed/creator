@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Portable application-owned authentication
+  - name: tenants
+    description: Tenant and membership operations
   - name: characters
     description: Character library
   - name: settings
@@ -23,6 +27,85 @@ tags:
   - name: long-form-projects
     description: Long-form video planning and orchestration
 paths:
+  /auth/config:
+    get:
+      operationId: getAuthConfig
+      tags: [auth]
+      summary: Get public authentication settings
+      responses:
+        "200":
+          description: Public authentication settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthConfig" }
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Create an account and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthRegistrationInput" }
+      responses:
+        "204":
+          description: Account created and session started
+        "400":
+          description: Invalid registration
+        "409":
+          description: Email is already registered
+        "403":
+          description: Initial administrator email is not permitted
+        "429":
+          description: Too many attempts
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Start a session with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthLoginInput" }
+      responses:
+        "204":
+          description: Session started
+        "400":
+          description: Invalid login request
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Too many attempts
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Session ended
+  /tenant-invitations/accept:
+    post:
+      operationId: acceptTenantInvitation
+      tags: [tenants]
+      summary: Accept a workspace invitation for the authenticated account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantInvitationAcceptanceInput" }
+      responses:
+        "200":
+          description: Accepted invitation and active tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantSummary" }
+        "400":
+          description: Invalid or expired invitation
+        "403":
+          description: Invitation belongs to another account
   /generation-capabilities:
     get:
       operationId: getGenerationCapabilities
@@ -106,7 +189,7 @@ paths:
     post:
       operationId: addTenantMember
       tags: [tenants]
-      summary: Add or update an existing local user
+      summary: Create a recipient-confirmed workspace invitation
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -116,10 +199,10 @@ paths:
             schema: { $ref: "#/components/schemas/TenantMemberInput" }
       responses:
         "201":
-          description: Added member
+          description: Invitation created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/TenantMember" }
+              schema: { $ref: "#/components/schemas/TenantInvitation" }
   /tenants/{id}/members/{userId}:
     delete:
       operationId: deleteTenantMember
@@ -887,6 +970,27 @@ components:
       schema:
         type: string
   schemas:
+    AuthConfig:
+      type: object
+      required: [registrationEnabled, bootstrapAvailable]
+      properties:
+        registrationEnabled: { type: boolean }
+        bootstrapAvailable: { type: boolean }
+    AuthLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, maxLength: 320 }
+        password: { type: string, minLength: 12, maxLength: 128 }
+    AuthRegistrationInput:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email: { type: string, maxLength: 320 }
+        password: { type: string, minLength: 12, maxLength: 128 }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        invitationToken: { type: string, minLength: 32, maxLength: 256 }
+        bootstrapToken: { type: string, minLength: 32, maxLength: 256 }
     GenerationCapability:
       type: object
       required: [id, name, generationMode, modelFamily, supportsReferenceVideo, supportsCharacterReferences, supportsSettingReference]
@@ -948,6 +1052,19 @@ components:
       properties:
         email: { type: string }
         role: { $ref: "#/components/schemas/TenantRole" }
+    TenantInvitation:
+      type: object
+      required: [email, role, token, expiresAt]
+      properties:
+        email: { type: string }
+        role: { $ref: "#/components/schemas/TenantRole" }
+        token: { type: string }
+        expiresAt: { type: string }
+    TenantInvitationAcceptanceInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, minLength: 32, maxLength: 256 }
     HealthStatus:
       type: object
       properties:

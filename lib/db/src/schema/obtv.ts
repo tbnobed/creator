@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -26,12 +27,27 @@ export const usersTable = pgTable(
   {
     id: text("id").primaryKey(),
     email: text("email"),
+    passwordHash: text("password_hash"),
     displayName: text("display_name").notNull().default("OBTV User"),
     siteRole: text("site_role").notNull().default("USER").$type<"SITE_ADMIN" | "USER">(),
     activeTenantId: uuid("active_tenant_id"),
     ...timestamps,
   },
   (table) => [uniqueIndex("obtv_users_email_unique").on(table.email)],
+);
+
+export const authSessionsTable = pgTable(
+  "obtv_auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("obtv_auth_sessions_expires_at_idx").on(table.expiresAt)],
 );
 
 export const tenantsTable = pgTable("obtv_tenants", {
@@ -56,6 +72,31 @@ export const tenantMembershipsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.tenantId, table.userId] })],
+);
+
+export const tenantInvitationsTable = pgTable(
+  "obtv_tenant_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenantsTable.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").notNull().default("MEMBER").$type<"OWNER" | "ADMIN" | "MEMBER">(),
+    tokenHash: text("token_hash").notNull(),
+    targetUserId: text("target_user_id")
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    allowsPasswordEnrollment: boolean("allows_password_enrollment").notNull().default(false),
+    invitedByUserId: text("invited_by_user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("obtv_tenant_invitations_token_hash_unique").on(table.tokenHash),
+    index("obtv_tenant_invitations_expires_at_idx").on(table.expiresAt),
+  ],
 );
 
 export const charactersTable = pgTable("obtv_characters", {

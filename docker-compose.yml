@@ -54,7 +54,12 @@ services:
       NO_PROXY: prompt-ai,db,127.0.0.1,localhost
       no_proxy: prompt-ai,db,127.0.0.1,localhost
       COMFY_ALLOWED_HOSTS: ${COMFY_ALLOWED_HOSTS:-}
-      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      APP_ORIGINS: ${APP_ORIGINS:-}
+      TRUST_PROXY: "true"
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?Set INITIAL_ADMIN_EMAIL in .env}
+      AUTH_BOOTSTRAP_TOKEN: ${AUTH_BOOTSTRAP_TOKEN:?Set AUTH_BOOTSTRAP_TOKEN in .env}
+      AUTH_ALLOW_REGISTRATION: ${AUTH_ALLOW_REGISTRATION:-true}
       FAL_KEY: ${FAL_KEY:-}
       OBTV_SEED_A100_NAME: ${OBTV_SEED_A100_NAME:-PN A100}
       OBTV_SEED_A100_API_URL: ${OBTV_SEED_A100_API_URL:-}
@@ -97,6 +102,7 @@ services:
     restart: unless-stopped
     environment:
       API_PROXY_ORIGIN: http://api:5000
+      TRUST_PROXY: ${WEB_TRUST_PROXY:-false}
     ports:
       - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8080}:8080"
 

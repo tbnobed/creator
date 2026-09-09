@@ -5,6 +5,46 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface AuthConfig {
+  registrationEnabled: boolean;
+  bootstrapAvailable: boolean;
+}
+
+export interface AuthLoginInput {
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface AuthRegistrationInput {
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  displayName: string;
+  /**
+     * @minLength 32
+     * @maxLength 256
+     */
+  invitationToken?: string;
+  /**
+     * @minLength 32
+     * @maxLength 256
+     */
+  bootstrapToken?: string;
+}
+
 export interface GenerationCapability {
   id: string;
   name: string;
@@ -71,6 +111,21 @@ export interface TenantMember {
 export interface TenantMemberInput {
   email: string;
   role: TenantRole;
+}
+
+export interface TenantInvitation {
+  email: string;
+  role: TenantRole;
+  token: string;
+  expiresAt: string;
+}
+
+export interface TenantInvitationAcceptanceInput {
+  /**
+     * @minLength 32
+     * @maxLength 256
+     */
+  token: string;
 }
 
 export interface HealthStatus {

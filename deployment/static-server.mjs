@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "public");
 const port = Number(process.env.PORT ?? 8080);
 const apiProxyOrigin = process.env.API_PROXY_ORIGIN;
+const trustUpstreamProxy = process.env.TRUST_PROXY === "true";
 
 const CONTENT_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -66,9 +67,32 @@ const server = http.createServer(async (request, response) => {
       const target = new URL(request.url ?? "/api", apiProxyOrigin);
       const headers = new Headers();
       for (const [name, value] of Object.entries(request.headers)) {
-        if (value === undefined || name === "host") continue;
+        if (value === undefined || ["host", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto"].includes(name)) continue;
         headers.set(name, Array.isArray(value) ? value.join(", ") : value);
       }
+      const publicHost = request.headers.host;
+      if (publicHost) {
+        headers.set("host", publicHost);
+        headers.set("x-forwarded-host", publicHost);
+      }
+      const incomingForwardedFor = request.headers["x-forwarded-for"];
+      const trustedForwardedFor = Array.isArray(incomingForwardedFor)
+        ? incomingForwardedFor[0]
+        : incomingForwardedFor?.split(",", 1)[0]?.trim();
+      const clientIp = trustUpstreamProxy && trustedForwardedFor
+        ? trustedForwardedFor
+        : request.socket.remoteAddress;
+      if (clientIp) headers.set("x-forwarded-for", clientIp);
+      const incomingForwardedProto = request.headers["x-forwarded-proto"];
+      const trustedForwardedProto = Array.isArray(incomingForwardedProto)
+        ? incomingForwardedProto[0]
+        : incomingForwardedProto?.split(",", 1)[0]?.trim();
+      headers.set(
+        "x-forwarded-proto",
+        trustUpstreamProxy && trustedForwardedProto
+          ? trustedForwardedProto
+          : request.socket.encrypted ? "https" : "http",
+      );
       const upstream = await fetch(target, {
         method: request.method,
         headers,

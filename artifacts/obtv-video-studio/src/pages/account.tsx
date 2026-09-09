@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useClerk } from "@clerk/react";
 import { 
   useGetSession, 
+  useLogout,
   useListTenants, 
   useCreateTenant, 
   useActivateTenant,
@@ -18,14 +18,31 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { LogOut, Plus, CheckCircle2, UserPlus, Trash2, Building, UserCircle, Shield, Briefcase, Mail, BadgeCheck, Users } from "lucide-react";
+import { LogOut, Plus, CheckCircle2, UserPlus, Trash2, Building, UserCircle, Shield, Briefcase, Mail, BadgeCheck, Users, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { publishAuthChanged } from "@/lib/auth-events";
 
 export default function AccountPage() {
   const { data: session } = useGetSession();
-  const { signOut } = useClerk();
+  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const { toast } = useToast();
+  const logout = useLogout({
+    mutation: {
+      onSuccess: () => {
+        queryClient.clear();
+        publishAuthChanged();
+        setLocation("/");
+      },
+      onError: () => {
+        toast({
+          title: "Sign out failed",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
 
   if (!session) return null;
 
@@ -38,11 +55,13 @@ export default function AccountPage() {
         </div>
         <Button 
           variant="destructive" 
-          onClick={() => signOut({ redirectUrl: basePath || "/" })}
+          onClick={() => logout.mutate()}
+          disabled={logout.isPending}
           className="shrink-0 shadow-sm"
+          data-testid="button-sign-out"
         >
           <LogOut className="size-4 mr-2" />
-          Sign Out
+          {logout.isPending ? "Signing Out…" : "Sign Out"}
         </Button>
       </div>
 
@@ -264,15 +283,14 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
   const [addOpen, setAddOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
+  const [inviteUrl, setInviteUrl] = useState("");
 
   const addMember = useAddTenantMember({
     mutation: {
-      onSuccess: () => {
-        setAddOpen(false);
-        setNewEmail("");
-        setNewRole("MEMBER");
-        toast({ title: "Member Added" });
-        refetch();
+      onSuccess: (invitation) => {
+        const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+        setInviteUrl(`${window.location.origin}${basePath}/sign-up?invite=${encodeURIComponent(invitation.token)}`);
+        toast({ title: "Invitation created" });
       },
       onError: (err) => {
         toast({
@@ -318,22 +336,36 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
         </div>
         
         {canManageMembers && (
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <Dialog open={addOpen} onOpenChange={(open) => {
+            setAddOpen(open);
+            if (!open) {
+              setInviteUrl("");
+              setNewEmail("");
+              setNewRole("MEMBER");
+            }
+          }}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="shrink-0 bg-secondary/50">
                 <UserPlus className="size-4 mr-1.5" />
-                Add User
+                Invite User
               </Button>
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleAdd}>
                 <DialogHeader>
-                  <DialogTitle>Add Workspace Member</DialogTitle>
+                  <DialogTitle>{inviteUrl ? "Invitation Ready" : "Invite Workspace Member"}</DialogTitle>
                   <DialogDescription>
-                    Add an existing user to this workspace. They must have signed into the studio at least once.
+                    {inviteUrl
+                      ? "Send this one-time link to the intended recipient. It expires in seven days."
+                      : "Access is granted only after the recipient signs in and accepts this invitation."}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
+                {inviteUrl ? (
+                  <div className="space-y-3 py-4">
+                    <Label htmlFor="invite-url">Invitation Link</Label>
+                    <Input id="invite-url" value={inviteUrl} readOnly data-testid="input-invitation-link" />
+                  </div>
+                ) : <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input 
@@ -357,12 +389,27 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                </div>}
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-                  <Button type="submit" disabled={!newEmail.trim() || addMember.isPending}>
-                    {addMember.isPending ? "Adding..." : "Add User"}
-                  </Button>
+                  {inviteUrl ? (
+                    <>
+                      <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Done</Button>
+                      <Button type="button" onClick={async () => {
+                        await navigator.clipboard.writeText(inviteUrl);
+                        toast({ title: "Invitation link copied" });
+                      }} data-testid="button-copy-invitation">
+                        <Copy className="mr-2 size-4" />
+                        Copy Link
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                      <Button type="submit" disabled={!newEmail.trim() || addMember.isPending}>
+                        {addMember.isPending ? "Creating..." : "Create Invitation"}
+                      </Button>
+                    </>
+                  )}
                 </DialogFooter>
               </form>
             </DialogContent>

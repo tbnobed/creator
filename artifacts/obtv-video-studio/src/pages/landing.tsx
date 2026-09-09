@@ -1,12 +1,12 @@
 import { Link } from "wouter";
-import { SignInButton, SignUpButton, useAuth } from "@clerk/react";
+import { useGetAuthConfig } from "@workspace/api-client-react";
 
 export default function LandingPage() {
-  const { isLoaded } = useAuth();
-  
-  if (!isLoaded) return <div className="min-h-[100dvh] bg-background" />;
-  
   const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.jpg`;
+  const { data: authConfig } = useGetAuthConfig();
+  const registrationAvailable = Boolean(
+    authConfig?.registrationEnabled || authConfig?.bootstrapAvailable,
+  );
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background selection:bg-primary/30">
@@ -15,14 +15,17 @@ export default function LandingPage() {
           src={wordmarkSrc}
           alt="OBTV CreatorAi"
           className="h-7 md:h-9 object-contain"
+          data-testid="img-landing-wordmark"
         />
         <div className="flex items-center gap-4">
-          <Link href="/sign-in" className="text-sm font-medium text-foreground hover:text-primary transition-colors hidden md:block">
+          <Link href="/sign-in" className="text-sm font-medium text-foreground hover:text-primary transition-colors hidden md:block" data-testid="link-header-sign-in">
             Sign In
           </Link>
-          <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
-            Get Started
-          </Link>
+          {registrationAvailable && (
+            <Link href="/sign-up" className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm" data-testid="link-header-sign-up">
+              Get Started
+            </Link>
+          )}
         </div>
       </header>
 
@@ -43,15 +46,19 @@ export default function LandingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link 
-              href="/sign-up"
-              className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-lg transition-colors shadow-lg hover:shadow-primary/25"
-            >
-              Start Creating
-            </Link>
+            {registrationAvailable && (
+              <Link
+                href="/sign-up"
+                className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-lg transition-colors shadow-lg hover:shadow-primary/25"
+                data-testid="link-hero-sign-up"
+              >
+                Start Creating
+              </Link>
+            )}
             <Link 
               href="/sign-in"
               className="w-full sm:w-auto px-8 py-4 bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-lg font-semibold text-lg transition-colors"
+              data-testid="link-hero-sign-in"
             >
               Sign In to Workspace
             </Link>

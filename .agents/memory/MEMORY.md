@@ -15,3 +15,4 @@
 - [Comfy audio handoff](comfy-audio-handoff.md) — Use built-in PCM WAV handling across isolated runtimes; Comfy torchaudio may require unavailable TorchCodec.
 - [Voice cloning activation](voice-cloning-activation.md) — Voice cloning is an explicit per-generation option and must never be enabled by default.
 - [Paid provider job recovery](paid-provider-job-recovery.md) — Persist provider queue endpoints and keep paid jobs recoverable through transient failures and restarts.
+- [Portable auth enrollment](portable-auth-enrollment.md) — Separate operator bootstrap and legacy credential enrollment from ordinary tenant invitations.

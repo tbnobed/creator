@@ -37,7 +37,7 @@ directly to the internet.
 ### Direct LAN access without NPM
 
 For a trusted internal network, set `WEB_BIND_ADDRESS=0.0.0.0` in `.env`, then
-run `docker compose up -d --build`. The studio will be reachable at
+set `AUTH_COOKIE_SECURE=false`, and run `docker compose up -d --build`. The studio will be reachable at
 `http://<ubuntu-server-lan-ip>:${WEB_PORT:-8080}`. The web container proxies
 same-origin `/api` requests to the private API container, so do not expose
 `API_PORT` to the LAN. Restrict this port with a host firewall or use NPM and
@@ -57,13 +57,20 @@ bind mount, make the host directory writable by UID/GID `10001`.
    chmod 600 .env
    ```
 
-3. Edit `.env`. Set a unique, long, URL-safe `POSTGRES_PASSWORD`, choose
+3. Edit `.env`. Set a unique, long, URL-safe `POSTGRES_PASSWORD`, set
+   `INITIAL_ADMIN_EMAIL` to the exact email that is allowed to create the first
+   site-administrator account, generate `AUTH_BOOTSTRAP_TOKEN` with
+   `openssl rand -base64 32`, choose
    `WEB_PORT` and `API_PORT` if the defaults are already in use, and set
    `COMFY_ALLOWED_HOSTS` to the hostnames or public IPs of the ComfyUI workers.
    Do not put `http://`, `https://`, `ws://`, ports, or paths in the allowlist.
    Set each matching `OBTV_SEED_*_API_URL` and
    `OBTV_SEED_*_WEBSOCKET_URL` pair to seed that external worker. The local AI
-   prompt checker is enabled by default and requires no paid API key.
+   prompt checker is enabled by default and requires no paid API key. For a
+   public HTTPS deployment, set `AUTH_COOKIE_SECURE=true`. When Nginx Proxy
+   Manager is in front of the web container, also set `WEB_TRUST_PROXY=true`.
+   Set `AUTH_ALLOW_REGISTRATION=false` to make the deployment invite-only after
+   the initial administrator is created.
 4. Build and start:
 
    ```sh
@@ -82,6 +89,19 @@ bind mount, make the host directory writable by UID/GID `10001`.
 On a fresh database, the API applies the committed Drizzle migrations before it
 opens its HTTP port. It then seeds the complete studio workflow catalog
 idempotently; existing user-managed records are not overwritten.
+
+Open the studio and create the first account with `INITIAL_ADMIN_EMAIL`, entering
+`AUTH_BOOTSTRAP_TOKEN` in the initial setup token field. The token is required
+only while no password account exists and is independent of the public email
+identifier, preventing an unrelated registrant from claiming site-administrator
+access. Passwords are salted with scrypt, login
+sessions are stored as hashed opaque tokens in PostgreSQL, and the browser
+receives only an `HttpOnly` session cookie.
+
+With `AUTH_ALLOW_REGISTRATION=false`, ordinary self-registration is rejected by
+the API and public account-creation links are hidden. The first administrator
+can still complete bootstrap, and recipients with valid workspace invitation
+links can still create their accounts.
 
 ### AI prompt review in Docker
 
@@ -213,8 +233,13 @@ gunzip -c backups/obtv-YYYY-MM-DD.sql.gz \
 - **ComfyUI tests fail:** verify outbound network access from the Ubuntu host,
   ensure the worker hostname/IP is in `COMFY_ALLOWED_HOSTS`, and configure the
   worker URL from the dashboard. ComfyUI is not part of this Compose project.
-- **A separate frontend needs API access:** set `CORS_ORIGIN` to that exact
-  browser origin. Leave it blank when NPM serves the UI and API on one domain.
+- **A separate frontend needs API access:** add its exact browser origin to
+  `APP_ORIGINS`. Leave it blank when the UI and API share one origin.
+- **Sign-in POSTs return `Origin not allowed`:** confirm the public proxy
+  preserves the browser host. With Nginx Proxy Manager in front of the bundled
+  web container, set `WEB_TRUST_PROXY=true`.
+- **Sign-in works on HTTPS but not direct HTTP (or vice versa):** use
+  `AUTH_COOKIE_SECURE=true` for HTTPS and `false` only for trusted-LAN HTTP.
 
 ## Local validation
 

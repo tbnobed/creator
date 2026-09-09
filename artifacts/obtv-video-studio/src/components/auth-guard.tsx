@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { useGetSession, getGetSessionQueryKey } from "@workspace/api-client-react";
-import { useAuth } from "@clerk/react";
-import { Redirect, useLocation } from "wouter";
+import { Redirect } from "wouter";
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -9,25 +8,15 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children, requireSiteAdmin = false }: AuthGuardProps) {
-  const { isLoaded, isSignedIn } = useAuth();
   const { data: session, isLoading: sessionLoading, error } = useGetSession({
     query: {
-      enabled: isLoaded && isSignedIn,
       queryKey: getGetSessionQueryKey(),
+      retry: (failureCount, queryError) => {
+        const status = (queryError as { status?: number }).status;
+        return status !== 401 && status !== 403 && failureCount < 1;
+      },
     }
   });
-
-  const [location] = useLocation();
-  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-  if (!isLoaded) {
-    return <PageLoading />;
-  }
-
-  if (!isSignedIn) {
-    // If not signed in via Clerk, redirect to sign-in page
-    return <Redirect to="/sign-in" />;
-  }
 
   if (sessionLoading) {
     return <PageLoading />;
@@ -52,7 +41,7 @@ export function AuthGuard({ children, requireSiteAdmin = false }: AuthGuardProps
       <div className="flex h-[100dvh] w-full items-center justify-center bg-background">
         <div className="text-center p-6 bg-card rounded-lg border border-border shadow-lg">
           <h2 className="text-xl font-bold mb-2">Failed to load session</h2>
-          <p className="text-muted-foreground">{(error as Error)?.message || 'An unknown error occurred'}</p>
+          <p className="text-muted-foreground">Please refresh the page and try again.</p>
         </div>
       </div>
     );

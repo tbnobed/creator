@@ -11,11 +11,13 @@ import longFormProjectsRouter from "./long-form-projects";
 import promptGuidanceRouter from "./prompt-guidance";
 import sessionRouter from "./session";
 import generationCapabilitiesRouter from "./generation-capabilities";
+import authRouter from "./auth";
 import { requireAuth, requireTenant } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
 router.use(requireAuth);
 router.use(requireTenant);
 router.use(sessionRouter);

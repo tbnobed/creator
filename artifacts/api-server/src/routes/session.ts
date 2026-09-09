@@ -2,10 +2,20 @@ import { and, eq, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   db,
+  tenantInvitationsTable,
   tenantMembershipsTable,
   tenantsTable,
   usersTable,
 } from "@workspace/db";
+import {
+  AcceptTenantInvitationBody,
+  AddTenantMemberBody,
+} from "@workspace/api-zod";
+import {
+  createInvitationToken,
+  digestInvitationToken,
+  normalizeEmail,
+} from "../lib/auth-service";
 
 const router: IRouter = Router();
 const tenantRoles = new Set(["OWNER", "ADMIN", "MEMBER"]);
@@ -109,10 +119,11 @@ router.get("/tenants/:id/members", async (req, res): Promise<void> => {
 
 router.post("/tenants/:id/members", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
-  const role = typeof req.body?.role === "string" ? req.body.role : "";
-  if (!email || !tenantRoles.has(role)) {
-    res.status(400).json({ error: "A valid existing-user email and role are required" });
+  const parsed = AddTenantMemberBody.safeParse(req.body);
+  const email = parsed.success ? normalizeEmail(parsed.data.email) : null;
+  const role = parsed.success ? parsed.data.role : "";
+  if (!parsed.success || !email || !tenantRoles.has(role)) {
+    res.status(400).json({ error: "A valid recipient email and role are required" });
     return;
   }
   try {
@@ -127,42 +138,107 @@ router.post("/tenants/:id/members", async (req, res): Promise<void> => {
       if (!["OWNER", "ADMIN"].includes(caller.role)) {
         throw new MembershipMutationError(403, "Tenant administrator access required");
       }
-      const [user] = await tx.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-      if (!user) throw new MembershipMutationError(404, "User not found");
-      const [target] = await tx.select().from(tenantMembershipsTable).where(and(
-        eq(tenantMembershipsTable.tenantId, id),
-        eq(tenantMembershipsTable.userId, user.id),
-      )).limit(1);
-      if (caller.role === "ADMIN" && target?.role === "OWNER") {
-        throw new MembershipMutationError(403, "Administrators cannot change an owner");
-      }
       if (role === "OWNER" && caller.role !== "OWNER") {
-        throw new MembershipMutationError(403, "Only owners can add another owner");
+        throw new MembershipMutationError(403, "Only owners can invite another owner");
       }
-      if (target?.role === "OWNER" && role !== "OWNER") {
-        const owners = await tx.select({ userId: tenantMembershipsTable.userId })
-          .from(tenantMembershipsTable)
-          .where(and(eq(tenantMembershipsTable.tenantId, id), eq(tenantMembershipsTable.role, "OWNER")));
-        if (owners.length <= 1) {
-          throw new MembershipMutationError(409, "The final tenant owner cannot be demoted");
-        }
+      const [existingUser] = await tx.select({
+        id: usersTable.id,
+        passwordHash: usersTable.passwordHash,
+      })
+        .from(usersTable)
+        .where(eq(usersTable.email, email))
+        .limit(1);
+      const [target] = existingUser
+        ? await tx.select().from(tenantMembershipsTable).where(and(
+        eq(tenantMembershipsTable.tenantId, id),
+          eq(tenantMembershipsTable.userId, existingUser.id),
+        )).limit(1)
+        : [];
+      if (target && existingUser?.passwordHash) {
+        throw new MembershipMutationError(409, "That account is already a workspace member");
       }
-      const [membership] = await tx.insert(tenantMembershipsTable).values({
+      if (existingUser && !existingUser.passwordHash && req.context!.user.siteRole !== "SITE_ADMIN") {
+        throw new MembershipMutationError(
+          403,
+          "Only a site administrator can issue a password-enrollment invitation for a legacy member",
+        );
+      }
+      const invitationRole = target?.role ?? role as "OWNER" | "ADMIN" | "MEMBER";
+
+      await tx.delete(tenantInvitationsTable).where(and(
+        eq(tenantInvitationsTable.tenantId, id),
+        eq(tenantInvitationsTable.email, email),
+      ));
+      const token = createInvitationToken();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await tx.insert(tenantInvitationsTable).values({
         tenantId: id,
-        userId: user.id,
-        role: role as "OWNER" | "ADMIN" | "MEMBER",
-      }).onConflictDoUpdate({
-        target: [tenantMembershipsTable.tenantId, tenantMembershipsTable.userId],
-        set: { role: role as "OWNER" | "ADMIN" | "MEMBER" },
-      }).returning();
-      return { user, membership };
+        email,
+        role: invitationRole,
+        tokenHash: digestInvitationToken(token),
+        targetUserId: existingUser?.passwordHash ? null : existingUser?.id,
+        allowsPasswordEnrollment: Boolean(existingUser && !existingUser.passwordHash),
+        invitedByUserId: req.context!.user.id,
+        expiresAt,
+      });
+      return { email, role: invitationRole, token, expiresAt };
     });
     res.status(201).json({
-      userId: result.user.id,
-      email: result.user.email,
-      displayName: result.user.displayName,
-      role: result.membership.role,
+      email: result.email,
+      role: result.role,
+      token: result.token,
+      expiresAt: result.expiresAt.toISOString(),
     });
+  } catch (error) {
+    if (error instanceof MembershipMutationError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.post("/tenant-invitations/accept", async (req, res): Promise<void> => {
+  const parsed = AcceptTenantInvitationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid invitation token is required" });
+    return;
+  }
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [invitation] = await tx.select().from(tenantInvitationsTable)
+        .where(eq(tenantInvitationsTable.tokenHash, digestInvitationToken(parsed.data.token)))
+        .limit(1)
+        .for("update");
+      if (!invitation) throw new MembershipMutationError(400, "Invitation is invalid or expired");
+      if (invitation.expiresAt.getTime() <= Date.now()) {
+        await tx.delete(tenantInvitationsTable).where(eq(tenantInvitationsTable.id, invitation.id));
+        throw new MembershipMutationError(400, "Invitation is invalid or expired");
+      }
+      if (!req.context!.user.email || req.context!.user.email !== invitation.email) {
+        throw new MembershipMutationError(403, "Invitation belongs to another account");
+      }
+      const [tenant] = await tx.select().from(tenantsTable)
+        .where(eq(tenantsTable.id, invitation.tenantId))
+        .limit(1);
+      if (!tenant) throw new MembershipMutationError(400, "Invitation is invalid or expired");
+      const [membership] = await tx.insert(tenantMembershipsTable).values({
+        tenantId: invitation.tenantId,
+        userId: req.context!.user.id,
+        role: invitation.role,
+      }).onConflictDoNothing().returning();
+      const effectiveMembership = membership ?? (await tx.select().from(tenantMembershipsTable).where(and(
+        eq(tenantMembershipsTable.tenantId, invitation.tenantId),
+        eq(tenantMembershipsTable.userId, req.context!.user.id),
+      )).limit(1))[0];
+      if (!effectiveMembership) throw new MembershipMutationError(409, "Could not accept invitation");
+      await tx.update(usersTable)
+        .set({ activeTenantId: invitation.tenantId })
+        .where(eq(usersTable.id, req.context!.user.id));
+      await tx.delete(tenantInvitationsTable).where(eq(tenantInvitationsTable.id, invitation.id));
+      return tenantSummary(tenant, effectiveMembership);
+    });
+    res.json(result);
   } catch (error) {
     if (error instanceof MembershipMutationError) {
       res.status(error.status).json({ error: error.message });

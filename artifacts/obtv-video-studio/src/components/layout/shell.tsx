@@ -14,9 +14,8 @@ import {
   X,
   UserCircle
 } from "lucide-react";
-import { useHealthCheck, useGetSession, getGetSessionQueryKey } from "@workspace/api-client-react";
+import { useHealthCheck, useGetSession } from "@workspace/api-client-react";
 import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
-import { useAuth } from "@clerk/react";
 
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -24,14 +23,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.jpg`;
 
   const { data: health } = useHealthCheck();
-  const { isLoaded, isSignedIn } = useAuth();
-  
-  const { data: session } = useGetSession({
-    query: {
-      enabled: isLoaded && isSignedIn,
-      queryKey: getGetSessionQueryKey()
-    }
-  });
+  const { data: session } = useGetSession();
 
   // Close mobile menu when location changes
   useEffect(() => {
