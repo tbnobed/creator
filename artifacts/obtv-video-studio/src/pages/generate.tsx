@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Check, Clapperboard, Users, Map, Settings2, Play, Pencil, Video } from "lucide-react";
 import { 
   Select,
@@ -42,7 +43,46 @@ const LTX25_RESOLUTION_OPTIONS = [
   { width: 1024, height: 1024, label: "1024x1024 (final)" },
 ] as const;
 
+type GenerationProvider = "COMFYUI" | "FAL";
+type FalModel = "veo-3.1-fast" | "kling-v3-standard" | "seedance-2.0-mini" | "seedance-2.0";
+
+const FAL_MODELS: Array<{ value: FalModel; label: string; rate: number }> = [
+  { value: "veo-3.1-fast", label: "Veo 3.1 Fast", rate: 0.10 },
+  { value: "kling-v3-standard", label: "Kling v3 Standard", rate: 0.084 },
+  { value: "seedance-2.0-mini", label: "Seedance 2.0 Mini", rate: 0.0721 },
+  { value: "seedance-2.0", label: "Seedance 2.0 quality", rate: 0.3034 },
+];
+
+const FAL_MODEL_BY_PROVIDER_ID: Record<string, FalModel> = {
+  "fal-ai/veo3.1/fast": "veo-3.1-fast",
+  "fal-ai/kling-video/v3/standard/text-to-video": "kling-v3-standard",
+  "bytedance/seedance-2.0/enterprise/mini/text-to-video": "seedance-2.0-mini",
+  "bytedance/seedance-2.0/enterprise/v2/text-to-video": "seedance-2.0",
+};
+
+function effectiveFalDuration(model: FalModel, duration: number): number {
+  if (model === "veo-3.1-fast") {
+    return [4, 6, 8].reduce((best, value) => (
+      Math.abs(value - duration) < Math.abs(best - duration) ? value : best
+    ), 8);
+  }
+  if (model === "kling-v3-standard") return duration <= 5 ? 5 : 10;
+  return Math.max(4, Math.min(15, Math.round(duration)));
+}
+
+function falRate(model: FalModel, quality: "DRAFT" | "STANDARD" | "HIGH"): number {
+  if (model === "seedance-2.0-mini") return quality === "DRAFT" ? 0.0721 : 0.1547;
+  if (model === "seedance-2.0") {
+    const resolutionScale = quality === "DRAFT" ? (480 / 720) ** 2 : quality === "HIGH" ? (1080 / 720) ** 2 : 1;
+    return 0.3034 * resolutionScale;
+  }
+  return FAL_MODELS.find((option) => option.value === model)?.rate ?? 0;
+}
+
 type ComposerDraft = {
+  provider?: GenerationProvider;
+  model?: FalModel;
+  voiceCloningEnabled?: boolean;
   selectedChars?: string[];
   selectedSetting?: string;
   prompt?: string;
@@ -116,6 +156,9 @@ export default function GeneratePage() {
   const [referenceVideoKey, setReferenceVideoKey] = useState<string | null>(
     () => queryReferenceVideoKey ?? readReferenceVideoKey(),
   );
+  const [provider, setProvider] = useState<GenerationProvider>(() => draft.provider ?? "COMFYUI");
+  const [model, setModel] = useState<FalModel>(() => draft.model ?? "veo-3.1-fast");
+  const [voiceCloningEnabled, setVoiceCloningEnabled] = useState(() => draft.voiceCloningEnabled ?? false);
   
   const [prompt, setPrompt] = useState(() => draft.prompt ?? "");
   const [dialogue, setDialogue] = useState(() => draft.dialogue ?? "");
@@ -146,11 +189,23 @@ export default function GeneratePage() {
   const isLtx25Mode = activeWorkflowsForMode.some((workflow) => workflow.modelFamily === "LTX 2.5");
   const resolutionOptions = isLtx25Mode ? LTX25_RESOLUTION_OPTIONS : DEFAULT_RESOLUTION_OPTIONS;
   const hasReferenceVideo = Boolean(referenceVideoKey);
+  const isCloudProvider = provider === "FAL";
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
+  const resolvedDialogueForVoice = dialogue.trim() || inferredDialogue?.dialogue || "";
+  const firstSelectedCharacter = characters?.find((character) => character.id === selectedChars[0]);
+  const hasConsentedSelectedVoice = Boolean(firstSelectedCharacter?.hasVoiceSample && firstSelectedCharacter.voiceConsentAt);
+  const canEnableVoiceCloning = hasConsentedSelectedVoice && Boolean(resolvedDialogueForVoice);
+  const selectedFalModel = FAL_MODELS.find((option) => option.value === model) ?? FAL_MODELS[0];
+  const pricedFalDuration = effectiveFalDuration(model, duration);
+  const pricedFalRate = falRate(model, qualityPreset);
+  const estimatedFalCost = pricedFalDuration * pricedFalRate;
 
   useEffect(() => {
     window.localStorage.setItem(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
+      provider,
+      model,
+      voiceCloningEnabled,
       selectedChars,
       selectedSetting,
       prompt,
@@ -168,7 +223,7 @@ export default function GeneratePage() {
       seed,
     } satisfies ComposerDraft));
   }, [
-    selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
+    provider, model, voiceCloningEnabled, selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
     motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed,
   ]);
 
@@ -181,6 +236,11 @@ export default function GeneratePage() {
   useEffect(() => {
     if (!sourceJob || hasPrefilledSourceJob.current) return;
     setPrompt(sourceJob.prompt);
+    setProvider(sourceJob.provider);
+    if (sourceJob.providerModelId && FAL_MODEL_BY_PROVIDER_ID[sourceJob.providerModelId]) {
+      setModel(FAL_MODEL_BY_PROVIDER_ID[sourceJob.providerModelId]);
+    }
+    setVoiceCloningEnabled(sourceJob.voiceCloningEnabled);
     setGenerationMode(sourceJob.generationMode);
     setDuration(sourceJob.durationSeconds);
     setFps(sourceJob.fps);
@@ -223,21 +283,24 @@ export default function GeneratePage() {
 
   const handleGenerate = async () => {
     if (!prompt) return alert("Shot prompt is required");
-    if (!hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) {
+    if (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) {
       return alert("Select at least one character with a reference image");
     }
-    if (!hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) {
+    if (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) {
       return alert("Select a setting");
     }
-    if (workflowRequiresReferenceVideo && !referenceVideoKey) {
+    if (!isCloudProvider && workflowRequiresReferenceVideo && !referenceVideoKey) {
       return alert("The selected workflow requires a reference video.");
+    }
+    if (voiceCloningEnabled && !canEnableVoiceCloning) {
+      return alert("Voice cloning requires dialogue and a selected Character with a consented voice sample.");
     }
     const resolvedDialogue = dialogue.trim() || inferredDialogue?.dialogue || "";
     const resolvedPrompt = !dialogue.trim() && inferredDialogue?.visualPrompt
       ? inferredDialogue.visualPrompt
       : prompt.trim();
     let resolvedDuration = duration;
-    if (!hasReferenceVideo && resolvedDialogue) {
+    if (!isCloudProvider && !hasReferenceVideo && resolvedDialogue) {
       const wordCount = resolvedDialogue.split(/\s+/).length;
       const minimumSpeechDuration = Math.ceil(wordCount / 2.5 + 1.5);
       resolvedDuration = Math.min(30, Math.max(duration, minimumSpeechDuration));
@@ -246,6 +309,9 @@ export default function GeneratePage() {
     try {
       const res = await createJob.mutateAsync({
         data: {
+          provider,
+          model: provider === "FAL" ? model : undefined,
+          voiceCloningEnabled,
           characterIds: selectedChars.length ? selectedChars : undefined,
           settingId: selectedSetting || undefined,
           prompt: resolvedPrompt,
@@ -261,7 +327,7 @@ export default function GeneratePage() {
           qualityPreset,
           seedMode,
           seed: seedMode === "FIXED" ? seed : null,
-          referenceVideoKey: referenceVideoKey || undefined,
+          referenceVideoKey: provider === "COMFYUI" ? referenceVideoKey || undefined : undefined,
         }
       });
       window.localStorage.removeItem(COMPOSER_DRAFT_STORAGE_KEY);
@@ -305,24 +371,26 @@ export default function GeneratePage() {
             </div>
           </div>
 
-          <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <Card className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between ${isCloudProvider ? "border-border/60 bg-card/20" : "border-primary/25 bg-primary/5"}`}>
             <div className="flex min-w-0 items-start gap-3">
               <div className="rounded-lg bg-primary/15 p-2">
                 <Video className="size-4 text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold">
-                  {hasReferenceVideo ? "Reference video attached" : "Reference video"}
+                  {isCloudProvider ? "Reference video unavailable for cloud models" : hasReferenceVideo ? "Reference video attached" : "Reference video"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {hasReferenceVideo
+                   {isCloudProvider
+                     ? "fal.ai cloud models currently support text-to-video only. Switch to Local GPU / Comfy to use a reference video."
+                     : hasReferenceVideo
                     ? "Your video supplies the presenter, movement, timing, and audio. Character and environment selections are optional."
                     : "Attach presenter footage if the video should supply the subject, movement, timing, and audio. No character or environment selection is required when it is attached."}
                 </p>
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              {hasReferenceVideo && (
+              {!isCloudProvider && hasReferenceVideo && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -336,15 +404,17 @@ export default function GeneratePage() {
                   Remove
                 </Button>
               )}
-              <Link href={referenceVideoHref}>
-                <Button type="button" variant={hasReferenceVideo ? "outline" : "default"} size="sm">
+              <Link href={isCloudProvider ? "#" : referenceVideoHref} onClick={(event) => {
+                if (isCloudProvider) event.preventDefault();
+              }}>
+                <Button type="button" variant={hasReferenceVideo ? "outline" : "default"} size="sm" disabled={isCloudProvider}>
                   {hasReferenceVideo ? "Change video" : "Add reference video"}
                 </Button>
               </Link>
             </div>
           </Card>
 
-          {hasReferenceVideo && (
+          {!isCloudProvider && hasReferenceVideo && (
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">
               You can render directly with the reference video. Cast and environment are optional modifiers, not required inputs.
             </div>
@@ -514,8 +584,8 @@ export default function GeneratePage() {
                 dialogue={dialogue.trim() || inferredDialogue?.dialogue || ""}
                 onDialogueChange={setDialogue}
                 generationMode={generationMode}
-                requiresReference={workflowRequiresReferenceVideo}
-                hasReference={hasReferenceVideo}
+                requiresReference={!isCloudProvider && workflowRequiresReferenceVideo}
+                hasReference={!isCloudProvider && hasReferenceVideo}
               />
             </TabsContent>
           </Tabs>
@@ -530,6 +600,44 @@ export default function GeneratePage() {
 
             <div className="space-y-5">
               <div className="space-y-2">
+                <Label htmlFor="generation-provider">Generation target</Label>
+                <Select value={provider} onValueChange={(value: GenerationProvider) => setProvider(value)}>
+                  <SelectTrigger id="generation-provider" className="bg-secondary/20" data-testid="select-generation-provider">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="COMFYUI">Local GPU / Comfy</SelectItem>
+                    <SelectItem value="FAL">fal.ai cloud</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isCloudProvider && (
+                <div className="space-y-2">
+                  <Label htmlFor="fal-model">Cloud model</Label>
+                  <Select value={model} onValueChange={(value: FalModel) => setModel(value)}>
+                    <SelectTrigger id="fal-model" className="bg-secondary/20" data-testid="select-fal-model">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FAL_MODELS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3" data-testid="text-fal-cost-estimate">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">Approximate fal.ai cost</span>
+                      <span className="font-mono text-base font-semibold text-foreground">${estimatedFalCost.toFixed(2)}</span>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      {pricedFalDuration}s effective duration × ${pricedFalRate.toFixed(4)}/sec. Estimate excludes provider-native audio, which is off by default.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
                 <Label>Pipeline Mode</Label>
                 <Select value={generationMode} onValueChange={setGenerationMode}>
                   <SelectTrigger className="bg-secondary/20">
@@ -543,6 +651,28 @@ export default function GeneratePage() {
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2 border-t border-border/50 pt-4">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="voice-cloning" className="font-medium">Clone Character voice</Label>
+                  <Switch
+                    id="voice-cloning"
+                    checked={voiceCloningEnabled}
+                    onCheckedChange={setVoiceCloningEnabled}
+                    disabled={!canEnableVoiceCloning && !voiceCloningEnabled}
+                    aria-describedby="voice-cloning-help"
+                    data-testid="switch-voice-cloning"
+                  />
+                </div>
+                <p id="voice-cloning-help" className="text-[11px] leading-relaxed text-muted-foreground">
+                  Off by default. Requires dialogue and a selected Character with a consented voice sample. This adds cloned dialogue after generation; it is separate from provider-native audio.
+                </p>
+                {!canEnableVoiceCloning && (
+                  <p className="text-[11px] text-amber-400" role="status">
+                    Add dialogue and select a Character with a consented voice to enable.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -599,8 +729,12 @@ export default function GeneratePage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Framerate</Label>
-                  <Select value={fps.toString()} onValueChange={v => setFps(parseInt(v))}>
+                  <Label>{isCloudProvider ? "Framerate (provider fixed)" : "Framerate"}</Label>
+                  <Select
+                    value={(isCloudProvider ? 24 : fps).toString()}
+                    onValueChange={v => setFps(parseInt(v))}
+                    disabled={isCloudProvider}
+                  >
                     <SelectTrigger className="bg-secondary/20">
                       <SelectValue />
                     </SelectTrigger>
@@ -640,6 +774,10 @@ export default function GeneratePage() {
               <div className="mt-6 pt-4 border-t border-border/50">
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
                   <div className="flex justify-between">
+                     <span>Target:</span>
+                     <span className="text-foreground">{isCloudProvider ? selectedFalModel.label : "Local GPU / Comfy"}</span>
+                   </div>
+                   <div className="flex justify-between">
                     <span>Cast:</span>
                     <span className={selectedChars.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "text-foreground" : "text-destructive"}>
                       {selectedChars.length ? selectedChars.length : hasReferenceVideo || !workflowRequiresReferenceImage ? "Optional" : "Missing"}
@@ -651,7 +789,12 @@ export default function GeneratePage() {
                       {selectedSetting ? "Ready" : hasReferenceVideo || !workflowRequiresStudioSetting ? "Optional" : "Missing"}
                     </span>
                   </div>
-                  <div className="flex justify-between"><span>Reference:</span> <span className={hasReferenceVideo ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>{hasReferenceVideo ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}</span></div>
+                  <div className="flex justify-between">
+                    <span>Reference:</span>
+                    <span className={isCloudProvider ? "text-muted-foreground" : hasReferenceVideo ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>
+                      {isCloudProvider ? "Unsupported" : hasReferenceVideo ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}
+                    </span>
+                  </div>
                   <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
                 </div>
 
@@ -661,9 +804,10 @@ export default function GeneratePage() {
                   disabled={
                     createJob.isPending
                     || !prompt
-                    || (!hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
-                    || (!hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)
-                    || (workflowRequiresReferenceVideo && !hasReferenceVideo)
+                    || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
+                    || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)
+                    || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo)
+                    || (voiceCloningEnabled && !canEnableVoiceCloning)
                   }
                 >
                   {createJob.isPending ? "Queuing Job..." : "SEND TO RENDER"}

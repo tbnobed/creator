@@ -13,6 +13,8 @@ const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
 const VOICE_MIME_TYPES = new Set([
   "audio/wav",
   "audio/x-wav",
+  "audio/wave",
+  "audio/vnd.wave",
   "audio/mpeg",
   "audio/mp4",
   "audio/x-m4a",

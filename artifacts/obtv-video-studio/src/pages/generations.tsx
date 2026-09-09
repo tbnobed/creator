@@ -245,6 +245,9 @@ function groupHistoryJobs(jobs: GenerationJob[]) {
 
 function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending, compact = false }: { job: GenerationJob; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean; compact?: boolean }) {
   const isCancellable = ACTIVE_STATUSES.includes(job.status);
+  const executionLabel = job.provider === "FAL"
+    ? formatProviderModel(job.providerModelId)
+    : "Local GPU / Comfy";
   return (
     <Card className={`group relative flex min-w-0 flex-col border-border/60 bg-card/40 transition-colors hover:border-primary/45 ${compact ? "gap-2 p-3" : "gap-3 p-4"}`}>
       <Link href={`/generations/${job.id}`} className="min-w-0">
@@ -264,7 +267,9 @@ function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending,
       </Link>
       <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-3 text-[10px] text-muted-foreground">
         <span>{formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}</span>
-        {job.serverName && <Badge variant="outline" className="max-w-[45%] truncate bg-background/50 text-[9px] font-mono">{job.serverName}</Badge>}
+        <Badge variant="outline" className="max-w-[55%] truncate bg-background/50 text-[9px] font-mono" data-testid={`text-provider-${job.id}`}>
+          {executionLabel}
+        </Badge>
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-[10px] text-muted-foreground">{job.generationMode} · {job.width}×{job.height}</span>
@@ -272,6 +277,16 @@ function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending,
       </div>
     </Card>
   );
+}
+
+function formatProviderModel(providerModelId: string | null) {
+  switch (providerModelId) {
+    case "fal-ai/veo3.1/fast": return "fal.ai · Veo 3.1 Fast";
+    case "fal-ai/kling-video/v3/standard/text-to-video": return "fal.ai · Kling v3 Standard";
+    case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "fal.ai · Seedance 2.0 Mini";
+    case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "fal.ai · Seedance 2.0 quality";
+    default: return providerModelId ? `fal.ai · ${providerModelId}` : "fal.ai";
+  }
 }
 
 function Pagination({ page, totalPages, pageSize, start, end, totalItems, onPageChange, onPageSizeChange }: { page: number; totalPages: number; pageSize: number; start: number; end: number; totalItems: number; onPageChange: (page: number) => void; onPageSizeChange: (size: number) => void }) {

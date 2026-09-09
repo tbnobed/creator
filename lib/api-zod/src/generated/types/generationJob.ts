@@ -5,12 +5,21 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GenerationJobProvider } from './generationJobProvider';
+import type { GenerationJobProviderTaskMetadata } from './generationJobProviderTaskMetadata';
 import type { GenerationJobStatus } from './generationJobStatus';
 
 export interface GenerationJob {
   id: string;
   title: string;
   status: GenerationJobStatus;
+  provider: GenerationJobProvider;
+  /** @nullable */
+  providerModelId: string | null;
+  /** @nullable */
+  providerRequestId: string | null;
+  providerTaskMetadata: GenerationJobProviderTaskMetadata;
+  voiceCloningEnabled: boolean;
   prompt: string;
   compiledPrompt: string;
   generationMode: string;

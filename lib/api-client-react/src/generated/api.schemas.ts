@@ -259,6 +259,24 @@ export interface WorkflowUpdate {
   mappings?: WorkflowUpdateMappings;
 }
 
+export type GenerationInputProvider = typeof GenerationInputProvider[keyof typeof GenerationInputProvider];
+
+
+export const GenerationInputProvider = {
+  COMFYUI: 'COMFYUI',
+  FAL: 'FAL',
+} as const;
+
+export type GenerationInputModel = typeof GenerationInputModel[keyof typeof GenerationInputModel];
+
+
+export const GenerationInputModel = {
+  'veo-31-fast': 'veo-3.1-fast',
+  'kling-v3-standard': 'kling-v3-standard',
+  'seedance-20-mini': 'seedance-2.0-mini',
+  'seedance-20': 'seedance-2.0',
+} as const;
+
 export type GenerationInputFps = typeof GenerationInputFps[keyof typeof GenerationInputFps];
 
 
@@ -286,6 +304,9 @@ export const GenerationInputSeedMode = {
 } as const;
 
 export interface GenerationInput {
+  provider?: GenerationInputProvider;
+  model?: GenerationInputModel;
+  voiceCloningEnabled?: boolean;
   /**
      * @minItems 1
      * @maxItems 9
@@ -348,10 +369,27 @@ export const GenerationJobStatus = {
   CANCELLED: 'CANCELLED',
 } as const;
 
+export type GenerationJobProvider = typeof GenerationJobProvider[keyof typeof GenerationJobProvider];
+
+
+export const GenerationJobProvider = {
+  COMFYUI: 'COMFYUI',
+  FAL: 'FAL',
+} as const;
+
+export type GenerationJobProviderTaskMetadata = { [key: string]: unknown };
+
 export interface GenerationJob {
   id: string;
   title: string;
   status: GenerationJobStatus;
+  provider: GenerationJobProvider;
+  /** @nullable */
+  providerModelId: string | null;
+  /** @nullable */
+  providerRequestId: string | null;
+  providerTaskMetadata: GenerationJobProviderTaskMetadata;
+  voiceCloningEnabled: boolean;
   prompt: string;
   compiledPrompt: string;
   generationMode: string;

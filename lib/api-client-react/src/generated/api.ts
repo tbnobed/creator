@@ -89,7 +89,6 @@ export const getHealthCheckUrl = () => {
 
   return `/api/healthz`
 }
-
 /**
  * Returns server health status
  * @summary Health check
@@ -224,7 +223,6 @@ export function useListCharacters<TData = Awaited<ReturnType<typeof listCharacte
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
 export const getCreateCharacterUrl = () => {
 
 
@@ -724,6 +722,13 @@ export function useListSettings<TData = Awaited<ReturnType<typeof listSettings>>
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getCreateSettingUrl = () => {
 
 
@@ -1081,6 +1086,12 @@ export function useListServers<TData = Awaited<ReturnType<typeof listServers>>, 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+
+
+
+
+
+
 export const getCreateServerUrl = () => {
 
 
@@ -1366,6 +1377,12 @@ export function useGetServerConfiguration<TData = Awaited<ReturnType<typeof getS
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+
+
+
+
+
+
 export const getTestServerConnectionUrl = (id: string,) => {
 
 
@@ -1507,6 +1524,13 @@ export function useGetServerQueue<TData = Awaited<ReturnType<typeof getServerQue
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getListWorkflowsUrl = () => {
 
 
@@ -1577,6 +1601,13 @@ export function useListWorkflows<TData = Awaited<ReturnType<typeof listWorkflows
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getCreateWorkflowUrl = () => {
 
 
@@ -1718,6 +1749,13 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getUpdateWorkflowUrl = (id: string,) => {
 
 

@@ -177,6 +177,22 @@ export default function GenerationDetailPage() {
             </h3>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
+                <dt className="text-muted-foreground">Provider</dt>
+                <dd className="font-medium" data-testid="text-generation-provider">
+                  {job.provider === "FAL" ? "fal.ai" : "Local GPU / Comfy"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Model</dt>
+                <dd className="text-right font-medium" data-testid="text-generation-model">
+                  {job.provider === "FAL" ? formatProviderModel(job.providerModelId) : job.workflowName || "Comfy workflow"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Voice cloning</dt>
+                <dd className="font-medium">{job.voiceCloningEnabled ? "Enabled" : "Off"}</dd>
+              </div>
+              <div className="flex justify-between">
                 <dt className="text-muted-foreground">Mode</dt>
                 <dd className="font-medium">{job.generationMode}</dd>
               </div>
@@ -218,6 +234,16 @@ export default function GenerationDetailPage() {
       </div>
     </Page>
   );
+}
+
+function formatProviderModel(providerModelId: string | null) {
+  switch (providerModelId) {
+    case "fal-ai/veo3.1/fast": return "Veo 3.1 Fast";
+    case "fal-ai/kling-video/v3/standard/text-to-video": return "Kling v3 Standard";
+    case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "Seedance 2.0 Mini";
+    case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "Seedance 2.0 quality";
+    default: return providerModelId || "Cloud model";
+  }
 }
 
 function StatusBadge({ status }: { status: string }) {

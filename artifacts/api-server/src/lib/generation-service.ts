@@ -20,6 +20,16 @@ import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder"
 import { mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
 import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
+import {
+  falModels,
+  FalHttpError,
+  FalQueueClient,
+  getFalVideoUrl,
+  normalizeFalRequest,
+  validateFalQueueUrl,
+  type FalModel,
+  type FalQueueEndpoints,
+} from "./fal/client";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
@@ -48,6 +58,9 @@ async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): 
 }
 
 export type GenerationRequest = {
+  provider?: "COMFYUI" | "FAL";
+  model?: FalModel;
+  voiceCloningEnabled?: boolean;
   characterIds?: string[];
   settingId?: string;
   prompt: string;
@@ -69,6 +82,24 @@ export type GenerationRequest = {
   longFormShotId?: string;
   onJobCreated?: (job: GenerationJob) => Promise<void>;
 };
+
+function falEndpointsFromMetadata(metadata: Record<string, unknown>): FalQueueEndpoints {
+  const submission = metadata.submission && typeof metadata.submission === "object"
+    ? metadata.submission as Record<string, unknown>
+    : metadata;
+  return {
+    statusUrl: validateFalQueueUrl(submission.status_url ?? submission.statusUrl, "status URL"),
+    responseUrl: validateFalQueueUrl(submission.response_url ?? submission.responseUrl, "response URL"),
+    cancelUrl: validateFalQueueUrl(submission.cancel_url ?? submission.cancelUrl, "cancel URL"),
+  };
+}
+
+function mergeFalMetadata(
+  metadata: Record<string, unknown>,
+  update: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...metadata, ...update };
+}
 
 function compileGenericPrompt(
   characters: { name: string; promptDescription: string }[],
@@ -234,9 +265,9 @@ function compileMiniMaxH3ReferenceVideoPrompt(
     throw new Error("Reference-video prompt compilation requires an uploaded reference video");
   }
   const settingSubjectNumber = setting ? characters.length + 1 : null;
-  const dialogue = input.dialogue?.trim();
+  const dialogue = input.voiceCloningEnabled ? input.dialogue?.trim() : undefined;
   const replacesReferenceAudio = Boolean(input.referenceVideoKey && dialogue);
-  const reusesReferenceAudio = Boolean(input.referenceVideoKey && !dialogue);
+  const reusesReferenceAudio = Boolean(input.referenceVideoKey && !replacesReferenceAudio);
   const shotPrompt = shotPromptOnly(input.prompt);
   const visualShotPrompt = replacesReferenceAudio
     ? shotPrompt
@@ -484,6 +515,23 @@ export async function resumeActiveGenerations(): Promise<void> {
     .from(generationJobsTable)
     .where(inArray(generationJobsTable.status, ["QUEUED", "RUNNING", "DOWNLOADING"]));
   for (const job of jobs) {
+    if (job.provider === "FAL" && job.providerModelId && job.providerRequestId) {
+      const model = (Object.entries(falModels).find(([, id]) => id === job.providerModelId)?.[0]) as FalModel | undefined;
+      if (model) {
+        try {
+          const endpoints = falEndpointsFromMetadata(job.providerTaskMetadata);
+          void monitorFalGeneration(job.id, new FalQueueClient(model), job.providerRequestId, endpoints);
+        } catch (error) {
+          logger.error({ err: error, jobId: job.id }, "Cannot resume fal.ai generation with invalid queue endpoints");
+          await db.update(generationJobsTable).set({
+            status: "FAILED",
+            errorMessage: error instanceof Error ? error.message : "Invalid fal.ai queue endpoints",
+            failedAt: new Date(),
+          }).where(eq(generationJobsTable.id, job.id));
+        }
+      }
+      continue;
+    }
     if (!job.comfyPromptId || !job.comfyServerId) continue;
     const [server] = await db
       .select()
@@ -497,8 +545,12 @@ export async function resumeActiveGenerations(): Promise<void> {
   }
   await db
     .update(generationJobsTable)
-    .set({ status: "FAILED", errorMessage: "Submission was interrupted before ComfyUI returned a prompt ID.", failedAt: new Date() })
-    .where(and(eq(generationJobsTable.status, "UPLOADING"), sql`${generationJobsTable.comfyPromptId} IS NULL`));
+    .set({ status: "FAILED", errorMessage: "Generation submission was interrupted before the provider returned a request ID.", failedAt: new Date() })
+    .where(and(
+      eq(generationJobsTable.status, "UPLOADING"),
+      sql`${generationJobsTable.comfyPromptId} IS NULL`,
+      sql`${generationJobsTable.providerRequestId} IS NULL`,
+    ));
 }
 
 export async function createAndSubmitGeneration(input: GenerationRequest): Promise<GenerationJob> {
@@ -520,6 +572,18 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     (input.settingId !== undefined && !setting[0])
   ) {
     throw new Error("One or more selected studio assets no longer exist");
+  }
+  if (input.voiceCloningEnabled) {
+    if (!input.dialogue?.trim()) {
+      throw new Error("Voice cloning requires dialogue");
+    }
+    const speaker = characters[0];
+    if (!speaker?.voiceStorageKey || !speaker.voiceConsentAt) {
+      throw new Error("Voice cloning requires the first selected Character to have a consented voice sample");
+    }
+  }
+  if ((input.provider ?? "COMFYUI") === "FAL") {
+    return createAndSubmitFalGeneration(input, characters, setting[0]);
   }
   const workflows = await db
     .select()
@@ -617,6 +681,8 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       seed: input.seedMode === "FIXED" && input.seed != null ? Math.floor(input.seed) : null,
       generationMode: input.generationMode,
       qualityPreset: input.qualityPreset,
+      provider: "COMFYUI",
+      voiceCloningEnabled: input.voiceCloningEnabled ?? false,
     })
     .returning();
   await input.onJobCreated?.(job);
@@ -658,7 +724,10 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       ...referenceVideoParameters,
     });
     if (referenceVideo && workflow.modelFamily.trim().toLowerCase() === "minimax h3") {
-      routeMiniMaxReferenceVideoAudio(submittedWorkflow, Boolean(input.dialogue?.trim()));
+      routeMiniMaxReferenceVideoAudio(
+        submittedWorkflow,
+        Boolean(input.voiceCloningEnabled && input.dialogue?.trim()),
+      );
     }
     const submitted = await client.submitWorkflow(submittedWorkflow, job.id);
     const [queuedJob] = await db
@@ -690,6 +759,285 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
 }
 
+async function createAndSubmitFalGeneration(
+  input: GenerationRequest,
+  characters: Array<typeof charactersTable.$inferSelect>,
+  setting: typeof settingsTable.$inferSelect | undefined,
+): Promise<GenerationJob> {
+  if (!input.model || !(input.model in falModels)) {
+    throw new Error("A supported fal.ai model is required");
+  }
+  if (input.referenceVideoKey) {
+    throw new Error("The initial fal.ai models support text-to-video requests only; remove the reference video");
+  }
+  const model = input.model;
+  const compiledPrompt = compileGenericPrompt(characters, setting, input);
+  const normalized = normalizeFalRequest(model, {
+    prompt: compiledPrompt,
+    negativePrompt: input.negativePrompt,
+    width: input.width,
+    height: input.height,
+    durationSeconds: input.durationSeconds,
+    fps: input.fps,
+    qualityPreset: input.qualityPreset,
+    seed: input.seedMode === "FIXED" ? input.seed : null,
+  });
+  const [job] = await db.insert(generationJobsTable).values({
+    title: characters[0]?.name && setting?.name
+      ? `${characters[0].name} — ${setting.name}`
+      : characters[0]?.name ?? setting?.name ?? model,
+    status: "UPLOADING",
+    provider: "FAL",
+    providerModelId: falModels[model],
+    providerTaskMetadata: { model },
+    voiceCloningEnabled: input.voiceCloningEnabled ?? false,
+    longFormShotId: input.longFormShotId ?? null,
+    prompt: input.prompt,
+    compiledPrompt,
+    dialogue: input.dialogue?.trim() ?? "",
+    negativePrompt: input.negativePrompt ?? null,
+    width: normalized.width,
+    height: normalized.height,
+    fps: normalized.fps,
+    frameCount: normalized.frameCount,
+    durationSeconds: normalized.durationSeconds,
+    seed: input.seedMode === "FIXED" && input.seed != null ? Math.floor(input.seed) : null,
+    generationMode: input.generationMode,
+    qualityPreset: input.qualityPreset,
+  }).returning();
+  await input.onJobCreated?.(job);
+  if (characters.length) {
+    await db.insert(generationCharactersTable).values(
+      characters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
+    );
+  }
+  if (setting) {
+    await db.insert(generationSettingsTable).values({ generationJobId: job.id, settingId: setting.id });
+  }
+
+  try {
+    const client = new FalQueueClient(model);
+    const submitted = await client.submit(normalized.input);
+    const taskMetadata = { model, submission: submitted.metadata };
+    const [queued] = await db.update(generationJobsTable).set({
+      status: "QUEUED",
+      providerRequestId: submitted.requestId,
+      providerTaskMetadata: taskMetadata,
+      queuedAt: new Date(),
+      currentNode: "Waiting in fal.ai queue",
+    }).where(and(eq(generationJobsTable.id, job.id), eq(generationJobsTable.status, "UPLOADING"))).returning();
+    if (!queued) {
+      const [current] = await db.update(generationJobsTable).set({
+        providerRequestId: submitted.requestId,
+        providerTaskMetadata: taskMetadata,
+      }).where(eq(generationJobsTable.id, job.id)).returning();
+      await client.cancel(submitted.endpoints).catch((error) => {
+        logger.warn({ err: error, jobId: job.id }, "Could not cancel fal.ai request after local cancellation");
+      });
+      if (!current) throw new Error("Generation job disappeared after fal.ai submission");
+      return current;
+    }
+    void monitorFalGeneration(job.id, client, submitted.requestId, submitted.endpoints);
+    return queued;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "fal.ai submission failed";
+    await db.update(generationJobsTable).set({
+      status: "FAILED",
+      errorMessage: message,
+      failedAt: new Date(),
+    }).where(and(
+      eq(generationJobsTable.id, job.id),
+      eq(generationJobsTable.status, "UPLOADING"),
+    ));
+    throw error;
+  }
+}
+
+async function completeFalOutput(
+  jobId: string,
+  client: FalQueueClient,
+  requestId: string,
+  endpoints: FalQueueEndpoints,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  const result = await client.result(endpoints);
+  const videoUrl = getFalVideoUrl(result);
+  let response: Response;
+  try {
+    response = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
+  } catch {
+    throw new FalHttpError("Could not reach fal.ai output storage", null, true);
+  }
+  if (!response.ok) {
+    throw new FalHttpError(
+      `Could not download fal.ai output (${response.status})`,
+      response.status,
+      response.status === 429 || response.status >= 500,
+    );
+  }
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(await response.arrayBuffer());
+  } catch {
+    throw new FalHttpError("fal.ai output download was interrupted", response.status, true);
+  }
+  let mimeType: "video/mp4" | "video/webm" = response.headers.get("content-type")?.includes("webm")
+    || /\.webm(?:\?|$)/i.test(videoUrl) ? "video/webm" : "video/mp4";
+  let outputName = `fal-${requestId}.${mimeType === "video/webm" ? "webm" : "mp4"}`;
+
+  const [job] = await db.select({
+    dialogue: generationJobsTable.dialogue,
+    voiceCloningEnabled: generationJobsTable.voiceCloningEnabled,
+    durationSeconds: generationJobsTable.durationSeconds,
+    seed: generationJobsTable.seed,
+  }).from(generationJobsTable).where(eq(generationJobsTable.id, jobId));
+  if (!job) return;
+  if (job.voiceCloningEnabled && job.dialogue.trim()) {
+    const [[speaker], [server]] = await Promise.all([
+      db.select({
+        voiceStorageKey: charactersTable.voiceStorageKey,
+        voiceConsentAt: charactersTable.voiceConsentAt,
+      }).from(generationCharactersTable)
+        .innerJoin(charactersTable, eq(generationCharactersTable.characterId, charactersTable.id))
+        .where(eq(generationCharactersTable.generationJobId, jobId))
+        .orderBy(asc(generationCharactersTable.sortOrder))
+        .limit(1),
+      db.select().from(comfyServersTable)
+        .where(and(eq(comfyServersTable.enabled, true), eq(comfyServersTable.status, "ONLINE")))
+        .orderBy(asc(comfyServersTable.priority))
+        .limit(1),
+    ]);
+    if (speaker?.voiceStorageKey && speaker.voiceConsentAt) {
+      if (!server) throw new Error("Voice cloning was requested, but no online ComfyUI voice worker is available");
+      await db.update(generationJobsTable).set({ currentNode: "Cloning character voice" })
+        .where(eq(generationJobsTable.id, jobId));
+      const speech = await generateClonedSpeech({
+        client: new ComfyUIClient(server),
+        dialogue: job.dialogue,
+        referenceAudio: await mediaStorage.readBuffer(speaker.voiceStorageKey),
+        seed: job.seed,
+      });
+      bytes = await muxClonedSpeech({
+        video: bytes,
+        videoMimeType: mimeType,
+        speech,
+        targetDurationSeconds: job.durationSeconds,
+      });
+      mimeType = "video/mp4";
+      outputName = `fal-${requestId}-voiced.mp4`;
+    }
+  }
+  const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes);
+  await db.update(generationJobsTable).set({
+    status: "COMPLETED",
+    outputStorageKey: storageKey,
+    outputMimeType: mimeType,
+    providerTaskMetadata: mergeFalMetadata(metadata, { result }),
+    progress: 1,
+    currentNode: null,
+    errorMessage: null,
+    completedAt: new Date(),
+  }).where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+}
+
+async function monitorFalGeneration(
+  jobId: string,
+  client: FalQueueClient,
+  requestId: string,
+  endpoints: FalQueueEndpoints,
+): Promise<void> {
+  const timeoutAt = Date.now() + generationTimeoutMs;
+  let retryablePollFailures = 0;
+  while (Date.now() < timeoutAt) {
+    let nextPollDelayMs = 5_000;
+    const [job] = await db.select({
+      status: generationJobsTable.status,
+      providerTaskMetadata: generationJobsTable.providerTaskMetadata,
+    })
+      .from(generationJobsTable).where(eq(generationJobsTable.id, jobId));
+    if (!job || job.status === "CANCELLED") return;
+    try {
+      const status = await client.status(endpoints);
+      retryablePollFailures = 0;
+      const normalized = String(status.status ?? "").toUpperCase();
+      if (normalized === "COMPLETED") {
+        const metadata = mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status });
+        const [claimed] = await db.update(generationJobsTable).set({
+          status: "DOWNLOADING",
+          progress: 0.99,
+          currentNode: "Retrieving fal.ai output",
+          providerTaskMetadata: metadata,
+        }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+          .returning({ id: generationJobsTable.id });
+        if (claimed) {
+          let outputAttempts = 0;
+          while (outputAttempts < 3) {
+            try {
+              await completeFalOutput(jobId, client, requestId, endpoints, metadata);
+              return;
+            } catch (error) {
+              outputAttempts += 1;
+              if (!(error instanceof FalHttpError && error.retryable)) {
+                const message = error instanceof Error ? error.message : "fal.ai output finalization failed";
+                await db.update(generationJobsTable).set({
+                  status: "FAILED", errorMessage: message, failedAt: new Date(), currentNode: null,
+                }).where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+                return;
+              }
+              if (outputAttempts >= 3) {
+                await db.update(generationJobsTable).set({
+                  currentNode: "fal.ai output temporarily unavailable; retrying",
+                  errorMessage: null,
+                }).where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+                logger.warn({ err: error, jobId }, "fal.ai output remains temporarily unavailable");
+                break;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 5_000 * outputAttempts));
+            }
+          }
+        }
+        if (!claimed) return;
+      }
+      if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(normalized)) {
+        throw new FalHttpError(`fal.ai generation failed${status.error ? `: ${String(status.error)}` : ""}`, null, false);
+      }
+      const running = normalized === "IN_PROGRESS";
+      await db.update(generationJobsTable).set({
+        status: running ? "RUNNING" : "QUEUED",
+        progress: running ? 0.5 : 0.05,
+        currentNode: running ? "fal.ai processing" : "Waiting in fal.ai queue",
+        providerTaskMetadata: mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status }),
+        startedAt: running ? new Date() : undefined,
+      }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "fal.ai monitor failed";
+      const retryable = error instanceof FalHttpError && error.retryable;
+      if (!retryable) {
+        await db.update(generationJobsTable).set({
+          status: "FAILED", errorMessage: message, failedAt: new Date(), currentNode: null,
+        }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+        return;
+      }
+      retryablePollFailures += 1;
+      nextPollDelayMs = Math.min(60_000, 5_000 * (2 ** Math.min(retryablePollFailures - 1, 4)));
+      if (retryablePollFailures >= 5) {
+        await db.update(generationJobsTable).set({
+          currentNode: "fal.ai temporarily unreachable; retrying",
+          errorMessage: null,
+        }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+      }
+      logger.warn({ err: error, jobId }, "Could not poll fal.ai generation");
+    }
+    await new Promise((resolve) => setTimeout(resolve, nextPollDelayMs));
+  }
+  await db.update(generationJobsTable).set({
+    status: "FAILED",
+    errorMessage: "Timed out while waiting for fal.ai",
+    failedAt: new Date(),
+    currentNode: null,
+  }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+}
+
 export async function cancelGeneration(jobId: string) {
   const [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, jobId));
   if (!job) {
@@ -701,6 +1049,17 @@ export async function cancelGeneration(jobId: string) {
   }
 
   let cancellationNote = "Cancelled by user.";
+  if (job.provider === "FAL" && job.providerModelId && job.providerRequestId) {
+    const model = (Object.entries(falModels).find(([, id]) => id === job.providerModelId)?.[0]) as FalModel | undefined;
+    if (model) {
+      try {
+        await new FalQueueClient(model).cancel(falEndpointsFromMetadata(job.providerTaskMetadata));
+      } catch (error) {
+        logger.warn({ err: error, jobId }, "Could not confirm cancellation with fal.ai");
+        cancellationNote = "Cancelled in OBTV. fal.ai could not be reached to confirm cancellation.";
+      }
+    }
+  }
   if (job.comfyServerId && job.comfyPromptId) {
     const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, job.comfyServerId));
     if (server) {
@@ -762,6 +1121,7 @@ async function downloadCompletedOutput(
       dialogue: generationJobsTable.dialogue,
       durationSeconds: generationJobsTable.durationSeconds,
       seed: generationJobsTable.seed,
+      voiceCloningEnabled: generationJobsTable.voiceCloningEnabled,
     });
   if (!downloading) return false;
 
@@ -772,7 +1132,7 @@ async function downloadCompletedOutput(
       : "video/mp4";
     let outputName = output.filename;
 
-    if (downloading.dialogue.trim()) {
+    if (downloading.voiceCloningEnabled && downloading.dialogue.trim()) {
       const [speaker] = await db
         .select({
           voiceStorageKey: charactersTable.voiceStorageKey,
@@ -846,15 +1206,71 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
     .select()
     .from(generationJobsTable)
     .where(eq(generationJobsTable.id, jobId));
+  if (!job || job.status !== "FAILED") {
+    return false;
+  }
   if (
-    !job ||
-    job.status !== "FAILED" ||
+    job.provider === "FAL" &&
+    job.errorMessage === "Timed out while waiting for fal.ai" &&
+    job.providerModelId &&
+    job.providerRequestId
+  ) {
+    const model = (Object.entries(falModels).find(([, id]) => id === job.providerModelId)?.[0]) as FalModel | undefined;
+    if (!model) return false;
+    try {
+      const client = new FalQueueClient(model);
+      const endpoints = falEndpointsFromMetadata(job.providerTaskMetadata);
+      const status = await client.status(endpoints);
+      const normalizedStatus = String(status.status ?? "").toUpperCase();
+      if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(normalizedStatus)) {
+        throw new FalHttpError(
+          `fal.ai generation failed${status.error ? `: ${String(status.error)}` : ""}`,
+          null,
+          false,
+        );
+      }
+      if (normalizedStatus !== "COMPLETED") return false;
+      const [claimed] = await db.update(generationJobsTable).set({
+        status: "DOWNLOADING",
+        currentNode: "Recovering fal.ai output",
+        errorMessage: null,
+        failedAt: null,
+      }).where(and(
+        eq(generationJobsTable.id, jobId),
+        eq(generationJobsTable.status, "FAILED"),
+        eq(generationJobsTable.errorMessage, "Timed out while waiting for fal.ai"),
+      )).returning({ id: generationJobsTable.id });
+      if (!claimed) return false;
+      await completeFalOutput(
+        jobId,
+        client,
+        job.providerRequestId,
+        endpoints,
+        mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status }),
+      );
+      return true;
+    } catch (error) {
+      const retryable = error instanceof FalHttpError && error.retryable;
+      await db.update(generationJobsTable).set({
+        status: "FAILED",
+        errorMessage: retryable
+          ? "Timed out while waiting for fal.ai"
+          : error instanceof Error ? error.message : "fal.ai recovery failed",
+        failedAt: new Date(),
+        currentNode: null,
+      }).where(and(
+        eq(generationJobsTable.id, jobId),
+        inArray(generationJobsTable.status, ["FAILED", "DOWNLOADING"]),
+      ));
+      logger.warn({ err: error, jobId }, "Could not recover timed-out fal.ai output");
+      return false;
+    }
+  }
+  if (
     job.errorMessage !== generationTimeoutMessage ||
     !job.comfyPromptId ||
     !job.comfyServerId
-  ) {
-    return false;
-  }
+  ) return false;
   const [server] = await db
     .select()
     .from(comfyServersTable)

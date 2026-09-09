@@ -36,6 +36,13 @@
       "when": 1788975069550,
       "tag": "0004_steep_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788980714253,
+      "tag": "0005_narrow_stingray",
+      "breakpoints": true
     }
   ]
 }

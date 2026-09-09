@@ -14,3 +14,4 @@
 - [NLE player containment](nle-player-containment.md) — Nested editor flex panes must be allowed to shrink before object-contain can prevent video-frame clipping.
 - [Comfy audio handoff](comfy-audio-handoff.md) — Use built-in PCM WAV handling across isolated runtimes; Comfy torchaudio may require unavailable TorchCodec.
 - [Voice cloning activation](voice-cloning-activation.md) — Voice cloning is an explicit per-generation option and must never be enabled by default.
+- [Paid provider job recovery](paid-provider-job-recovery.md) — Persist provider queue endpoints and keep paid jobs recoverable through transient failures and restarts.

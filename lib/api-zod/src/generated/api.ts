@@ -631,6 +631,11 @@ export const ListGenerationsResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "provider": zod.enum(['COMFYUI', 'FAL']),
+  "providerModelId": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
+  "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
@@ -665,6 +670,8 @@ export const ListGenerationsResponse = zod.object({
 /**
  * @summary Submit a generation job
  */
+export const createGenerationBodyProviderDefault = `COMFYUI`;
+export const createGenerationBodyVoiceCloningEnabledDefault = false;
 export const createGenerationBodyCharacterIdsMax = 9;
 
 export const createGenerationBodyPromptMax = 10000;
@@ -692,6 +699,9 @@ export const createGenerationBodySeedMin = 0;
 
 
 export const CreateGenerationBody = zod.object({
+  "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
+  "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0']).optional(),
+  "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
   "characterIds": zod.array(zod.string()).min(1).max(createGenerationBodyCharacterIdsMax).optional(),
   "settingId": zod.string().optional(),
   "prompt": zod.string().min(1).max(createGenerationBodyPromptMax),
@@ -715,6 +725,11 @@ export const CreateGenerationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "provider": zod.enum(['COMFYUI', 'FAL']),
+  "providerModelId": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
+  "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
@@ -752,6 +767,11 @@ export const GetGenerationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "provider": zod.enum(['COMFYUI', 'FAL']),
+  "providerModelId": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
+  "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
@@ -799,6 +819,11 @@ export const CancelGenerationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "provider": zod.enum(['COMFYUI', 'FAL']),
+  "providerModelId": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
+  "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
@@ -959,6 +984,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "provider": zod.enum(['COMFYUI', 'FAL']),
+  "providerModelId": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
+  "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),

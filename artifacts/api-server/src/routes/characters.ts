@@ -137,7 +137,17 @@ router.post("/characters/:id/assets", express.raw({ type: ["image/jpeg", "image/
 router.post(
   "/characters/:id/voice-sample",
   express.raw({
-    type: ["audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/webm", "audio/ogg"],
+    type: [
+      "audio/wav",
+      "audio/x-wav",
+      "audio/wave",
+      "audio/vnd.wave",
+      "audio/mpeg",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/webm",
+      "audio/ogg",
+    ],
     limit: "30mb",
   }),
   async (req, res): Promise<void> => {

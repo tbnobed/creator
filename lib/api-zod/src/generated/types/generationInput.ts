@@ -6,10 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GenerationInputFps } from './generationInputFps';
+import type { GenerationInputModel } from './generationInputModel';
+import type { GenerationInputProvider } from './generationInputProvider';
 import type { GenerationInputQualityPreset } from './generationInputQualityPreset';
 import type { GenerationInputSeedMode } from './generationInputSeedMode';
 
 export interface GenerationInput {
+  provider?: GenerationInputProvider;
+  model?: GenerationInputModel;
+  voiceCloningEnabled?: boolean;
   /**
      * @minItems 1
      * @maxItems 9

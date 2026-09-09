@@ -135,7 +135,10 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Generation not found" });
     return;
   }
-  if (job.status === "FAILED" && job.errorMessage === "Timed out while waiting for ComfyUI") {
+  if (
+    job.status === "FAILED" &&
+    ["Timed out while waiting for ComfyUI", "Timed out while waiting for fal.ai"].includes(job.errorMessage ?? "")
+  ) {
     await recoverTimedOutGeneration(job.id);
     [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
   }

@@ -1005,6 +1005,11 @@ components:
       type: object
       required: [prompt, generationMode, durationSeconds, fps, width, height, qualityPreset, seedMode]
       properties:
+        provider: { type: string, enum: [COMFYUI, FAL], default: COMFYUI }
+        model:
+          type: string
+          enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0]
+        voiceCloningEnabled: { type: boolean, default: false }
         characterIds: { type: array, items: { type: string }, minItems: 1, maxItems: 9 }
         settingId: { type: string }
         prompt: { type: string, minLength: 1, maxLength: 10000 }
@@ -1024,11 +1029,18 @@ components:
         seed: { type: ["number", "null"], minimum: 0 }
     GenerationJob:
       type: object
-      required: [id, title, status, prompt, compiledPrompt, generationMode, qualityPreset, width, height, fps, durationSeconds, progress, currentNode, serverName, workflowName, longFormProjectId, longFormProjectTitle, longFormSceneNumber, longFormShotNumber, createdAt]
+      required: [id, title, status, provider, providerModelId, providerRequestId, providerTaskMetadata, voiceCloningEnabled, prompt, compiledPrompt, generationMode, qualityPreset, width, height, fps, durationSeconds, progress, currentNode, serverName, workflowName, longFormProjectId, longFormProjectTitle, longFormSceneNumber, longFormShotNumber, createdAt]
       properties:
         id: { type: string }
         title: { type: string }
         status: { type: string, enum: [DRAFT, UPLOADING, QUEUED, RUNNING, DOWNLOADING, COMPLETED, FAILED, CANCELLED] }
+        provider: { type: string, enum: [COMFYUI, FAL] }
+        providerModelId: { type: ["string", "null"] }
+        providerRequestId: { type: ["string", "null"] }
+        providerTaskMetadata:
+          type: object
+          additionalProperties: true
+        voiceCloningEnabled: { type: boolean }
         prompt: { type: string }
         compiledPrompt: { type: string }
         generationMode: { type: string }

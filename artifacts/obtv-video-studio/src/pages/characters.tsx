@@ -195,12 +195,12 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const submissionFormData = new FormData(e.currentTarget);
     try {
       const { id: savedId, data } = await saveOrUpdate();
 
-      const formData = new FormData(e.currentTarget);
-      const files = formData.getAll("referenceImages").filter((entry): entry is File => entry instanceof File && entry.size > 0);
-      const voiceFile = formData.get("voiceSample");
+      const files = submissionFormData.getAll("referenceImages").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+      const voiceFile = submissionFormData.get("voiceSample");
 
       let finalThumbnail = thumbnail;
       for (const file of files) {
@@ -219,15 +219,20 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
       }
 
       if (voiceFile instanceof File && voiceFile.size > 0) {
-        if (formData.get("voiceConsent") !== "confirmed") {
+        if (submissionFormData.get("voiceConsent") !== "confirmed") {
           throw new Error("Confirm that you have permission to clone this voice.");
         }
+        const suppliedType = voiceFile.type.split(";")[0].toLowerCase();
+        const contentType = /\.wav$/i.test(voiceFile.name)
+          || ["audio/wave", "audio/vnd.wave"].includes(suppliedType)
+          ? "audio/wav"
+          : suppliedType || "audio/wav";
         setVoicePending(true);
         try {
           const response = await fetch(`/api/characters/${savedId}/voice-sample`, {
             method: "POST",
             headers: {
-              "content-type": voiceFile.type || "audio/wav",
+              "content-type": contentType,
               "x-file-name": encodeURIComponent(voiceFile.name),
               "x-voice-consent": "confirmed",
             },
