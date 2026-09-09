@@ -627,7 +627,7 @@ export default function GeneratePage() {
                   </Select>
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3" data-testid="text-fal-cost-estimate">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Approximate fal.ai cost</span>
+                      <span className="text-xs text-muted-foreground">Approximate cloud cost</span>
                       <span className="font-mono text-base font-semibold text-foreground">${estimatedFalCost.toFixed(2)}</span>
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
