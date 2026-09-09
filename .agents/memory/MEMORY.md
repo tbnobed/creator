@@ -13,3 +13,4 @@
 - [Ollama Compose bootstrap](ollama-compose-bootstrap.md) — Override Ollama’s image entrypoint and pass bootstrap as one shell argument; retry model pulls without restarting the server.
 - [NLE player containment](nle-player-containment.md) — Nested editor flex panes must be allowed to shrink before object-contain can prevent video-frame clipping.
 - [Comfy audio handoff](comfy-audio-handoff.md) — Use built-in PCM WAV handling across isolated runtimes; Comfy torchaudio may require unavailable TorchCodec.
+- [Voice cloning activation](voice-cloning-activation.md) — Voice cloning is an explicit per-generation option and must never be enabled by default.
