@@ -18,6 +18,7 @@ import { ComfyUIClient } from "./comfy/client";
 import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
+import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
@@ -563,6 +564,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
+  const isLtx25Workflow = workflow.modelFamily.trim().toLowerCase() === "ltx 2.5";
+  const outputWidth = isLtx25Workflow ? normalizeLtx25OutputDimension(input.width) : input.width;
+  const outputHeight = isLtx25Workflow ? normalizeLtx25OutputDimension(input.height) : input.height;
   if ((workflow.mappings as ParameterMappings).referenceVideo && !input.referenceVideoKey) {
     throw new Error("No active workflow without reference-video input is configured for this generation mode");
   }
@@ -599,8 +603,8 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       prompt: input.prompt,
       compiledPrompt,
       negativePrompt: input.negativePrompt ?? null,
-      width: input.width,
-      height: input.height,
+      width: outputWidth,
+      height: outputHeight,
       fps: input.fps,
       frameCount,
       durationSeconds: input.durationSeconds,
@@ -638,8 +642,8 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     const submittedWorkflow = buildWorkflow(apiWorkflow, workflow.mappings as ParameterMappings, {
       prompt: compiledPrompt,
       negativePrompt: input.negativePrompt,
-      width: input.width,
-      height: input.height,
+      width: outputWidth,
+      height: outputHeight,
       frames: frameCount,
       durationSeconds: input.durationSeconds,
       fps: input.fps,

@@ -29,6 +29,18 @@ import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 
 const REFERENCE_VIDEO_STORAGE_KEY = "obtv.referenceVideo";
 const COMPOSER_DRAFT_STORAGE_KEY = "obtv.composerDraft";
+const DEFAULT_RESOLUTION_OPTIONS = [
+  { width: 1280, height: 720, label: "1280x720 (16:9)" },
+  { width: 1920, height: 1080, label: "1920x1080 (16:9)" },
+  { width: 720, height: 1280, label: "720x1280 (9:16)" },
+  { width: 1024, height: 1024, label: "1024x1024 (1:1)" },
+] as const;
+const LTX25_RESOLUTION_OPTIONS = [
+  { width: 1280, height: 704, label: "1280x704 (final)" },
+  { width: 1920, height: 1088, label: "1920x1088 (final)" },
+  { width: 704, height: 1280, label: "704x1280 (final)" },
+  { width: 1024, height: 1024, label: "1024x1024 (final)" },
+] as const;
 
 type ComposerDraft = {
   selectedChars?: string[];
@@ -131,6 +143,8 @@ export default function GeneratePage() {
   const workflowRequiresStudioSetting = activeWorkflowsForMode.some(
     (workflow) => workflow.modelFamily === "MiniMax H3",
   );
+  const isLtx25Mode = activeWorkflowsForMode.some((workflow) => workflow.modelFamily === "LTX 2.5");
+  const resolutionOptions = isLtx25Mode ? LTX25_RESOLUTION_OPTIONS : DEFAULT_RESOLUTION_OPTIONS;
   const hasReferenceVideo = Boolean(referenceVideoKey);
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
@@ -187,6 +201,17 @@ export default function GeneratePage() {
     }
     hasSelectedInitialMode.current = true;
   }, [workflows]);
+
+  useEffect(() => {
+    if (!isLtx25Mode) return;
+    const currentResolutionIsValid = LTX25_RESOLUTION_OPTIONS.some(
+      (option) => option.width === width && option.height === height,
+    );
+    if (!currentResolutionIsValid) {
+      setWidth(LTX25_RESOLUTION_OPTIONS[0].width);
+      setHeight(LTX25_RESOLUTION_OPTIONS[0].height);
+    }
+  }, [isLtx25Mode, width, height]);
 
   const toggleChar = (id: string) => {
     setSelectedChars(prev => 
@@ -559,12 +584,19 @@ export default function GeneratePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1280x720">1280x720 (16:9)</SelectItem>
-                      <SelectItem value="1920x1080">1920x1080 (16:9)</SelectItem>
-                      <SelectItem value="720x1280">720x1280 (9:16)</SelectItem>
-                      <SelectItem value="1024x1024">1024x1024 (1:1)</SelectItem>
+                      {resolutionOptions.map((option) => (
+                        <SelectItem
+                          key={`${option.width}x${option.height}`}
+                          value={`${option.width}x${option.height}`}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Final output: {width}×{height}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Framerate</Label>

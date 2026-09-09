@@ -209,6 +209,15 @@ export const ltx25T2vMappings = {
   seed: { nodeId: "14", input: "noise_seed" },
 };
 
+export const LTX25_OUTPUT_DIMENSION_MULTIPLE = 64;
+
+export function normalizeLtx25OutputDimension(value: number): number {
+  return Math.max(
+    LTX25_OUTPUT_DIMENSION_MULTIPLE,
+    Math.floor(value / LTX25_OUTPUT_DIMENSION_MULTIPLE) * LTX25_OUTPUT_DIMENSION_MULTIPLE,
+  );
+}
+
 export function createLtx25T2vWorkflow(): ApiWorkflow {
   return structuredClone(baseWorkflow);
 }
