@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useGetAuthConfig } from "@workspace/api-client-react";
 
 export default function LandingPage() {
-  const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.jpg`;
+  const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.png`;
   const { data: authConfig } = useGetAuthConfig();
   const registrationAvailable = Boolean(
     authConfig?.registrationEnabled || authConfig?.bootstrapAvailable,

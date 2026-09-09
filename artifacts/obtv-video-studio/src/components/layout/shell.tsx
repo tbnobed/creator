@@ -20,7 +20,7 @@ import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.jpg`;
+  const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.png`;
 
   const { data: health } = useHealthCheck();
   const { data: session } = useGetSession();
