@@ -382,7 +382,7 @@ export default function GeneratePage() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                    {isCloudProvider
-                     ? "fal.ai cloud models currently support text-to-video only. Switch to Local GPU / Comfy to use a reference video."
+                     ? "Cloud models currently support text-to-video only. Switch to Local to use a reference video."
                      : hasReferenceVideo
                     ? "Your video supplies the presenter, movement, timing, and audio. Character and environment selections are optional."
                     : "Attach presenter footage if the video should supply the subject, movement, timing, and audio. No character or environment selection is required when it is attached."}
@@ -606,8 +606,8 @@ export default function GeneratePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="COMFYUI">Local GPU / Comfy</SelectItem>
-                    <SelectItem value="FAL">fal.ai cloud</SelectItem>
+                    <SelectItem value="COMFYUI">Local</SelectItem>
+                    <SelectItem value="FAL">Cloud</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -775,7 +775,7 @@ export default function GeneratePage() {
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
                   <div className="flex justify-between">
                      <span>Target:</span>
-                     <span className="text-foreground">{isCloudProvider ? selectedFalModel.label : "Local GPU / Comfy"}</span>
+                     <span className="text-foreground">{isCloudProvider ? "Cloud" : "Local"}</span>
                    </div>
                    <div className="flex justify-between">
                     <span>Cast:</span>
