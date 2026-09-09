@@ -19,6 +19,8 @@ function contentType(key: string): string {
       return "video/mp4";
     case ".webm":
       return "video/webm";
+    case ".wav":
+      return "audio/wav";
     default:
       return "application/octet-stream";
   }

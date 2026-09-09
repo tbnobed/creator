@@ -8,6 +8,7 @@
 
 export * from './character';
 export * from './characterInput';
+export * from './characterVoiceSampleResult';
 export * from './comfyServer';
 export * from './comfyServerStatus';
 export * from './connectionTest';

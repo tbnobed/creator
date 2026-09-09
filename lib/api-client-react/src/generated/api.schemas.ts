@@ -20,6 +20,11 @@ export interface Character {
   assetCount: number;
   /** @nullable */
   voiceProfile: string | null;
+  hasVoiceSample: boolean;
+  /** @nullable */
+  voiceSampleUrl: string | null;
+  /** @nullable */
+  voiceConsentAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +39,12 @@ export interface CharacterInput {
   tags?: string[];
   /** @nullable */
   voiceProfile?: string | null;
+}
+
+export interface CharacterVoiceSampleResult {
+  ok: boolean;
+  voiceSampleUrl: string;
+  voiceConsentAt: string;
 }
 
 export interface Setting {

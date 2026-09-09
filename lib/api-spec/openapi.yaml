@@ -116,6 +116,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StudioImageGenerationResult"
+  /characters/{id}/voice-sample:
+    post:
+      operationId: uploadCharacterVoiceSample
+      tags: [characters]
+      summary: Upload a consented character voice reference
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          audio/wav:
+            schema: { type: string, format: binary }
+          audio/mpeg:
+            schema: { type: string, format: binary }
+          audio/mp4:
+            schema: { type: string, format: binary }
+          audio/webm:
+            schema: { type: string, format: binary }
+      responses:
+        "201":
+          description: Normalized voice reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterVoiceSampleResult"
+    delete:
+      operationId: deleteCharacterVoiceSample
+      tags: [characters]
+      summary: Remove a character voice reference
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Voice reference removed
   /settings:
     get:
       operationId: listSettings
@@ -751,7 +785,7 @@ components:
         - status
     Character:
       type: object
-      required: [id, name, description, promptDescription, thumbnail, tags, assetCount, voiceProfile, createdAt, updatedAt]
+      required: [id, name, description, promptDescription, thumbnail, tags, assetCount, voiceProfile, hasVoiceSample, voiceSampleUrl, voiceConsentAt, createdAt, updatedAt]
       properties:
         id: { type: string }
         name: { type: string }
@@ -761,6 +795,9 @@ components:
         tags: { type: array, items: { type: string } }
         assetCount: { type: number }
         voiceProfile: { type: ["string", "null"] }
+        hasVoiceSample: { type: boolean }
+        voiceSampleUrl: { type: ["string", "null"] }
+        voiceConsentAt: { type: ["string", "null"] }
         createdAt: { type: string }
         updatedAt: { type: string }
     CharacterInput:
@@ -773,6 +810,13 @@ components:
         thumbnail: { type: ["string", "null"] }
         tags: { type: array, items: { type: string } }
         voiceProfile: { type: ["string", "null"] }
+    CharacterVoiceSampleResult:
+      type: object
+      required: [ok, voiceSampleUrl, voiceConsentAt]
+      properties:
+        ok: { type: boolean }
+        voiceSampleUrl: { type: string }
+        voiceConsentAt: { type: string }
     Setting:
       type: object
       required: [id, name, description, promptDescription, thumbnail, tags, assetCount, createdAt, updatedAt]

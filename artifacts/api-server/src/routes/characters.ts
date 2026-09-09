@@ -75,6 +75,7 @@ router.delete("/characters/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Character not found" });
     return;
   }
+  if (deleted.voiceStorageKey) await mediaStorage.deleteVoiceSample(deleted.voiceStorageKey);
   res.sendStatus(204);
 });
 
@@ -131,6 +132,75 @@ router.post("/characters/:id/assets", express.raw({ type: ["image/jpeg", "image/
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Asset upload failed" });
   }
+});
+
+router.post(
+  "/characters/:id/voice-sample",
+  express.raw({
+    type: ["audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/webm", "audio/ogg"],
+    limit: "30mb",
+  }),
+  async (req, res): Promise<void> => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (req.header("x-voice-consent") !== "confirmed") {
+      res.status(400).json({ error: "Voice cloning permission must be confirmed" });
+      return;
+    }
+    const [character] = await db.select().from(charactersTable).where(eq(charactersTable.id, id));
+    if (!character) {
+      res.status(404).json({ error: "Character not found" });
+      return;
+    }
+    if (!Buffer.isBuffer(req.body)) {
+      res.status(400).json({ error: "Send audio bytes directly with an audio Content-Type" });
+      return;
+    }
+    const contentType = (req.header("content-type") ?? "").split(";")[0];
+    const originalName = decodeURIComponent(req.header("x-file-name") ?? "voice-sample.wav");
+    try {
+      const stored = await mediaStorage.storeVoiceSample(originalName, contentType, req.body);
+      const consentAt = new Date();
+      await db
+        .update(charactersTable)
+        .set({
+          voiceStorageKey: stored.key,
+          voiceOriginalName: originalName.slice(0, 255),
+          voiceMimeType: stored.mimeType,
+          voiceConsentAt: consentAt,
+        })
+        .where(eq(charactersTable.id, character.id));
+      if (character.voiceStorageKey && character.voiceStorageKey !== stored.key) {
+        await mediaStorage.deleteVoiceSample(character.voiceStorageKey);
+      }
+      res.status(201).json({
+        ok: true,
+        voiceSampleUrl: `/api/media/${stored.key}`,
+        voiceConsentAt: consentAt.toISOString(),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Voice sample upload failed" });
+    }
+  },
+);
+
+router.delete("/characters/:id/voice-sample", async (req, res): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [character] = await db.select().from(charactersTable).where(eq(charactersTable.id, id));
+  if (!character) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
+  await db
+    .update(charactersTable)
+    .set({
+      voiceStorageKey: null,
+      voiceOriginalName: null,
+      voiceMimeType: null,
+      voiceConsentAt: null,
+    })
+    .where(eq(charactersTable.id, character.id));
+  if (character.voiceStorageKey) await mediaStorage.deleteVoiceSample(character.voiceStorageKey);
+  res.sendStatus(204);
 });
 
 export default router;

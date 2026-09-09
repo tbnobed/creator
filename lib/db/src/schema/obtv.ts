@@ -28,6 +28,10 @@ export const charactersTable = pgTable("obtv_characters", {
   thumbnail: text("thumbnail"),
   tags: text("tags").array().notNull().default([]),
   voiceProfile: text("voice_profile"),
+  voiceStorageKey: text("voice_storage_key"),
+  voiceOriginalName: text("voice_original_name"),
+  voiceMimeType: text("voice_mime_type"),
+  voiceConsentAt: timestamp("voice_consent_at", { withTimezone: true }),
   ...timestamps,
 });
 
@@ -127,6 +131,7 @@ export const generationJobsTable = pgTable("obtv_generation_jobs", {
   comfyPromptId: text("comfy_prompt_id"),
   prompt: text("prompt").notNull(),
   compiledPrompt: text("compiled_prompt").notNull(),
+  dialogue: text("dialogue").notNull().default(""),
   negativePrompt: text("negative_prompt"),
   width: integer("width").notNull(),
   height: integer("height").notNull(),

@@ -102,6 +102,13 @@ export class ComfyUIClient {
     return this.request<{ name: string }>("/upload/image", { method: "POST", body: form, timeoutMs: 120_000 });
   }
 
+  async uploadAudio(file: { name: string; mimeType: "audio/wav"; bytes: Buffer }): Promise<{ name: string }> {
+    const form = new FormData();
+    const bytes = new Uint8Array(file.bytes);
+    form.append("image", new Blob([bytes], { type: file.mimeType }), file.name);
+    return this.request<{ name: string }>("/upload/image", { method: "POST", body: form, timeoutMs: 60_000 });
+  }
+
   async getOutputFile(filename: string, subfolder = "", type = "output"): Promise<Buffer> {
     const baseUrl = await assertTrustedComfyUrl(this.server.apiBaseUrl);
     const target = new URL("/view", baseUrl);

@@ -22,6 +22,7 @@ import type {
 import type {
   Character,
   CharacterInput,
+  CharacterVoiceSampleResult,
   ComfyServer,
   ConnectionTest,
   DashboardSummary,
@@ -152,6 +153,7 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
 export const getListCharactersUrl = () => {
 
 
@@ -222,6 +224,7 @@ export function useListCharacters<TData = Awaited<ReturnType<typeof listCharacte
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
 export const getCreateCharacterUrl = () => {
 
 
@@ -506,6 +509,149 @@ export const useGenerateCharacterImage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGenerateCharacterImageMutationOptions(options));
+    }
+
+export const getUploadCharacterVoiceSampleUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/voice-sample`
+}
+
+/**
+ * @summary Upload a consented character voice reference
+ */
+export const uploadCharacterVoiceSample = async (id: string,
+    uploadCharacterVoiceSampleBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<CharacterVoiceSampleResult> => {
+
+  return customFetch<CharacterVoiceSampleResult>(getUploadCharacterVoiceSampleUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'audio/wav', ...options?.headers },
+    body: uploadCharacterVoiceSampleBody
+  }
+);}
+
+
+
+
+
+export const getUploadCharacterVoiceSampleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCharacterVoiceSample>>, TError,{id: string;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadCharacterVoiceSample>>, TError,{id: string;data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadCharacterVoiceSample'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadCharacterVoiceSample>>, {id: string;data: BodyType<Blob>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadCharacterVoiceSample(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadCharacterVoiceSampleMutationResult = NonNullable<Awaited<ReturnType<typeof uploadCharacterVoiceSample>>>
+    export type UploadCharacterVoiceSampleMutationBody = BodyType<Blob>
+    export type UploadCharacterVoiceSampleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload a consented character voice reference
+ */
+export const useUploadCharacterVoiceSample = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCharacterVoiceSample>>, TError,{id: string;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadCharacterVoiceSample>>,
+        TError,
+        {id: string;data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadCharacterVoiceSampleMutationOptions(options));
+    }
+
+export const getDeleteCharacterVoiceSampleUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/voice-sample`
+}
+
+/**
+ * @summary Remove a character voice reference
+ */
+export const deleteCharacterVoiceSample = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCharacterVoiceSampleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCharacterVoiceSampleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCharacterVoiceSample>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCharacterVoiceSample>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCharacterVoiceSample'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCharacterVoiceSample>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCharacterVoiceSample(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCharacterVoiceSampleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCharacterVoiceSample>>>
+
+    export type DeleteCharacterVoiceSampleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove a character voice reference
+ */
+export const useDeleteCharacterVoiceSample = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCharacterVoiceSample>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCharacterVoiceSample>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCharacterVoiceSampleMutationOptions(options));
     }
 
 export const getListSettingsUrl = () => {
@@ -935,12 +1081,6 @@ export function useListServers<TData = Awaited<ReturnType<typeof listServers>>, 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
-
-
-
-
 export const getCreateServerUrl = () => {
 
 
@@ -1226,12 +1366,6 @@ export function useGetServerConfiguration<TData = Awaited<ReturnType<typeof getS
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
-
-
-
-
 export const getTestServerConnectionUrl = (id: string,) => {
 
 
@@ -1373,13 +1507,6 @@ export function useGetServerQueue<TData = Awaited<ReturnType<typeof getServerQue
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getListWorkflowsUrl = () => {
 
 
@@ -1450,13 +1577,6 @@ export function useListWorkflows<TData = Awaited<ReturnType<typeof listWorkflows
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateWorkflowUrl = () => {
 
 
@@ -1598,13 +1718,6 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getUpdateWorkflowUrl = (id: string,) => {
 
 

@@ -12,3 +12,4 @@
 - [MiniMax H3 prompt and audio rules](minimax-h3-prompt-audio.md) — Use native full-reference sections and separate semantic speech failures from ComfyUI sampler distortion.
 - [Ollama Compose bootstrap](ollama-compose-bootstrap.md) — Override Ollama’s image entrypoint and pass bootstrap as one shell argument; retry model pulls without restarting the server.
 - [NLE player containment](nle-player-containment.md) — Nested editor flex panes must be allowed to shrink before object-contain can prevent video-frame clipping.
+- [Comfy audio handoff](comfy-audio-handoff.md) — Use built-in PCM WAV handling across isolated runtimes; Comfy torchaudio may require unavailable TorchCodec.

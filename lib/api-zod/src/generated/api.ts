@@ -29,6 +29,9 @@ export const ListCharactersResponseItem = zod.object({
   "tags": zod.array(zod.string()),
   "assetCount": zod.number(),
   "voiceProfile": zod.string().nullable(),
+  "hasVoiceSample": zod.boolean(),
+  "voiceSampleUrl": zod.string().nullable(),
+  "voiceConsentAt": zod.string().nullable(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -59,6 +62,9 @@ export const CreateCharacterResponse = zod.object({
   "tags": zod.array(zod.string()),
   "assetCount": zod.number(),
   "voiceProfile": zod.string().nullable(),
+  "hasVoiceSample": zod.boolean(),
+  "voiceSampleUrl": zod.string().nullable(),
+  "voiceConsentAt": zod.string().nullable(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -92,6 +98,9 @@ export const UpdateCharacterResponse = zod.object({
   "tags": zod.array(zod.string()),
   "assetCount": zod.number(),
   "voiceProfile": zod.string().nullable(),
+  "hasVoiceSample": zod.boolean(),
+  "voiceSampleUrl": zod.string().nullable(),
+  "voiceConsentAt": zod.string().nullable(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -133,6 +142,30 @@ export const GenerateCharacterImageResponse = zod.object({
   "serverName": zod.string(),
   "seed": zod.number()
 })
+
+
+/**
+ * @summary Upload a consented character voice reference
+ */
+export const UploadCharacterVoiceSampleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UploadCharacterVoiceSampleResponse = zod.object({
+  "ok": zod.boolean(),
+  "voiceSampleUrl": zod.string(),
+  "voiceConsentAt": zod.string()
+})
+
+
+/**
+ * @summary Remove a character voice reference
+ */
+export const DeleteCharacterVoiceSampleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCharacterVoiceSampleResponse = zod.void()
 
 
 /**

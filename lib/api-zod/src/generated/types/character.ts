@@ -17,6 +17,11 @@ export interface Character {
   assetCount: number;
   /** @nullable */
   voiceProfile: string | null;
+  hasVoiceSample: boolean;
+  /** @nullable */
+  voiceSampleUrl: string | null;
+  /** @nullable */
+  voiceConsentAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

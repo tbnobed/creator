@@ -19,6 +19,7 @@ import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
+import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
@@ -501,7 +502,7 @@ export async function resumeActiveGenerations(): Promise<void> {
 }
 
 export async function createAndSubmitGeneration(input: GenerationRequest): Promise<GenerationJob> {
-  const [characters, setting] = await Promise.all([
+  const [foundCharacters, setting] = await Promise.all([
     input.characterIds?.length
       ? db.select().from(charactersTable).where(inArray(charactersTable.id, input.characterIds))
       : Promise.resolve([]),
@@ -509,6 +510,10 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       ? db.select().from(settingsTable).where(eq(settingsTable.id, input.settingId))
       : Promise.resolve([]),
   ]);
+  const charactersById = new Map(foundCharacters.map((character) => [character.id, character]));
+  const characters = (input.characterIds ?? [])
+    .map((id) => charactersById.get(id))
+    .filter((character): character is typeof foundCharacters[number] => Boolean(character));
   const wantsReferenceVideo = Boolean(input.referenceVideoKey);
   if (
     characters.length !== (input.characterIds?.length ?? 0) ||
@@ -602,6 +607,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       comfyServerId: server.id,
       prompt: input.prompt,
       compiledPrompt,
+      dialogue: input.dialogue?.trim() ?? "",
       negativePrompt: input.negativePrompt ?? null,
       width: outputWidth,
       height: outputHeight,
@@ -751,13 +757,60 @@ async function downloadCompletedOutput(
     .update(generationJobsTable)
     .set({ status: "DOWNLOADING", currentNode: "Retrieving output", errorMessage: null })
     .where(and(eq(generationJobsTable.id, jobId), eligibleStatus))
-    .returning({ id: generationJobsTable.id });
+    .returning({
+      id: generationJobsTable.id,
+      dialogue: generationJobsTable.dialogue,
+      durationSeconds: generationJobsTable.durationSeconds,
+      seed: generationJobsTable.seed,
+    });
   if (!downloading) return false;
 
   try {
-    const bytes = await client.getOutputFile(output.filename, output.subfolder, output.type);
-    const mimeType = output.filename.toLowerCase().endsWith(".webm") ? "video/webm" : "video/mp4";
-    const storageKey = await mediaStorage.storeOutput(output.filename, mimeType, bytes);
+    let bytes = await client.getOutputFile(output.filename, output.subfolder, output.type);
+    let mimeType: "video/mp4" | "video/webm" = output.filename.toLowerCase().endsWith(".webm")
+      ? "video/webm"
+      : "video/mp4";
+    let outputName = output.filename;
+
+    if (downloading.dialogue.trim()) {
+      const [speaker] = await db
+        .select({
+          voiceStorageKey: charactersTable.voiceStorageKey,
+          voiceConsentAt: charactersTable.voiceConsentAt,
+        })
+        .from(generationCharactersTable)
+        .innerJoin(charactersTable, eq(generationCharactersTable.characterId, charactersTable.id))
+        .where(eq(generationCharactersTable.generationJobId, jobId))
+        .orderBy(asc(generationCharactersTable.sortOrder))
+        .limit(1);
+      if (speaker?.voiceStorageKey && speaker.voiceConsentAt) {
+        await db
+          .update(generationJobsTable)
+          .set({ currentNode: "Cloning character voice" })
+          .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+        const referenceAudio = await mediaStorage.readBuffer(speaker.voiceStorageKey);
+        const speech = await generateClonedSpeech({
+          client,
+          dialogue: downloading.dialogue,
+          referenceAudio,
+          seed: downloading.seed,
+        });
+        await db
+          .update(generationJobsTable)
+          .set({ currentNode: "Adding character voice" })
+          .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+        bytes = await muxClonedSpeech({
+          video: bytes,
+          videoMimeType: mimeType,
+          speech,
+          targetDurationSeconds: downloading.durationSeconds,
+        });
+        mimeType = "video/mp4";
+        outputName = output.filename.replace(/\.(webm|mp4)$/i, "-voiced.mp4");
+      }
+    }
+
+    const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes);
     await db
       .update(generationJobsTable)
       .set({

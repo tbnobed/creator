@@ -19,6 +19,11 @@ export function presentCharacter(character: Character, assetCount: number) {
     tags: character.tags,
     assetCount,
     voiceProfile: character.voiceProfile,
+    hasVoiceSample: Boolean(character.voiceStorageKey && character.voiceConsentAt),
+    voiceSampleUrl: character.voiceStorageKey
+      ? `/api/media/${character.voiceStorageKey.split("/").map(encodeURIComponent).join("/")}`
+      : null,
+    voiceConsentAt: date(character.voiceConsentAt),
     createdAt: character.createdAt.toISOString(),
     updatedAt: character.updatedAt.toISOString(),
   };

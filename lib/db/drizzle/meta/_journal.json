@@ -29,6 +29,13 @@
       "when": 1788030619692,
       "tag": "0003_fantastic_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788975069550,
+      "tag": "0004_steep_tag",
+      "breakpoints": true
     }
   ]
 }

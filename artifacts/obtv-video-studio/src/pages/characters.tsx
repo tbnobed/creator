@@ -3,7 +3,7 @@ import { useListCharacters, useDeleteCharacter, useCreateCharacter, useUpdateCha
 import { getListCharactersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Page, PageHeader } from "@/components/layout/page";
-import { Plus, Edit2, Trash2, Image as ImageIcon, Users } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, Mic2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -115,7 +115,10 @@ export default function CharactersPage() {
               <div className="p-4 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-lg line-clamp-1">{char.name}</h3>
-                  <Badge variant="outline" className="bg-background/50">{char.assetCount} assets</Badge>
+                  <div className="flex gap-1">
+                    {char.hasVoiceSample && <Badge variant="secondary" className="gap-1"><Mic2 className="size-3" />Voice ready</Badge>}
+                    <Badge variant="outline" className="bg-background/50">{char.assetCount} assets</Badge>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1">
                   {char.description || "No description provided."}
@@ -145,6 +148,8 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
   const formRef = useRef<HTMLFormElement>(null);
   const [activeId, setActiveId] = useState<string | undefined>(initialData?.id);
   const [thumbnail, setThumbnail] = useState<string>(initialData?.thumbnail || "");
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState<string>(initialData?.voiceSampleUrl || "");
+  const [voicePending, setVoicePending] = useState(false);
   const { toast } = useToast();
 
   const getFormData = () => {
@@ -187,6 +192,7 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
 
       const formData = new FormData(e.currentTarget);
       const files = formData.getAll("referenceImages").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+      const voiceFile = formData.get("voiceSample");
 
       let finalThumbnail = thumbnail;
       for (const file of files) {
@@ -202,6 +208,29 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
       if (finalThumbnail !== (data.thumbnail || "") && finalThumbnail !== "") {
         setThumbnail(finalThumbnail);
         await updateMutation.mutateAsync({ id: savedId, data: { ...data, thumbnail: finalThumbnail } });
+      }
+
+      if (voiceFile instanceof File && voiceFile.size > 0) {
+        if (formData.get("voiceConsent") !== "confirmed") {
+          throw new Error("Confirm that you have permission to clone this voice.");
+        }
+        setVoicePending(true);
+        try {
+          const response = await fetch(`/api/characters/${savedId}/voice-sample`, {
+            method: "POST",
+            headers: {
+              "content-type": voiceFile.type || "audio/wav",
+              "x-file-name": encodeURIComponent(voiceFile.name),
+              "x-voice-consent": "confirmed",
+            },
+            body: voiceFile,
+          });
+          const result = await response.json() as { voiceSampleUrl?: string; error?: string };
+          if (!response.ok) throw new Error(result.error ?? "Voice sample upload failed");
+          setVoiceSampleUrl(result.voiceSampleUrl ?? "");
+        } finally {
+          setVoicePending(false);
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: getListCharactersQueryKey() });
@@ -242,6 +271,21 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const removeVoiceSample = async () => {
+    if (!activeId) return;
+    setVoicePending(true);
+    try {
+      const response = await fetch(`/api/characters/${activeId}/voice-sample`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Could not remove the voice sample");
+      setVoiceSampleUrl("");
+      queryClient.invalidateQueries({ queryKey: getListCharactersQueryKey() });
+    } catch (err: any) {
+      toast({ title: "Error removing voice", description: err.message, variant: "destructive" });
+    } finally {
+      setVoicePending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
@@ -278,6 +322,45 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
           <p className="text-xs text-muted-foreground">Upload approved JPG, PNG, or WebP images. The first image becomes the thumbnail automatically.</p>
         </div>
 
+        <div className="space-y-3 rounded-lg border border-border/60 bg-secondary/10 p-4">
+          <div>
+            <Label htmlFor="voiceSample">Character voice <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Upload 5–20 seconds of one person speaking clearly, with no music, echo, or other voices.
+            </p>
+          </div>
+          {voiceSampleUrl && (
+            <div className="flex items-center gap-3">
+              <audio controls preload="metadata" src={voiceSampleUrl} className="h-9 min-w-0 flex-1" />
+              <Button type="button" variant="outline" size="sm" disabled={voicePending} onClick={removeVoiceSample}>
+                Remove
+              </Button>
+            </div>
+          )}
+          <Input
+            id="voiceSample"
+            name="voiceSample"
+            type="file"
+            accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/webm,audio/ogg"
+            className="bg-secondary/20"
+          />
+          <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+            <input name="voiceConsent" value="confirmed" type="checkbox" className="mt-1 size-4" />
+            <span>I confirm I own this voice or have the speaker’s permission to create and use a cloned voice.</span>
+          </label>
+          <div className="space-y-2">
+            <Label htmlFor="voiceProfile">Voice direction <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <Input
+              id="voiceProfile"
+              name="voiceProfile"
+              defaultValue={initialData?.voiceProfile || ""}
+              placeholder="Warm, calm delivery with measured pacing"
+              className="bg-secondary/20"
+            />
+          </div>
+          {voiceSampleUrl && <p className="text-xs font-medium text-emerald-500">Voice ready for exact dialogue.</p>}
+        </div>
+
         <div className="pt-2">
           <ImageGenerator
             onGenerate={handleGenerateImage}
@@ -286,8 +369,8 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : activeId ? "Save Changes" : "Create Character"}
+          <Button type="submit" disabled={isPending || voicePending}>
+            {isPending || voicePending ? "Saving..." : activeId ? "Save Changes" : "Create Character"}
           </Button>
         </div>
       </form>

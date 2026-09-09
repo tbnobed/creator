@@ -3,6 +3,7 @@ set -euo pipefail
 
 COMFYUI_DIR="${COMFYUI_DIR:-}"
 MODEL_SET="${MODEL_SET:-all}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -z "$COMFYUI_DIR" || ! -d "$COMFYUI_DIR/models" ]]; then
   echo "Set COMFYUI_DIR to the ComfyUI installation directory." >&2
@@ -94,11 +95,34 @@ install_flux2_klein() {
     "$COMFYUI_DIR/models/vae/flux2-vae.safetensors"
 }
 
+install_chatterbox_turbo() {
+  local chatterbox_revision="5de7a54aa4e5e2baadb0182dde554908b48b85c2"
+  local voice_venv="${OBTV_CHATTERBOX_VENV:-$HOME/obtv-chatterbox-venv}"
+  local custom_node_source="$SCRIPT_DIR/comfy-nodes/obtv_chatterbox"
+  local custom_node_destination="$COMFYUI_DIR/custom_nodes/obtv_chatterbox"
+  if [[ ! -d "$custom_node_source" ]]; then
+    echo "Missing OBTV Chatterbox node source at $custom_node_source" >&2
+    exit 1
+  fi
+
+  if [[ ! -x "$voice_venv/bin/python" ]]; then
+    python3 -m venv "$voice_venv"
+  fi
+  "$voice_venv/bin/python" -m pip install --upgrade pip
+  "$voice_venv/bin/python" -m pip install \
+    "git+https://github.com/resemble-ai/chatterbox.git@${chatterbox_revision}"
+
+  rm -rf "$custom_node_destination"
+  mkdir -p "$(dirname "$custom_node_destination")"
+  cp -a "$custom_node_source" "$custom_node_destination"
+}
+
 case "$MODEL_SET" in
   all)
     install_wan
     install_ltx
     install_flux2_klein
+    install_chatterbox_turbo
     ;;
   wan)
     install_wan
@@ -109,8 +133,11 @@ case "$MODEL_SET" in
   flux2-klein)
     install_flux2_klein
     ;;
+  chatterbox-turbo)
+    install_chatterbox_turbo
+    ;;
   *)
-    echo "MODEL_SET must be one of: all, wan, ltx, flux2-klein" >&2
+    echo "MODEL_SET must be one of: all, wan, ltx, flux2-klein, chatterbox-turbo" >&2
     exit 1
     ;;
 esac
@@ -120,3 +147,4 @@ echo "Provisioning complete. Restart ComfyUI, verify /object_info, then add work
 echo "  wan-2.2"
 echo "  ltx-2.5"
 echo "  flux2-klein"
+echo "  chatterbox-turbo"
