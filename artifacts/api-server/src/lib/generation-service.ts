@@ -15,7 +15,7 @@ import {
 } from "@workspace/db";
 import { logger } from "./logger";
 import { ComfyUIClient } from "./comfy/client";
-import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
+import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { mediaStorage } from "./storage-service";
 
@@ -509,8 +509,11 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       : Promise.resolve([]),
   ]);
   const wantsReferenceVideo = Boolean(input.referenceVideoKey);
-  if (!wantsReferenceVideo && (characters.length !== input.characterIds?.length || !setting[0])) {
-    throw new Error("Select characters and a setting from the current library");
+  if (
+    characters.length !== (input.characterIds?.length ?? 0) ||
+    (input.settingId !== undefined && !setting[0])
+  ) {
+    throw new Error("One or more selected studio assets no longer exist");
   }
   const workflows = await db
     .select()
@@ -520,7 +523,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   const compatibleWorkflows = workflows.filter((candidate) => (
     wantsReferenceVideo
       ? Boolean(candidate.apiWorkflow && (candidate.mappings as ParameterMappings).referenceVideo)
-      : isLongFormWorkflow(candidate)
+      : Boolean(candidate.apiWorkflow && !(candidate.mappings as ParameterMappings).referenceVideo)
   ));
   const servers = await db.select().from(comfyServersTable);
   const requestedServer = input.preferredServerId
@@ -586,7 +589,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   const [job] = await db
     .insert(generationJobsTable)
     .values({
-      title: `${characters[0]?.name ?? "Reference video"} — ${setting[0]?.name ?? "Presenter"}`,
+      title: characters[0]?.name && setting[0]?.name
+        ? `${characters[0].name} — ${setting[0].name}`
+        : characters[0]?.name ?? setting[0]?.name ?? workflow.modelFamily,
       status: "UPLOADING",
       workflowTemplateId: workflow.id,
       longFormShotId: input.longFormShotId ?? null,

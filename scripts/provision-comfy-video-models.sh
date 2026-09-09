@@ -3,11 +3,20 @@ set -euo pipefail
 
 COMFYUI_DIR="${COMFYUI_DIR:-}"
 MODEL_SET="${MODEL_SET:-all}"
-COMFY_PYTHON="${COMFY_PYTHON:-python3}"
 
 if [[ -z "$COMFYUI_DIR" || ! -d "$COMFYUI_DIR/models" ]]; then
   echo "Set COMFYUI_DIR to the ComfyUI installation directory." >&2
   exit 1
+fi
+
+if [[ -z "${COMFY_PYTHON:-}" ]]; then
+  if [[ -x "$COMFYUI_DIR/venv/bin/python" ]]; then
+    COMFY_PYTHON="$COMFYUI_DIR/venv/bin/python"
+  elif [[ -x "$COMFYUI_DIR/.venv/bin/python" ]]; then
+    COMFY_PYTHON="$COMFYUI_DIR/.venv/bin/python"
+  else
+    COMFY_PYTHON="python3"
+  fi
 fi
 
 download() {
