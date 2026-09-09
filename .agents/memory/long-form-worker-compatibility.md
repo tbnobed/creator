@@ -3,8 +3,8 @@ name: Long-form worker compatibility
 description: Prevents long-form projects appearing to run while no shot can be dispatched.
 ---
 
-Long-form dispatch must require an online worker with normalized matching tags, free render capacity, and an active imported workflow that accepts character-image references rather than presenter video.
+Dispatch must require an online worker with normalized matching tags, free render capacity, and an active workflow whose node classes and model files are present. Model-family tags must be capability-gated; GPU class alone must never grant them.
 
-**Why:** Existing Docker worker rows can retain legacy tag names or casing across upgrades. A health probe can still report those workers online while exact workflow-tag matching rejects every worker, leaving projects at zero progress without a generation.
+**Why:** Existing worker rows can retain legacy tag names or casing across upgrades, and `/system_stats` can report a healthy high-memory GPU even while `/object_info` lacks a required custom loader or model filename. Premature tags turn a safe incompatibility into a queued render failure.
 
-**How to apply:** Merge canonical tags into configured worker records during idempotent startup seeding, compare tags case-insensitively, and persist/log the reason whenever dispatch is waiting for a workflow, compatible worker, or free slot.
+**How to apply:** Normalize configured tags during idempotent seeding, but add model-family tags only after probing every required node class and installed filename. Compare tags case-insensitively and log whether dispatch is waiting on a workflow, capability, or free slot.

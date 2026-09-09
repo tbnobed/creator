@@ -16,6 +16,18 @@ import {
   r2vMappings,
   r2vVideoMappings,
 } from "./seed-data/minimax-h3-r2v";
+import {
+  createWan22I2vWorkflow,
+  createWan22T2vWorkflow,
+  wan22I2vMappings,
+  wan22Seeds,
+  wan22T2vMappings,
+} from "./seed-data/wan-22";
+import {
+  createLtx25T2vWorkflow,
+  ltx25T2vMappings,
+  ltx25T2vSeed,
+} from "./seed-data/ltx-25";
 
 let seeded = false;
 
@@ -210,6 +222,46 @@ async function seedWorkflowDefinitions(): Promise<void> {
     }));
   if (missingVariants.length > 0) {
     await db.insert(workflowTemplatesTable).values(missingVariants);
+  }
+
+  const externalVariants = [
+    {
+      ...wan22Seeds.t2v,
+      modelFamily: "Wan 2.2 TI2V 5B",
+      tags: wan22Seeds.tags,
+      createWorkflow: createWan22T2vWorkflow,
+      mappings: wan22T2vMappings,
+    },
+    {
+      ...wan22Seeds.i2v,
+      modelFamily: "Wan 2.2 TI2V 5B",
+      tags: wan22Seeds.tags,
+      createWorkflow: createWan22I2vWorkflow,
+      mappings: wan22I2vMappings,
+    },
+    {
+      ...ltx25T2vSeed,
+      modelFamily: "LTX 2.5",
+      createWorkflow: createLtx25T2vWorkflow,
+      mappings: ltx25T2vMappings,
+    },
+  ];
+  const missingExternalVariants = externalVariants
+    .filter((variant) => !existingNames.has(variant.name))
+    .map((variant) => ({
+      name: variant.name,
+      description: variant.description,
+      generationMode: variant.generationMode,
+      modelFamily: variant.modelFamily,
+      apiWorkflow: variant.createWorkflow(),
+      compatibleServerTags: [...variant.tags],
+      active: false,
+      mappings: variant.mappings,
+      expectedInputs: Object.keys(variant.mappings),
+      expectedOutputs: ["video"],
+    }));
+  if (missingExternalVariants.length > 0) {
+    await db.insert(workflowTemplatesTable).values(missingExternalVariants);
   }
 
   const staleVideoWorkflowRecords = existing.flatMap((workflow) => {

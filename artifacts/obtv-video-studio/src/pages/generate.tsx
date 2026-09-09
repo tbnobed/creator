@@ -125,6 +125,12 @@ export default function GeneratePage() {
   const activeWorkflowsForMode = activeWorkflows.filter((workflow) => workflow.generationMode === generationMode);
   const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
   const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
+  const workflowRequiresReferenceImage = activeWorkflowsForMode.length > 0 && activeWorkflowsForMode.every(
+    (workflow) => Object.keys(workflow.mappings ?? {}).some((field) => /^referenceImage\d+$/.test(field)),
+  );
+  const workflowRequiresStudioSetting = activeWorkflowsForMode.some(
+    (workflow) => workflow.modelFamily === "MiniMax H3",
+  );
   const hasReferenceVideo = Boolean(referenceVideoKey);
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
@@ -192,8 +198,12 @@ export default function GeneratePage() {
 
   const handleGenerate = async () => {
     if (!prompt) return alert("Shot prompt is required");
-    if (!hasReferenceVideo && selectedChars.length === 0) return alert("Select at least one character");
-    if (!hasReferenceVideo && !selectedSetting) return alert("Select a setting");
+    if (!hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) {
+      return alert("Select at least one character with a reference image");
+    }
+    if (!hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) {
+      return alert("Select a setting");
+    }
     if (workflowRequiresReferenceVideo && !referenceVideoKey) {
       return alert("The selected workflow requires a reference video.");
     }
@@ -597,8 +607,18 @@ export default function GeneratePage() {
               {/* Preflight Summary */}
               <div className="mt-6 pt-4 border-t border-border/50">
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
-                  <div className="flex justify-between"><span>Cast:</span> <span className={selectedChars.length || hasReferenceVideo ? "text-foreground" : "text-destructive"}>{selectedChars.length || hasReferenceVideo ? selectedChars.length || "Not needed" : "Missing"}</span></div>
-                  <div className="flex justify-between"><span>Set:</span> <span className={selectedSetting || hasReferenceVideo ? "text-foreground" : "text-destructive"}>{selectedSetting ? "Ready" : hasReferenceVideo ? "Not needed" : "Missing"}</span></div>
+                  <div className="flex justify-between">
+                    <span>Cast:</span>
+                    <span className={selectedChars.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "text-foreground" : "text-destructive"}>
+                      {selectedChars.length ? selectedChars.length : hasReferenceVideo || !workflowRequiresReferenceImage ? "Optional" : "Missing"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Set:</span>
+                    <span className={selectedSetting || hasReferenceVideo || !workflowRequiresStudioSetting ? "text-foreground" : "text-destructive"}>
+                      {selectedSetting ? "Ready" : hasReferenceVideo || !workflowRequiresStudioSetting ? "Optional" : "Missing"}
+                    </span>
+                  </div>
                   <div className="flex justify-between"><span>Reference:</span> <span className={hasReferenceVideo ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>{hasReferenceVideo ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}</span></div>
                   <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
                 </div>
@@ -606,7 +626,13 @@ export default function GeneratePage() {
                 <Button 
                   className="w-full h-12 text-base font-semibold uppercase tracking-[0.05em] shadow-[0_0_16px_rgba(255,31,98,0.35)] hover:shadow-[0_0_20px_rgba(255,31,98,0.5)] transition-all"
                   onClick={handleGenerate}
-                  disabled={createJob.isPending || !prompt || (!hasReferenceVideo && (selectedChars.length === 0 || !selectedSetting)) || (workflowRequiresReferenceVideo && !hasReferenceVideo)}
+                  disabled={
+                    createJob.isPending
+                    || !prompt
+                    || (!hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
+                    || (!hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)
+                    || (workflowRequiresReferenceVideo && !hasReferenceVideo)
+                  }
                 >
                   {createJob.isPending ? "Queuing Job..." : "SEND TO RENDER"}
                   {!createJob.isPending && <Play className="ml-2 size-4 fill-current" />}

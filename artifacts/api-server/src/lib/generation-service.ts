@@ -616,8 +616,10 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   try {
     const client = new ComfyUIClient(server);
     const assetParameters = await uploadMappedReferences(client, workflow.mappings as ParameterMappings, input.characterIds, input.settingId);
+    const requiresReferenceImage = Object.keys(workflow.mappings)
+      .some((field) => /^referenceImage\d+$/.test(field));
     if (
-      !wantsReferenceVideo &&
+      requiresReferenceImage &&
       !Object.keys(assetParameters).some((field) => /^referenceImage\d+$/.test(field))
     ) {
       throw new Error("Select a character with at least one reference image before generating.");
