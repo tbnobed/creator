@@ -28,11 +28,13 @@ download() {
     return
   fi
   local args=(--fail --location --retry 5 --retry-delay 5 --continue-at - --output "$destination.part")
-  if [[ -n "${HF_TOKEN:-}" ]]; then
-    args+=(--header "Authorization: Bearer ${HF_TOKEN}")
-  fi
   echo "Downloading $(basename "$destination")"
-  curl "${args[@]}" "$url"
+  if [[ -n "${HF_TOKEN:-}" ]]; then
+    printf 'header = "Authorization: Bearer %s"\n' "$HF_TOKEN" |
+      curl "${args[@]}" --config - "$url"
+  else
+    curl "${args[@]}" "$url"
+  fi
   mv "$destination.part" "$destination"
 }
 
