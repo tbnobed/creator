@@ -9,10 +9,17 @@ import mediaRouter from "./media";
 import referenceVideosRouter from "./reference-videos";
 import longFormProjectsRouter from "./long-form-projects";
 import promptGuidanceRouter from "./prompt-guidance";
+import sessionRouter from "./session";
+import generationCapabilitiesRouter from "./generation-capabilities";
+import { requireAuth, requireTenant } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(requireAuth);
+router.use(requireTenant);
+router.use(sessionRouter);
+router.use(generationCapabilitiesRouter);
 router.use(charactersRouter);
 router.use(settingsRouter);
 router.use(serversRouter);

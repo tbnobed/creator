@@ -9,6 +9,133 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List safe generation options available to the active tenant
+ */
+export const GetGenerationCapabilitiesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "generationMode": zod.string(),
+  "modelFamily": zod.string(),
+  "supportsReferenceVideo": zod.boolean(),
+  "supportsCharacterReferences": zod.boolean(),
+  "supportsSettingReference": zod.boolean()
+})
+export const GetGenerationCapabilitiesResponse = zod.array(GetGenerationCapabilitiesResponseItem)
+
+
+/**
+ * @summary Get the current local session
+ */
+export const GetSessionResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string(),
+  "email": zod.string().nullable(),
+  "displayName": zod.string(),
+  "siteRole": zod.enum(['SITE_ADMIN', 'USER'])
+}),
+  "activeTenant": zod.union([zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+}),zod.null()])
+})
+
+
+/**
+ * @summary List accessible tenants
+ */
+export const ListTenantsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+export const ListTenantsResponse = zod.array(ListTenantsResponseItem)
+
+
+/**
+ * @summary Create and activate a tenant
+ */
+export const createTenantBodyNameMax = 120;
+
+
+
+export const CreateTenantBody = zod.object({
+  "name": zod.string().min(1).max(createTenantBodyNameMax)
+})
+
+export const CreateTenantResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+
+
+/**
+ * @summary Activate an accessible tenant
+ */
+export const ActivateTenantParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ActivateTenantResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+
+
+/**
+ * @summary List tenant members
+ */
+export const ListTenantMembersParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListTenantMembersResponseItem = zod.object({
+  "userId": zod.string(),
+  "email": zod.string().nullable(),
+  "displayName": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+export const ListTenantMembersResponse = zod.array(ListTenantMembersResponseItem)
+
+
+/**
+ * @summary Add or update an existing local user
+ */
+export const AddTenantMemberParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AddTenantMemberBody = zod.object({
+  "email": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+
+export const AddTenantMemberResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string().nullable(),
+  "displayName": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+})
+
+
+/**
+ * @summary Remove a tenant member
+ */
+export const DeleteTenantMemberParams = zod.object({
+  "id": zod.coerce.string(),
+  "userId": zod.coerce.string()
+})
+
+export const DeleteTenantMemberResponse = zod.void()
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

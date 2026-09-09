@@ -5,6 +5,7 @@ import {
   db,
   pool,
   settingsTable,
+  tenantsTable,
   workflowTemplatesTable,
 } from "@workspace/db";
 import { assertTrustedComfyUrl } from "./comfy/client";
@@ -351,10 +352,14 @@ export async function ensureStudioSeed(): Promise<void> {
   const lock = await pool.connect();
   try {
     await lock.query("SELECT pg_advisory_lock(754229081)");
+    const [defaultTenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.isDefault, true)).limit(1);
+    const contentOwnerId = defaultTenant?.createdByUserId ?? "__obtv_legacy__";
     const [{ total }] = await db.select({ total: count() }).from(charactersTable);
-    if (total === 0) {
+    if (total === 0 && defaultTenant) {
       await db.insert(charactersTable).values([
         {
+          tenantId: defaultTenant.id,
+          createdByUserId: contentOwnerId,
           name: "Maya",
           description: "Female podcast host",
           promptDescription: "Maya is a woman in her early 30s with shoulder-length dark brown hair, warm brown eyes, olive skin and subtle natural makeup. She wears a cream-colored blouse.",
@@ -362,6 +367,8 @@ export async function ensureStudioSeed(): Promise<void> {
           voiceProfile: "Warm conversational",
         },
         {
+          tenantId: defaultTenant.id,
+          createdByUserId: contentOwnerId,
           name: "Daniel",
           description: "Holistic health expert",
           promptDescription: "Daniel is a man in his early 40s with short dark hair, a trimmed beard, and a charcoal shirt. He is calm, attentive and thoughtful.",
@@ -370,8 +377,10 @@ export async function ensureStudioSeed(): Promise<void> {
       ]);
     }
     const [{ settingTotal }] = await db.select({ settingTotal: count() }).from(settingsTable);
-    if (settingTotal === 0) {
+    if (settingTotal === 0 && defaultTenant) {
       await db.insert(settingsTable).values({
+        tenantId: defaultTenant.id,
+        createdByUserId: contentOwnerId,
         name: "Wellness Podcast Studio",
         description: "A warm contemporary recording set",
         promptDescription: "An elegant contemporary wellness podcast studio with warm neutral tones, walnut acoustic panels, soft practical lighting, plants, black broadcast microphones and a shallow-depth-of-field cinematic background.",

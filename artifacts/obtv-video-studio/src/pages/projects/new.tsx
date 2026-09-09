@@ -6,7 +6,7 @@ import {
   useCreateLongFormProject,
   useListCharacters,
   useListSettings,
-  useListWorkflows,
+  useGetGenerationCapabilities,
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -55,19 +55,15 @@ export default function NewProjectPage() {
   
   const { data: characters = [] } = useListCharacters();
   const { data: settings = [] } = useListSettings();
-  const { data: workflows = [] } = useListWorkflows();
-  const workflowModes = workflows.filter(
-    (workflow, index, collection) =>
-      workflow.active &&
-      workflow.apiWorkflow &&
-      !workflow.mappings?.referenceVideo &&
-      Object.keys(workflow.mappings ?? {}).some((field) => /^referenceImage\d+$/.test(field)) &&
+  const { data: capabilities = [] } = useGetGenerationCapabilities();
+  const workflowModes = capabilities.filter(
+    (cap, index, collection) =>
+      !cap.supportsReferenceVideo &&
+      cap.supportsCharacterReferences &&
       collection.findIndex((candidate) => (
-        candidate.active &&
-        candidate.apiWorkflow &&
-        !candidate.mappings?.referenceVideo &&
-        Object.keys(candidate.mappings ?? {}).some((field) => /^referenceImage\d+$/.test(field)) &&
-        candidate.generationMode === workflow.generationMode
+        !candidate.supportsReferenceVideo &&
+        candidate.supportsCharacterReferences &&
+        candidate.generationMode === cap.generationMode
       )) === index,
   );
 

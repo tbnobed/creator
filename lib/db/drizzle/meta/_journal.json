@@ -43,6 +43,13 @@
       "when": 1788980714253,
       "tag": "0005_narrow_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788984047242,
+      "tag": "0006_cooing_scourge",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,11 @@ const MAX_FFMPEG_ERROR_BYTES = 8 * 1024;
 const previewWaiters: Array<() => void> = [];
 let activePreviewJobs = 0;
 
+function tenantKey(tenantId: string, key: string): string {
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new Error("Invalid tenant");
+  return `tenants/${tenantId}/${key}`;
+}
+
 async function acquirePreviewSlot(): Promise<void> {
   if (activePreviewJobs < PREVIEW_CONCURRENCY) {
     activePreviewJobs += 1;
@@ -101,11 +106,10 @@ async function runMediaCommand(command: string, args: string[], timeoutMs = 60_0
 }
 
 function resolveKey(key: string): string {
-  const normalized = key.replaceAll("\\", "/");
-  if (!/^[a-z0-9/_-]+\.(jpg|jpeg|png|webp|mp4|webm|wav)$/i.test(normalized)) {
+  if (key.includes("\\") || !/^[a-z0-9/_-]+\.(jpg|jpeg|png|webp|mp4|webm|wav)$/i.test(key)) {
     throw new Error("Invalid media storage key");
   }
-  const resolved = path.resolve(root, normalized);
+  const resolved = path.resolve(root, key);
   if (!resolved.startsWith(`${root}${path.sep}`)) throw new Error("Invalid media storage key");
   return resolved;
 }
@@ -116,12 +120,13 @@ export class LocalMediaStorage {
     mimeType: string,
     bytes: Buffer,
     category: "characters" | "settings",
+    tenantId: string,
   ): Promise<string> {
     if (!IMAGE_MIME_TYPES.has(mimeType)) throw new Error("Only JPG, PNG, and WebP images are allowed");
     if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) {
       throw new Error("Image must be between 1 byte and 15 MB");
     }
-    const key = `${category}/${randomUUID()}${safeExtension(originalName, mimeType)}`;
+    const key = tenantKey(tenantId, `${category}/${randomUUID()}${safeExtension(originalName, mimeType)}`);
     const destination = resolveKey(key);
     await mkdir(path.dirname(destination), { recursive: true });
     await writeFile(destination, bytes, { flag: "wx" });
@@ -136,6 +141,7 @@ export class LocalMediaStorage {
     originalName: string,
     mimeType: string,
     bytes: Buffer,
+    tenantId: string,
   ): Promise<{ key: string; mimeType: "audio/wav"; durationSeconds: number }> {
     if (!VOICE_MIME_TYPES.has(mimeType)) {
       throw new Error("Use a WAV, MP3, M4A, WebM, or OGG voice recording");
@@ -146,7 +152,7 @@ export class LocalMediaStorage {
 
     const id = randomUUID();
     const source = path.join("/tmp", `obtv-voice-${id}${safeVoiceExtension(originalName, mimeType)}`);
-    const key = `voices/${id}.wav`;
+    const key = tenantKey(tenantId, `voices/${id}.wav`);
     const destination = resolveKey(key);
     await mkdir(path.dirname(destination), { recursive: true });
     await writeFile(source, bytes, { flag: "wx" });
@@ -180,7 +186,7 @@ export class LocalMediaStorage {
   }
 
   async deleteVoiceSample(key: string): Promise<void> {
-    if (!/^voices\/[a-z0-9_-]+\.wav$/i.test(key)) throw new Error("Invalid voice sample");
+    if (!/^(?:tenants\/[0-9a-f-]{36}\/)?voices\/[a-z0-9_-]+\.wav$/i.test(key)) throw new Error("Invalid voice sample");
     await unlink(resolveKey(key)).catch((error: NodeJS.ErrnoException) => {
       if (error.code !== "ENOENT") throw error;
     });
@@ -190,12 +196,13 @@ export class LocalMediaStorage {
     originalName: string,
     mimeType: string,
     bytes: Buffer,
+    tenantId: string,
   ): Promise<string> {
     if (!VIDEO_MIME_TYPES.has(mimeType)) throw new Error("Only MP4 and WebM reference videos are allowed");
     if (bytes.length === 0 || bytes.length > MAX_REFERENCE_VIDEO_BYTES) {
       throw new Error("Reference video must be between 1 byte and 250 MB");
     }
-    const key = `reference-videos/${randomUUID()}${safeVideoExtension(originalName, mimeType)}`;
+    const key = tenantKey(tenantId, `reference-videos/${randomUUID()}${safeVideoExtension(originalName, mimeType)}`);
     const destination = resolveKey(key);
     await mkdir(path.dirname(destination), { recursive: true });
     await writeFile(destination, bytes, { flag: "wx" });
@@ -203,7 +210,7 @@ export class LocalMediaStorage {
   }
 
   async readReferenceVideo(key: string): Promise<{ name: string; mimeType: "video/mp4" | "video/webm"; bytes: Buffer }> {
-    if (!key.startsWith("reference-videos/")) throw new Error("Invalid reference video");
+    if (!/(?:^|\/)reference-videos\//.test(key)) throw new Error("Invalid reference video");
     const mimeType = key.endsWith(".webm") ? "video/webm" : key.endsWith(".mp4") ? "video/mp4" : null;
     if (!mimeType) throw new Error("Invalid reference video");
     return {
@@ -213,9 +220,12 @@ export class LocalMediaStorage {
     };
   }
 
-  async listReferenceVideos(): Promise<Array<{ storageKey: string; name: string; mimeType: "video/mp4" | "video/webm"; size: number; createdAt: string }>> {
-    const directory = path.join(root, "reference-videos");
-    let entries;
+  async listReferenceVideos(tenantId: string, includeLegacy = false): Promise<Array<{ storageKey: string; name: string; mimeType: "video/mp4" | "video/webm"; size: number; createdAt: string }>> {
+    const tenantPrefix = tenantKey(tenantId, "reference-videos");
+    const prefixes = includeLegacy ? [tenantPrefix, "reference-videos"] : [tenantPrefix];
+    const readPrefix = async (prefix: string) => {
+      const directory = path.join(root, prefix);
+      let entries;
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch (error) {
@@ -223,10 +233,10 @@ export class LocalMediaStorage {
       throw error;
     }
 
-    const videos = await Promise.all(entries
+      return Promise.all(entries
       .filter((entry) => entry.isFile() && /\.(mp4|webm)$/i.test(entry.name))
       .map(async (entry) => {
-        const storageKey = `reference-videos/${entry.name}`;
+        const storageKey = `${prefix}/${entry.name}`;
         const fileInfo = await stat(path.join(directory, entry.name));
         const mimeType = entry.name.toLowerCase().endsWith(".webm") ? "video/webm" as const : "video/mp4" as const;
         return {
@@ -237,27 +247,34 @@ export class LocalMediaStorage {
           createdAt: fileInfo.birthtime.toISOString(),
         };
       }));
+    };
+    const videos = (await Promise.all(prefixes.map(readPrefix))).flat();
 
     return videos.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
-  async deleteReferenceVideo(key: string): Promise<void> {
-    if (!/^reference-videos\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(key)) {
+  async deleteReferenceVideo(key: string): Promise<boolean> {
+    if (!/^(?:tenants\/[0-9a-f-]{36}\/)?reference-videos\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(key)) {
       throw new Error("Invalid reference video");
     }
-    await unlink(resolveKey(key)).catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== "ENOENT") throw error;
-    });
+    try {
+      await unlink(resolveKey(key));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
   }
 
   async storeOutput(
     originalName: string,
     mimeType: "video/mp4" | "video/webm",
     bytes: Buffer,
+    tenantId: string,
   ): Promise<string> {
     const extension = mimeType === "video/webm" ? ".webm" : ".mp4";
     if (bytes.length === 0) throw new Error("Generated output is empty");
-    const key = `generations/${randomUUID()}${extension}`;
+    const key = tenantKey(tenantId, `generations/${randomUUID()}${extension}`);
     const destination = resolveKey(key);
     await mkdir(path.dirname(destination), { recursive: true });
     await writeFile(destination, bytes, { flag: "wx" });
@@ -268,16 +285,15 @@ export class LocalMediaStorage {
     return resolveKey(key);
   }
 
-  async videoPreviewPath(key: string): Promise<string> {
-    const normalized = key.replaceAll("\\", "/");
-    if (!/^(generations|reference-videos)\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(normalized)) {
+  async videoPreviewPath(key: string, tenantId: string): Promise<string> {
+    if (key.includes("\\") || !/^(?:tenants\/[0-9a-f-]{36}\/)?(generations|reference-videos)\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(key)) {
       throw new Error("Invalid video preview key");
     }
-    const source = resolveKey(normalized);
+    const source = resolveKey(key);
     await stat(source);
 
-    const previewDirectory = path.join(root, "previews");
-    const previewName = `${createHash("sha256").update(normalized).digest("hex")}.jpg`;
+    const previewDirectory = path.join(root, tenantKey(tenantId, "previews"));
+    const previewName = `${createHash("sha256").update(key).digest("hex")}.jpg`;
     const destination = path.join(previewDirectory, previewName);
     try {
       const existing = await stat(destination);

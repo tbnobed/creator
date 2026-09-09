@@ -13,8 +13,10 @@ import {
 import { db, workflowTemplatesTable } from "@workspace/db";
 import { parseApiWorkflow } from "../lib/comfy/workflow-parser";
 import { presentWorkflow } from "../lib/studio-presenters";
+import { requireSiteAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
+router.use("/workflows", requireSiteAdmin);
 
 function validateMappings(
   workflow: Record<string, unknown> | null,

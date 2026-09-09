@@ -23,6 +23,117 @@ tags:
   - name: long-form-projects
     description: Long-form video planning and orchestration
 paths:
+  /generation-capabilities:
+    get:
+      operationId: getGenerationCapabilities
+      tags: [generations]
+      summary: List safe generation options available to the active tenant
+      responses:
+        "200":
+          description: Sanitized active generation capabilities
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/GenerationCapability" }
+  /session:
+    get:
+      operationId: getSession
+      tags: [tenants]
+      summary: Get the current local session
+      responses:
+        "200":
+          description: Current user and active tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+  /tenants:
+    get:
+      operationId: listTenants
+      tags: [tenants]
+      summary: List accessible tenants
+      responses:
+        "200":
+          description: Accessible tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantSummary" }
+    post:
+      operationId: createTenant
+      tags: [tenants]
+      summary: Create and activate a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantInput" }
+      responses:
+        "201":
+          description: Created tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantSummary" }
+  /tenants/{id}/activate:
+    post:
+      operationId: activateTenant
+      tags: [tenants]
+      summary: Activate an accessible tenant
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Active tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantSummary" }
+  /tenants/{id}/members:
+    get:
+      operationId: listTenantMembers
+      tags: [tenants]
+      summary: List tenant members
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Tenant members
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantMember" }
+    post:
+      operationId: addTenantMember
+      tags: [tenants]
+      summary: Add or update an existing local user
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantMemberInput" }
+      responses:
+        "201":
+          description: Added member
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantMember" }
+  /tenants/{id}/members/{userId}:
+    delete:
+      operationId: deleteTenantMember
+      tags: [tenants]
+      summary: Remove a tenant member
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Removed
   /healthz:
     get:
       operationId: healthCheck
@@ -776,6 +887,67 @@ components:
       schema:
         type: string
   schemas:
+    GenerationCapability:
+      type: object
+      required: [id, name, generationMode, modelFamily, supportsReferenceVideo, supportsCharacterReferences, supportsSettingReference]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        generationMode: { type: string }
+        modelFamily: { type: string }
+        supportsReferenceVideo: { type: boolean }
+        supportsCharacterReferences: { type: boolean }
+        supportsSettingReference: { type: boolean }
+    SiteRole:
+      type: string
+      enum: [SITE_ADMIN, USER]
+    TenantRole:
+      type: string
+      enum: [OWNER, ADMIN, MEMBER]
+    SessionUser:
+      type: object
+      required: [id, email, displayName, siteRole]
+      properties:
+        id: { type: string }
+        email: { type: ["string", "null"] }
+        displayName: { type: string }
+        siteRole: { $ref: "#/components/schemas/SiteRole" }
+    TenantSummary:
+      type: object
+      required: [id, name, slug, role]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        role: { $ref: "#/components/schemas/TenantRole" }
+    Session:
+      type: object
+      required: [user, activeTenant]
+      properties:
+        user: { $ref: "#/components/schemas/SessionUser" }
+        activeTenant:
+          oneOf:
+            - { $ref: "#/components/schemas/TenantSummary" }
+            - { type: "null" }
+    TenantInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+    TenantMember:
+      type: object
+      required: [userId, email, displayName, role]
+      properties:
+        userId: { type: string }
+        email: { type: ["string", "null"] }
+        displayName: { type: string }
+        role: { $ref: "#/components/schemas/TenantRole" }
+    TenantMemberInput:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string }
+        role: { $ref: "#/components/schemas/TenantRole" }
     HealthStatus:
       type: object
       properties:

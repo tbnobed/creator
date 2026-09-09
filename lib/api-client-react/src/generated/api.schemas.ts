@@ -5,6 +5,74 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface GenerationCapability {
+  id: string;
+  name: string;
+  generationMode: string;
+  modelFamily: string;
+  supportsReferenceVideo: boolean;
+  supportsCharacterReferences: boolean;
+  supportsSettingReference: boolean;
+}
+
+export type SiteRole = typeof SiteRole[keyof typeof SiteRole];
+
+
+export const SiteRole = {
+  SITE_ADMIN: 'SITE_ADMIN',
+  USER: 'USER',
+} as const;
+
+export type TenantRole = typeof TenantRole[keyof typeof TenantRole];
+
+
+export const TenantRole = {
+  OWNER: 'OWNER',
+  ADMIN: 'ADMIN',
+  MEMBER: 'MEMBER',
+} as const;
+
+export interface SessionUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  displayName: string;
+  siteRole: SiteRole;
+}
+
+export interface TenantSummary {
+  id: string;
+  name: string;
+  slug: string;
+  role: TenantRole;
+}
+
+export interface Session {
+  user: SessionUser;
+  activeTenant: TenantSummary | null;
+}
+
+export interface TenantInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+}
+
+export interface TenantMember {
+  userId: string;
+  /** @nullable */
+  email: string | null;
+  displayName: string;
+  role: TenantRole;
+}
+
+export interface TenantMemberInput {
+  email: string;
+  role: TenantRole;
+}
+
 export interface HealthStatus {
   status: string;
 }

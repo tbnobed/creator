@@ -23,6 +23,7 @@ import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { mediaStorage } from "./storage-service";
+import { ResourceNotFoundError } from "./resource-errors";
 
 const execFileAsync = promisify(execFile);
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
@@ -45,6 +46,11 @@ export type LongFormProjectInput = {
   height: number;
   fps: number;
   qualityPreset: string;
+};
+
+export type OwnedLongFormProjectInput = LongFormProjectInput & {
+  tenantId: string;
+  createdByUserId: string;
 };
 
 export type LongFormShotUpdate = Partial<Pick<
@@ -418,13 +424,19 @@ export async function presentLongFormProject(project: LongFormProject, includeSh
   return { ...base, shots: await Promise.all(shots.map(presentShot)) };
 }
 
-export async function createLongFormProject(input: LongFormProjectInput) {
+export async function createLongFormProject(input: OwnedLongFormProjectInput) {
   const [characters, setting] = await Promise.all([
-    db.select({ id: charactersTable.id }).from(charactersTable).where(inArray(charactersTable.id, input.characterIds)),
-    db.select({ id: settingsTable.id }).from(settingsTable).where(eq(settingsTable.id, input.settingId)),
+    db.select({ id: charactersTable.id }).from(charactersTable).where(and(
+      inArray(charactersTable.id, input.characterIds),
+      eq(charactersTable.tenantId, input.tenantId),
+    )),
+    db.select({ id: settingsTable.id }).from(settingsTable).where(and(
+      eq(settingsTable.id, input.settingId),
+      eq(settingsTable.tenantId, input.tenantId),
+    )),
   ]);
   if (characters.length !== input.characterIds.length || !setting[0]) {
-    throw new Error("Select characters and an environment from the current library");
+    throw new ResourceNotFoundError("One or more selected studio assets were not found");
   }
   if (input.targetDurationSeconds > 600) throw new Error("Long-form projects are limited to 10 minutes.");
   const shots = planShots(input);
@@ -435,6 +447,8 @@ export async function createLongFormProject(input: LongFormProjectInput) {
     const [created] = await tx
       .insert(longFormProjectsTable)
       .values({
+      tenantId: input.tenantId,
+      createdByUserId: input.createdByUserId,
       title: input.title.trim(),
       script: input.script.trim(),
       storyline: input.storyline?.trim() ?? "",
@@ -710,7 +724,7 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
       "-movflags", "+faststart",
       finalPath,
     ]);
-    const storageKey = await mediaStorage.storeOutput(`${project.title}.mp4`, "video/mp4", await readFile(finalPath));
+    const storageKey = await mediaStorage.storeOutput(`${project.title}.mp4`, "video/mp4", await readFile(finalPath), project.tenantId);
     await db.update(longFormProjectsTable).set({
       status: "COMPLETED",
       progress: 100,
@@ -965,6 +979,8 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
             .where(eq(longFormShotsTable.id, claimed.id));
         }
         const job = await createAndSubmitGeneration({
+          tenantId: project.tenantId,
+          createdByUserId: project.createdByUserId,
           characterIds: project.characterIds,
           settingId: project.settingId ?? undefined,
           prompt: claimed.dialogue ? removeDialogueFromPrompt(claimed.prompt) : claimed.prompt,
@@ -1079,7 +1095,7 @@ export async function updateLongFormTimeline(projectId: string, input: LongFormT
       .select()
       .from(longFormProjectsTable)
       .where(eq(longFormProjectsTable.id, projectId));
-    if (!project) throw new Error("Long-form project not found");
+    if (!project) throw new ResourceNotFoundError("Long-form project not found");
     if (!["EDITING", "COMPLETED", "FAILED"].includes(project.status)) {
       throw new Error("The timeline can only be changed after all clips are generated.");
     }
@@ -1098,7 +1114,8 @@ export async function updateLongFormTimeline(projectId: string, input: LongFormT
     const clips: LongFormTimelineClip[] = [];
     for (const clip of input.clips) {
       const shot = shotById.get(clip.shotId);
-      if (!shot || !shot.outputStorageKey) throw new Error("The timeline contains an unknown clip.");
+      if (!shot) throw new ResourceNotFoundError("The timeline contains an unknown clip.");
+      if (!shot.outputStorageKey) throw new Error("The timeline contains a clip without completed output.");
       if (seen.has(clip.shotId)) throw new Error("Each source clip can appear only once in the timeline.");
       seen.add(clip.shotId);
       const mediaInfo = await validateShotMedia(shot);

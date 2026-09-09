@@ -4,7 +4,7 @@ import {
   useListCharacters, 
   useListSettings, 
   useCreateGeneration, 
-  useListWorkflows,
+  useGetGenerationCapabilities,
   useGetGeneration,
   getGetGenerationQueryKey,
 } from "@workspace/api-client-react";
@@ -142,7 +142,7 @@ export default function GeneratePage() {
   const [draft] = useState<ComposerDraft>(() => readComposerDraft());
   const { data: characters } = useListCharacters();
   const { data: settings } = useListSettings();
-  const { data: workflows } = useListWorkflows();
+  const { data: capabilities } = useGetGenerationCapabilities();
   const { data: sourceJob, isLoading: isLoadingSourceJob } = useGetGeneration(cloneJobId ?? "", {
     query: {
       enabled: Boolean(cloneJobId),
@@ -176,17 +176,16 @@ export default function GeneratePage() {
   const [seed, setSeed] = useState<number>(() => draft.seed ?? 0);
   const hasSelectedInitialMode = useRef(false);
   const hasPrefilledSourceJob = useRef(false);
-  const activeWorkflows = workflows?.filter(w => w.active) || [];
-  const activeWorkflowsForMode = activeWorkflows.filter((workflow) => workflow.generationMode === generationMode);
-  const hasNonReferenceWorkflow = activeWorkflowsForMode.some((workflow) => !workflow.mappings?.referenceVideo);
-  const workflowRequiresReferenceVideo = activeWorkflowsForMode.length > 0 && !hasNonReferenceWorkflow;
-  const workflowRequiresReferenceImage = activeWorkflowsForMode.length > 0 && activeWorkflowsForMode.every(
-    (workflow) => Object.keys(workflow.mappings ?? {}).some((field) => /^referenceImage\d+$/.test(field)),
+  const capabilitiesForMode = capabilities?.filter((cap) => cap.generationMode === generationMode) || [];
+  const hasNonReferenceCapability = capabilitiesForMode.some((cap) => !cap.supportsReferenceVideo);
+  const workflowRequiresReferenceVideo = capabilitiesForMode.length > 0 && !hasNonReferenceCapability;
+  const workflowRequiresReferenceImage = capabilitiesForMode.length > 0 && capabilitiesForMode.every(
+    (cap) => cap.supportsCharacterReferences
   );
-  const workflowRequiresStudioSetting = activeWorkflowsForMode.some(
-    (workflow) => workflow.modelFamily === "MiniMax H3",
+  const workflowRequiresStudioSetting = capabilitiesForMode.some(
+    (cap) => cap.supportsSettingReference
   );
-  const isLtx25Mode = activeWorkflowsForMode.some((workflow) => workflow.modelFamily === "LTX 2.5");
+  const isLtx25Mode = capabilitiesForMode.some((cap) => cap.modelFamily === "LTX 2.5");
   const resolutionOptions = isLtx25Mode ? LTX25_RESOLUTION_OPTIONS : DEFAULT_RESOLUTION_OPTIONS;
   const hasReferenceVideo = Boolean(referenceVideoKey);
   const isCloudProvider = provider === "FAL";
@@ -254,13 +253,13 @@ export default function GeneratePage() {
   }, [sourceJob]);
 
   useEffect(() => {
-    if (hasSelectedInitialMode.current || !workflows) return;
-    const preferredWorkflow = activeWorkflows.find((workflow) => !workflow.mappings?.referenceVideo) ?? activeWorkflows[0];
-    if (preferredWorkflow) {
-      setGenerationMode(preferredWorkflow.generationMode);
+    if (hasSelectedInitialMode.current || !capabilities) return;
+    const preferredCapability = capabilities.find((cap) => !cap.supportsReferenceVideo) ?? capabilities[0];
+    if (preferredCapability) {
+      setGenerationMode(preferredCapability.generationMode);
     }
     hasSelectedInitialMode.current = true;
-  }, [workflows]);
+  }, [capabilities]);
 
   useEffect(() => {
     if (!isLtx25Mode) return;
@@ -337,7 +336,7 @@ export default function GeneratePage() {
     }
   };
 
-  const availableModes = Array.from(new Set(activeWorkflows.map(w => w.generationMode)));
+  const availableModes = Array.from(new Set((capabilities || []).map(cap => cap.generationMode)));
 
   return (
     <Page className="max-w-[1600px] mx-auto">

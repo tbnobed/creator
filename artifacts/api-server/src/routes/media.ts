@@ -5,6 +5,15 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { mediaStorage } from "../lib/storage-service";
 
 const router: IRouter = Router();
+const canonicalMediaKey = /^(?:tenants\/[0-9a-f-]{36}\/)?(?:(?:characters|settings)\/[a-z0-9_-]+\.(?:jpe?g|png|webp)|voices\/[a-z0-9_-]+\.wav|(?:reference-videos|generations)\/[a-z0-9_-]+\.(?:mp4|webm))$/i;
+
+function authorizedMediaKey(req: Request, raw: string): boolean {
+  if (!canonicalMediaKey.test(raw) || raw.includes("\\")) return false;
+  const tenantPrefix = `tenants/${req.context!.tenant!.id}/`;
+  if (raw.startsWith(tenantPrefix)) return true;
+  if (raw.startsWith("tenants/")) return false;
+  return req.context!.tenant!.isDefault;
+}
 
 function contentType(key: string): string {
   switch (path.extname(key).toLowerCase()) {
@@ -32,6 +41,10 @@ async function serveMedia(req: Request, res: Response): Promise<void> {
     res.status(400).json({ error: "Media key is required" });
     return;
   }
+  if (!authorizedMediaKey(req, raw)) {
+    res.status(404).json({ error: "Media not found" });
+    return;
+  }
 
   try {
     const filePath = mediaStorage.resolvePath(raw);
@@ -43,7 +56,7 @@ async function serveMedia(req: Request, res: Response): Promise<void> {
 
     const headers: Record<string, string> = {
       "accept-ranges": "bytes",
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": "private, no-store",
       "content-length": String(fileInfo.size),
       "content-type": contentType(raw),
     };
@@ -111,12 +124,16 @@ async function serveVideoPreview(req: Request, res: Response): Promise<void> {
     res.status(400).json({ error: "Media key is required" });
     return;
   }
+  if (!authorizedMediaKey(req, raw) || !/(?:^|\/)(?:generations|reference-videos)\//.test(raw)) {
+    res.status(404).json({ error: "Video preview is not available" });
+    return;
+  }
 
   try {
-    const filePath = await mediaStorage.videoPreviewPath(raw);
+    const filePath = await mediaStorage.videoPreviewPath(raw, req.context!.tenant!.id);
     const fileInfo = await stat(filePath);
     res.set({
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": "private, no-store",
       "content-length": String(fileInfo.size),
       "content-type": "image/jpeg",
     });

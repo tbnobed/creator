@@ -9,6 +9,7 @@ import {
   generationSettingsTable,
   settingAssetsTable,
   settingsTable,
+  tenantsTable,
   workflowTemplatesTable,
   pool,
   type GenerationJob,
@@ -20,6 +21,7 @@ import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder"
 import { mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
 import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
+import { ResourceNotFoundError } from "./resource-errors";
 import {
   falModels,
   FalHttpError,
@@ -58,6 +60,8 @@ async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): 
 }
 
 export type GenerationRequest = {
+  tenantId: string;
+  createdByUserId: string;
   provider?: "COMFYUI" | "FAL";
   model?: FalModel;
   voiceCloningEnabled?: boolean;
@@ -554,12 +558,27 @@ export async function resumeActiveGenerations(): Promise<void> {
 }
 
 export async function createAndSubmitGeneration(input: GenerationRequest): Promise<GenerationJob> {
+  if (input.referenceVideoKey && !input.referenceVideoKey.startsWith(`tenants/${input.tenantId}/`)) {
+    const [tenant] = await db.select({ isDefault: tenantsTable.isDefault })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.id, input.tenantId))
+      .limit(1);
+    if (input.referenceVideoKey.startsWith("tenants/") || !tenant?.isDefault) {
+      throw new ResourceNotFoundError("Reference video not found");
+    }
+  }
   const [foundCharacters, setting] = await Promise.all([
     input.characterIds?.length
-      ? db.select().from(charactersTable).where(inArray(charactersTable.id, input.characterIds))
+      ? db.select().from(charactersTable).where(and(
+        inArray(charactersTable.id, input.characterIds),
+        eq(charactersTable.tenantId, input.tenantId),
+      ))
       : Promise.resolve([]),
     input.settingId
-      ? db.select().from(settingsTable).where(eq(settingsTable.id, input.settingId))
+      ? db.select().from(settingsTable).where(and(
+        eq(settingsTable.id, input.settingId),
+        eq(settingsTable.tenantId, input.tenantId),
+      ))
       : Promise.resolve([]),
   ]);
   const charactersById = new Map(foundCharacters.map((character) => [character.id, character]));
@@ -571,7 +590,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     characters.length !== (input.characterIds?.length ?? 0) ||
     (input.settingId !== undefined && !setting[0])
   ) {
-    throw new Error("One or more selected studio assets no longer exist");
+    throw new ResourceNotFoundError("One or more selected studio assets no longer exist");
   }
   if (input.voiceCloningEnabled) {
     if (!input.dialogue?.trim()) {
@@ -662,6 +681,8 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   const [job] = await db
     .insert(generationJobsTable)
     .values({
+      tenantId: input.tenantId,
+      createdByUserId: input.createdByUserId,
       title: characters[0]?.name && setting[0]?.name
         ? `${characters[0].name} — ${setting[0].name}`
         : characters[0]?.name ?? setting[0]?.name ?? workflow.modelFamily,
@@ -783,6 +804,8 @@ async function createAndSubmitFalGeneration(
     seed: input.seedMode === "FIXED" ? input.seed : null,
   });
   const [job] = await db.insert(generationJobsTable).values({
+    tenantId: input.tenantId,
+    createdByUserId: input.createdByUserId,
     title: characters[0]?.name && setting?.name
       ? `${characters[0].name} — ${setting.name}`
       : characters[0]?.name ?? setting?.name ?? model,
@@ -886,6 +909,7 @@ async function completeFalOutput(
   let outputName = `fal-${requestId}.${mimeType === "video/webm" ? "webm" : "mp4"}`;
 
   const [job] = await db.select({
+    tenantId: generationJobsTable.tenantId,
     dialogue: generationJobsTable.dialogue,
     voiceCloningEnabled: generationJobsTable.voiceCloningEnabled,
     durationSeconds: generationJobsTable.durationSeconds,
@@ -927,7 +951,7 @@ async function completeFalOutput(
       outputName = `fal-${requestId}-voiced.mp4`;
     }
   }
-  const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes);
+  const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes, job.tenantId);
   await db.update(generationJobsTable).set({
     status: "COMPLETED",
     outputStorageKey: storageKey,
@@ -1118,6 +1142,7 @@ async function downloadCompletedOutput(
     .where(and(eq(generationJobsTable.id, jobId), eligibleStatus))
     .returning({
       id: generationJobsTable.id,
+      tenantId: generationJobsTable.tenantId,
       dialogue: generationJobsTable.dialogue,
       durationSeconds: generationJobsTable.durationSeconds,
       seed: generationJobsTable.seed,
@@ -1170,7 +1195,7 @@ async function downloadCompletedOutput(
       }
     }
 
-    const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes);
+    const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes, downloading.tenantId);
     await db
       .update(generationJobsTable)
       .set({

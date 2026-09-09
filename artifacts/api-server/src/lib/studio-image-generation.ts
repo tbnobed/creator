@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   characterAssetsTable,
   charactersTable,
@@ -100,12 +100,13 @@ function imageMimeType(filename: string): "image/jpeg" | "image/png" | "image/we
 export async function generateStudioImage(input: {
   kind: Flux2AssetKind;
   entityId: string;
+  tenantId: string;
   prompt?: string;
   seed?: number;
 }): Promise<{ ok: true; assetId: string; mediaUrl: string; serverName: string; seed: number }> {
   const [entity] = input.kind === "character"
-    ? await db.select().from(charactersTable).where(eq(charactersTable.id, input.entityId))
-    : await db.select().from(settingsTable).where(eq(settingsTable.id, input.entityId));
+    ? await db.select().from(charactersTable).where(and(eq(charactersTable.id, input.entityId), eq(charactersTable.tenantId, input.tenantId)))
+    : await db.select().from(settingsTable).where(and(eq(settingsTable.id, input.entityId), eq(settingsTable.tenantId, input.tenantId)));
   if (!entity) throw new Error(`${input.kind === "character" ? "Character" : "Setting"} not found`);
 
   const servers = (await db.select().from(comfyServersTable))
@@ -130,7 +131,7 @@ export async function generateStudioImage(input: {
     const output = await waitForImage(client, submitted.prompt_id);
     const bytes = await client.getOutputFile(output.filename, output.subfolder, output.type);
     const mimeType = imageMimeType(output.filename);
-    const storageKey = await mediaStorage.storeImage(output.filename, mimeType, bytes, input.kind === "character" ? "characters" : "settings");
+    const storageKey = await mediaStorage.storeImage(output.filename, mimeType, bytes, input.kind === "character" ? "characters" : "settings", input.tenantId);
     const mediaUrl = `/api/media/${storageKey}`;
 
     if (input.kind === "character") {

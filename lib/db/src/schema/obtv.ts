@@ -3,6 +3,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
@@ -20,8 +21,47 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 };
 
+export const usersTable = pgTable(
+  "obtv_users",
+  {
+    id: text("id").primaryKey(),
+    email: text("email"),
+    displayName: text("display_name").notNull().default("OBTV User"),
+    siteRole: text("site_role").notNull().default("USER").$type<"SITE_ADMIN" | "USER">(),
+    activeTenantId: uuid("active_tenant_id"),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("obtv_users_email_unique").on(table.email)],
+);
+
+export const tenantsTable = pgTable("obtv_tenants", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdByUserId: text("created_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  ...timestamps,
+});
+
+export const tenantMembershipsTable = pgTable(
+  "obtv_tenant_memberships",
+  {
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenantsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("MEMBER").$type<"OWNER" | "ADMIN" | "MEMBER">(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.tenantId, table.userId] })],
+);
+
 export const charactersTable = pgTable("obtv_characters", {
   id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenantsTable.id),
+  createdByUserId: text("created_by_user_id").notNull().references(() => usersTable.id),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   promptDescription: text("prompt_description").notNull().default(""),
@@ -53,6 +93,8 @@ export const characterAssetsTable = pgTable("obtv_character_assets", {
 
 export const settingsTable = pgTable("obtv_settings", {
   id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenantsTable.id),
+  createdByUserId: text("created_by_user_id").notNull().references(() => usersTable.id),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   promptDescription: text("prompt_description").notNull().default(""),
@@ -120,6 +162,8 @@ export const workflowTemplatesTable = pgTable("obtv_workflow_templates", {
 
 export const generationJobsTable = pgTable("obtv_generation_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenantsTable.id),
+  createdByUserId: text("created_by_user_id").notNull().references(() => usersTable.id),
   userId: text("user_id"),
   title: text("title").notNull(),
   status: text("status").notNull().default("DRAFT"),
@@ -167,6 +211,8 @@ export const generationJobsTable = pgTable("obtv_generation_jobs", {
 
 export const longFormProjectsTable = pgTable("obtv_long_form_projects", {
   id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenantsTable.id),
+  createdByUserId: text("created_by_user_id").notNull().references(() => usersTable.id),
   title: text("title").notNull(),
   script: text("script").notNull(),
   storyline: text("storyline").notNull().default(""),
@@ -264,6 +310,9 @@ export const generationSettingsTable = pgTable("obtv_generation_settings", {
 });
 
 export type Character = typeof charactersTable.$inferSelect;
+export type ObtvUser = typeof usersTable.$inferSelect;
+export type Tenant = typeof tenantsTable.$inferSelect;
+export type TenantMembership = typeof tenantMembershipsTable.$inferSelect;
 export type Setting = typeof settingsTable.$inferSelect;
 export type ComfyServer = typeof comfyServersTable.$inferSelect;
 export type WorkflowTemplate = typeof workflowTemplatesTable.$inferSelect;

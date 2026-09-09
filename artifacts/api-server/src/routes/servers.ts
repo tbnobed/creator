@@ -18,8 +18,10 @@ import {
 import { comfyServersTable, db, workflowTemplatesTable } from "@workspace/db";
 import { assertTrustedComfyUrl, ComfyUIClient } from "../lib/comfy/client";
 import { presentServer } from "../lib/studio-presenters";
+import { requireSiteAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
+router.use("/servers", requireSiteAdmin);
 
 async function validateServerEndpoints(apiBaseUrl: string, rawWebsocketUrl: string) {
   const apiUrl = await assertTrustedComfyUrl(apiBaseUrl.trim());

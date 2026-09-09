@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateGenerationBody,
@@ -22,6 +22,7 @@ import {
 import { cancelGeneration, createAndSubmitGeneration, recoverTimedOutGeneration } from "../lib/generation-service";
 import { presentGeneration } from "../lib/studio-presenters";
 import { mediaStorage } from "../lib/storage-service";
+import { ResourceNotFoundError } from "../lib/resource-errors";
 
 const router: IRouter = Router();
 
@@ -90,12 +91,14 @@ router.get("/generations", async (req, res): Promise<void> => {
   }
   const page = Math.max(1, parsed.data.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, parsed.data.pageSize ?? 24));
-  const [{ total }] = await db.select({ total: count() }).from(generationJobsTable);
+  const [{ total }] = await db.select({ total: count() }).from(generationJobsTable)
+    .where(eq(generationJobsTable.tenantId, req.context!.tenant!.id));
   const totalItems = Number(total);
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(page, totalPages);
   const jobs = await db.select()
     .from(generationJobsTable)
+    .where(eq(generationJobsTable.tenantId, req.context!.tenant!.id))
     .orderBy(desc(generationJobsTable.createdAt), desc(generationJobsTable.id))
     .limit(pageSize)
     .offset((safePage - 1) * pageSize);
@@ -115,11 +118,17 @@ router.post("/generations", async (req, res): Promise<void> => {
     return;
   }
   try {
-    const job = await createAndSubmitGeneration(input.data);
+    const job = await createAndSubmitGeneration({
+      ...input.data,
+      tenantId: req.context!.tenant!.id,
+      createdByUserId: req.context!.user.id,
+    });
     res.status(201).json(CreateGenerationResponse.parse(await present(job)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation could not be submitted";
-    const status = message.startsWith("No healthy") || message.startsWith("No active") ? 409 : 400;
+    const status = error instanceof ResourceNotFoundError
+      ? 404
+      : message.startsWith("No healthy") || message.startsWith("No active") ? 409 : 400;
     res.status(status).json({ error: message });
   }
 });
@@ -130,7 +139,10 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  let [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
+  let [job] = await db.select().from(generationJobsTable).where(and(
+    eq(generationJobsTable.id, params.data.id),
+    eq(generationJobsTable.tenantId, req.context!.tenant!.id),
+  ));
   if (!job) {
     res.status(404).json({ error: "Generation not found" });
     return;
@@ -140,7 +152,10 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
     ["Timed out while waiting for ComfyUI", "Timed out while waiting for fal.ai"].includes(job.errorMessage ?? "")
   ) {
     await recoverTimedOutGeneration(job.id);
-    [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
+    [job] = await db.select().from(generationJobsTable).where(and(
+      eq(generationJobsTable.id, params.data.id),
+      eq(generationJobsTable.tenantId, req.context!.tenant!.id),
+    ));
   }
   res.json(GetGenerationResponse.parse(await present(job)));
 });
@@ -151,7 +166,10 @@ router.delete("/generations/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [job] = await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, params.data.id));
+  const [job] = await db.select().from(generationJobsTable).where(and(
+    eq(generationJobsTable.id, params.data.id),
+    eq(generationJobsTable.tenantId, req.context!.tenant!.id),
+  ));
   if (!job) {
     res.status(404).json({ error: "Generation not found" });
     return;
@@ -193,6 +211,14 @@ router.post("/generations/:id/cancel", async (req, res): Promise<void> => {
     return;
   }
   try {
+    const [owned] = await db.select({ id: generationJobsTable.id }).from(generationJobsTable).where(and(
+      eq(generationJobsTable.id, params.data.id),
+      eq(generationJobsTable.tenantId, req.context!.tenant!.id),
+    ));
+    if (!owned) {
+      res.status(404).json({ error: "Generation not found" });
+      return;
+    }
     const job = await cancelGeneration(params.data.id);
     res.json(GetGenerationResponse.parse(await present(job)));
   } catch (error) {
@@ -202,12 +228,13 @@ router.post("/generations/:id/cancel", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/dashboard/summary", async (_req, res): Promise<void> => {
+router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  const tenantId = req.context!.tenant!.id;
   const [characters, settings, servers, jobs] = await Promise.all([
-    db.select().from(charactersTable),
-    db.select().from(settingsTable),
+    db.select().from(charactersTable).where(eq(charactersTable.tenantId, tenantId)),
+    db.select().from(settingsTable).where(eq(settingsTable.tenantId, tenantId)),
     db.select().from(comfyServersTable),
-    db.select().from(generationJobsTable).orderBy(desc(generationJobsTable.createdAt)),
+    db.select().from(generationJobsTable).where(eq(generationJobsTable.tenantId, tenantId)).orderBy(desc(generationJobsTable.createdAt)),
   ]);
   const latestGenerations = await Promise.all(jobs.slice(0, 5).map(present));
   res.json(GetDashboardSummaryResponse.parse({

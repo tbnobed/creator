@@ -1,6 +1,6 @@
 import { createReadStream } from "node:fs";
 import { rm, stat } from "node:fs/promises";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CancelLongFormProjectParams,
@@ -27,7 +27,7 @@ import {
   UpdateLongFormTimelineResponse,
   DownloadLongFormNlePackageParams,
 } from "@workspace/api-zod";
-import { db, longFormProjectsTable } from "@workspace/db";
+import { db, longFormProjectsTable, longFormShotsTable } from "@workspace/db";
 import {
   cancelLongFormProject,
   createLongFormNlePackage,
@@ -41,16 +41,22 @@ import {
   updateLongFormShot,
   updateLongFormTimeline,
 } from "../lib/long-form-service";
+import { ResourceNotFoundError } from "../lib/resource-errors";
 
 const router: IRouter = Router();
 
-async function detail(projectId: string) {
-  const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+async function detail(projectId: string, tenantId: string) {
+  const [project] = await db.select().from(longFormProjectsTable).where(and(
+    eq(longFormProjectsTable.id, projectId),
+    eq(longFormProjectsTable.tenantId, tenantId),
+  ));
   return project ? presentLongFormProject(project, true) : null;
 }
 
-router.get("/long-form-projects", async (_req, res): Promise<void> => {
-  const projects = await db.select().from(longFormProjectsTable).orderBy(desc(longFormProjectsTable.createdAt));
+router.get("/long-form-projects", async (req, res): Promise<void> => {
+  const projects = await db.select().from(longFormProjectsTable)
+    .where(eq(longFormProjectsTable.tenantId, req.context!.tenant!.id))
+    .orderBy(desc(longFormProjectsTable.createdAt));
   res.json(ListLongFormProjectsResponse.parse(await Promise.all(projects.map((project) => presentLongFormProject(project)))));
 });
 
@@ -61,10 +67,43 @@ router.post("/long-form-projects", async (req, res): Promise<void> => {
     return;
   }
   try {
-    res.status(201).json(CreateLongFormProjectResponse.parse(await createLongFormProject(input.data)));
+    res.status(201).json(CreateLongFormProjectResponse.parse(await createLongFormProject({
+      ...input.data,
+      tenantId: req.context!.tenant!.id,
+      createdByUserId: req.context!.user.id,
+    })));
   } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : "Could not plan long-form project" });
+    res.status(error instanceof ResourceNotFoundError ? 404 : 400).json({
+      error: error instanceof Error ? error.message : "Could not plan long-form project",
+    });
   }
+});
+
+router.use("/long-form-projects/:id", async (req, res, next): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [owned] = await db.select({ id: longFormProjectsTable.id }).from(longFormProjectsTable).where(and(
+    eq(longFormProjectsTable.id, id),
+    eq(longFormProjectsTable.tenantId, req.context!.tenant!.id),
+  ));
+  if (!owned) {
+    res.status(404).json({ error: "Long-form project not found" });
+    return;
+  }
+  next();
+});
+
+router.use("/long-form-projects/:id/shots/:shotId", async (req, res, next): Promise<void> => {
+  const projectId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const shotId = Array.isArray(req.params.shotId) ? req.params.shotId[0] : req.params.shotId;
+  const [shot] = await db.select({ id: longFormShotsTable.id }).from(longFormShotsTable).where(and(
+    eq(longFormShotsTable.id, shotId),
+    eq(longFormShotsTable.projectId, projectId),
+  ));
+  if (!shot) {
+    res.status(404).json({ error: "Long-form shot not found" });
+    return;
+  }
+  next();
 });
 
 router.get("/long-form-projects/:id", async (req, res): Promise<void> => {
@@ -73,7 +112,7 @@ router.get("/long-form-projects/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const project = await detail(params.data.id);
+  const project = await detail(params.data.id, req.context!.tenant!.id);
   if (!project) {
     res.status(404).json({ error: "Long-form project not found" });
     return;
@@ -195,7 +234,7 @@ router.patch("/long-form-projects/:id/timeline", async (req, res): Promise<void>
     res.json(UpdateLongFormTimelineResponse.parse(await updateLongFormTimeline(params.data.id, input.data)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not update timeline";
-    res.status(message === "Long-form project not found" ? 404 : 409).json({ error: message });
+    res.status(error instanceof ResourceNotFoundError ? 404 : 409).json({ error: message });
   }
 });
 

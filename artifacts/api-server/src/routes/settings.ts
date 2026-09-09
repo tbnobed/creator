@@ -1,5 +1,5 @@
 import express, { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   CreateSettingBody,
   CreateSettingResponse,
@@ -22,16 +22,16 @@ import { presentSetting } from "../lib/studio-presenters";
 
 const router: IRouter = Router();
 
-async function list() {
-  const settings = await db.select().from(settingsTable);
+async function list(tenantId: string) {
+  const settings = await db.select().from(settingsTable).where(eq(settingsTable.tenantId, tenantId));
   return Promise.all(settings.map(async (setting) => {
     const assets = await db.select({ id: settingAssetsTable.id }).from(settingAssetsTable).where(eq(settingAssetsTable.settingId, setting.id));
     return presentSetting(setting, assets.length);
   }));
 }
 
-router.get("/settings", async (_req, res): Promise<void> => {
-  res.json(ListSettingsResponse.parse(await list()));
+router.get("/settings", async (req, res): Promise<void> => {
+  res.json(ListSettingsResponse.parse(await list(req.context!.tenant!.id)));
 });
 
 router.post("/settings", async (req, res): Promise<void> => {
@@ -40,7 +40,11 @@ router.post("/settings", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
-  const [setting] = await db.insert(settingsTable).values(input.data).returning();
+  const [setting] = await db.insert(settingsTable).values({
+    ...input.data,
+    tenantId: req.context!.tenant!.id,
+    createdByUserId: req.context!.user.id,
+  }).returning();
   res.status(201).json(CreateSettingResponse.parse(presentSetting(setting, 0)));
 });
 
@@ -55,7 +59,10 @@ router.patch("/settings/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
-  const [setting] = await db.update(settingsTable).set(input.data).where(eq(settingsTable.id, params.data.id)).returning();
+  const [setting] = await db.update(settingsTable).set(input.data).where(and(
+    eq(settingsTable.id, params.data.id),
+    eq(settingsTable.tenantId, req.context!.tenant!.id),
+  )).returning();
   if (!setting) {
     res.status(404).json({ error: "Setting not found" });
     return;
@@ -70,7 +77,10 @@ router.delete("/settings/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [deleted] = await db.delete(settingsTable).where(eq(settingsTable.id, params.data.id)).returning();
+  const [deleted] = await db.delete(settingsTable).where(and(
+    eq(settingsTable.id, params.data.id),
+    eq(settingsTable.tenantId, req.context!.tenant!.id),
+  )).returning();
   if (!deleted) {
     res.status(404).json({ error: "Setting not found" });
     return;
@@ -90,9 +100,18 @@ router.post("/settings/:id/generate-image", async (req, res): Promise<void> => {
     return;
   }
   try {
+    const [owned] = await db.select({ id: settingsTable.id }).from(settingsTable).where(and(
+      eq(settingsTable.id, params.data.id),
+      eq(settingsTable.tenantId, req.context!.tenant!.id),
+    ));
+    if (!owned) {
+      res.status(404).json({ error: "Setting not found" });
+      return;
+    }
     const result = await generateStudioImage({
       kind: "setting",
       entityId: params.data.id,
+      tenantId: req.context!.tenant!.id,
       prompt: input.data.prompt,
       seed: input.data.seed,
     });
@@ -106,7 +125,10 @@ router.post("/settings/:id/generate-image", async (req, res): Promise<void> => {
 
 router.post("/settings/:id/assets", express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: "15mb" }), async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [setting] = await db.select().from(settingsTable).where(eq(settingsTable.id, id));
+  const [setting] = await db.select().from(settingsTable).where(and(
+    eq(settingsTable.id, id),
+    eq(settingsTable.tenantId, req.context!.tenant!.id),
+  ));
   if (!setting) {
     res.status(404).json({ error: "Setting not found" });
     return;
@@ -118,7 +140,7 @@ router.post("/settings/:id/assets", express.raw({ type: ["image/jpeg", "image/pn
     return;
   }
   try {
-    const storageKey = await mediaStorage.storeImage(originalName, contentType, req.body, "settings");
+    const storageKey = await mediaStorage.storeImage(originalName, contentType, req.body, "settings", req.context!.tenant!.id);
     await db.insert(settingAssetsTable).values({
       settingId: setting.id,
       storageKey,

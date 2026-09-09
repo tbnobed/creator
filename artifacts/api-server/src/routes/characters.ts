@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import express, { Router, type IRouter } from "express";
 import {
   CreateCharacterBody,
@@ -22,16 +22,16 @@ import { presentCharacter } from "../lib/studio-presenters";
 
 const router: IRouter = Router();
 
-async function list() {
-  const characters = await db.select().from(charactersTable);
+async function list(tenantId: string) {
+  const characters = await db.select().from(charactersTable).where(eq(charactersTable.tenantId, tenantId));
   return Promise.all(characters.map(async (character) => {
     const assets = await db.select({ id: characterAssetsTable.id }).from(characterAssetsTable).where(eq(characterAssetsTable.characterId, character.id));
     return presentCharacter(character, assets.length);
   }));
 }
 
-router.get("/characters", async (_req, res): Promise<void> => {
-  res.json(ListCharactersResponse.parse(await list()));
+router.get("/characters", async (req, res): Promise<void> => {
+  res.json(ListCharactersResponse.parse(await list(req.context!.tenant!.id)));
 });
 
 router.post("/characters", async (req, res): Promise<void> => {
@@ -40,7 +40,11 @@ router.post("/characters", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
-  const [character] = await db.insert(charactersTable).values(input.data).returning();
+  const [character] = await db.insert(charactersTable).values({
+    ...input.data,
+    tenantId: req.context!.tenant!.id,
+    createdByUserId: req.context!.user.id,
+  }).returning();
   res.status(201).json(CreateCharacterResponse.parse(presentCharacter(character, 0)));
 });
 
@@ -55,7 +59,10 @@ router.patch("/characters/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
-  const [character] = await db.update(charactersTable).set(input.data).where(eq(charactersTable.id, params.data.id)).returning();
+  const [character] = await db.update(charactersTable).set(input.data).where(and(
+    eq(charactersTable.id, params.data.id),
+    eq(charactersTable.tenantId, req.context!.tenant!.id),
+  )).returning();
   if (!character) {
     res.status(404).json({ error: "Character not found" });
     return;
@@ -70,7 +77,10 @@ router.delete("/characters/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [deleted] = await db.delete(charactersTable).where(eq(charactersTable.id, params.data.id)).returning();
+  const [deleted] = await db.delete(charactersTable).where(and(
+    eq(charactersTable.id, params.data.id),
+    eq(charactersTable.tenantId, req.context!.tenant!.id),
+  )).returning();
   if (!deleted) {
     res.status(404).json({ error: "Character not found" });
     return;
@@ -91,9 +101,18 @@ router.post("/characters/:id/generate-image", async (req, res): Promise<void> =>
     return;
   }
   try {
+    const [owned] = await db.select({ id: charactersTable.id }).from(charactersTable).where(and(
+      eq(charactersTable.id, params.data.id),
+      eq(charactersTable.tenantId, req.context!.tenant!.id),
+    ));
+    if (!owned) {
+      res.status(404).json({ error: "Character not found" });
+      return;
+    }
     const result = await generateStudioImage({
       kind: "character",
       entityId: params.data.id,
+      tenantId: req.context!.tenant!.id,
       prompt: input.data.prompt,
       seed: input.data.seed,
     });
@@ -107,7 +126,10 @@ router.post("/characters/:id/generate-image", async (req, res): Promise<void> =>
 
 router.post("/characters/:id/assets", express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: "15mb" }), async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [character] = await db.select().from(charactersTable).where(eq(charactersTable.id, id));
+  const [character] = await db.select().from(charactersTable).where(and(
+    eq(charactersTable.id, id),
+    eq(charactersTable.tenantId, req.context!.tenant!.id),
+  ));
   if (!character) {
     res.status(404).json({ error: "Character not found" });
     return;
@@ -119,7 +141,7 @@ router.post("/characters/:id/assets", express.raw({ type: ["image/jpeg", "image/
     return;
   }
   try {
-    const storageKey = await mediaStorage.storeImage(originalName, contentType, req.body, "characters");
+    const storageKey = await mediaStorage.storeImage(originalName, contentType, req.body, "characters", req.context!.tenant!.id);
     await db.insert(characterAssetsTable).values({
       characterId: character.id,
       storageKey,
@@ -156,7 +178,10 @@ router.post(
       res.status(400).json({ error: "Voice cloning permission must be confirmed" });
       return;
     }
-    const [character] = await db.select().from(charactersTable).where(eq(charactersTable.id, id));
+    const [character] = await db.select().from(charactersTable).where(and(
+      eq(charactersTable.id, id),
+      eq(charactersTable.tenantId, req.context!.tenant!.id),
+    ));
     if (!character) {
       res.status(404).json({ error: "Character not found" });
       return;
@@ -168,7 +193,7 @@ router.post(
     const contentType = (req.header("content-type") ?? "").split(";")[0];
     const originalName = decodeURIComponent(req.header("x-file-name") ?? "voice-sample.wav");
     try {
-      const stored = await mediaStorage.storeVoiceSample(originalName, contentType, req.body);
+      const stored = await mediaStorage.storeVoiceSample(originalName, contentType, req.body, req.context!.tenant!.id);
       const consentAt = new Date();
       await db
         .update(charactersTable)
@@ -195,7 +220,10 @@ router.post(
 
 router.delete("/characters/:id/voice-sample", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [character] = await db.select().from(charactersTable).where(eq(charactersTable.id, id));
+  const [character] = await db.select().from(charactersTable).where(and(
+    eq(charactersTable.id, id),
+    eq(charactersTable.tenantId, req.context!.tenant!.id),
+  ));
   if (!character) {
     res.status(404).json({ error: "Character not found" });
     return;

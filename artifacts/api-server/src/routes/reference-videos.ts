@@ -11,7 +11,14 @@ router.delete("/reference-videos/:name", async (req, res): Promise<void> => {
   }
 
   try {
-    await mediaStorage.deleteReferenceVideo(`reference-videos/${name}`);
+    let deleted = await mediaStorage.deleteReferenceVideo(`tenants/${req.context!.tenant!.id}/reference-videos/${name}`);
+    if (!deleted && req.context!.tenant!.isDefault) {
+      deleted = await mediaStorage.deleteReferenceVideo(`reference-videos/${name}`);
+    }
+    if (!deleted) {
+      res.status(404).json({ error: "Reference video not found" });
+      return;
+    }
     res.status(204).end();
   } catch (error) {
     req.log.error({ err: error, name }, "Reference video could not be deleted");
@@ -21,7 +28,10 @@ router.delete("/reference-videos/:name", async (req, res): Promise<void> => {
 
 router.get("/reference-videos", async (req, res): Promise<void> => {
   try {
-    const items = await mediaStorage.listReferenceVideos();
+    const items = await mediaStorage.listReferenceVideos(
+      req.context!.tenant!.id,
+      req.context!.tenant!.isDefault,
+    );
     res.json({
       items: items.map((item) => ({
         ...item,
@@ -51,7 +61,7 @@ router.post(
     }
 
     try {
-      const storageKey = await mediaStorage.storeReferenceVideo(filename, mimeType, req.body);
+      const storageKey = await mediaStorage.storeReferenceVideo(filename, mimeType, req.body, req.context!.tenant!.id);
       res.status(201).json({
         storageKey,
         mediaUrl: `/api/media/${storageKey}`,
