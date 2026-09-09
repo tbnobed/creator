@@ -256,44 +256,32 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="promptDescription">Prompt Injection (ComfyUI)</Label>
+          <Label htmlFor="promptDescription">Character appearance</Label>
           <Textarea
             id="promptDescription"
             name="promptDescription"
             required
             defaultValue={initialData?.promptDescription}
-            className="h-24 bg-secondary/20 font-mono text-xs"
-            placeholder="e.g. 1boy, cinematic lighting, highly detailed face, 8k resolution..."
+            className="min-h-24 bg-secondary/20"
+            placeholder="Describe facial features, hair, clothing, build, age, and other details that should remain consistent."
           />
-          <p className="text-xs text-muted-foreground">This is injected into the prompt when this character is selected.</p>
+          <p className="text-xs text-muted-foreground">Used to keep this character consistent across generated scenes.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="thumbnail">Thumbnail URL</Label>
-            <Input
-              id="thumbnail"
-              name="thumbnail"
-              value={thumbnail}
-              onChange={e => setThumbnail(e.target.value)}
-              className="bg-secondary/20"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma separated)</Label>
-            <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} className="bg-secondary/20" />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="tags">Tags <span className="font-normal text-muted-foreground">(optional)</span></Label>
+          <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} placeholder="host, expert, recurring" className="bg-secondary/20" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="referenceImages">Reference images</Label>
           <Input id="referenceImages" name="referenceImages" type="file" accept="image/jpeg,image/png,image/webp" multiple className="bg-secondary/20" />
-          <p className="text-xs text-muted-foreground">Upload up to 9 JPG, PNG, or WebP references. Each file is validated before ComfyUI receives it.</p>
+          <p className="text-xs text-muted-foreground">Upload approved JPG, PNG, or WebP images. The first image becomes the thumbnail automatically.</p>
         </div>
 
         <div className="pt-2">
           <ImageGenerator
             onGenerate={handleGenerateImage}
-            defaultPrompt={initialData?.name ? `${initialData.name}, highly detailed` : ""}
+            defaultPrompt={initialData?.promptDescription || ""}
           />
         </div>
 

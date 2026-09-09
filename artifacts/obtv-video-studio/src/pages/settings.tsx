@@ -255,44 +255,32 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="promptDescription">Environment Prompt</Label>
+          <Label htmlFor="promptDescription">Environment appearance</Label>
           <Textarea
             id="promptDescription"
             name="promptDescription"
             required
             defaultValue={initialData?.promptDescription}
-            className="h-24 bg-secondary/20 font-mono text-xs"
-            placeholder="e.g. dimly lit cyberpunk alleyway, neon signs reflection, rain puddles, volumetric fog..."
+            className="min-h-24 bg-secondary/20"
+            placeholder="Describe the location, architecture, lighting, mood, colors, and details that should remain consistent."
           />
-          <p className="text-xs text-muted-foreground">Injected as environmental context for the scene.</p>
+          <p className="text-xs text-muted-foreground">Used to keep this environment consistent across generated scenes.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="thumbnail">Thumbnail URL</Label>
-            <Input
-              id="thumbnail"
-              name="thumbnail"
-              value={thumbnail}
-              onChange={e => setThumbnail(e.target.value)}
-              className="bg-secondary/20"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma separated)</Label>
-            <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} className="bg-secondary/20" />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="tags">Tags <span className="font-normal text-muted-foreground">(optional)</span></Label>
+          <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} placeholder="interior, studio, nighttime" className="bg-secondary/20" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="referenceImages">Reference images</Label>
           <Input id="referenceImages" name="referenceImages" type="file" accept="image/jpeg,image/png,image/webp" multiple className="bg-secondary/20" />
-          <p className="text-xs text-muted-foreground">Add one or more approved reference images for this environment.</p>
+          <p className="text-xs text-muted-foreground">Upload approved JPG, PNG, or WebP images. The first image becomes the thumbnail automatically.</p>
         </div>
 
         <div className="pt-2">
           <ImageGenerator
             onGenerate={handleGenerateImage}
-            defaultPrompt={initialData?.name ? `${initialData.name}, beautiful scenery` : ""}
+            defaultPrompt={initialData?.promptDescription || ""}
           />
         </div>
 
