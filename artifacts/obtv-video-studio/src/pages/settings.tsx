@@ -85,10 +85,16 @@ export default function SettingsPage() {
                 ) : (
                   <ImageIcon className="size-10 text-muted-foreground/30" />
                 )}
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-2 right-2 flex gap-1">
                   <Dialog open={editingId === setting.id} onOpenChange={(open) => setEditingId(open ? setting.id : null)}>
                     <DialogTrigger asChild>
-                      <Button size="icon" variant="secondary" className="size-8 h-8 w-8 bg-background/80 backdrop-blur">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="size-8 h-8 w-8 bg-background/90 backdrop-blur shadow-md"
+                        aria-label={`Edit ${setting.name}`}
+                        title={`Edit ${setting.name}`}
+                      >
                         <Edit2 className="size-4" />
                       </Button>
                     </DialogTrigger>
@@ -105,8 +111,10 @@ export default function SettingsPage() {
                   <Button
                     size="icon"
                     variant="destructive"
-                    className="size-8 h-8 w-8"
+                    className="size-8 h-8 w-8 shadow-md"
                     onClick={() => handleDelete(setting.id)}
+                    aria-label={`Delete ${setting.name}`}
+                    title={`Delete ${setting.name}`}
                   >
                     <Trash2 className="size-4" />
                   </Button>
