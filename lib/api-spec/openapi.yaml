@@ -96,6 +96,26 @@ paths:
       responses:
         "204":
           description: Deleted
+  /characters/{id}/generate-image:
+    post:
+      operationId: generateCharacterImage
+      tags: [characters]
+      summary: Generate and attach a character reference image
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudioImageGenerationInput"
+      responses:
+        "201":
+          description: Generated character reference image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioImageGenerationResult"
   /settings:
     get:
       operationId: listSettings
@@ -156,6 +176,26 @@ paths:
       responses:
         "204":
           description: Deleted
+  /settings/{id}/generate-image:
+    post:
+      operationId: generateSettingImage
+      tags: [settings]
+      summary: Generate and attach a setting reference image
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudioImageGenerationInput"
+      responses:
+        "201":
+          description: Generated setting reference image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioImageGenerationResult"
   /servers:
     get:
       operationId: listServers
@@ -755,6 +795,20 @@ components:
         promptDescription: { type: string }
         thumbnail: { type: ["string", "null"] }
         tags: { type: array, items: { type: string } }
+    StudioImageGenerationInput:
+      type: object
+      properties:
+        prompt: { type: string, minLength: 1, maxLength: 4000 }
+        seed: { type: number, minimum: 0, maximum: 2147483647 }
+    StudioImageGenerationResult:
+      type: object
+      required: [ok, assetId, mediaUrl, serverName, seed]
+      properties:
+        ok: { type: boolean }
+        assetId: { type: string }
+        mediaUrl: { type: string }
+        serverName: { type: string }
+        seed: { type: number }
     ComfyServer:
       type: object
       required: [id, displayName, hostname, gpuName, vramGb, tags, enabled, priority, status, queueSize, activeJobCount, lastHeartbeat, supportedWorkflowCount]

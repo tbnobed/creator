@@ -4,6 +4,9 @@ import {
   CreateCharacterBody,
   CreateCharacterResponse,
   DeleteCharacterParams,
+  GenerateCharacterImageBody,
+  GenerateCharacterImageParams,
+  GenerateCharacterImageResponse,
   ListCharactersResponse,
   UpdateCharacterBody,
   UpdateCharacterParams,
@@ -11,6 +14,10 @@ import {
 } from "@workspace/api-zod";
 import { characterAssetsTable, charactersTable, db } from "@workspace/db";
 import { mediaStorage } from "../lib/storage-service";
+import {
+  generateStudioImage,
+  StudioImageGenerationUnavailableError,
+} from "../lib/studio-image-generation";
 import { presentCharacter } from "../lib/studio-presenters";
 
 const router: IRouter = Router();
@@ -69,6 +76,32 @@ router.delete("/characters/:id", async (req, res): Promise<void> => {
     return;
   }
   res.sendStatus(204);
+});
+
+router.post("/characters/:id/generate-image", async (req, res): Promise<void> => {
+  const params = GenerateCharacterImageParams.safeParse(req.params);
+  const input = GenerateCharacterImageBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!input.success) {
+    res.status(400).json({ error: input.error.message });
+    return;
+  }
+  try {
+    const result = await generateStudioImage({
+      kind: "character",
+      entityId: params.data.id,
+      prompt: input.data.prompt,
+      seed: input.data.seed,
+    });
+    res.status(201).json(GenerateCharacterImageResponse.parse(result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Character image generation failed";
+    const status = error instanceof StudioImageGenerationUnavailableError ? 503 : message === "Character not found" ? 404 : 400;
+    res.status(status).json({ error: message });
+  }
 });
 
 router.post("/characters/:id/assets", express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: "15mb" }), async (req, res): Promise<void> => {

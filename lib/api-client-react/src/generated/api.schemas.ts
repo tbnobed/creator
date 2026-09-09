@@ -59,6 +59,27 @@ export interface SettingInput {
   tags?: string[];
 }
 
+export interface StudioImageGenerationInput {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  prompt?: string;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  seed?: number;
+}
+
+export interface StudioImageGenerationResult {
+  ok: boolean;
+  assetId: string;
+  mediaUrl: string;
+  serverName: string;
+  seed: number;
+}
+
 export type ComfyServerStatus = typeof ComfyServerStatus[keyof typeof ComfyServerStatus];
 
 

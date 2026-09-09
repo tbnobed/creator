@@ -108,6 +108,34 @@ export const DeleteCharacterResponse = zod.void()
 
 
 /**
+ * @summary Generate and attach a character reference image
+ */
+export const GenerateCharacterImageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const generateCharacterImageBodyPromptMax = 4000;
+
+export const generateCharacterImageBodySeedMin = 0;
+export const generateCharacterImageBodySeedMax = 2147483647;
+
+
+
+export const GenerateCharacterImageBody = zod.object({
+  "prompt": zod.string().min(1).max(generateCharacterImageBodyPromptMax).optional(),
+  "seed": zod.number().min(generateCharacterImageBodySeedMin).max(generateCharacterImageBodySeedMax).optional()
+})
+
+export const GenerateCharacterImageResponse = zod.object({
+  "ok": zod.boolean(),
+  "assetId": zod.string(),
+  "mediaUrl": zod.string(),
+  "serverName": zod.string(),
+  "seed": zod.number()
+})
+
+
+/**
  * @summary List settings
  */
 export const ListSettingsResponseItem = zod.object({
@@ -190,6 +218,34 @@ export const DeleteSettingParams = zod.object({
 })
 
 export const DeleteSettingResponse = zod.void()
+
+
+/**
+ * @summary Generate and attach a setting reference image
+ */
+export const GenerateSettingImageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const generateSettingImageBodyPromptMax = 4000;
+
+export const generateSettingImageBodySeedMin = 0;
+export const generateSettingImageBodySeedMax = 2147483647;
+
+
+
+export const GenerateSettingImageBody = zod.object({
+  "prompt": zod.string().min(1).max(generateSettingImageBodyPromptMax).optional(),
+  "seed": zod.number().min(generateSettingImageBodySeedMin).max(generateSettingImageBodySeedMax).optional()
+})
+
+export const GenerateSettingImageResponse = zod.object({
+  "ok": zod.boolean(),
+  "assetId": zod.string(),
+  "mediaUrl": zod.string(),
+  "serverName": zod.string(),
+  "seed": zod.number()
+})
 
 
 /**

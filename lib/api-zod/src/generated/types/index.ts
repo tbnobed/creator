@@ -52,6 +52,8 @@ export * from './serverCreateInput';
 export * from './serverUpdateInput';
 export * from './setting';
 export * from './settingInput';
+export * from './studioImageGenerationInput';
+export * from './studioImageGenerationResult';
 export * from './workflowInput';
 export * from './workflowInputApiWorkflow';
 export * from './workflowInputField';

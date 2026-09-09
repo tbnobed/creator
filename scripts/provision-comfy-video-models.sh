@@ -80,10 +80,25 @@ install_ltx() {
     "$COMFYUI_DIR/models/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
 }
 
+install_flux2_klein() {
+  local klein_revision="5f526678002e43af5551dadb73ce2e8c91b43afe"
+  local flux2_revision="ab9055628ea245000e610f2aa2c96f4746093546"
+  download \
+    "https://huggingface.co/Comfy-Org/flux2-klein/resolve/${klein_revision}/split_files/diffusion_models/flux-2-klein-4b.safetensors" \
+    "$COMFYUI_DIR/models/diffusion_models/flux-2-klein-4b.safetensors"
+  download \
+    "https://huggingface.co/Comfy-Org/flux2-klein/resolve/${klein_revision}/split_files/text_encoders/qwen_3_4b.safetensors" \
+    "$COMFYUI_DIR/models/text_encoders/qwen_3_4b.safetensors"
+  download \
+    "https://huggingface.co/Comfy-Org/flux2-dev/resolve/${flux2_revision}/split_files/vae/flux2-vae.safetensors" \
+    "$COMFYUI_DIR/models/vae/flux2-vae.safetensors"
+}
+
 case "$MODEL_SET" in
   all)
     install_wan
     install_ltx
+    install_flux2_klein
     ;;
   wan)
     install_wan
@@ -91,8 +106,11 @@ case "$MODEL_SET" in
   ltx)
     install_ltx
     ;;
+  flux2-klein)
+    install_flux2_klein
+    ;;
   *)
-    echo "MODEL_SET must be one of: all, wan, ltx" >&2
+    echo "MODEL_SET must be one of: all, wan, ltx, flux2-klein" >&2
     exit 1
     ;;
 esac
@@ -101,3 +119,4 @@ echo
 echo "Provisioning complete. Restart ComfyUI, verify /object_info, then add worker tags:"
 echo "  wan-2.2"
 echo "  ltx-2.5"
+echo "  flux2-klein"

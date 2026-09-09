@@ -47,6 +47,8 @@ import type {
   ServerUpdateInput,
   Setting,
   SettingInput,
+  StudioImageGenerationInput,
+  StudioImageGenerationResult,
   WorkflowInput,
   WorkflowTemplate,
   WorkflowUpdate
@@ -434,6 +436,78 @@ export const useDeleteCharacter = <TError = ErrorType<unknown>,
       return useMutation(getDeleteCharacterMutationOptions(options));
     }
 
+export const getGenerateCharacterImageUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/generate-image`
+}
+
+/**
+ * @summary Generate and attach a character reference image
+ */
+export const generateCharacterImage = async (id: string,
+    studioImageGenerationInput: StudioImageGenerationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioImageGenerationResult> => {
+
+  return customFetch<StudioImageGenerationResult>(getGenerateCharacterImageUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(studioImageGenerationInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateCharacterImageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext> => {
+
+const mutationKey = ['generateCharacterImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateCharacterImage>>, {id: string;data: BodyType<StudioImageGenerationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  generateCharacterImage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateCharacterImageMutationResult = NonNullable<Awaited<ReturnType<typeof generateCharacterImage>>>
+    export type GenerateCharacterImageMutationBody = BodyType<StudioImageGenerationInput>
+    export type GenerateCharacterImageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate and attach a character reference image
+ */
+export const useGenerateCharacterImage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateCharacterImage>>,
+        TError,
+        {id: string;data: BodyType<StudioImageGenerationInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateCharacterImageMutationOptions(options));
+    }
+
 export const getListSettingsUrl = () => {
 
 
@@ -718,6 +792,78 @@ export const useDeleteSetting = <TError = ErrorType<unknown>,
       return useMutation(getDeleteSettingMutationOptions(options));
     }
 
+export const getGenerateSettingImageUrl = (id: string,) => {
+
+
+
+
+  return `/api/settings/${id}/generate-image`
+}
+
+/**
+ * @summary Generate and attach a setting reference image
+ */
+export const generateSettingImage = async (id: string,
+    studioImageGenerationInput: StudioImageGenerationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioImageGenerationResult> => {
+
+  return customFetch<StudioImageGenerationResult>(getGenerateSettingImageUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(studioImageGenerationInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateSettingImageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateSettingImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateSettingImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext> => {
+
+const mutationKey = ['generateSettingImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateSettingImage>>, {id: string;data: BodyType<StudioImageGenerationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  generateSettingImage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateSettingImageMutationResult = NonNullable<Awaited<ReturnType<typeof generateSettingImage>>>
+    export type GenerateSettingImageMutationBody = BodyType<StudioImageGenerationInput>
+    export type GenerateSettingImageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate and attach a setting reference image
+ */
+export const useGenerateSettingImage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateSettingImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateSettingImage>>,
+        TError,
+        {id: string;data: BodyType<StudioImageGenerationInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateSettingImageMutationOptions(options));
+    }
+
 export const getListServersUrl = () => {
 
 
@@ -788,6 +934,13 @@ export function useListServers<TData = Awaited<ReturnType<typeof listServers>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getCreateServerUrl = () => {
 
 
@@ -1072,6 +1225,13 @@ export function useGetServerConfiguration<TData = Awaited<ReturnType<typeof getS
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getTestServerConnectionUrl = (id: string,) => {
 
 
@@ -1213,6 +1373,13 @@ export function useGetServerQueue<TData = Awaited<ReturnType<typeof getServerQue
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getListWorkflowsUrl = () => {
 
 
@@ -1283,6 +1450,13 @@ export function useListWorkflows<TData = Awaited<ReturnType<typeof listWorkflows
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getCreateWorkflowUrl = () => {
 
 
@@ -1424,6 +1598,13 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getUpdateWorkflowUrl = (id: string,) => {
 
 
@@ -1573,6 +1754,13 @@ export function useListGenerations<TData = Awaited<ReturnType<typeof listGenerat
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getCreateGenerationUrl = () => {
 
 
@@ -1714,6 +1902,13 @@ export function useGetGeneration<TData = Awaited<ReturnType<typeof getGeneration
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getDeleteGenerationUrl = (id: string,) => {
 
 
@@ -1926,6 +2121,13 @@ export function useListReferenceVideos<TData = Awaited<ReturnType<typeof listRef
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getUploadReferenceVideoUrl = () => {
 
 

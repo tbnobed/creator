@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useListCharacters, useDeleteCharacter, useCreateCharacter, useUpdateCharacter } from "@workspace/api-client-react";
 import { getListCharactersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { ImageGenerator } from "@/components/studio/ImageGenerator";
 
 export default function CharactersPage() {
   const { data: characters, isLoading } = useListCharacters();
@@ -35,8 +37,8 @@ export default function CharactersPage() {
 
   return (
     <Page>
-      <PageHeader 
-        title="Characters" 
+      <PageHeader
+        title="Characters"
         description="Manage reusable characters for your productions."
         actions={
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -94,15 +96,15 @@ export default function CharactersPage() {
                       <DialogHeader>
                         <DialogTitle>Edit Character</DialogTitle>
                       </DialogHeader>
-                      <CharacterForm 
-                        initialData={char} 
-                        onSuccess={() => setEditingId(null)} 
+                      <CharacterForm
+                        initialData={char}
+                        onSuccess={() => setEditingId(null)}
                       />
                     </DialogContent>
                   </Dialog>
-                  <Button 
-                    size="icon" 
-                    variant="destructive" 
+                  <Button
+                    size="icon"
+                    variant="destructive"
                     className="size-8 h-8 w-8"
                     onClick={() => handleDelete(char.id)}
                   >
@@ -140,93 +142,167 @@ function CharacterForm({ initialData, onSuccess }: { initialData?: any, onSucces
   const createMutation = useCreateCharacter();
   const updateMutation = useUpdateCharacter();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
+  const formRef = useRef<HTMLFormElement>(null);
+  const [activeId, setActiveId] = useState<string | undefined>(initialData?.id);
+  const [thumbnail, setThumbnail] = useState<string>(initialData?.thumbnail || "");
+  const { toast } = useToast();
+
+  const getFormData = () => {
+    if (!formRef.current) return null;
+    const formData = new FormData(formRef.current);
+
     const tagsStr = formData.get("tags") as string;
     const tags = tagsStr ? tagsStr.split(",").map(t => t.trim()).filter(Boolean) : [];
 
-    const data = {
+    return {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       promptDescription: formData.get("promptDescription") as string,
-      thumbnail: (formData.get("thumbnail") as string) || null,
+      thumbnail: thumbnail || null,
       voiceProfile: (formData.get("voiceProfile") as string) || null,
       tags,
     };
+  };
 
-    const saved = initialData?.id
-      ? await updateMutation.mutateAsync({ id: initialData.id, data })
-      : await createMutation.mutateAsync({ data });
-    const files = formData.getAll("referenceImages").filter((entry): entry is File => entry instanceof File && entry.size > 0);
-    let thumbnail = data.thumbnail;
-    for (const file of files) {
-      const response = await fetch(`/api/characters/${saved.id}/assets`, {
-        method: "POST",
-        headers: { "content-type": file.type, "x-file-name": file.name },
-        body: file,
-      });
-      const result = await response.json() as { mediaUrl?: string; error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Reference image upload failed");
-      thumbnail ??= result.mediaUrl ?? null;
+  const saveOrUpdate = async () => {
+    const data = getFormData();
+    if (!data) throw new Error("Could not get form data");
+
+    let currentId = activeId;
+    let saved;
+    if (currentId) {
+      saved = await updateMutation.mutateAsync({ id: currentId, data });
+    } else {
+      saved = await createMutation.mutateAsync({ data });
+      setActiveId(saved.id);
+      currentId = saved.id;
     }
-    if (thumbnail !== data.thumbnail) {
-      await updateMutation.mutateAsync({ id: saved.id, data: { ...data, thumbnail } });
+    return { id: currentId, data };
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      const { id: savedId, data } = await saveOrUpdate();
+
+      const formData = new FormData(e.currentTarget);
+      const files = formData.getAll("referenceImages").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+      let finalThumbnail = thumbnail;
+      for (const file of files) {
+        const response = await fetch(`/api/characters/${savedId}/assets`, {
+          method: "POST",
+          headers: { "content-type": file.type, "x-file-name": file.name },
+          body: file,
+        });
+        const result = await response.json() as { mediaUrl?: string; error?: string };
+        if (!response.ok) throw new Error(result.error ?? "Reference image upload failed");
+        finalThumbnail ||= result.mediaUrl ?? "";
+      }
+      if (finalThumbnail !== (data.thumbnail || "") && finalThumbnail !== "") {
+        setThumbnail(finalThumbnail);
+        await updateMutation.mutateAsync({ id: savedId, data: { ...data, thumbnail: finalThumbnail } });
+      }
+
+      queryClient.invalidateQueries({ queryKey: getListCharactersQueryKey() });
+      onSuccess();
+    } catch (err: any) {
+      toast({ title: "Error saving character", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleGenerateImage = async (prompt: string, seed?: number) => {
+    if (!formRef.current?.checkValidity()) {
+      formRef.current?.reportValidity();
+      throw new Error("Please fill out required fields first to save the character.");
+    }
+
+    // Save first
+    const { id, data } = await saveOrUpdate();
+
+    // Generate
+    const res = await fetch(`/api/characters/${id}/generate-image`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, seed })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Failed to generate image");
+
+    // Update thumbnail if empty
+    if (!thumbnail) {
+      setThumbnail(result.mediaUrl);
+      await updateMutation.mutateAsync({ id, data: { ...data, thumbnail: result.mediaUrl } });
     }
 
     queryClient.invalidateQueries({ queryKey: getListCharactersQueryKey() });
-    onSuccess();
+
+    return result.mediaUrl;
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" required defaultValue={initialData?.name} className="bg-secondary/20" />
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="description">Short Description</Label>
-        <Input id="description" name="description" required defaultValue={initialData?.description} className="bg-secondary/20" />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="promptDescription">Prompt Injection (ComfyUI)</Label>
-        <Textarea 
-          id="promptDescription" 
-          name="promptDescription" 
-          required 
-          defaultValue={initialData?.promptDescription} 
-          className="h-24 bg-secondary/20 font-mono text-xs"
-          placeholder="e.g. 1boy, cinematic lighting, highly detailed face, 8k resolution..."
-        />
-        <p className="text-xs text-muted-foreground">This is injected into the prompt when this character is selected.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="thumbnail">Thumbnail URL</Label>
-          <Input id="thumbnail" name="thumbnail" defaultValue={initialData?.thumbnail || ""} className="bg-secondary/20" />
+          <Label htmlFor="name">Name</Label>
+          <Input id="name" name="name" required defaultValue={initialData?.name} className="bg-secondary/20" />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="description">Short Description</Label>
+          <Input id="description" name="description" required defaultValue={initialData?.description} className="bg-secondary/20" />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="promptDescription">Prompt Injection (ComfyUI)</Label>
+          <Textarea
+            id="promptDescription"
+            name="promptDescription"
+            required
+            defaultValue={initialData?.promptDescription}
+            className="h-24 bg-secondary/20 font-mono text-xs"
+            placeholder="e.g. 1boy, cinematic lighting, highly detailed face, 8k resolution..."
+          />
+          <p className="text-xs text-muted-foreground">This is injected into the prompt when this character is selected.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="thumbnail">Thumbnail URL</Label>
+            <Input
+              id="thumbnail"
+              name="thumbnail"
+              value={thumbnail}
+              onChange={e => setThumbnail(e.target.value)}
+              className="bg-secondary/20"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags (comma separated)</Label>
+            <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} className="bg-secondary/20" />
+          </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="tags">Tags (comma separated)</Label>
-          <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} className="bg-secondary/20" />
+          <Label htmlFor="referenceImages">Reference images</Label>
+          <Input id="referenceImages" name="referenceImages" type="file" accept="image/jpeg,image/png,image/webp" multiple className="bg-secondary/20" />
+          <p className="text-xs text-muted-foreground">Upload up to 9 JPG, PNG, or WebP references. Each file is validated before ComfyUI receives it.</p>
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="referenceImages">Reference images</Label>
-        <Input id="referenceImages" name="referenceImages" type="file" accept="image/jpeg,image/png,image/webp" multiple className="bg-secondary/20" />
-        <p className="text-xs text-muted-foreground">Upload up to 9 JPG, PNG, or WebP references. Each file is validated before ComfyUI receives it.</p>
-      </div>
 
-      <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : initialData ? "Save Changes" : "Create Character"}
-        </Button>
-      </div>
-    </form>
+        <div className="pt-2">
+          <ImageGenerator
+            onGenerate={handleGenerateImage}
+            defaultPrompt={initialData?.name ? `${initialData.name}, highly detailed` : ""}
+          />
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving..." : activeId ? "Save Changes" : "Create Character"}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }
