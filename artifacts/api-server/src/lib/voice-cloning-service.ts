@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { ComfyUIClient } from "./comfy/client";
 import { createChatterboxTurboWorkflow } from "./seed-data/chatterbox-turbo";
@@ -131,12 +132,10 @@ export async function muxClonedSpeech(input: {
   speech: Buffer;
   targetDurationSeconds: number;
 }): Promise<Buffer> {
-  const directory = path.resolve("data/obtv-media/tmp");
-  await mkdir(directory, { recursive: true });
-  const id = randomUUID();
-  const videoPath = path.join(directory, `${id}${input.videoMimeType === "video/webm" ? ".webm" : ".mp4"}`);
-  const speechPath = path.join(directory, `${id}.wav`);
-  const outputPath = path.join(directory, `${id}-voiced.mp4`);
+  const directory = await mkdtemp(path.join(tmpdir(), "obtv-voice-mux-"));
+  const videoPath = path.join(directory, `input${input.videoMimeType === "video/webm" ? ".webm" : ".mp4"}`);
+  const speechPath = path.join(directory, "speech.wav");
+  const outputPath = path.join(directory, "output.mp4");
   await Promise.all([
     writeFile(videoPath, input.video, { flag: "wx" }),
     writeFile(speechPath, input.speech, { flag: "wx" }),
@@ -172,10 +171,6 @@ export async function muxClonedSpeech(input: {
     ], 20 * 60_000);
     return await readFile(outputPath);
   } finally {
-    await Promise.all([
-      unlink(videoPath).catch(() => undefined),
-      unlink(speechPath).catch(() => undefined),
-      unlink(outputPath).catch(() => undefined),
-    ]);
+    await rm(directory, { recursive: true, force: true }).catch(() => undefined);
   }
 }
