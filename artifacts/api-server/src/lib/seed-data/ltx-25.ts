@@ -178,7 +178,7 @@ const baseWorkflow: ApiWorkflow = {
     inputs: { value: 5 },
   },
   "33": {
-    class_type: "PrimitiveInt",
+    class_type: "PrimitiveFloat",
     inputs: { value: 24 },
   },
   "34": {
