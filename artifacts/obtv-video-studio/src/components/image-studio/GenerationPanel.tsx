@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { UploadIntent } from "./UploadImageDialog";
+import { UploadCloud } from "lucide-react";
 
 interface GenerationPanelProps {
   activeAsset: ImageAsset | null;
@@ -46,6 +48,8 @@ interface GenerationPanelProps {
   onRemoveReference: (id: string) => void;
   onMaxReferencesChange: (maximum: number) => void;
   reuseJob?: ImageJob;
+  onUpload: () => void;
+  uploadedInput?: { id: string; intent: UploadIntent };
 }
 
 const ASPECT_RATIOS = [
@@ -91,6 +95,8 @@ export function GenerationPanel({
   onRemoveReference,
   onMaxReferencesChange,
   reuseJob,
+  onUpload,
+  uploadedInput,
 }: GenerationPanelProps) {
   const { data: modelsData, isLoading: modelsLoading } = useGetModels();
   const models = modelsData?.models || [];
@@ -105,6 +111,7 @@ export function GenerationPanel({
   const [seed, setSeed] = useState("");
   const [cloudConfirmed, setCloudConfirmed] = useState(false);
   const paidRequest = useRef<{ key: string; signature: string } | undefined>(undefined);
+  const handledUpload = useRef<string | undefined>(undefined);
 
   const availableModels = useMemo(
     () => models.filter((model) => model.operations.includes(mode) && model.available),
@@ -134,7 +141,16 @@ export function GenerationPanel({
 
   useEffect(() => {
     setCloudConfirmed(false);
-  }, [modelId, mode, count, dimensions.width, dimensions.height, upscaleFactor]);
+  }, [modelId, mode, count, dimensions.width, dimensions.height, upscaleFactor, activeAsset?.id, referenceAssets]);
+
+  useEffect(() => {
+    if (!uploadedInput || !modelsData || handledUpload.current === uploadedInput.id || uploadedInput.intent !== mode) return;
+    handledUpload.current = uploadedInput.id;
+    const needed = mode === "generate" ? referenceAssets.length : 1;
+    const compatible = availableModels.filter((model) => model.maxReferences >= needed);
+    setModelId(compatible.find((model) => model.id === modelId)?.id || compatible[0]?.id || "");
+    setCloudConfirmed(false);
+  }, [uploadedInput, modelsData, mode, referenceAssets.length, availableModels, modelId]);
 
   useEffect(() => {
     if (!reuseJob) return;
@@ -260,6 +276,9 @@ export function GenerationPanel({
           <ImageIcon className="h-5 w-5 text-primary" />
           Image Studio
         </h2>
+        <Button type="button" variant="outline" className="mb-3 w-full" onClick={onUpload}>
+          <UploadCloud className="mr-2 h-4 w-4" />Upload image
+        </Button>
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-black/40 p-1">
           {(["generate", "edit", "inpaint", "outpaint", "upscale", "remove-background"] as WorkspaceMode[]).map((item) => (
             <button
@@ -314,7 +333,7 @@ export function GenerationPanel({
         {sourceRequired && !activeAsset && (
           <div className="flex gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm text-yellow-500">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            Select a source image from the gallery.
+            Upload a source image or select one from the gallery.
           </div>
         )}
         {mode === "outpaint" && activeAsset && !preparedOutpaintAsset && (

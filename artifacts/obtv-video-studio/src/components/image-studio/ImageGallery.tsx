@@ -1,4 +1,4 @@
-import { useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import {
   ImageAsset,
   ImageJob,
@@ -7,7 +7,6 @@ import {
   useDeleteJob,
   useGetAssets,
   useGetJobs,
-  useUploadAsset,
 } from "@/hooks/image-studio";
 import {
   Copy,
@@ -34,6 +33,8 @@ interface ImageGalleryProps {
   onSelect: (asset: ImageAsset) => void;
   onToggleReference: (asset: ImageAsset) => void;
   onReuseJob: (job: ImageJob, assets: ImageAsset[]) => void;
+  onUpload: () => void;
+  uploadedAssetId?: string;
 }
 
 export function ImageGallery({
@@ -43,6 +44,8 @@ export function ImageGallery({
   onSelect,
   onToggleReference,
   onReuseJob,
+  onUpload,
+  uploadedAssetId,
 }: ImageGalleryProps) {
   const [tab, setTab] = useState<"assets" | "jobs">("assets");
   const [search, setSearch] = useState("");
@@ -60,35 +63,13 @@ export function ImageGallery({
   const collections = Array.from(new Set(allAssets.map((asset) => asset.collection).filter(Boolean))).sort();
   const { data: jobsData, isLoading: jobsLoading } = useGetJobs();
   const jobs = jobsData?.jobs || [];
-  const uploadAsset = useUploadAsset();
-  const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      toast({
-        title: "Invalid file",
-        description: "Only PNG, JPEG, and WebP are supported.",
-        variant: "destructive",
-      });
-      return;
-    }
-    try {
-      const result = await uploadAsset.mutateAsync({ data: file });
-      onSelect(result.asset);
-      setTab("assets");
-      toast({ title: "Upload complete" });
-    } catch (error) {
-      toast({
-        title: "Upload failed",
-        description: imageStudioError(error),
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => {
+    if (!uploadedAssetId) return;
+    setTab("assets");
+    setSearch("");
+    setFavoritesOnly(false);
+    setCollection("all");
+  }, [uploadedAssetId]);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -115,9 +96,8 @@ export function ImageGallery({
             <Button variant={favoritesOnly ? "default" : "outline"} size="icon" aria-label="Favorites only" className="h-8 w-8" onClick={() => setFavoritesOnly((value) => !value)}>
               <Heart className={`h-3.5 w-3.5 ${favoritesOnly ? "fill-current" : ""}`} />
             </Button>
-            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void handleFileUpload(event)} />
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => fileInputRef.current?.click()} disabled={uploadAsset.isPending}>
-              {uploadAsset.isPending ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <UploadCloud className="mr-1.5 h-3 w-3" />}
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onUpload}>
+              <UploadCloud className="mr-1.5 h-3 w-3" />
               Upload
             </Button>
           </div>
@@ -141,15 +121,20 @@ export function ImageGallery({
               const selectedReference = selectedReferenceIds.includes(asset.id);
               const referenceLimitReached = !selectedReference && selectedReferenceIds.length >= maxReferences;
               return (
-                <button
+                <div
                   key={asset.id}
-                  onClick={() => onSelect(asset)}
                   className={`group relative h-40 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                     activeAssetId === asset.id ? "border-primary shadow-[0_0_15px_rgba(255,31,98,0.4)]" : "border-transparent hover:border-white/20"
                   }`}
                   style={{ aspectRatio: `${asset.width}/${asset.height}` }}
                 >
-                  <img src={asset.url} alt={asset.name} className="h-full w-full object-cover" />
+                  <button type="button" aria-label={`Select ${asset.name}`} onClick={() => onSelect(asset)} className="h-full w-full">
+                    <img src={asset.url} alt={asset.name} className="h-full w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 p-2 pt-6 text-left">
+                      <p className="truncate text-[10px] font-medium text-white">{asset.name || "Untitled"}</p>
+                      {asset.collection && <p className="truncate text-[9px] text-white/60">{asset.collection}</p>}
+                    </div>
+                  </button>
                   {asset.favorite && <Heart className="absolute left-2 top-2 h-3.5 w-3.5 fill-red-500 text-red-500 drop-shadow" />}
                   <Button
                     type="button"
@@ -166,11 +151,7 @@ export function ImageGallery({
                   >
                     {selectedReference ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                   </Button>
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 p-2 pt-6 text-left">
-                    <p className="truncate text-[10px] font-medium text-white">{asset.name || "Untitled"}</p>
-                    {asset.collection && <p className="truncate text-[9px] text-white/60">{asset.collection}</p>}
-                  </div>
-                </button>
+                </div>
               );
             })}
           </div>

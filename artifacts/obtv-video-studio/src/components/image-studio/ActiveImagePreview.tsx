@@ -20,6 +20,7 @@ interface ActiveImagePreviewProps {
   onMaskUpdate: (maskId: string | undefined) => void;
   onAssetUpdated: (asset: ImageAsset) => void;
   onOutpaintPrepared: (asset: ImageAsset | undefined) => void;
+  onUpload: () => void;
 }
 
 const OUTPAINT_PADDING = [64, 128, 256, 512];
@@ -31,6 +32,7 @@ export function ActiveImagePreview({
   onMaskUpdate,
   onAssetUpdated,
   onOutpaintPrepared,
+  onUpload,
 }: ActiveImagePreviewProps) {
   const { toast } = useToast();
   const updateAsset = useUpdateAsset();
@@ -63,8 +65,9 @@ export function ActiveImagePreview({
       <div className="relative m-2 flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-white/5 bg-black/20 md:m-4">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,31,98,0.05),transparent_50%)]" />
         <Focus className="mb-4 h-12 w-12 text-muted-foreground/30" />
-        <p className="text-sm font-medium text-muted-foreground">Select an image from the gallery</p>
-        <p className="mt-1 text-xs text-muted-foreground/60">or generate a new one to start editing</p>
+        <p className="text-sm font-medium text-muted-foreground">Start with your own image</p>
+        <p className="mt-1 px-3 text-center text-xs text-muted-foreground/60">Upload a reference, edit or upscale — or select an image from the gallery.</p>
+        <Button type="button" variant="outline" className="z-10 mt-4" onClick={onUpload}>Upload an image</Button>
       </div>
     );
   }

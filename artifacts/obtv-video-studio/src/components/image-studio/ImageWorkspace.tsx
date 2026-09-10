@@ -3,6 +3,7 @@ import { GenerationPanel } from "./GenerationPanel";
 import { ImageGallery } from "./ImageGallery";
 import { ActiveImagePreview } from "./ActiveImagePreview";
 import { ImageAsset, ImageJob } from "@/hooks/image-studio";
+import { UploadImageDialog, UploadIntent } from "./UploadImageDialog";
 
 export type WorkspaceMode = "generate" | "edit" | "inpaint" | "outpaint" | "upscale" | "remove-background";
 
@@ -14,6 +15,18 @@ export function ImageWorkspace() {
   const [referenceAssets, setReferenceAssets] = useState<ImageAsset[]>([]);
   const [maxReferences, setMaxReferences] = useState(0);
   const [reuseJob, setReuseJob] = useState<ImageJob>();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadedInput, setUploadedInput] = useState<{ id: string; intent: UploadIntent }>();
+
+  const openUpload = () => setUploadOpen(true);
+  const uploaded = (asset: ImageAsset, intent: UploadIntent) => {
+    selectAsset(asset);
+    setMode(intent);
+    setReuseJob(undefined);
+    setReferenceAssets((current) => intent === "generate" ? [...current, asset] : []);
+    setUploadedInput({ id: asset.id, intent });
+    setUploadOpen(false);
+  };
 
   const selectAsset = (asset: ImageAsset) => {
     setActiveAsset(asset);
@@ -81,6 +94,8 @@ export function ImageWorkspace() {
           onRemoveReference={removeReference}
           onMaxReferencesChange={handleMaxReferences}
           reuseJob={reuseJob}
+          onUpload={openUpload}
+          uploadedInput={uploadedInput}
         />
       </div>
 
@@ -94,6 +109,7 @@ export function ImageWorkspace() {
             onMaskUpdate={setMaskAssetId}
             onAssetUpdated={updateActiveAsset}
             onOutpaintPrepared={setPreparedOutpaintAsset}
+            onUpload={openUpload}
           />
         </div>
         
@@ -106,9 +122,18 @@ export function ImageWorkspace() {
             onSelect={selectAsset}
             onToggleReference={toggleReference}
             onReuseJob={reuseSettings}
+            onUpload={openUpload}
+            uploadedAssetId={uploadedInput?.id}
           />
         </div>
       </div>
+      {uploadOpen && (
+        <UploadImageDialog
+          initialIntent={mode === "generate" ? "generate" : mode === "upscale" ? "upscale" : "edit"}
+          onClose={() => setUploadOpen(false)}
+          onUploaded={uploaded}
+        />
+      )}
     </div>
   );
 }
