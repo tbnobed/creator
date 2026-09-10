@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateServerBody,
@@ -53,7 +53,8 @@ async function present(server: typeof comfyServersTable.$inferSelect) {
 }
 
 router.get("/servers", async (_req, res): Promise<void> => {
-  const servers = await db.select().from(comfyServersTable);
+  const servers = await db.select().from(comfyServersTable)
+    .orderBy(asc(comfyServersTable.createdAt), asc(comfyServersTable.id));
   res.json(ListServersResponse.parse(await Promise.all(servers.map(present))));
 });
 
