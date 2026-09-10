@@ -7,16 +7,16 @@
  */
 import type { TenantRole } from './tenantRole';
 
-export interface TenantMember {
-  userId: string;
-  /** @nullable */
-  email: string | null;
-  displayName: string;
+export interface PendingSpendingInvitation {
+  id: string;
+  tenantId: string;
+  email: string;
   role: TenantRole;
   /**
      * @minimum 0
-     * @maximum 1000000
      * @nullable
      */
   monthlyLimitUsd: number | null;
+  expiresAt: Date;
+  canManageLimit: boolean;
 }

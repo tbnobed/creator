@@ -212,7 +212,7 @@ export const imageModels: ImageModel[] = [
     supportsSeed: false,
     supportsNegativePrompt: false,
     maxReferences: 1,
-    priceNote: "Currently displayed by the Cloud model page as $0 per compute second.",
+    priceNote: "Usage-priced at approximately $0.00111 per compute second. This is a paid Cloud operation.",
     endpoint: "fal-ai/imageutils/rembg",
   },
 ];

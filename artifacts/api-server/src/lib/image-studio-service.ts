@@ -33,6 +33,8 @@ import {
 import { hasRequiredTags } from "./comfy/scheduler";
 import { logger } from "./logger";
 import { mediaStorage } from "./storage-service";
+import { quoteImageSpend } from "./spending-pricing";
+import { attachSpendReceipt, reserveSpend, settleSpend } from "./spending-service";
 
 const ACTIVE_STATUSES = ["QUEUED", "RUNNING"] as const;
 const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "CANCELLED"] as const;
@@ -152,6 +154,98 @@ function submissionReceiptGraceRemaining(job: ImageStudioJob): number {
   const intentTime = typeof raw === "string" ? Date.parse(raw) : Number.NaN;
   const startedAt = Number.isFinite(intentTime) ? intentTime : job.createdAt.getTime();
   return Math.max(0, SUBMISSION_RECEIPT_GRACE_MS - (Date.now() - startedAt));
+}
+
+const IMAGE_SPEND_LIFECYCLE_VERSION = 1;
+
+function hasImageSpendLifecycle(job: ImageStudioJob): boolean {
+  return job.provider === "CLOUD"
+    && job.providerTaskMetadata.spendLifecycleVersion === IMAGE_SPEND_LIFECYCLE_VERSION;
+}
+
+async function settleImageSpend(
+  job: ImageStudioJob,
+  outcome: "estimated" | "released" | "uncertain",
+  note?: string,
+): Promise<void> {
+  if (!hasImageSpendLifecycle(job)) return;
+  await settleSpend("image", job.id, outcome, note);
+}
+
+async function settleImageSpendSafely(
+  job: ImageStudioJob,
+  outcome: "estimated" | "released" | "uncertain",
+  note?: string,
+): Promise<void> {
+  try {
+    await settleImageSpend(job, outcome, note);
+  } catch (error) {
+    logger.error(
+      { err: error, jobId: job.id, outcome },
+      "Could not settle Cloud image spend; restart reconciliation will retry",
+    );
+  }
+}
+
+function requestErrorStatus(error: unknown, fallback: number): number {
+  if (!error || typeof error !== "object") return fallback;
+  const candidate = error as { statusCode?: unknown; status?: unknown };
+  if (typeof candidate.statusCode === "number") return candidate.statusCode;
+  if (typeof candidate.status === "number") return candidate.status;
+  return fallback;
+}
+
+function isDefinitiveSubmissionRejection(error: unknown): boolean {
+  const status = requestErrorStatus(error, 0);
+  return status >= 400
+    && status < 500
+    && status !== 408
+    && status !== 409
+    && status !== 425
+    && status !== 429;
+}
+
+function cloudBillingEndpoint(metadata: Record<string, unknown>): string | undefined {
+  const endpoint = metadata.endpoint;
+  if (typeof endpoint !== "string" || !/^[a-z0-9][a-z0-9./_-]+$/i.test(endpoint)) return undefined;
+  return `https://queue.fal.run/${endpoint}`;
+}
+
+async function attachImageSpendReceiptSafely(job: ImageStudioJob): Promise<void> {
+  if (!hasImageSpendLifecycle(job) || !job.providerRequestId) return;
+  const endpoint = cloudBillingEndpoint(job.providerTaskMetadata);
+  if (!endpoint) {
+    logger.error(
+      { jobId: job.id },
+      "Could not attach Cloud image spend receipt because its persisted endpoint is missing",
+    );
+    return;
+  }
+  try {
+    await attachSpendReceipt("image", job.id, job.providerRequestId, endpoint);
+  } catch (error) {
+    logger.error(
+      { err: error, jobId: job.id },
+      "Could not attach Cloud image spend receipt; restart reconciliation will retry",
+    );
+  }
+}
+
+async function attachSubmittedImageSpendReceiptSafely(
+  job: ImageStudioJob,
+  receipt: { requestId: string; metadata: Record<string, unknown> },
+): Promise<void> {
+  if (!hasImageSpendLifecycle(job)) return;
+  const endpoint = cloudBillingEndpoint(receipt.metadata);
+  if (!endpoint) return;
+  try {
+    await attachSpendReceipt("image", job.id, receipt.requestId, endpoint);
+  } catch (error) {
+    logger.error(
+      { err: error, jobId: job.id },
+      "Could not attach accepted Cloud image spend receipt; restart reconciliation will retry",
+    );
+  }
 }
 
 export function inspectImage(
@@ -654,6 +748,12 @@ async function handleCompleted(
     });
     if (!accepted) {
       await Promise.all(stored.map((asset) => mediaStorage.deleteImageStudioImage(asset.storageKey)));
+    } else {
+      await settleImageSpendSafely(
+        job,
+        "estimated",
+        "Cloud image provider completed with billable output",
+      );
     }
     return accepted;
   } catch (error) {
@@ -693,6 +793,24 @@ async function attemptRequestedCancellation(jobId: string): Promise<"retry" | "t
     }
     if (!cancellationRequested(job)) return "terminal";
     if (!job.providerRequestId) {
+      if (
+        hasImageSpendLifecycle(job)
+        && job.providerTaskMetadata.submissionIntent !== true
+      ) {
+        await db
+          .update(imageStudioJobsTable)
+          .set({ status: "FAILED", errorMessage: "Cloud image task was not submitted" })
+          .where(and(
+            eq(imageStudioJobsTable.id, job.id),
+            inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
+          ));
+        await settleImageSpendSafely(
+          job,
+          "released",
+          "Cloud image request was definitively not submitted",
+        );
+        return "terminal";
+      }
       if (submissionReceiptGraceRemaining(job) > 0) return "retry";
       await db
         .update(imageStudioJobsTable)
@@ -704,6 +822,11 @@ async function attemptRequestedCancellation(jobId: string): Promise<"retry" | "t
           eq(imageStudioJobsTable.id, job.id),
           inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
         ));
+      await settleImageSpendSafely(
+        job,
+        "uncertain",
+        "Cloud image submission or cancellation outcome could not be confirmed",
+      );
       return "terminal";
     }
     const server = await assignedServer(job);
@@ -718,6 +841,11 @@ async function attemptRequestedCancellation(jobId: string): Promise<"retry" | "t
           eq(imageStudioJobsTable.id, job.id),
           inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
         ));
+      await settleImageSpendSafely(
+        job,
+        "uncertain",
+        "Cloud image cancellation could not be confirmed after provider acceptance",
+      );
       return "terminal";
     }
     try {
@@ -749,6 +877,11 @@ async function attemptRequestedCancellation(jobId: string): Promise<"retry" | "t
           eq(imageStudioJobsTable.id, job.id),
           inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
         ));
+      await settleImageSpendSafely(
+        job,
+        "uncertain",
+        "Cloud image cancellation could not be confirmed after provider acceptance",
+      );
       return "terminal";
     }
     await db
@@ -767,6 +900,11 @@ async function attemptRequestedCancellation(jobId: string): Promise<"retry" | "t
         inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
         sql`${imageStudioJobsTable.providerTaskMetadata}->>'cancellationRequested' = 'true'`,
       ));
+    await settleImageSpendSafely(
+      job,
+      "uncertain",
+      "Cloud cancellation acknowledgement does not prove the accepted task was unbillable",
+    );
     return "terminal";
   } finally {
     if (locked) {
@@ -788,6 +926,24 @@ async function monitor(jobId: string): Promise<void> {
       .limit(1);
     if (!job || TERMINAL_STATUSES.includes(job.status as typeof TERMINAL_STATUSES[number])) return;
     if (!job.providerRequestId) {
+      if (
+        hasImageSpendLifecycle(job)
+        && job.providerTaskMetadata.submissionIntent !== true
+      ) {
+        await db
+          .update(imageStudioJobsTable)
+          .set({ status: "FAILED", errorMessage: "Cloud image task was not submitted" })
+          .where(and(
+            eq(imageStudioJobsTable.id, job.id),
+            inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
+          ));
+        await settleImageSpendSafely(
+          job,
+          "released",
+          "Cloud image request was definitively not submitted",
+        );
+        return;
+      }
       const graceRemaining = submissionReceiptGraceRemaining(job);
       if (graceRemaining > 0) {
         await sleep(Math.min(2_000, graceRemaining));
@@ -803,6 +959,11 @@ async function monitor(jobId: string): Promise<void> {
           eq(imageStudioJobsTable.id, job.id),
           inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
         ));
+      await settleImageSpendSafely(
+        job,
+        "uncertain",
+        "Cloud image submission outcome could not be confirmed",
+      );
       return;
     }
     if (cancellationRequested(job)) {
@@ -853,17 +1014,29 @@ async function monitor(jobId: string): Promise<void> {
     } catch (error) {
       failures += 1;
       const expired = Date.now() - job.createdAt.getTime() > MAX_JOB_AGE_MS;
-      if (!isRetryable(error) || (expired && job.provider === "LOCAL")) {
+      if (!isRetryable(error) || expired) {
         const [failed] = await db
           .update(imageStudioJobsTable)
-          .set({ status: "FAILED", errorMessage: publicFailure(job, error) })
+          .set({
+            status: "FAILED",
+            errorMessage: expired && job.provider === "CLOUD"
+              ? "Cloud image monitoring timed out; provider billing outcome remains uncertain"
+              : publicFailure(job, error),
+          })
           .where(and(
             eq(imageStudioJobsTable.id, job.id),
             inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
             CANCELLATION_NOT_REQUESTED,
           ))
           .returning({ id: imageStudioJobsTable.id });
-        if (failed) return;
+        if (failed) {
+          await settleImageSpendSafely(
+            job,
+            "uncertain",
+            "Cloud image provider result or finalization could not be confirmed",
+          );
+          return;
+        }
         continue;
       }
       logger.warn(
@@ -891,6 +1064,12 @@ export async function createImageJob(input: {
   const model = getImageModel(input.request.modelId);
   if (!model) throw new ImageStudioRequestError("Image model not found", 400);
   validateRequest(model, input.request);
+  if (
+    model.provider === "CLOUD"
+    && (!input.tenantId.trim() || !input.userId.trim())
+  ) {
+    throw new ImageStudioRequestError("A signed-in workspace member is required for Cloud image jobs", 401);
+  }
   if (input.request.requestKey) {
     const [existing] = await db
       .select()
@@ -901,6 +1080,16 @@ export async function createImageJob(input: {
       ))
       .limit(1);
     if (existing) {
+      if (
+        hasImageSpendLifecycle(existing)
+        && existing.providerTaskMetadata.submissionIntent !== true
+        && ACTIVE_STATUSES.includes(existing.status as typeof ACTIVE_STATUSES[number])
+      ) {
+        throw new ImageStudioRequestError(
+          "The matching Cloud image request is still reserving spend; retry shortly",
+          409,
+        );
+      }
       if (
         existing.providerRequestId
         && ACTIVE_STATUSES.includes(existing.status as typeof ACTIVE_STATUSES[number])
@@ -914,6 +1103,15 @@ export async function createImageJob(input: {
     throw new ImageStudioRequestError("Cloud credentials are not configured", 503);
   }
   const loadedAssets = await loadInputAssets(input.tenantId, input.request);
+  const spendQuote = model.provider === "CLOUD"
+    ? await quoteImageSpend(model.id, {
+      width: input.request.width,
+      height: input.request.height,
+      count: input.request.count,
+      operation: input.request.operation,
+      referenceCount: input.request.referenceAssetIds?.length ?? 0,
+    })
+    : undefined;
   let server: ComfyServer | undefined;
   if (model.provider === "LOCAL") {
     const candidates = await compatibleLocalServers(model);
@@ -959,11 +1157,19 @@ export async function createImageJob(input: {
         maskAssetId: input.request.maskAssetId ?? null,
         status: "QUEUED",
         comfyServerId: server?.id ?? null,
-        providerTaskMetadata: {
-          submissionIntent: true,
-          submissionIntentAt: new Date().toISOString(),
-          cancellationRequested: false,
-        },
+        providerTaskMetadata: model.provider === "CLOUD"
+          ? {
+            spendLifecycleVersion: IMAGE_SPEND_LIFECYCLE_VERSION,
+            estimatedUsd: spendQuote!.estimatedUsd,
+            pricingNote: spendQuote!.pricingNote,
+            submissionIntent: false,
+            cancellationRequested: false,
+          }
+          : {
+            submissionIntent: true,
+            submissionIntentAt: new Date().toISOString(),
+            cancellationRequested: false,
+          },
       })
       .onConflictDoNothing({
         target: [imageStudioJobsTable.tenantId, imageStudioJobsTable.requestKey],
@@ -983,7 +1189,67 @@ export async function createImageJob(input: {
       }
       return existing;
     }
-    const job = insertedJob;
+    let job = insertedJob;
+    if (model.provider === "CLOUD") {
+      try {
+        await reserveSpend({
+          tenantId: input.tenantId,
+          userId: input.userId,
+          sourceType: "image",
+          sourceId: job.id,
+          modelId: model.id,
+          estimatedUsd: spendQuote!.estimatedUsd,
+          pricingNote: spendQuote!.pricingNote,
+        });
+        const [ready] = await db
+          .update(imageStudioJobsTable)
+          .set({
+            providerTaskMetadata: {
+              ...job.providerTaskMetadata,
+              submissionIntent: true,
+              submissionIntentAt: new Date().toISOString(),
+              spendReserved: true,
+            },
+          })
+          .where(and(
+            eq(imageStudioJobsTable.id, job.id),
+            inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
+          ))
+          .returning();
+        if (!ready) {
+          await settleImageSpendSafely(
+            job,
+            "released",
+            "Cloud image request became inactive before provider submission",
+          );
+          throw new ImageStudioRequestError("The image task was cancelled before submission", 409);
+        }
+        job = ready;
+      } catch (error) {
+        await db
+          .update(imageStudioJobsTable)
+          .set({
+            status: "FAILED",
+            errorMessage: sanitizeCloudMessage(error, "Cloud image spend could not be reserved"),
+          })
+          .where(and(
+            eq(imageStudioJobsTable.id, job.id),
+            inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
+          ));
+        await settleImageSpendSafely(
+          job,
+          "released",
+          "Cloud image request was not submitted to the provider",
+        );
+        if (error instanceof ImageStudioRequestError) throw error;
+        throw new ImageStudioRequestError(
+          sanitizeCloudMessage(error, "Cloud image spend could not be reserved"),
+          requestErrorStatus(error, 503),
+        );
+      }
+    }
+    let providerAccepted = false;
+    let submittedReceipt: Awaited<ReturnType<typeof submitImageTask>> | undefined;
     try {
       const submitted = await submitImageTask({
         modelId: model.id,
@@ -999,6 +1265,8 @@ export async function createImageJob(input: {
         ...(server ? { server } : {}),
         clientId: job.id,
       });
+      providerAccepted = true;
+      submittedReceipt = submitted;
       const accepted = await db.transaction(async (tx) => {
         const [current] = await tx
           .select()
@@ -1037,19 +1305,38 @@ export async function createImageJob(input: {
         }).catch(() => undefined);
         throw new ImageStudioRequestError("The image task was cancelled during submission", 409);
       }
+      await attachImageSpendReceiptSafely(accepted);
       return accepted;
     } catch (error) {
-      const outcomeUnknown = isRetryable(error);
+      const outcomeUnknown = job.provider === "CLOUD"
+        ? providerAccepted || !isDefinitiveSubmissionRejection(error)
+        : isRetryable(error);
       const failureMessage = outcomeUnknown
         ? submissionOutcomeUnknownMessage(job.provider)
         : publicFailure(job, error);
-      await db
+      if (submittedReceipt) {
+        await attachSubmittedImageSpendReceiptSafely(job, submittedReceipt);
+      }
+      const [latest] = providerAccepted
+        ? await db
+          .select()
+          .from(imageStudioJobsTable)
+          .where(eq(imageStudioJobsTable.id, job.id))
+          .limit(1)
+        : [];
+      const [failedJob] = await db
         .update(imageStudioJobsTable)
         .set({
           status: "FAILED",
           errorMessage: failureMessage,
+          ...(submittedReceipt ? {
+            provider: submittedReceipt.provider,
+            providerRequestId: submittedReceipt.requestId,
+            submittedAt: latest?.submittedAt ?? new Date(),
+          } : {}),
           providerTaskMetadata: {
-            ...job.providerTaskMetadata,
+            ...(latest?.providerTaskMetadata ?? job.providerTaskMetadata),
+            ...(submittedReceipt?.metadata ?? {}),
             submissionOutcomeUnknown: outcomeUnknown,
             submissionFailedAt: new Date().toISOString(),
           },
@@ -1057,7 +1344,16 @@ export async function createImageJob(input: {
         .where(and(
           eq(imageStudioJobsTable.id, job.id),
           inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
-        ));
+        ))
+        .returning();
+      if (failedJob) await attachImageSpendReceiptSafely(failedJob);
+      await settleImageSpendSafely(
+        job,
+        outcomeUnknown ? "uncertain" : "released",
+        outcomeUnknown
+          ? "Cloud image submission acceptance or receipt persistence could not be confirmed"
+          : "Cloud image provider definitively rejected the request before acceptance",
+      );
       if (error instanceof ImageStudioRequestError) throw error;
       throw new ImageStudioRequestError(
         failureMessage,
@@ -1226,10 +1522,40 @@ export async function deleteImageAsset(
 }
 
 export async function resumeImageStudioJobs(): Promise<void> {
-  const active = await db
-    .select({ id: imageStudioJobsTable.id })
+  const jobs = await db
+    .select()
     .from(imageStudioJobsTable)
-    .where(inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]));
+    .where(or(
+      inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
+      eq(imageStudioJobsTable.provider, "CLOUD"),
+    ));
+  const active = jobs.filter((job) =>
+    ACTIVE_STATUSES.includes(job.status as typeof ACTIVE_STATUSES[number]));
+  for (const job of jobs) {
+    await attachImageSpendReceiptSafely(job);
+  }
   for (const job of active) startMonitor(job.id);
+  for (const job of jobs) {
+    if (!hasImageSpendLifecycle(job) || active.includes(job)) continue;
+    if (job.status === "COMPLETED") {
+      await settleImageSpendSafely(
+        job,
+        "estimated",
+        "Restart reconciliation found completed Cloud image output",
+      );
+    } else if (job.status === "FAILED" && job.providerTaskMetadata.submissionIntent !== true) {
+      await settleImageSpendSafely(
+        job,
+        "released",
+        "Restart reconciliation confirmed the Cloud image request was not submitted",
+      );
+    } else if (job.status === "FAILED" || job.status === "CANCELLED") {
+      await settleImageSpendSafely(
+        job,
+        "uncertain",
+        "Restart reconciliation could not prove the accepted Cloud task was unbillable",
+      );
+    }
+  }
   if (active.length > 0) logger.info({ count: active.length }, "Resumed durable image task monitors");
 }

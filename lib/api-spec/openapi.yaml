@@ -28,6 +28,8 @@ tags:
     description: Long-form video planning and orchestration
   - name: image-studio
     description: Durable image generation jobs and asset library
+  - name: spending
+    description: Estimated paid-provider spending policy and ledger
 paths:
   /auth/config:
     get:
@@ -219,6 +221,101 @@ paths:
       responses:
         "204":
           description: Removed
+  /tenants/{tenantId}/members/{userId}/spending-limit:
+    put:
+      operationId: updateTenantMemberSpendingLimit
+      tags: [spending]
+      summary: Update a member monthly estimated-spend limit
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SpendingLimitUpdate" }
+      responses:
+        "200":
+          description: Updated limit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SpendingLimitResult" }
+        "400":
+          description: Invalid limit
+        "403":
+          description: Limit cannot be managed by this user
+        "404":
+          description: Tenant or member not found
+  /spending:
+    get:
+      operationId: getSpendingReport
+      tags: [spending]
+      summary: Report monthly reserved and estimated provider spending
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: tenantId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Role-scoped monthly report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SpendingReport" }
+        "400":
+          description: Invalid report period or scope
+        "403":
+          description: Scope is inaccessible
+        "404":
+          description: Tenant not found
+  /spending/entries:
+    get:
+      operationId: listSpendingEntries
+      tags: [spending]
+      summary: List role-scoped estimated-spending ledger entries
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: tenantId
+          in: query
+          required: false
+          schema: { type: string }
+        - name: userId
+          in: query
+          required: false
+          schema: { type: string }
+        - name: page
+          in: query
+          required: false
+          schema: { type: number, minimum: 1, multipleOf: 1, default: 1 }
+        - name: pageSize
+          in: query
+          required: false
+          schema: { type: number, minimum: 1, maximum: 100, multipleOf: 1, default: 50 }
+      responses:
+        "200":
+          description: Paginated role-scoped ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SpendingEntryPage" }
+        "400":
+          description: Invalid request
+        "403":
+          description: Scope is inaccessible
+        "404":
+          description: Tenant not found
   /healthz:
     get:
       operationId: healthCheck
@@ -1333,24 +1430,32 @@ components:
         name: { type: string, minLength: 1, maxLength: 120 }
     TenantMember:
       type: object
-      required: [userId, email, displayName, role]
+      required: [userId, email, displayName, role, monthlyLimitUsd]
       properties:
         userId: { type: string }
         email: { type: ["string", "null"] }
         displayName: { type: string }
         role: { $ref: "#/components/schemas/TenantRole" }
+        monthlyLimitUsd: { type: ["number", "null"], minimum: 0, maximum: 1000000 }
     TenantMemberInput:
       type: object
       required: [email, role]
       properties:
         email: { type: string }
         role: { $ref: "#/components/schemas/TenantRole" }
+        monthlyLimitUsd:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 1000000
+          multipleOf: 0.000001
+          default: null
     TenantInvitation:
       type: object
-      required: [email, role, token, expiresAt]
+      required: [email, role, monthlyLimitUsd, token, expiresAt]
       properties:
         email: { type: string }
         role: { $ref: "#/components/schemas/TenantRole" }
+        monthlyLimitUsd: { type: ["number", "null"], minimum: 0, maximum: 1000000 }
         token: { type: string }
         expiresAt: { type: string }
     TenantInvitationAcceptanceInput:
@@ -1358,6 +1463,124 @@ components:
       required: [token]
       properties:
         token: { type: string, minLength: 32, maxLength: 256 }
+    SpendingLimitUpdate:
+      type: object
+      additionalProperties: false
+      required: [monthlyLimitUsd]
+      properties:
+        monthlyLimitUsd:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 1000000
+          multipleOf: 0.000001
+    SpendingLimitResult:
+      type: object
+      required: [tenantId, userId, monthlyLimitUsd, canManageLimit]
+      properties:
+        tenantId: { type: string }
+        userId: { type: string }
+        monthlyLimitUsd: { type: ["number", "null"], minimum: 0, maximum: 1000000 }
+        canManageLimit: { type: boolean }
+    SpendingTotals:
+      type: object
+      required: [reservedUSD, estimatedUSD, actualUSD, totalUSD]
+      properties:
+        reservedUSD: { type: number, minimum: 0 }
+        estimatedUSD: { type: number, minimum: 0 }
+        actualUSD: { type: number, minimum: 0 }
+        totalUSD: { type: number, minimum: 0 }
+    SpendingScope:
+      type: object
+      required: [tenantId, userId]
+      properties:
+        tenantId: { type: ["string", "null"] }
+        userId: { type: ["string", "null"] }
+    SpendingReportRow:
+      type: object
+      required: [tenantId, tenantName, userId, userEmail, userDisplayName, role, membershipActive, monthlyLimitUsd, reservedUSD, estimatedUSD, actualUSD, totalUSD, remainingUSD, canManageLimit]
+      properties:
+        tenantId: { type: string }
+        tenantName: { type: string }
+        userId: { type: string }
+        userEmail: { type: ["string", "null"] }
+        userDisplayName: { type: string }
+        role: { $ref: "#/components/schemas/TenantRole" }
+        membershipActive: { type: boolean }
+        monthlyLimitUsd: { type: ["number", "null"], minimum: 0 }
+        reservedUSD: { type: number, minimum: 0 }
+        estimatedUSD: { type: number, minimum: 0 }
+        actualUSD: { type: number, minimum: 0 }
+        totalUSD: { type: number, minimum: 0 }
+        remainingUSD: { type: ["number", "null"], minimum: 0 }
+        canManageLimit: { type: boolean }
+    PendingSpendingInvitation:
+      type: object
+      required: [id, tenantId, email, role, monthlyLimitUsd, expiresAt, canManageLimit]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/TenantRole" }
+        monthlyLimitUsd: { type: ["number", "null"], minimum: 0 }
+        expiresAt: { type: string, format: date-time }
+        canManageLimit: { type: boolean }
+    SpendingPermissions:
+      type: object
+      required: [canViewAllTenants]
+      properties:
+        canViewAllTenants: { type: boolean }
+    SpendingReport:
+      type: object
+      required: [periodStart, periodEnd, currency, scope, totals, rows, pendingInvitations, permissions]
+      properties:
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        currency: { type: string, const: USD }
+        scope: { $ref: "#/components/schemas/SpendingScope" }
+        totals: { $ref: "#/components/schemas/SpendingTotals" }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/SpendingReportRow" }
+        pendingInvitations:
+          type: array
+          items: { $ref: "#/components/schemas/PendingSpendingInvitation" }
+        permissions: { $ref: "#/components/schemas/SpendingPermissions" }
+    SpendingOutcome:
+      type: string
+      enum: [reserved, estimated, released, uncertain, actual]
+    SpendingEntry:
+      type: object
+      required: [id, tenantId, userId, userEmail, userDisplayName, sourceType, sourceId, modelId, pricingNote, reservedUSD, actualUSD, hasReceipt, outcome, note, submittedAt, settledAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        userId: { type: string }
+        userEmail: { type: ["string", "null"] }
+        userDisplayName: { type: string }
+        sourceType: { type: string, enum: [image, video] }
+        sourceId: { type: string }
+        modelId: { type: string }
+        pricingNote: { type: string }
+        reservedUSD: { type: number, minimum: 0 }
+        actualUSD: { type: ["number", "null"], minimum: 0 }
+        hasReceipt: { type: boolean }
+        outcome: { $ref: "#/components/schemas/SpendingOutcome" }
+        note: { type: ["string", "null"] }
+        submittedAt: { type: string, format: date-time }
+        settledAt: { type: ["string", "null"], format: date-time }
+    SpendingEntryPage:
+      type: object
+      required: [periodStart, periodEnd, currency, page, pageSize, total, entries]
+      properties:
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        currency: { type: string, const: USD }
+        page: { type: number, minimum: 1, multipleOf: 1 }
+        pageSize: { type: number, minimum: 1, maximum: 100, multipleOf: 1 }
+        total: { type: number, minimum: 0, multipleOf: 1 }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/SpendingEntry" }
     HealthStatus:
       type: object
       properties:

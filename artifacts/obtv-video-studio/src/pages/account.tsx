@@ -283,13 +283,16 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
   const [addOpen, setAddOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
+  const [newLimit, setNewLimit] = useState<string>("");
   const [inviteUrl, setInviteUrl] = useState("");
+  const [createdLimit, setCreatedLimit] = useState<number | null>(null);
 
   const addMember = useAddTenantMember({
     mutation: {
       onSuccess: (invitation) => {
         const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
         setInviteUrl(`${window.location.origin}${basePath}/sign-up?invite=${encodeURIComponent(invitation.token)}`);
+        setCreatedLimit(invitation.monthlyLimitUsd ?? null);
         toast({ title: "Invitation created" });
       },
       onError: (err) => {
@@ -321,7 +324,17 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
-    addMember.mutate({ id: tenantId, data: { email: newEmail, role: newRole } });
+
+    let parsedLimit: number | null = null;
+    if (newLimit.trim() !== "") {
+      parsedLimit = Number(newLimit);
+      if (isNaN(parsedLimit) || parsedLimit < 0) {
+        toast({ title: "Invalid limit", description: "Must be a non-negative number", variant: "destructive" });
+        return;
+      }
+    }
+
+    addMember.mutate({ id: tenantId, data: { email: newEmail, role: newRole, monthlyLimitUsd: parsedLimit } });
   };
 
   return (
@@ -342,6 +355,8 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
               setInviteUrl("");
               setNewEmail("");
               setNewRole("MEMBER");
+              setNewLimit("");
+              setCreatedLimit(null);
             }
           }}>
             <DialogTrigger asChild>
@@ -364,6 +379,12 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
                   <div className="space-y-3 py-4">
                     <Label htmlFor="invite-url">Invitation Link</Label>
                     <Input id="invite-url" value={inviteUrl} readOnly data-testid="input-invitation-link" />
+                    {createdLimit !== null && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Monthly spending limit: <strong>${createdLimit.toFixed(2)}</strong>
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-2">Existing users will retain their current limit.</p>
                   </div>
                 ) : <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -388,6 +409,20 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
                         <SelectItem value="ADMIN">Admin (Can manage members)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="limit">Monthly Spending Limit (USD)</Label>
+                    <Input
+                      id="limit"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="1000000"
+                      placeholder="e.g. 50 (Leave blank for unlimited)"
+                      value={newLimit}
+                      onChange={e => setNewLimit(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">0 blocks all paid usage. Unlimited if blank.</p>
                   </div>
                 </div>}
                 <DialogFooter>

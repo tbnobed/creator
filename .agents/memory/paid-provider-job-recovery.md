@@ -14,3 +14,9 @@ Treat provider submission as an uncertain side effect until its receipt is persi
 **Why:** A local idempotency key prevents duplicate application requests, but cannot guarantee exactly-once billing when the provider accepts work just before the API loses the response or crashes. Retrying such a submission can charge twice.
 
 **How to apply:** Persist submission intent before dispatch, reuse known provider receipts for polling, and explicitly surface an unknown submission outcome when no receipt can be recovered. Persist cancellation intent before calling the provider so restart recovery does not resume ordinary rendering.
+
+Do not treat a failed local job, timeout, cancellation acknowledgement, or deleted result as proof that a Cloud charge was avoided. Unknown submissions retain their spending reservation; confirmed provider completion consumes the estimated allowance even if downloading or storing the output subsequently fails.
+
+**Why:** Application status and provider billing outcome are different facts. Releasing an allowance on every local failure would allow repeated paid work to bypass spending limits.
+
+**How to apply:** Release only on affirmative evidence of non-billable execution. Keep accounting idempotent across restarts and polling, retain attribution after job deletion, and distinguish budget estimates from provider-invoiced charges.

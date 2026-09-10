@@ -179,11 +179,17 @@ export const ListTenantMembersParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const listTenantMembersResponseMonthlyLimitUsdMin = 0;
+export const listTenantMembersResponseMonthlyLimitUsdMax = 1000000;
+
+
+
 export const ListTenantMembersResponseItem = zod.object({
   "userId": zod.string(),
   "email": zod.string().nullable(),
   "displayName": zod.string(),
-  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER']),
+  "monthlyLimitUsd": zod.number().min(listTenantMembersResponseMonthlyLimitUsdMin).max(listTenantMembersResponseMonthlyLimitUsdMax).nullable()
 })
 export const ListTenantMembersResponse = zod.array(ListTenantMembersResponseItem)
 
@@ -195,14 +201,28 @@ export const AddTenantMemberParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const addTenantMemberBodyMonthlyLimitUsdDefault = null;
+export const addTenantMemberBodyMonthlyLimitUsdMin = 0;
+export const addTenantMemberBodyMonthlyLimitUsdMax = 1000000;
+export const addTenantMemberBodyMonthlyLimitUsdMultipleOf = 0.000001;
+
+
+
 export const AddTenantMemberBody = zod.object({
   "email": zod.string(),
-  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER'])
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER']),
+  "monthlyLimitUsd": zod.number().min(addTenantMemberBodyMonthlyLimitUsdMin).max(addTenantMemberBodyMonthlyLimitUsdMax).multipleOf(addTenantMemberBodyMonthlyLimitUsdMultipleOf).nullish().default(addTenantMemberBodyMonthlyLimitUsdDefault)
 })
+
+export const addTenantMemberResponseMonthlyLimitUsdMin = 0;
+export const addTenantMemberResponseMonthlyLimitUsdMax = 1000000;
+
+
 
 export const AddTenantMemberResponse = zod.object({
   "email": zod.string(),
   "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER']),
+  "monthlyLimitUsd": zod.number().min(addTenantMemberResponseMonthlyLimitUsdMin).max(addTenantMemberResponseMonthlyLimitUsdMax).nullable(),
   "token": zod.string(),
   "expiresAt": zod.string()
 })
@@ -217,6 +237,180 @@ export const DeleteTenantMemberParams = zod.object({
 })
 
 export const DeleteTenantMemberResponse = zod.void()
+
+
+/**
+ * @summary Update a member monthly estimated-spend limit
+ */
+export const UpdateTenantMemberSpendingLimitParams = zod.object({
+  "tenantId": zod.coerce.string(),
+  "userId": zod.coerce.string()
+})
+
+export const updateTenantMemberSpendingLimitBodyMonthlyLimitUsdMin = 0;
+export const updateTenantMemberSpendingLimitBodyMonthlyLimitUsdMax = 1000000;
+export const updateTenantMemberSpendingLimitBodyMonthlyLimitUsdMultipleOf = 0.000001;
+
+
+
+export const UpdateTenantMemberSpendingLimitBody = zod.object({
+  "monthlyLimitUsd": zod.number().min(updateTenantMemberSpendingLimitBodyMonthlyLimitUsdMin).max(updateTenantMemberSpendingLimitBodyMonthlyLimitUsdMax).multipleOf(updateTenantMemberSpendingLimitBodyMonthlyLimitUsdMultipleOf).nullable()
+})
+
+export const updateTenantMemberSpendingLimitResponseMonthlyLimitUsdMin = 0;
+export const updateTenantMemberSpendingLimitResponseMonthlyLimitUsdMax = 1000000;
+
+
+
+export const UpdateTenantMemberSpendingLimitResponse = zod.object({
+  "tenantId": zod.string(),
+  "userId": zod.string(),
+  "monthlyLimitUsd": zod.number().min(updateTenantMemberSpendingLimitResponseMonthlyLimitUsdMin).max(updateTenantMemberSpendingLimitResponseMonthlyLimitUsdMax).nullable(),
+  "canManageLimit": zod.boolean()
+})
+
+
+/**
+ * @summary Report monthly reserved and estimated provider spending
+ */
+export const getSpendingReportQueryMonthRegExp = new RegExp('^\\d{4}-(0[1-9]|1[0-2])$');
+
+
+export const GetSpendingReportQueryParams = zod.object({
+  "month": zod.coerce.string().regex(getSpendingReportQueryMonthRegExp),
+  "tenantId": zod.coerce.string().optional()
+})
+
+export const getSpendingReportResponseTotalsReservedUSDMin = 0;
+
+export const getSpendingReportResponseTotalsEstimatedUSDMin = 0;
+
+export const getSpendingReportResponseTotalsActualUSDMin = 0;
+
+export const getSpendingReportResponseTotalsTotalUSDMin = 0;
+
+export const getSpendingReportResponseRowsItemMonthlyLimitUsdMin = 0;
+
+export const getSpendingReportResponseRowsItemReservedUSDMin = 0;
+
+export const getSpendingReportResponseRowsItemEstimatedUSDMin = 0;
+
+export const getSpendingReportResponseRowsItemActualUSDMin = 0;
+
+export const getSpendingReportResponseRowsItemTotalUSDMin = 0;
+
+export const getSpendingReportResponseRowsItemRemainingUSDMin = 0;
+
+export const getSpendingReportResponsePendingInvitationsItemMonthlyLimitUsdMin = 0;
+
+
+
+export const GetSpendingReportResponse = zod.object({
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "currency": zod.literal("USD"),
+  "scope": zod.object({
+  "tenantId": zod.string().nullable(),
+  "userId": zod.string().nullable()
+}),
+  "totals": zod.object({
+  "reservedUSD": zod.number().min(getSpendingReportResponseTotalsReservedUSDMin),
+  "estimatedUSD": zod.number().min(getSpendingReportResponseTotalsEstimatedUSDMin),
+  "actualUSD": zod.number().min(getSpendingReportResponseTotalsActualUSDMin),
+  "totalUSD": zod.number().min(getSpendingReportResponseTotalsTotalUSDMin)
+}),
+  "rows": zod.array(zod.object({
+  "tenantId": zod.string(),
+  "tenantName": zod.string(),
+  "userId": zod.string(),
+  "userEmail": zod.string().nullable(),
+  "userDisplayName": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER']),
+  "membershipActive": zod.boolean(),
+  "monthlyLimitUsd": zod.number().min(getSpendingReportResponseRowsItemMonthlyLimitUsdMin).nullable(),
+  "reservedUSD": zod.number().min(getSpendingReportResponseRowsItemReservedUSDMin),
+  "estimatedUSD": zod.number().min(getSpendingReportResponseRowsItemEstimatedUSDMin),
+  "actualUSD": zod.number().min(getSpendingReportResponseRowsItemActualUSDMin),
+  "totalUSD": zod.number().min(getSpendingReportResponseRowsItemTotalUSDMin),
+  "remainingUSD": zod.number().min(getSpendingReportResponseRowsItemRemainingUSDMin).nullable(),
+  "canManageLimit": zod.boolean()
+})),
+  "pendingInvitations": zod.array(zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['OWNER', 'ADMIN', 'MEMBER']),
+  "monthlyLimitUsd": zod.number().min(getSpendingReportResponsePendingInvitationsItemMonthlyLimitUsdMin).nullable(),
+  "expiresAt": zod.coerce.date(),
+  "canManageLimit": zod.boolean()
+})),
+  "permissions": zod.object({
+  "canViewAllTenants": zod.boolean()
+})
+})
+
+
+/**
+ * @summary List role-scoped estimated-spending ledger entries
+ */
+export const listSpendingEntriesQueryMonthRegExp = new RegExp('^\\d{4}-(0[1-9]|1[0-2])$');
+export const listSpendingEntriesQueryPageDefault = 1;
+export const listSpendingEntriesQueryPageMultipleOf = 1;
+
+export const listSpendingEntriesQueryPageSizeDefault = 50;
+export const listSpendingEntriesQueryPageSizeMax = 100;
+export const listSpendingEntriesQueryPageSizeMultipleOf = 1;
+
+
+
+export const ListSpendingEntriesQueryParams = zod.object({
+  "month": zod.coerce.string().regex(listSpendingEntriesQueryMonthRegExp),
+  "tenantId": zod.coerce.string().optional(),
+  "userId": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).multipleOf(listSpendingEntriesQueryPageMultipleOf).default(listSpendingEntriesQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listSpendingEntriesQueryPageSizeMax).multipleOf(listSpendingEntriesQueryPageSizeMultipleOf).default(listSpendingEntriesQueryPageSizeDefault)
+})
+
+export const listSpendingEntriesResponsePageMultipleOf = 1;
+
+export const listSpendingEntriesResponsePageSizeMax = 100;
+export const listSpendingEntriesResponsePageSizeMultipleOf = 1;
+
+export const listSpendingEntriesResponseTotalMin = 0;
+export const listSpendingEntriesResponseTotalMultipleOf = 1;
+
+export const listSpendingEntriesResponseEntriesItemReservedUSDMin = 0;
+
+export const listSpendingEntriesResponseEntriesItemActualUSDMin = 0;
+
+
+
+export const ListSpendingEntriesResponse = zod.object({
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "currency": zod.literal("USD"),
+  "page": zod.number().min(1).multipleOf(listSpendingEntriesResponsePageMultipleOf),
+  "pageSize": zod.number().min(1).max(listSpendingEntriesResponsePageSizeMax).multipleOf(listSpendingEntriesResponsePageSizeMultipleOf),
+  "total": zod.number().min(listSpendingEntriesResponseTotalMin).multipleOf(listSpendingEntriesResponseTotalMultipleOf),
+  "entries": zod.array(zod.object({
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "userId": zod.string(),
+  "userEmail": zod.string().nullable(),
+  "userDisplayName": zod.string(),
+  "sourceType": zod.enum(['image', 'video']),
+  "sourceId": zod.string(),
+  "modelId": zod.string(),
+  "pricingNote": zod.string(),
+  "reservedUSD": zod.number().min(listSpendingEntriesResponseEntriesItemReservedUSDMin),
+  "actualUSD": zod.number().min(listSpendingEntriesResponseEntriesItemActualUSDMin).nullable(),
+  "hasReceipt": zod.boolean(),
+  "outcome": zod.enum(['reserved', 'estimated', 'released', 'uncertain', 'actual']),
+  "note": zod.string().nullable(),
+  "submittedAt": zod.coerce.date(),
+  "settledAt": zod.coerce.date().nullable()
+}))
+})
 
 
 /**

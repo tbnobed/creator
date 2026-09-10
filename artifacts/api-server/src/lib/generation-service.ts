@@ -34,11 +34,14 @@ import {
   type FalModel,
   type FalQueueEndpoints,
 } from "./fal/client";
+import { quoteVideoSpend } from "./spending-pricing";
+import { attachSpendReceipt, reserveSpend, settleSpend } from "./spending-service";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
 const generationTimeoutMs = 6 * 60 * 60 * 1000;
 const maxConsecutiveMonitorErrors = 3;
+const FAL_SPEND_LIFECYCLE_VERSION = 1;
 
 function cloudProviderErrorDetail(value: unknown): string {
   return String(value)
@@ -115,6 +118,85 @@ function mergeFalMetadata(
   update: Record<string, unknown>,
 ): Record<string, unknown> {
   return { ...metadata, ...update };
+}
+
+function falSpendQuoteInput(normalized: ReturnType<typeof normalizeFalRequest>): {
+  duration: number;
+  resolution?: string;
+  generateAudio?: boolean;
+} {
+  const submittedDuration = normalized.input.duration;
+  const parsedDuration = typeof submittedDuration === "number"
+    ? submittedDuration
+    : typeof submittedDuration === "string"
+      ? Number.parseFloat(submittedDuration)
+      : Number.NaN;
+  const resolution = normalized.input.resolution;
+  const generateAudio = normalized.input.generate_audio;
+  return {
+    duration: Number.isFinite(parsedDuration) ? parsedDuration : normalized.durationSeconds,
+    ...(typeof resolution === "string" ? { resolution } : {}),
+    ...(typeof generateAudio === "boolean" ? { generateAudio } : {}),
+  };
+}
+
+function falSubmissionDefinitelyRejected(error: unknown): boolean {
+  if (!(error instanceof FalHttpError) || error.status === null) return false;
+  return error.status >= 400
+    && error.status < 500
+    && ![408, 409, 425, 429].includes(error.status);
+}
+
+async function settleVideoSpendIfReserved(
+  jobId: string,
+  outcome: "estimated" | "released" | "uncertain",
+  note: string,
+): Promise<void> {
+  try {
+    await settleSpend("video", jobId, outcome, note);
+  } catch (error) {
+    // Jobs accepted before spending ledgers were introduced must remain recoverable.
+    if (
+      error
+      && typeof error === "object"
+      && "statusCode" in error
+      && error.statusCode === 404
+    ) return;
+    logger.error(
+      { err: error, jobId, outcome },
+      "Could not settle Cloud video spend; restart reconciliation will retry",
+    );
+  }
+}
+
+async function attachVideoSpendReceiptSafely(
+  jobId: string,
+  requestId: string,
+  endpoint: string,
+): Promise<void> {
+  try {
+    await attachSpendReceipt("video", jobId, requestId, endpoint);
+  } catch (error) {
+    logger.error(
+      { err: error, jobId },
+      "Could not attach Cloud video spend receipt; spending reconciliation will retry",
+    );
+  }
+}
+
+function hasFalSpendLifecycle(metadata: Record<string, unknown>): boolean {
+  return metadata.spendLifecycleVersion === FAL_SPEND_LIFECYCLE_VERSION;
+}
+
+function latestFalStatus(metadata: Record<string, unknown>): string {
+  const latest = metadata.latestStatus;
+  return latest && typeof latest === "object"
+    ? String((latest as { status?: unknown }).status ?? "").toUpperCase()
+    : "";
+}
+
+function falBillingEndpoint(modelId: string): string {
+  return `https://queue.fal.run/${modelId}`;
 }
 
 function compileGenericPrompt(
@@ -533,6 +615,50 @@ function chooseOutput(
 }
 
 export async function resumeActiveGenerations(): Promise<void> {
+  const terminalCloudJobs = await db
+    .select()
+    .from(generationJobsTable)
+    .where(and(
+      eq(generationJobsTable.provider, "FAL"),
+      inArray(generationJobsTable.status, ["COMPLETED", "FAILED", "CANCELLED"]),
+    ));
+  for (const job of terminalCloudJobs) {
+    if (!hasFalSpendLifecycle(job.providerTaskMetadata)) continue;
+    if (job.providerRequestId && job.providerModelId) {
+      await attachVideoSpendReceiptSafely(
+        job.id,
+        job.providerRequestId,
+        falBillingEndpoint(job.providerModelId),
+      );
+    }
+    if (job.status === "COMPLETED" || latestFalStatus(job.providerTaskMetadata) === "COMPLETED") {
+      await settleVideoSpendIfReserved(
+        job.id,
+        "estimated",
+        "Cloud completion was confirmed by durable job metadata.",
+      );
+    } else if (
+      job.providerRequestId
+      || (
+        job.providerTaskMetadata.submissionIntent === true
+        && !["not-submitted", "rejected"].includes(
+          String(job.providerTaskMetadata.submissionOutcome ?? ""),
+        )
+      )
+    ) {
+      await settleVideoSpendIfReserved(
+        job.id,
+        "uncertain",
+        "Paid Cloud execution cannot be ruled out for this terminal job.",
+      );
+    } else {
+      await settleVideoSpendIfReserved(
+        job.id,
+        "released",
+        "Durable job metadata confirms the Cloud request was never submitted.",
+      );
+    }
+  }
   const jobs = await db
     .select()
     .from(generationJobsTable)
@@ -546,11 +672,21 @@ export async function resumeActiveGenerations(): Promise<void> {
           void monitorFalGeneration(job.id, new FalQueueClient(model), job.providerRequestId, endpoints);
         } catch (error) {
           logger.error({ err: error, jobId: job.id }, "Cannot resume Cloud generation with invalid queue endpoints");
-          await db.update(generationJobsTable).set({
+          const [failed] = await db.update(generationJobsTable).set({
             status: "FAILED",
             errorMessage: error instanceof Error ? cloudProviderErrorDetail(error.message) : "Invalid Cloud queue endpoints",
             failedAt: new Date(),
-          }).where(eq(generationJobsTable.id, job.id));
+          }).where(and(
+            eq(generationJobsTable.id, job.id),
+            inArray(generationJobsTable.status, activeGenerationStatuses),
+          )).returning({ id: generationJobsTable.id });
+          if (failed) {
+            await settleVideoSpendIfReserved(
+              job.id,
+              "uncertain",
+              "Cloud accepted the job, but its persisted queue receipt could not be recovered.",
+            );
+          }
         }
       }
       continue;
@@ -571,6 +707,30 @@ export async function resumeActiveGenerations(): Promise<void> {
       continue;
     }
     void monitorGeneration(job.id, new ComfyUIClient(server), job.comfyPromptId);
+  }
+  const interruptedCloudJobs = await db
+    .select({
+      id: generationJobsTable.id,
+      providerTaskMetadata: generationJobsTable.providerTaskMetadata,
+    })
+    .from(generationJobsTable)
+    .where(and(
+      eq(generationJobsTable.provider, "FAL"),
+      eq(generationJobsTable.status, "UPLOADING"),
+      sql`${generationJobsTable.providerRequestId} IS NULL`,
+    ));
+  for (const job of interruptedCloudJobs) {
+    const wasSubmitted = job.providerTaskMetadata.submissionIntent === true
+      && !["not-submitted", "rejected"].includes(
+        String(job.providerTaskMetadata.submissionOutcome ?? ""),
+      );
+    await settleVideoSpendIfReserved(
+      job.id,
+      wasSubmitted ? "uncertain" : "released",
+      wasSubmitted
+        ? "Cloud submission was interrupted before its acceptance outcome could be persisted."
+        : "Durable job metadata confirms the Cloud request was never submitted.",
+    );
   }
   await db
     .update(generationJobsTable)
@@ -851,6 +1011,9 @@ async function createAndSubmitFalGeneration(
   if (input.referenceVideoKey) {
     throw new Error("Cloud models support text-to-video requests only; remove the reference video");
   }
+  if (!process.env.FAL_KEY?.trim()) {
+    throw new FalHttpError("FAL_KEY is not configured", null, false);
+  }
   const model = input.model;
   const compiledPrompt = compileGenericPrompt(characters, setting, input);
   const normalized = normalizeFalRequest(model, {
@@ -872,7 +1035,12 @@ async function createAndSubmitFalGeneration(
     status: "UPLOADING",
     provider: "FAL",
     providerModelId: falModels[model],
-    providerTaskMetadata: { model },
+    providerTaskMetadata: {
+      model,
+      spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
+      submissionIntent: false,
+      submissionOutcome: "not-submitted",
+    },
     voiceCloningEnabled: input.voiceCloningEnabled ?? false,
     longFormShotId: input.longFormShotId ?? null,
     prompt: input.prompt,
@@ -898,10 +1066,48 @@ async function createAndSubmitFalGeneration(
     await db.insert(generationSettingsTable).values({ generationJobId: job.id, settingId: setting.id });
   }
 
+  let reserved = false;
+  let submissionAttempted = false;
   try {
+    const modelId = falModels[model];
+    const quote = await quoteVideoSpend(modelId, falSpendQuoteInput(normalized));
+    await reserveSpend({
+      tenantId: input.tenantId,
+      userId: input.createdByUserId,
+      sourceType: "video",
+      sourceId: job.id,
+      modelId,
+      estimatedUsd: quote.estimatedUsd,
+      pricingNote: quote.pricingNote,
+    });
+    reserved = true;
+    const submissionIntentAt = new Date().toISOString();
+    const [intentReady] = await db.update(generationJobsTable).set({
+      providerTaskMetadata: {
+        model,
+        spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
+        submissionIntent: true,
+        submissionIntentAt,
+        submissionOutcome: "unknown",
+      },
+    }).where(and(
+      eq(generationJobsTable.id, job.id),
+      eq(generationJobsTable.status, "UPLOADING"),
+    )).returning({ id: generationJobsTable.id });
+    if (!intentReady) {
+      throw new Error("Generation was cancelled before Cloud submission");
+    }
     const client = new FalQueueClient(model);
+    submissionAttempted = true;
     const submitted = await client.submit(normalized.input);
-    const taskMetadata = { model, submission: submitted.metadata };
+    const taskMetadata = {
+      model,
+      spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
+      submissionIntent: true,
+      submissionIntentAt,
+      submissionOutcome: "accepted",
+      submission: submitted.metadata,
+    };
     const [queued] = await db.update(generationJobsTable).set({
       status: "QUEUED",
       providerRequestId: submitted.requestId,
@@ -914,24 +1120,75 @@ async function createAndSubmitFalGeneration(
         providerRequestId: submitted.requestId,
         providerTaskMetadata: taskMetadata,
       }).where(eq(generationJobsTable.id, job.id)).returning();
+      if (current) {
+        await attachVideoSpendReceiptSafely(
+          job.id,
+          submitted.requestId,
+          falBillingEndpoint(falModels[model]),
+        );
+      }
       await client.cancel(submitted.endpoints).catch((error) => {
         logger.warn({ err: error, jobId: job.id }, "Could not cancel Cloud request after local cancellation");
       });
+      await settleVideoSpendIfReserved(
+        job.id,
+        "uncertain",
+        "Cloud accepted the job before local cancellation was observed.",
+      );
       if (!current) throw new Error("Generation job disappeared after Cloud submission");
       return current;
     }
+    await attachVideoSpendReceiptSafely(
+      job.id,
+      submitted.requestId,
+      falBillingEndpoint(falModels[model]),
+    );
     void monitorFalGeneration(job.id, client, submitted.requestId, submitted.endpoints);
     return queued;
   } catch (error) {
     const message = error instanceof Error ? cloudProviderErrorDetail(error.message) : "Cloud submission failed";
+    const definitivelyUnbilled = reserved
+      && (!submissionAttempted || falSubmissionDefinitelyRejected(error));
+    if (definitivelyUnbilled) {
+      await db.update(generationJobsTable).set({
+        providerTaskMetadata: {
+          model,
+          spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
+          submissionIntent: submissionAttempted,
+          submissionOutcome: submissionAttempted ? "rejected" : "not-submitted",
+        },
+      }).where(and(
+        eq(generationJobsTable.id, job.id),
+        sql`${generationJobsTable.providerRequestId} IS NULL`,
+      ));
+    }
     await db.update(generationJobsTable).set({
       status: "FAILED",
       errorMessage: message,
       failedAt: new Date(),
+      ...(reserved ? {
+        providerTaskMetadata: {
+          model,
+          spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
+          submissionIntent: submissionAttempted,
+          submissionOutcome: definitivelyUnbilled
+            ? submissionAttempted ? "rejected" : "not-submitted"
+            : "unknown",
+        },
+      } : {}),
     }).where(and(
       eq(generationJobsTable.id, job.id),
       eq(generationJobsTable.status, "UPLOADING"),
     ));
+    if (reserved) {
+      await settleVideoSpendIfReserved(
+        job.id,
+        definitivelyUnbilled ? "released" : "uncertain",
+        definitivelyUnbilled
+          ? "The Cloud request definitively did not enter paid execution."
+          : "Cloud submission acceptance could not be determined.",
+      );
+    }
     throw error;
   }
 }
@@ -1046,6 +1303,14 @@ async function monitorFalGeneration(
       const normalized = String(status.status ?? "").toUpperCase();
       if (normalized === "COMPLETED") {
         const metadata = mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status });
+        await db.update(generationJobsTable).set({
+          providerTaskMetadata: metadata,
+        }).where(eq(generationJobsTable.id, jobId));
+        await settleVideoSpendIfReserved(
+          jobId,
+          "estimated",
+          "Cloud confirmed upstream video generation completed.",
+        );
         const [claimed] = await db.update(generationJobsTable).set({
           status: "DOWNLOADING",
           progress: 0.99,
@@ -1083,7 +1348,21 @@ async function monitorFalGeneration(
         if (!claimed) return;
       }
       if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(normalized)) {
-        throw new FalHttpError(`Cloud generation failed${status.error ? `: ${cloudProviderErrorDetail(status.error)}` : ""}`, null, false);
+        const message = `Cloud generation failed${status.error ? `: ${cloudProviderErrorDetail(status.error)}` : ""}`;
+        const [failed] = await db.update(generationJobsTable).set({
+          status: "FAILED", errorMessage: message, failedAt: new Date(), currentNode: null,
+        }).where(and(
+          eq(generationJobsTable.id, jobId),
+          inArray(generationJobsTable.status, activeGenerationStatuses),
+        )).returning({ id: generationJobsTable.id });
+        if (failed) {
+          await settleVideoSpendIfReserved(
+            jobId,
+            "uncertain",
+            "Cloud ended the accepted request without confirming that no paid execution occurred.",
+          );
+        }
+        return;
       }
       const running = normalized === "IN_PROGRESS";
       await db.update(generationJobsTable).set({
@@ -1097,9 +1376,19 @@ async function monitorFalGeneration(
       const message = error instanceof Error ? cloudProviderErrorDetail(error.message) : "Cloud monitor failed";
       const retryable = error instanceof FalHttpError && error.retryable;
       if (!retryable) {
-        await db.update(generationJobsTable).set({
+        const [failed] = await db.update(generationJobsTable).set({
           status: "FAILED", errorMessage: message, failedAt: new Date(), currentNode: null,
-        }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+        }).where(and(
+          eq(generationJobsTable.id, jobId),
+          inArray(generationJobsTable.status, activeGenerationStatuses),
+        )).returning({ id: generationJobsTable.id });
+        if (failed) {
+          await settleVideoSpendIfReserved(
+            jobId,
+            "uncertain",
+            "Cloud monitoring ended without confirmation that no paid execution occurred.",
+          );
+        }
         return;
       }
       retryablePollFailures += 1;
@@ -1114,12 +1403,20 @@ async function monitorFalGeneration(
     }
     await new Promise((resolve) => setTimeout(resolve, nextPollDelayMs));
   }
-  await db.update(generationJobsTable).set({
+  const [timedOut] = await db.update(generationJobsTable).set({
     status: "FAILED",
     errorMessage: "Timed out while waiting for Cloud",
     failedAt: new Date(),
     currentNode: null,
-  }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
+  }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
+    .returning({ id: generationJobsTable.id });
+  if (timedOut) {
+    await settleVideoSpendIfReserved(
+      jobId,
+      "uncertain",
+      "Cloud polling timed out after the provider accepted the request.",
+    );
+  }
 }
 
 export async function cancelGeneration(jobId: string) {
@@ -1166,6 +1463,13 @@ export async function cancelGeneration(jobId: string) {
       .set({ errorMessage: cancellationNote })
       .where(eq(generationJobsTable.id, jobId))
       .returning();
+    if (job.provider === "FAL") {
+      await settleVideoSpendIfReserved(
+        job.id,
+        "uncertain",
+        "Cancellation does not confirm that Cloud performed no paid execution.",
+      );
+    }
     return retried ?? job;
   }
 
@@ -1176,6 +1480,13 @@ export async function cancelGeneration(jobId: string) {
     .returning();
   if (!cancelled) {
     throw new Error("Generation job finished before it could be cancelled");
+  }
+  if (job.provider === "FAL") {
+    await settleVideoSpendIfReserved(
+      job.id,
+      "uncertain",
+      "Cancellation does not confirm that Cloud performed no paid execution.",
+    );
   }
   return cancelled;
 }
@@ -1318,6 +1629,15 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
         );
       }
       if (normalizedStatus !== "COMPLETED") return false;
+      const completedMetadata = mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status });
+      await db.update(generationJobsTable).set({
+        providerTaskMetadata: completedMetadata,
+      }).where(eq(generationJobsTable.id, jobId));
+      await settleVideoSpendIfReserved(
+        jobId,
+        "estimated",
+        "Cloud confirmed upstream video generation completed during recovery.",
+      );
       const [claimed] = await db.update(generationJobsTable).set({
         status: "DOWNLOADING",
         currentNode: "Recovering Cloud output",
@@ -1334,7 +1654,7 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
         client,
         job.providerRequestId,
         endpoints,
-        mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status }),
+        completedMetadata,
       );
       return true;
     } catch (error) {

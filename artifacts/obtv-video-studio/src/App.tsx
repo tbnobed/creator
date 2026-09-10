@@ -26,6 +26,7 @@ const ProjectsPage = lazy(() => import("@/pages/projects"));
 const ProjectDetailPage = lazy(() => import("@/pages/projects/[id]"));
 const NewProjectPage = lazy(() => import("@/pages/projects/new"));
 const AccountPage = lazy(() => import("@/pages/account"));
+const SpendingPage = lazy(() => import("@/pages/spending"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -71,6 +72,7 @@ function StudioRouter() {
               <Route path="/generations" component={GenerationsPage} />
               <Route path="/generations/:id" component={GenerationDetailPage} />
               <Route path="/account" component={AccountPage} />
+              <Route path="/spending" component={SpendingPage} />
               <Route path="/servers">
                 <AuthGuard requireSiteAdmin><ServersPage /></AuthGuard>
               </Route>
@@ -117,6 +119,7 @@ function AppRoutes() {
             <Route path="/generations" component={StudioRouter} />
             <Route path="/generations/:id" component={StudioRouter} />
             <Route path="/account" component={StudioRouter} />
+            <Route path="/spending" component={StudioRouter} />
             <Route path="/servers" component={StudioRouter} />
             <Route path="/workflows" component={StudioRouter} />
             <Route path="/admin" component={StudioRouter} />

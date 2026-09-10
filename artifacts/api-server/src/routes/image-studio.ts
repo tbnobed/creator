@@ -53,6 +53,19 @@ function respondError(req: Request, res: Response, error: unknown): void {
     res.status(error.status).json({ error: error.message });
     return;
   }
+  if (
+    error
+    && typeof error === "object"
+    && typeof (error as { statusCode?: unknown }).statusCode === "number"
+  ) {
+    const statusCode = (error as { statusCode: number }).statusCode;
+    if (Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599) {
+      res.status(statusCode).json({
+        error: error instanceof Error ? error.message : "Image Studio request was rejected",
+      });
+      return;
+    }
+  }
   req.log.error({ err: error }, "Image Studio request failed");
   res.status(500).json({ error: "Image Studio could not complete the request" });
 }

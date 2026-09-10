@@ -13,6 +13,7 @@ import sessionRouter from "./session";
 import generationCapabilitiesRouter from "./generation-capabilities";
 import authRouter from "./auth";
 import imageStudioRouter from "./image-studio";
+import spendingRouter from "./spending";
 import { requireAuth, requireTenant } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -20,6 +21,7 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(authRouter);
 router.use(requireAuth);
+router.use(spendingRouter);
 router.use(requireTenant);
 router.use(sessionRouter);
 router.use(generationCapabilitiesRouter);

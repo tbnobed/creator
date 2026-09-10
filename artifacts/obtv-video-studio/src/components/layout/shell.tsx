@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   UserCircle,
-  Palette
+  Palette,
+  Coins
 } from "lucide-react";
 import { useHealthCheck, useGetSession } from "@workspace/api-client-react";
 import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
@@ -47,9 +48,9 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/admin", label: "Admin", icon: SettingsIcon },
   ];
 
-  const allLinks = session?.user.siteRole === "SITE_ADMIN" 
-    ? [...links, ...adminLinks] 
-    : links;
+  const allLinks = session?.user.siteRole === "SITE_ADMIN"
+    ? [...links, ...adminLinks, { href: "/spending", label: "Spending", icon: Coins }]
+    : [...links, { href: "/spending", label: "Spending", icon: Coins }];
 
   const primaryMobileLinks = [
     { href: "/studio", label: "Generate", icon: Clapperboard },

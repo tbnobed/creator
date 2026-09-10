@@ -16,6 +16,7 @@ import {
   digestInvitationToken,
   normalizeEmail,
 } from "../lib/auth-service";
+import { usdToMicros } from "../lib/spending-service";
 
 const router: IRouter = Router();
 const tenantRoles = new Set(["OWNER", "ADMIN", "MEMBER"]);
@@ -111,10 +112,14 @@ router.get("/tenants/:id/members", async (req, res): Promise<void> => {
     email: usersTable.email,
     displayName: usersTable.displayName,
     role: tenantMembershipsTable.role,
+    monthlyLimitMicros: tenantMembershipsTable.monthlyLimitMicros,
   }).from(tenantMembershipsTable)
     .innerJoin(usersTable, eq(usersTable.id, tenantMembershipsTable.userId))
     .where(eq(tenantMembershipsTable.tenantId, id));
-  res.json(members);
+  res.json(members.map(({ monthlyLimitMicros, ...member }) => ({
+    ...member,
+    monthlyLimitUsd: monthlyLimitMicros === null ? null : monthlyLimitMicros / 1_000_000,
+  })));
 });
 
 router.post("/tenants/:id/members", async (req, res): Promise<void> => {
@@ -122,6 +127,11 @@ router.post("/tenants/:id/members", async (req, res): Promise<void> => {
   const parsed = AddTenantMemberBody.safeParse(req.body);
   const email = parsed.success ? normalizeEmail(parsed.data.email) : null;
   const role = parsed.success ? parsed.data.role : "";
+  const monthlyLimitMicros = parsed.success
+    ? parsed.data.monthlyLimitUsd === null || parsed.data.monthlyLimitUsd === undefined
+      ? null
+      : usdToMicros(parsed.data.monthlyLimitUsd)
+    : null;
   if (!parsed.success || !email || !tenantRoles.has(role)) {
     res.status(400).json({ error: "A valid recipient email and role are required" });
     return;
@@ -140,6 +150,13 @@ router.post("/tenants/:id/members", async (req, res): Promise<void> => {
       }
       if (role === "OWNER" && caller.role !== "OWNER") {
         throw new MembershipMutationError(403, "Only owners can invite another owner");
+      }
+      if (
+        monthlyLimitMicros !== null
+        && caller.role === "ADMIN"
+        && role !== "MEMBER"
+      ) {
+        throw new MembershipMutationError(403, "Administrators can only set member spending limits");
       }
       const [existingUser] = await tx.select({
         id: usersTable.id,
@@ -164,6 +181,7 @@ router.post("/tenants/:id/members", async (req, res): Promise<void> => {
         );
       }
       const invitationRole = target?.role ?? role as "OWNER" | "ADMIN" | "MEMBER";
+      const invitationLimitMicros = target?.monthlyLimitMicros ?? monthlyLimitMicros;
 
       await tx.delete(tenantInvitationsTable).where(and(
         eq(tenantInvitationsTable.tenantId, id),
@@ -175,17 +193,21 @@ router.post("/tenants/:id/members", async (req, res): Promise<void> => {
         tenantId: id,
         email,
         role: invitationRole,
+        monthlyLimitMicros: invitationLimitMicros,
         tokenHash: digestInvitationToken(token),
         targetUserId: existingUser?.passwordHash ? null : existingUser?.id,
         allowsPasswordEnrollment: Boolean(existingUser && !existingUser.passwordHash),
         invitedByUserId: req.context!.user.id,
         expiresAt,
       });
-      return { email, role: invitationRole, token, expiresAt };
+      return { email, role: invitationRole, monthlyLimitMicros: invitationLimitMicros, token, expiresAt };
     });
     res.status(201).json({
       email: result.email,
       role: result.role,
+      monthlyLimitUsd: result.monthlyLimitMicros === null
+        ? null
+        : result.monthlyLimitMicros / 1_000_000,
       token: result.token,
       expiresAt: result.expiresAt.toISOString(),
     });
@@ -226,6 +248,7 @@ router.post("/tenant-invitations/accept", async (req, res): Promise<void> => {
         tenantId: invitation.tenantId,
         userId: req.context!.user.id,
         role: invitation.role,
+        monthlyLimitMicros: invitation.monthlyLimitMicros,
       }).onConflictDoNothing().returning();
       const effectiveMembership = membership ?? (await tx.select().from(tenantMembershipsTable).where(and(
         eq(tenantMembershipsTable.tenantId, invitation.tenantId),

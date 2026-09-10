@@ -1,5 +1,6 @@
 import {
   boolean,
+  bigint,
   index,
   integer,
   jsonb,
@@ -69,6 +70,7 @@ export const tenantMembershipsTable = pgTable(
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
     role: text("role").notNull().default("MEMBER").$type<"OWNER" | "ADMIN" | "MEMBER">(),
+    monthlyLimitMicros: bigint("monthly_limit_micros", { mode: "number" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.tenantId, table.userId] })],
@@ -83,6 +85,7 @@ export const tenantInvitationsTable = pgTable(
       .references(() => tenantsTable.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: text("role").notNull().default("MEMBER").$type<"OWNER" | "ADMIN" | "MEMBER">(),
+    monthlyLimitMicros: bigint("monthly_limit_micros", { mode: "number" }),
     tokenHash: text("token_hash").notNull(),
     targetUserId: text("target_user_id")
       .references(() => usersTable.id, { onDelete: "cascade" }),

@@ -5,18 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { TenantRole } from './tenantRole';
 
-export interface TenantMember {
+export interface SpendingLimitResult {
+  tenantId: string;
   userId: string;
-  /** @nullable */
-  email: string | null;
-  displayName: string;
-  role: TenantRole;
   /**
      * @minimum 0
      * @maximum 1000000
      * @nullable
      */
   monthlyLimitUsd: number | null;
+  canManageLimit: boolean;
 }

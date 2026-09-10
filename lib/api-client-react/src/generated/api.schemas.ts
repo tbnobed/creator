@@ -283,16 +283,34 @@ export interface TenantMember {
   email: string | null;
   displayName: string;
   role: TenantRole;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
 }
 
 export interface TenantMemberInput {
   email: string;
   role: TenantRole;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  monthlyLimitUsd?: number | null;
 }
 
 export interface TenantInvitation {
   email: string;
   role: TenantRole;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
   token: string;
   expiresAt: string;
 }
@@ -303,6 +321,166 @@ export interface TenantInvitationAcceptanceInput {
      * @maxLength 256
      */
   token: string;
+}
+
+export interface SpendingLimitUpdate {
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
+}
+
+export interface SpendingLimitResult {
+  tenantId: string;
+  userId: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
+  canManageLimit: boolean;
+}
+
+export interface SpendingTotals {
+  /** @minimum 0 */
+  reservedUSD: number;
+  /** @minimum 0 */
+  estimatedUSD: number;
+  /** @minimum 0 */
+  actualUSD: number;
+  /** @minimum 0 */
+  totalUSD: number;
+}
+
+export interface SpendingScope {
+  /** @nullable */
+  tenantId: string | null;
+  /** @nullable */
+  userId: string | null;
+}
+
+export interface SpendingReportRow {
+  tenantId: string;
+  tenantName: string;
+  userId: string;
+  /** @nullable */
+  userEmail: string | null;
+  userDisplayName: string;
+  role: TenantRole;
+  membershipActive: boolean;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
+  /** @minimum 0 */
+  reservedUSD: number;
+  /** @minimum 0 */
+  estimatedUSD: number;
+  /** @minimum 0 */
+  actualUSD: number;
+  /** @minimum 0 */
+  totalUSD: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  remainingUSD: number | null;
+  canManageLimit: boolean;
+}
+
+export interface PendingSpendingInvitation {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: TenantRole;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
+  expiresAt: string;
+  canManageLimit: boolean;
+}
+
+export interface SpendingPermissions {
+  canViewAllTenants: boolean;
+}
+
+export interface SpendingReport {
+  periodStart: string;
+  periodEnd: string;
+  currency: 'USD';
+  scope: SpendingScope;
+  totals: SpendingTotals;
+  rows: SpendingReportRow[];
+  pendingInvitations: PendingSpendingInvitation[];
+  permissions: SpendingPermissions;
+}
+
+export type SpendingOutcome = typeof SpendingOutcome[keyof typeof SpendingOutcome];
+
+
+export const SpendingOutcome = {
+  reserved: 'reserved',
+  estimated: 'estimated',
+  released: 'released',
+  uncertain: 'uncertain',
+  actual: 'actual',
+} as const;
+
+export type SpendingEntrySourceType = typeof SpendingEntrySourceType[keyof typeof SpendingEntrySourceType];
+
+
+export const SpendingEntrySourceType = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface SpendingEntry {
+  id: string;
+  tenantId: string;
+  userId: string;
+  /** @nullable */
+  userEmail: string | null;
+  userDisplayName: string;
+  sourceType: SpendingEntrySourceType;
+  sourceId: string;
+  modelId: string;
+  pricingNote: string;
+  /** @minimum 0 */
+  reservedUSD: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  actualUSD: number | null;
+  hasReceipt: boolean;
+  outcome: SpendingOutcome;
+  /** @nullable */
+  note: string | null;
+  submittedAt: string;
+  /** @nullable */
+  settledAt: string | null;
+}
+
+export interface SpendingEntryPage {
+  periodStart: string;
+  periodEnd: string;
+  currency: 'USD';
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+  /** @minimum 0 */
+  total: number;
+  entries: SpendingEntry[];
 }
 
 export interface HealthStatus {
@@ -1058,6 +1236,32 @@ export interface LongFormTimelineInput {
 
 export type LongFormProjectDetail = LongFormProject & {
   shots: LongFormShot[];
+};
+
+export type GetSpendingReportParams = {
+/**
+ * @pattern ^\d{4}-(0[1-9]|1[0-2])$
+ */
+month: string;
+tenantId?: string;
+};
+
+export type ListSpendingEntriesParams = {
+/**
+ * @pattern ^\d{4}-(0[1-9]|1[0-2])$
+ */
+month: string;
+tenantId?: string;
+userId?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
 };
 
 export type ListGenerationsParams = {

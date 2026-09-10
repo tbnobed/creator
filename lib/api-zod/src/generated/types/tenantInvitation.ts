@@ -10,6 +10,12 @@ import type { TenantRole } from './tenantRole';
 export interface TenantInvitation {
   email: string;
   role: TenantRole;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  monthlyLimitUsd: number | null;
   token: string;
   expiresAt: string;
 }

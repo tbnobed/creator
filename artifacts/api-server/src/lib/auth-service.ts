@@ -275,6 +275,7 @@ export async function registerUser(input: {
         tenantId: tenant.id,
         userId,
         role: first || !invitation ? "OWNER" as const : invitation.role,
+        monthlyLimitMicros: invitation?.monthlyLimitMicros ?? null,
       };
       if (first) {
         await tx.insert(tenantMembershipsTable).values(primaryMembership).onConflictDoUpdate({
@@ -289,6 +290,7 @@ export async function registerUser(input: {
           tenantId: invitation.tenantId,
           userId,
           role: invitation.role,
+          monthlyLimitMicros: invitation.monthlyLimitMicros,
         }).onConflictDoNothing();
         await tx.delete(tenantInvitationsTable).where(eq(tenantInvitationsTable.id, invitation.id));
       }

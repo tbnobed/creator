@@ -32,6 +32,7 @@ import type {
   GenerationCapability,
   GenerationInput,
   GenerationJob,
+  GetSpendingReportParams,
   HealthStatus,
   ImageAssetList,
   ImageAssetResult,
@@ -43,6 +44,7 @@ import type {
   ListGenerationsParams,
   ListImageStudioAssetsParams,
   ListImageStudioJobsParams,
+  ListSpendingEntriesParams,
   LongFormProject,
   LongFormProjectDetail,
   LongFormProjectInput,
@@ -62,6 +64,10 @@ import type {
   Session,
   Setting,
   SettingInput,
+  SpendingEntryPage,
+  SpendingLimitResult,
+  SpendingLimitUpdate,
+  SpendingReport,
   StudioImageGenerationInput,
   StudioImageGenerationResult,
   TenantInput,
@@ -1057,6 +1063,248 @@ export const useDeleteTenantMember = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteTenantMemberMutationOptions(options));
     }
+
+export const getUpdateTenantMemberSpendingLimitUrl = (tenantId: string,
+    userId: string,) => {
+
+
+
+
+  return `/api/tenants/${tenantId}/members/${userId}/spending-limit`
+}
+
+/**
+ * @summary Update a member monthly estimated-spend limit
+ */
+export const updateTenantMemberSpendingLimit = async (tenantId: string,
+    userId: string,
+    spendingLimitUpdate: SpendingLimitUpdate, options?: Parameters<typeof customFetch>[1]): Promise<SpendingLimitResult> => {
+
+  return customFetch<SpendingLimitResult>(getUpdateTenantMemberSpendingLimitUrl(tenantId,userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(spendingLimitUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTenantMemberSpendingLimitMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenantMemberSpendingLimit>>, TError,{tenantId: string;userId: string;data: BodyType<SpendingLimitUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTenantMemberSpendingLimit>>, TError,{tenantId: string;userId: string;data: BodyType<SpendingLimitUpdate>}, TContext> => {
+
+const mutationKey = ['updateTenantMemberSpendingLimit'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTenantMemberSpendingLimit>>, {tenantId: string;userId: string;data: BodyType<SpendingLimitUpdate>}> = (props) => {
+          const {tenantId,userId,data} = props ?? {};
+
+          return  updateTenantMemberSpendingLimit(tenantId,userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTenantMemberSpendingLimitMutationResult = NonNullable<Awaited<ReturnType<typeof updateTenantMemberSpendingLimit>>>
+    export type UpdateTenantMemberSpendingLimitMutationBody = BodyType<SpendingLimitUpdate>
+    export type UpdateTenantMemberSpendingLimitMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a member monthly estimated-spend limit
+ */
+export const useUpdateTenantMemberSpendingLimit = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenantMemberSpendingLimit>>, TError,{tenantId: string;userId: string;data: BodyType<SpendingLimitUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTenantMemberSpendingLimit>>,
+        TError,
+        {tenantId: string;userId: string;data: BodyType<SpendingLimitUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTenantMemberSpendingLimitMutationOptions(options));
+    }
+
+export const getGetSpendingReportUrl = (params: GetSpendingReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/spending?${stringifiedParams}` : `/api/spending`
+}
+
+/**
+ * @summary Report monthly reserved and estimated provider spending
+ */
+export const getSpendingReport = async (params: GetSpendingReportParams, options?: Parameters<typeof customFetch>[1]): Promise<SpendingReport> => {
+
+  return customFetch<SpendingReport>(getGetSpendingReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSpendingReportQueryKey = (params?: GetSpendingReportParams,) => {
+    return [
+    `/api/spending`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSpendingReportQueryOptions = <TData = Awaited<ReturnType<typeof getSpendingReport>>, TError = ErrorType<void>>(params: GetSpendingReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSpendingReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSpendingReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSpendingReport>>> = ({ signal }) => getSpendingReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSpendingReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSpendingReportQueryResult = NonNullable<Awaited<ReturnType<typeof getSpendingReport>>>
+export type GetSpendingReportQueryError = ErrorType<void>
+
+
+/**
+ * @summary Report monthly reserved and estimated provider spending
+ */
+
+export function useGetSpendingReport<TData = Awaited<ReturnType<typeof getSpendingReport>>, TError = ErrorType<void>>(
+ params: GetSpendingReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSpendingReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSpendingReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSpendingEntriesUrl = (params: ListSpendingEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/spending/entries?${stringifiedParams}` : `/api/spending/entries`
+}
+
+/**
+ * @summary List role-scoped estimated-spending ledger entries
+ */
+export const listSpendingEntries = async (params: ListSpendingEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<SpendingEntryPage> => {
+
+  return customFetch<SpendingEntryPage>(getListSpendingEntriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSpendingEntriesQueryKey = (params?: ListSpendingEntriesParams,) => {
+    return [
+    `/api/spending/entries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSpendingEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listSpendingEntries>>, TError = ErrorType<void>>(params: ListSpendingEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSpendingEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSpendingEntriesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSpendingEntries>>> = ({ signal }) => listSpendingEntries(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSpendingEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSpendingEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listSpendingEntries>>>
+export type ListSpendingEntriesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List role-scoped estimated-spending ledger entries
+ */
+
+export function useListSpendingEntries<TData = Awaited<ReturnType<typeof listSpendingEntries>>, TError = ErrorType<void>>(
+ params: ListSpendingEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSpendingEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSpendingEntriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 
