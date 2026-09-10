@@ -4,11 +4,10 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { browserOrigins } from "./lib/browser-origins";
 
 const app: Express = express();
-const configuredOrigins = new Set(
-  (process.env.APP_ORIGINS ?? "").split(",").map((origin) => origin.trim()).filter(Boolean),
-);
+const configuredOrigins = browserOrigins(process.env);
 const trustProxy = process.env.TRUST_PROXY === "true";
 
 if (trustProxy) app.set("trust proxy", 1);
