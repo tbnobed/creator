@@ -11,13 +11,13 @@ function isNodeLink(value: unknown, nodeId: string): boolean {
   return Array.isArray(value) && value.length >= 2 && value[0] === nodeId;
 }
 
-function removeUnusedReferenceImageNodes(
+function removeUnusedImageNodes(
   workflow: Record<string, WorkflowNode>,
   mappings: ParameterMappings,
   parameters: Record<string, string | number | undefined>,
 ): void {
   for (const [field, mapping] of Object.entries(mappings)) {
-    if (!/^referenceImage\d+$/.test(field) || parameters[field] !== undefined) continue;
+    if (!/^(referenceImage|settingImage)\d+$/.test(field) || parameters[field] !== undefined) continue;
 
     const mappedNode = workflow[mapping.nodeId];
     if (!mappedNode?.inputs) continue;
@@ -46,7 +46,7 @@ export function buildWorkflow(
 ): Record<string, unknown> {
   const { workflow } = parseApiWorkflow(masterWorkflow);
   const clone = structuredClone(workflow) as Record<string, WorkflowNode>;
-  removeUnusedReferenceImageNodes(clone, mappings, parameters);
+  removeUnusedImageNodes(clone, mappings, parameters);
   for (const [field, value] of Object.entries(parameters)) {
     if (value === undefined) continue;
     const mapping = mappings[field];

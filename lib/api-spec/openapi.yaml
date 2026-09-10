@@ -1284,7 +1284,7 @@ components:
         bootstrapToken: { type: string, minLength: 32, maxLength: 256 }
     GenerationCapability:
       type: object
-      required: [id, name, generationMode, modelFamily, supportsReferenceVideo, supportsCharacterReferences, supportsSettingReference]
+      required: [id, name, generationMode, modelFamily, supportsReferenceVideo, supportsCharacterReferences, supportsSettingReference, requiresCharacterReferences, requiresSettingReference]
       properties:
         id: { type: string }
         name: { type: string }
@@ -1293,6 +1293,8 @@ components:
         supportsReferenceVideo: { type: boolean }
         supportsCharacterReferences: { type: boolean }
         supportsSettingReference: { type: boolean }
+        requiresCharacterReferences: { type: boolean }
+        requiresSettingReference: { type: boolean }
     SiteRole:
       type: string
       enum: [SITE_ADMIN, USER]

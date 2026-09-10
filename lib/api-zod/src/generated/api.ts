@@ -100,7 +100,9 @@ export const GetGenerationCapabilitiesResponseItem = zod.object({
   "modelFamily": zod.string(),
   "supportsReferenceVideo": zod.boolean(),
   "supportsCharacterReferences": zod.boolean(),
-  "supportsSettingReference": zod.boolean()
+  "supportsSettingReference": zod.boolean(),
+  "requiresCharacterReferences": zod.boolean(),
+  "requiresSettingReference": zod.boolean()
 })
 export const GetGenerationCapabilitiesResponse = zod.array(GetGenerationCapabilitiesResponseItem)
 

@@ -228,6 +228,8 @@ export interface GenerationCapability {
   supportsReferenceVideo: boolean;
   supportsCharacterReferences: boolean;
   supportsSettingReference: boolean;
+  requiresCharacterReferences: boolean;
+  requiresSettingReference: boolean;
 }
 
 export type SiteRole = typeof SiteRole[keyof typeof SiteRole];

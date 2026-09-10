@@ -178,17 +178,20 @@ export default function GeneratePage() {
   const hasSelectedInitialMode = useRef(false);
   const hasPrefilledSourceJob = useRef(false);
   const capabilitiesForMode = capabilities?.filter((cap) => cap.generationMode === generationMode) || [];
+  const hasReferenceVideo = Boolean(referenceVideoKey);
   const hasNonReferenceCapability = capabilitiesForMode.some((cap) => !cap.supportsReferenceVideo);
   const workflowRequiresReferenceVideo = capabilitiesForMode.length > 0 && !hasNonReferenceCapability;
-  const workflowRequiresReferenceImage = capabilitiesForMode.length > 0 && capabilitiesForMode.every(
-    (cap) => cap.supportsCharacterReferences
+  const eligibleCapabilities = hasReferenceVideo
+    ? capabilitiesForMode
+    : capabilitiesForMode.filter((cap) => !cap.supportsReferenceVideo);
+  const workflowRequiresReferenceImage = eligibleCapabilities.length > 0 && eligibleCapabilities.every(
+    (cap) => cap.requiresCharacterReferences
   );
-  const workflowRequiresStudioSetting = capabilitiesForMode.some(
-    (cap) => cap.supportsSettingReference
+  const workflowRequiresStudioSetting = eligibleCapabilities.length > 0 && eligibleCapabilities.every(
+    (cap) => cap.requiresSettingReference
   );
   const isLtx25Mode = capabilitiesForMode.some((cap) => cap.modelFamily === "LTX 2.5");
   const resolutionOptions = isLtx25Mode ? LTX25_RESOLUTION_OPTIONS : DEFAULT_RESOLUTION_OPTIONS;
-  const hasReferenceVideo = Boolean(referenceVideoKey);
   const isCloudProvider = provider === "FAL";
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);

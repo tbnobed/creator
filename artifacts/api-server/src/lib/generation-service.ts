@@ -19,6 +19,7 @@ import { logger } from "./logger";
 import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
+import { getWorkflowReferenceRequirements } from "./comfy/workflow-references";
 import { mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
 import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
@@ -633,11 +634,19 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     .from(workflowTemplatesTable)
     .where(and(eq(workflowTemplatesTable.generationMode, input.generationMode), eq(workflowTemplatesTable.active, true)))
     .orderBy(desc(workflowTemplatesTable.version));
-  const compatibleWorkflows = workflows.filter((candidate) => (
+  const inputTypeWorkflows = workflows.filter((candidate) => (
     wantsReferenceVideo
       ? Boolean(candidate.apiWorkflow && (candidate.mappings as ParameterMappings).referenceVideo)
       : Boolean(candidate.apiWorkflow && !(candidate.mappings as ParameterMappings).referenceVideo)
   ));
+  const compatibleWorkflows = inputTypeWorkflows.filter((candidate) => {
+    const required = getWorkflowReferenceRequirements(candidate.apiWorkflow, candidate.mappings);
+    return (!required.requiresCharacterReferences || characters.length > 0)
+      && (!required.requiresSettingReference || setting.length > 0);
+  });
+  if (inputTypeWorkflows.length > 0 && compatibleWorkflows.length === 0) {
+    throw new Error("This pipeline requires reference inputs. Choose a prompt-only pipeline or add the required references.");
+  }
   const servers = await db.select().from(comfyServersTable);
   const requestedServer = input.preferredServerId
     ? servers.find((server) => server.id === input.preferredServerId)
@@ -759,13 +768,18 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   try {
     const client = new ComfyUIClient(server);
     const assetParameters = await uploadMappedReferences(client, workflow.mappings as ParameterMappings, input.characterIds, input.settingId);
-    const requiresReferenceImage = Object.keys(workflow.mappings)
-      .some((field) => /^referenceImage\d+$/.test(field));
+    const requiredReferences = getWorkflowReferenceRequirements(apiWorkflow, workflow.mappings);
     if (
-      requiresReferenceImage &&
+      requiredReferences.requiresCharacterReferences &&
       !Object.keys(assetParameters).some((field) => /^referenceImage\d+$/.test(field))
     ) {
       throw new Error("Select a character with at least one reference image before generating.");
+    }
+    if (
+      requiredReferences.requiresSettingReference &&
+      !Object.keys(assetParameters).some((field) => /^settingImage\d+$/.test(field))
+    ) {
+      throw new Error("Select an environment with a reference image for this pipeline.");
     }
     const referenceVideo = input.referenceVideoKey
       ? await mediaStorage.readReferenceVideo(input.referenceVideoKey)
