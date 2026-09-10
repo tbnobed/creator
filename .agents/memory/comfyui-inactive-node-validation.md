@@ -11,6 +11,6 @@ ComfyUI validates model and LoRA selections on nodes in disabled switch branches
 
 Do not infer mandatory references from an R2V label or the presence of reference mappings. Reference support and reference requirements are separate capabilities.
 
-**Why:** MiniMax H3's native reference-conditioning node accepts empty reference lists and constructs a fresh video/audio latent. The app previously blocked this valid prompt-only path by treating every reference mapping as mandatory.
+**Why:** MiniMax H3 accepts empty reference lists, and Wan 2.2 TI2V's start image is optional even in its image-to-video template. Both construct fresh latents without uploads. The app previously blocked these valid prompt-only paths by treating reference mappings or I2V names as mandatory-image requirements.
 
 **How to apply:** Verify optionality against the node schema and execution semantics. Keep truly required I2V inputs protected, and prune omitted optional loaders rather than inventing placeholder images.

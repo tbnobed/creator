@@ -883,6 +883,7 @@ export const ListGenerationsResponse = zod.object({
  */
 export const createGenerationBodyProviderDefault = `COMFYUI`;
 export const createGenerationBodyVoiceCloningEnabledDefault = false;
+export const createGenerationBodyCharacterIdsMin = 0;
 export const createGenerationBodyCharacterIdsMax = 9;
 
 export const createGenerationBodyPromptMax = 10000;
@@ -913,7 +914,7 @@ export const CreateGenerationBody = zod.object({
   "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
   "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0']).optional(),
   "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
-  "characterIds": zod.array(zod.string()).min(1).max(createGenerationBodyCharacterIdsMax).optional(),
+  "characterIds": zod.array(zod.string()).min(createGenerationBodyCharacterIdsMin).max(createGenerationBodyCharacterIdsMax).optional(),
   "settingId": zod.string().optional(),
   "prompt": zod.string().min(1).max(createGenerationBodyPromptMax),
   "negativePrompt": zod.string().max(createGenerationBodyNegativePromptMax).optional(),

@@ -1592,7 +1592,7 @@ components:
           type: string
           enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0]
         voiceCloningEnabled: { type: boolean, default: false }
-        characterIds: { type: array, items: { type: string }, minItems: 1, maxItems: 9 }
+        characterIds: { type: array, items: { type: string }, minItems: 0, maxItems: 9 }
         settingId: { type: string }
         prompt: { type: string, minLength: 1, maxLength: 10000 }
         negativePrompt: { type: string, maxLength: 5000 }

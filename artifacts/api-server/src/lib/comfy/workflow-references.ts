@@ -5,8 +5,11 @@ type Node = { class_type?: unknown; inputs?: Record<string, unknown> };
 function optionalImageInput(node: Node, input: string): boolean {
   // H3 declares this dynamic family optional with min=0, and executes with
   // an empty reference list. Do not infer this for arbitrary I2V nodes.
-  return node.class_type === "MiniMaxH3ReferenceToVideo"
-    && /^ref_images\.ref_image_\d+$/.test(input);
+  return (node.class_type === "MiniMaxH3ReferenceToVideo"
+    && /^ref_images\.ref_image_\d+$/.test(input))
+    // Wan TI2V uses the identical latent node for text-only generation; its
+    // optional start image conditions the latent only when supplied.
+    || (node.class_type === "Wan22ImageToVideoLatent" && input === "start_image");
 }
 
 function optionalImageMapping(

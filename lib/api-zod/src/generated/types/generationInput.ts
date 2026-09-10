@@ -16,7 +16,7 @@ export interface GenerationInput {
   model?: GenerationInputModel;
   voiceCloningEnabled?: boolean;
   /**
-     * @minItems 1
+     * @minItems 0
      * @maxItems 9
      */
   characterIds?: string[];

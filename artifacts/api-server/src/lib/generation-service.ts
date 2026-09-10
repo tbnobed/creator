@@ -639,6 +639,11 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       ? Boolean(candidate.apiWorkflow && (candidate.mappings as ParameterMappings).referenceVideo)
       : Boolean(candidate.apiWorkflow && !(candidate.mappings as ParameterMappings).referenceVideo)
   ));
+  if (inputTypeWorkflows.length === 0) {
+    throw new Error(wantsReferenceVideo
+      ? "No active workflow accepting a reference video is configured for this generation mode"
+      : "No active prompt-only workflow is configured for this generation mode");
+  }
   const compatibleWorkflows = inputTypeWorkflows.filter((candidate) => {
     const required = getWorkflowReferenceRequirements(candidate.apiWorkflow, candidate.mappings);
     return (!required.requiresCharacterReferences || characters.length > 0)
@@ -692,7 +697,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       a.server.priority - b.server.priority ||
       a.workflowIndex - b.workflowIndex
     ))[0];
-  const workflow = selected?.workflow ?? compatibleWorkflows[0] ?? workflows[0];
+  const workflow = selected?.workflow ?? compatibleWorkflows[0];
   if (!workflow?.apiWorkflow) {
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
@@ -773,7 +778,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       requiredReferences.requiresCharacterReferences &&
       !Object.keys(assetParameters).some((field) => /^referenceImage\d+$/.test(field))
     ) {
-      throw new Error("Select a character with at least one reference image before generating.");
+      throw new Error("This imported image-conditioned workflow needs an input image. Choose a text-to-video pipeline to render without one.");
     }
     if (
       requiredReferences.requiresSettingReference &&

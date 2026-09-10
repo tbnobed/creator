@@ -1,4 +1,5 @@
-// Development-only: PROMPT_ONLY_RENDER=1 enables one short local GPU render.
+// Development-only: PROMPT_ONLY_RENDER=1 enables short local GPU renders.
+// PROMPT_ONLY_MODES=wan22-i2v,ltx25-t2v limits rendering; UI checks still cover all modes.
 // Never submits paid Cloud work or creates a password account.
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -35,9 +36,11 @@ try {
   await pool.query("UPDATE obtv_users SET active_tenant_id=$1 WHERE id=$2", [tenantId, userId]);
   await pool.query("INSERT INTO obtv_auth_sessions(id,user_id,expires_at) VALUES($1,$2,NOW()+INTERVAL '1 hour')", [digest, userId]);
   const capabilities = await api("/generation-capabilities");
-  const h3 = capabilities.filter(cap => cap.modelFamily === "MiniMax H3" && !cap.supportsReferenceVideo);
-  assert(h3.length > 0);
-  assert(h3.every(cap => cap.supportsCharacterReferences && !cap.requiresCharacterReferences && !cap.requiresSettingReference));
+  const supportedFamilies = new Set(["MiniMax H3", "Wan 2.2 TI2V 5B", "LTX 2.5"]);
+  const local = capabilities.filter(cap => supportedFamilies.has(cap.modelFamily) && !cap.supportsReferenceVideo);
+  assert(local.length > 0);
+  assert(local.every(cap => !cap.requiresCharacterReferences && !cap.requiresSettingReference));
+  const modes = [...new Set(local.map(cap => cap.generationMode))];
 
   browser = await chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || "/repl/tools/bin/chromium",
@@ -54,14 +57,25 @@ try {
   );
   const renderButton = page.getByRole("button", { name: /SEND TO RENDER/i });
   await renderButton.waitFor();
-  assert(await renderButton.isEnabled(), "Prompt-only rendering must be enabled without cast, environment, or video");
+  for (const mode of modes) {
+    await page.getByRole("combobox").nth(1).click();
+    await page.getByRole("option", { name: mode, exact: true }).click();
+    assert(await renderButton.isEnabled(), `${mode}: prompt-only rendering must be enabled without any reference`);
+    console.log(`PASS: ${mode} composer allows prompt-only video`);
+  }
   await page.screenshot({ path: "/tmp/prompt-only-composer.jpg", fullPage: true });
-  console.log("PASS: H3 capabilities and real HTTPS composer allow prompt-only video");
+  console.log("PASS: all local model capabilities and real HTTPS composer allow prompt-only video");
 
   if (process.env.PROMPT_ONLY_RENDER === "1") {
+    const requestedModes = process.env.PROMPT_ONLY_MODES?.split(",").map(mode => mode.trim());
+    if (requestedModes) assert(requestedModes.every(mode => modes.includes(mode)), "Requested test mode must be active");
+    for (const mode of requestedModes ?? modes) {
     // Do not queue test work behind someone else's render on the shared workers.
     const { rows: workers } = await pool.query(
-      "SELECT api_base_url FROM obtv_comfy_servers WHERE enabled=true AND status='ONLINE' AND tags @> ARRAY['minimax-h3']::text[]",
+      `SELECT DISTINCT s.api_base_url FROM obtv_comfy_servers s
+       JOIN obtv_workflow_templates w ON s.tags @> w.compatible_server_tags
+       WHERE s.enabled=true AND s.status='ONLINE' AND w.active=true AND w.generation_mode=$1`,
+      [mode],
     );
     assert(workers.length > 0);
     for (const worker of workers) {
@@ -71,18 +85,19 @@ try {
     const job = await api("/generations", {
       method: "POST",
       body: JSON.stringify({
-        provider: "COMFYUI", generationMode: h3[0].generationMode,
+        provider: "COMFYUI", generationMode: mode, characterIds: [],
         prompt: "A cinematic wide shot of an ancient stone courtyard at dawn. Slow dolly forward. No speech.",
         width: 512, height: 512, durationSeconds: 1, fps: 24,
         qualityPreset: "DRAFT", seedMode: "FIXED", seed: 8173, voiceCloningEnabled: false,
       }),
     });
-    console.log("Submitted one local prompt-only render without any reference assets");
+    assert.equal(job.generationMode, mode, "Submission must use the selected pipeline, not fall back to another model");
+    console.log(`Submitted ${mode} prompt-only render without any reference assets`);
     const deadline = Date.now() + 12 * 60 * 1000;
     let state = job;
     let previousStatus;
     while (!["COMPLETED", "FAILED", "CANCELLED"].includes(state.status) && Date.now() < deadline) {
-      if (state.status !== previousStatus) console.log(`Render status: ${state.status}`);
+      if (state.status !== previousStatus) console.log(`${mode} render status: ${state.status}`);
       previousStatus = state.status;
       await new Promise(resolve => setTimeout(resolve, 5000));
       state = await api(`/generations/${job.id}`);
@@ -92,7 +107,8 @@ try {
     const output = await fetch(new URL(state.outputUrl, origin), { headers: { cookie: `obtv_session=${token}` } });
     assert(output.ok);
     assert((await output.arrayBuffer()).byteLength > 1024, "Generated video must not be empty");
-    console.log("PASS: real prompt-only local video completed and its output is downloadable");
+    console.log(`PASS: ${mode} real prompt-only video completed and its output is downloadable`);
+    }
   }
 } finally {
   await browser?.close();

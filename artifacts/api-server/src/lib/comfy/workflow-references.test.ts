@@ -122,14 +122,30 @@ test("building without an optional setting image removes its loader and consumer
   assertNoDanglingLinks(built);
 });
 
-test("Wan image-to-video keeps its genuinely required image requirement", () => {
+test("Wan TI2V accepts an optional start image and is identical to T2V when omitted", () => {
   assert.deepEqual(
     getWorkflowReferenceRequirements(createWan22I2vWorkflow(), wan22I2vMappings),
     {
-      requiresCharacterReferences: true,
+      requiresCharacterReferences: false,
       requiresSettingReference: false,
     },
   );
+  assert.deepEqual(
+    buildWorkflow(createWan22I2vWorkflow(), wan22I2vMappings, {}),
+    buildWorkflow(createWan22T2vWorkflow(), wan22T2vMappings, {}),
+  );
+  const withImage = buildWorkflow(createWan22I2vWorkflow(), wan22I2vMappings, {
+    referenceImage1: "provided-reference.png",
+  }) as Record<string, { inputs: Record<string, unknown> }>;
+  assert.equal(withImage["56"].inputs.image, "provided-reference.png");
+  assert.deepEqual(withImage["55"].inputs.start_image, ["56", 0]);
+});
+
+test("a genuine image-to-latent workflow still requires its image", () => {
+  assert.equal(getWorkflowReferenceRequirements({
+    load: { class_type: "LoadImage", inputs: { image: "input.png" } },
+    encode: { class_type: "VAEEncode", inputs: { pixels: ["load", 0], vae: ["vae", 0] } },
+  }, { referenceImage1: { nodeId: "load", input: "image" } }).requiresCharacterReferences, true);
 });
 
 test("Wan and LTX text-to-video workflows require no references", () => {
