@@ -7,6 +7,7 @@ import {
   generationCharactersTable,
   generationJobsTable,
   generationSettingsTable,
+  imageStudioJobsTable,
   settingAssetsTable,
   settingsTable,
   tenantsTable,
@@ -37,6 +38,12 @@ const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
 const generationTimeoutMs = 6 * 60 * 60 * 1000;
 const maxConsecutiveMonitorErrors = 3;
+
+function cloudProviderErrorDetail(value: unknown): string {
+  return String(value)
+    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
+    .replace(/\bfal(?:\.ai)?\b/gi, "Cloud");
+}
 
 function repeatedComfyRequestFailureMessage(error: unknown): string {
   const detail = error instanceof Error ? error.message : "Unknown ComfyUI request error";
@@ -537,10 +544,10 @@ export async function resumeActiveGenerations(): Promise<void> {
           const endpoints = falEndpointsFromMetadata(job.providerTaskMetadata);
           void monitorFalGeneration(job.id, new FalQueueClient(model), job.providerRequestId, endpoints);
         } catch (error) {
-          logger.error({ err: error, jobId: job.id }, "Cannot resume fal.ai generation with invalid queue endpoints");
+          logger.error({ err: error, jobId: job.id }, "Cannot resume Cloud generation with invalid queue endpoints");
           await db.update(generationJobsTable).set({
             status: "FAILED",
-            errorMessage: error instanceof Error ? error.message : "Invalid fal.ai queue endpoints",
+            errorMessage: error instanceof Error ? cloudProviderErrorDetail(error.message) : "Invalid Cloud queue endpoints",
             failedAt: new Date(),
           }).where(eq(generationJobsTable.id, job.id));
         }
@@ -635,12 +642,23 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   const requestedServer = input.preferredServerId
     ? servers.find((server) => server.id === input.preferredServerId)
     : undefined;
-  const activeJobs = await db
-    .select({ comfyServerId: generationJobsTable.comfyServerId })
-    .from(generationJobsTable)
-    .where(inArray(generationJobsTable.status, activeGenerationStatuses));
+  const [activeJobs, activeImageJobs] = await Promise.all([
+    db
+      .select({ comfyServerId: generationJobsTable.comfyServerId })
+      .from(generationJobsTable)
+      .where(inArray(generationJobsTable.status, activeGenerationStatuses)),
+    db
+      .select({ comfyServerId: imageStudioJobsTable.comfyServerId })
+      .from(imageStudioJobsTable)
+      .where(inArray(imageStudioJobsTable.status, ["QUEUED", "RUNNING"])),
+  ]);
   const activeByServer = new Map<string, number>();
   for (const job of activeJobs) {
+    if (job.comfyServerId) {
+      activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
+    }
+  }
+  for (const job of activeImageJobs) {
     if (job.comfyServerId) {
       activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
     }
@@ -686,11 +704,17 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   try {
     return await withServerSlotLock(server.id, async () => {
-    const activeJobs = await db
-      .select({ id: generationJobsTable.id })
-      .from(generationJobsTable)
-      .where(and(eq(generationJobsTable.comfyServerId, server.id), inArray(generationJobsTable.status, activeGenerationStatuses)));
-    if (Math.max(activeJobs.length, server.activeJobCount) >= (server.maxConcurrentJobs ?? 1)) {
+    const [activeJobs, activeImageJobs] = await Promise.all([
+      db
+        .select({ id: generationJobsTable.id })
+        .from(generationJobsTable)
+        .where(and(eq(generationJobsTable.comfyServerId, server.id), inArray(generationJobsTable.status, activeGenerationStatuses))),
+      db
+        .select({ id: imageStudioJobsTable.id })
+        .from(imageStudioJobsTable)
+        .where(and(eq(imageStudioJobsTable.comfyServerId, server.id), inArray(imageStudioJobsTable.status, ["QUEUED", "RUNNING"]))),
+    ]);
+    if (Math.max(activeJobs.length + activeImageJobs.length, server.activeJobCount) >= (server.maxConcurrentJobs ?? 1)) {
       throw new Error(`${server.displayName} is at its safe render capacity.`);
     }
   const compiledPrompt = compilePrompt(workflow.modelFamily, characters, setting[0], input);
@@ -803,10 +827,10 @@ async function createAndSubmitFalGeneration(
   setting: typeof settingsTable.$inferSelect | undefined,
 ): Promise<GenerationJob> {
   if (!input.model || !(input.model in falModels)) {
-    throw new Error("A supported fal.ai model is required");
+    throw new Error("A supported Cloud model is required");
   }
   if (input.referenceVideoKey) {
-    throw new Error("The initial fal.ai models support text-to-video requests only; remove the reference video");
+    throw new Error("Cloud models support text-to-video requests only; remove the reference video");
   }
   const model = input.model;
   const compiledPrompt = compileGenericPrompt(characters, setting, input);
@@ -864,7 +888,7 @@ async function createAndSubmitFalGeneration(
       providerRequestId: submitted.requestId,
       providerTaskMetadata: taskMetadata,
       queuedAt: new Date(),
-      currentNode: "Waiting in fal.ai queue",
+      currentNode: "Waiting in Cloud queue",
     }).where(and(eq(generationJobsTable.id, job.id), eq(generationJobsTable.status, "UPLOADING"))).returning();
     if (!queued) {
       const [current] = await db.update(generationJobsTable).set({
@@ -872,15 +896,15 @@ async function createAndSubmitFalGeneration(
         providerTaskMetadata: taskMetadata,
       }).where(eq(generationJobsTable.id, job.id)).returning();
       await client.cancel(submitted.endpoints).catch((error) => {
-        logger.warn({ err: error, jobId: job.id }, "Could not cancel fal.ai request after local cancellation");
+        logger.warn({ err: error, jobId: job.id }, "Could not cancel Cloud request after local cancellation");
       });
-      if (!current) throw new Error("Generation job disappeared after fal.ai submission");
+      if (!current) throw new Error("Generation job disappeared after Cloud submission");
       return current;
     }
     void monitorFalGeneration(job.id, client, submitted.requestId, submitted.endpoints);
     return queued;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "fal.ai submission failed";
+    const message = error instanceof Error ? cloudProviderErrorDetail(error.message) : "Cloud submission failed";
     await db.update(generationJobsTable).set({
       status: "FAILED",
       errorMessage: message,
@@ -906,11 +930,11 @@ async function completeFalOutput(
   try {
     response = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
   } catch {
-    throw new FalHttpError("Could not reach fal.ai output storage", null, true);
+    throw new FalHttpError("Could not reach Cloud output storage", null, true);
   }
   if (!response.ok) {
     throw new FalHttpError(
-      `Could not download fal.ai output (${response.status})`,
+      `Could not download Cloud output (${response.status})`,
       response.status,
       response.status === 429 || response.status >= 500,
     );
@@ -919,7 +943,7 @@ async function completeFalOutput(
   try {
     bytes = Buffer.from(await response.arrayBuffer());
   } catch {
-    throw new FalHttpError("fal.ai output download was interrupted", response.status, true);
+    throw new FalHttpError("Cloud output download was interrupted", response.status, true);
   }
   let mimeType: "video/mp4" | "video/webm" = response.headers.get("content-type")?.includes("webm")
     || /\.webm(?:\?|$)/i.test(videoUrl) ? "video/webm" : "video/mp4";
@@ -1006,7 +1030,7 @@ async function monitorFalGeneration(
         const [claimed] = await db.update(generationJobsTable).set({
           status: "DOWNLOADING",
           progress: 0.99,
-          currentNode: "Retrieving fal.ai output",
+          currentNode: "Retrieving Cloud output",
           providerTaskMetadata: metadata,
         }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)))
           .returning({ id: generationJobsTable.id });
@@ -1019,7 +1043,7 @@ async function monitorFalGeneration(
             } catch (error) {
               outputAttempts += 1;
               if (!(error instanceof FalHttpError && error.retryable)) {
-                const message = error instanceof Error ? error.message : "fal.ai output finalization failed";
+                const message = error instanceof Error ? cloudProviderErrorDetail(error.message) : "Cloud output finalization failed";
                 await db.update(generationJobsTable).set({
                   status: "FAILED", errorMessage: message, failedAt: new Date(), currentNode: null,
                 }).where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
@@ -1027,10 +1051,10 @@ async function monitorFalGeneration(
               }
               if (outputAttempts >= 3) {
                 await db.update(generationJobsTable).set({
-                  currentNode: "fal.ai output temporarily unavailable; retrying",
+                  currentNode: "Cloud output temporarily unavailable; retrying",
                   errorMessage: null,
                 }).where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
-                logger.warn({ err: error, jobId }, "fal.ai output remains temporarily unavailable");
+                logger.warn({ err: error, jobId }, "Cloud output remains temporarily unavailable");
                 break;
               }
               await new Promise((resolve) => setTimeout(resolve, 5_000 * outputAttempts));
@@ -1040,18 +1064,18 @@ async function monitorFalGeneration(
         if (!claimed) return;
       }
       if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(normalized)) {
-        throw new FalHttpError(`fal.ai generation failed${status.error ? `: ${String(status.error)}` : ""}`, null, false);
+        throw new FalHttpError(`Cloud generation failed${status.error ? `: ${cloudProviderErrorDetail(status.error)}` : ""}`, null, false);
       }
       const running = normalized === "IN_PROGRESS";
       await db.update(generationJobsTable).set({
         status: running ? "RUNNING" : "QUEUED",
         progress: running ? 0.5 : 0.05,
-        currentNode: running ? "fal.ai processing" : "Waiting in fal.ai queue",
+        currentNode: running ? "Cloud processing" : "Waiting in Cloud queue",
         providerTaskMetadata: mergeFalMetadata(job.providerTaskMetadata, { latestStatus: status }),
         startedAt: running ? new Date() : undefined,
       }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "fal.ai monitor failed";
+      const message = error instanceof Error ? cloudProviderErrorDetail(error.message) : "Cloud monitor failed";
       const retryable = error instanceof FalHttpError && error.retryable;
       if (!retryable) {
         await db.update(generationJobsTable).set({
@@ -1063,17 +1087,17 @@ async function monitorFalGeneration(
       nextPollDelayMs = Math.min(60_000, 5_000 * (2 ** Math.min(retryablePollFailures - 1, 4)));
       if (retryablePollFailures >= 5) {
         await db.update(generationJobsTable).set({
-          currentNode: "fal.ai temporarily unreachable; retrying",
+          currentNode: "Cloud temporarily unreachable; retrying",
           errorMessage: null,
         }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
       }
-      logger.warn({ err: error, jobId }, "Could not poll fal.ai generation");
+      logger.warn({ err: error, jobId }, "Could not poll Cloud generation");
     }
     await new Promise((resolve) => setTimeout(resolve, nextPollDelayMs));
   }
   await db.update(generationJobsTable).set({
     status: "FAILED",
-    errorMessage: "Timed out while waiting for fal.ai",
+    errorMessage: "Timed out while waiting for Cloud",
     failedAt: new Date(),
     currentNode: null,
   }).where(and(eq(generationJobsTable.id, jobId), inArray(generationJobsTable.status, activeGenerationStatuses)));
@@ -1096,8 +1120,8 @@ export async function cancelGeneration(jobId: string) {
       try {
         await new FalQueueClient(model).cancel(falEndpointsFromMetadata(job.providerTaskMetadata));
       } catch (error) {
-        logger.warn({ err: error, jobId }, "Could not confirm cancellation with fal.ai");
-        cancellationNote = "Cancelled in OBTV. fal.ai could not be reached to confirm cancellation.";
+        logger.warn({ err: error, jobId }, "Could not confirm cancellation with Cloud");
+        cancellationNote = "Cancelled in OBTV. Cloud could not be reached to confirm cancellation.";
       }
     }
   }
@@ -1255,7 +1279,8 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
   }
   if (
     job.provider === "FAL" &&
-    job.errorMessage === "Timed out while waiting for fal.ai" &&
+    job.errorMessage !== null &&
+    ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"].includes(job.errorMessage) &&
     job.providerModelId &&
     job.providerRequestId
   ) {
@@ -1268,7 +1293,7 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
       const normalizedStatus = String(status.status ?? "").toUpperCase();
       if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(normalizedStatus)) {
         throw new FalHttpError(
-          `fal.ai generation failed${status.error ? `: ${String(status.error)}` : ""}`,
+          `Cloud generation failed${status.error ? `: ${cloudProviderErrorDetail(status.error)}` : ""}`,
           null,
           false,
         );
@@ -1276,13 +1301,13 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
       if (normalizedStatus !== "COMPLETED") return false;
       const [claimed] = await db.update(generationJobsTable).set({
         status: "DOWNLOADING",
-        currentNode: "Recovering fal.ai output",
+        currentNode: "Recovering Cloud output",
         errorMessage: null,
         failedAt: null,
       }).where(and(
         eq(generationJobsTable.id, jobId),
         eq(generationJobsTable.status, "FAILED"),
-        eq(generationJobsTable.errorMessage, "Timed out while waiting for fal.ai"),
+        inArray(generationJobsTable.errorMessage, ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"]),
       )).returning({ id: generationJobsTable.id });
       if (!claimed) return false;
       await completeFalOutput(
@@ -1298,15 +1323,15 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
       await db.update(generationJobsTable).set({
         status: "FAILED",
         errorMessage: retryable
-          ? "Timed out while waiting for fal.ai"
-          : error instanceof Error ? error.message : "fal.ai recovery failed",
+          ? "Timed out while waiting for Cloud"
+          : error instanceof Error ? cloudProviderErrorDetail(error.message) : "Cloud recovery failed",
         failedAt: new Date(),
         currentNode: null,
       }).where(and(
         eq(generationJobsTable.id, jobId),
         inArray(generationJobsTable.status, ["FAILED", "DOWNLOADING"]),
       ));
-      logger.warn({ err: error, jobId }, "Could not recover timed-out fal.ai output");
+      logger.warn({ err: error, jobId }, "Could not recover timed-out Cloud output");
       return false;
     }
   }

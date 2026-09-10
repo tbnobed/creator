@@ -26,6 +26,8 @@ tags:
     description: Video generation jobs
   - name: long-form-projects
     description: Long-form video planning and orchestration
+  - name: image-studio
+    description: Durable image generation jobs and asset library
 paths:
   /auth/config:
     get:
@@ -961,6 +963,178 @@ paths:
                 format: binary
         "409":
           description: All clips must be completed before export
+  /image-studio/models:
+    get:
+      operationId: listImageStudioModels
+      tags: [image-studio]
+      summary: List image models and their current availability
+      responses:
+        "200":
+          description: Image model catalog
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageModelList" }
+  /image-studio/jobs:
+    get:
+      operationId: listImageStudioJobs
+      tags: [image-studio]
+      summary: List the active tenant's newest image jobs
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema: { type: number, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-private image jobs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageJobList" }
+    post:
+      operationId: createImageStudioJob
+      tags: [image-studio]
+      summary: Submit a durable image task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImageJobInput" }
+      responses:
+        "202":
+          description: Accepted image task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageJobResult" }
+        "400":
+          description: Invalid task
+        "402":
+          description: Paid Cloud task needs explicit confirmation
+        "409":
+          description: No safe worker capacity
+  /image-studio/jobs/{id}:
+    get:
+      operationId: getImageStudioJob
+      tags: [image-studio]
+      summary: Get a tenant-private image job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Image job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageJobResult" }
+        "404":
+          description: Image job not found
+    delete:
+      operationId: deleteImageStudioJob
+      tags: [image-studio]
+      summary: Delete a non-active image job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Image job not found
+        "409":
+          description: Active image jobs must be cancelled before deletion
+  /image-studio/jobs/{id}/cancel:
+    post:
+      operationId: cancelImageStudioJob
+      tags: [image-studio]
+      summary: Cancel an active image job
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Current image job after cancellation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageJobResult" }
+        "404":
+          description: Image job not found
+  /image-studio/assets:
+    get:
+      operationId: listImageStudioAssets
+      tags: [image-studio]
+      summary: Search the active tenant's image assets
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: favorite
+          required: false
+          schema: { type: boolean }
+        - in: query
+          name: collection
+          required: false
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: Tenant-private image assets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageAssetList" }
+  /image-studio/uploads:
+    post:
+      operationId: uploadImageStudioAsset
+      tags: [image-studio]
+      summary: Upload a PNG, JPEG, or WebP image
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema: { type: string, format: binary }
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/webp:
+            schema: { type: string, format: binary }
+      responses:
+        "201":
+          description: Stored image asset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageAssetResult" }
+        "400":
+          description: Invalid image
+        "413":
+          description: Image is too large
+  /image-studio/assets/{id}:
+    patch:
+      operationId: updateImageStudioAsset
+      tags: [image-studio]
+      summary: Update image asset library metadata
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImageAssetUpdate" }
+      responses:
+        "200":
+          description: Updated image asset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImageAssetResult" }
+        "404":
+          description: Image asset not found
+    delete:
+      operationId: deleteImageStudioAsset
+      tags: [image-studio]
+      summary: Delete an unreferenced image asset
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Image asset not found
+        "409":
+          description: Image asset is still referenced by a job
 components:
   parameters:
     Id:
@@ -970,6 +1144,123 @@ components:
       schema:
         type: string
   schemas:
+    ImageOperation:
+      type: string
+      enum: [generate, edit, inpaint, outpaint, upscale, remove-background]
+    ImageModel:
+      type: object
+      required: [id, name, provider, description, operations, aspectRatios, maxImages, supportsSeed, supportsNegativePrompt, maxReferences, priceNote, available]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        provider: { type: string, enum: [LOCAL, CLOUD] }
+        description: { type: string }
+        operations:
+          type: array
+          items: { $ref: "#/components/schemas/ImageOperation" }
+        aspectRatios: { type: array, items: { type: string } }
+        maxImages: { type: number }
+        supportsSeed: { type: boolean }
+        supportsNegativePrompt: { type: boolean }
+        maxReferences: { type: number }
+        priceNote: { type: string }
+        requiredTag: { type: string }
+        available: { type: boolean }
+        unavailableReason: { type: string }
+    ImageModelList:
+      type: object
+      required: [models]
+      properties:
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/ImageModel" }
+    ImageAsset:
+      type: object
+      required: [id, name, url, mimeType, width, height, favorite, collection, jobId, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        url: { type: string }
+        storageKey: { type: string }
+        mimeType: { type: string, enum: [image/png, image/jpeg, image/webp] }
+        width: { type: number }
+        height: { type: number }
+        favorite: { type: boolean }
+        collection: { type: string }
+        jobId: { type: ["string", "null"] }
+        createdAt: { type: string }
+    ImageJob:
+      type: object
+      required: [id, modelId, modelName, provider, operation, prompt, width, height, count, status, errorMessage, assets, referenceAssetIds, maskAssetId, createdAt]
+      properties:
+        id: { type: string }
+        modelId: { type: string }
+        modelName: { type: string }
+        provider: { type: string, enum: [LOCAL, CLOUD] }
+        operation: { $ref: "#/components/schemas/ImageOperation" }
+        prompt: { type: string }
+        negativePrompt: { type: string }
+        width: { type: number }
+        height: { type: number }
+        count: { type: number }
+        seed: { type: number }
+        status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED] }
+        errorMessage: { type: ["string", "null"] }
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/ImageAsset" }
+        referenceAssetIds: { type: array, items: { type: string } }
+        maskAssetId: { type: ["string", "null"] }
+        createdAt: { type: string }
+    ImageJobInput:
+      type: object
+      required: [modelId, operation, prompt, width, height, count]
+      properties:
+        modelId: { type: string, minLength: 1, maxLength: 200 }
+        operation: { $ref: "#/components/schemas/ImageOperation" }
+        prompt: { type: string, maxLength: 10000 }
+        negativePrompt: { type: string, maxLength: 5000 }
+        width: { type: number, minimum: 1, maximum: 32768 }
+        height: { type: number, minimum: 1, maximum: 32768 }
+        count: { type: number, minimum: 1, maximum: 16 }
+        seed: { type: number, minimum: 0, maximum: 2147483647 }
+        referenceAssetIds:
+          type: array
+          maxItems: 16
+          items: { type: string }
+        maskAssetId: { type: string }
+        cloudConfirmed: { type: boolean }
+        requestKey: { type: string, minLength: 36, maxLength: 36 }
+    ImageAssetUpdate:
+      type: object
+      properties:
+        favorite: { type: boolean }
+        collection: { type: string, maxLength: 200 }
+        name: { type: string, minLength: 1, maxLength: 255 }
+    ImageJobList:
+      type: object
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          items: { $ref: "#/components/schemas/ImageJob" }
+    ImageJobResult:
+      type: object
+      required: [job]
+      properties:
+        job: { $ref: "#/components/schemas/ImageJob" }
+    ImageAssetList:
+      type: object
+      required: [assets]
+      properties:
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/ImageAsset" }
+    ImageAssetResult:
+      type: object
+      required: [asset]
+      properties:
+        asset: { $ref: "#/components/schemas/ImageAsset" }
     AuthConfig:
       type: object
       required: [registrationEnabled, bootstrapAvailable]

@@ -1,0 +1,2 @@
+ALTER TABLE "obtv_image_studio_jobs" ADD COLUMN "request_key" uuid;--> statement-breakpoint
+CREATE UNIQUE INDEX "obtv_image_studio_jobs_tenant_request_key_unique" ON "obtv_image_studio_jobs" USING btree ("tenant_id","request_key");

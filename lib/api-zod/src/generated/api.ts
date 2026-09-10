@@ -1898,3 +1898,340 @@ export const DownloadLongFormNlePackageParams = zod.object({
 export const DownloadLongFormNlePackageResponse = zod.unknown()
 
 
+/**
+ * @summary List image models and their current availability
+ */
+export const ListImageStudioModelsResponse = zod.object({
+  "models": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "description": zod.string(),
+  "operations": zod.array(zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background'])),
+  "aspectRatios": zod.array(zod.string()),
+  "maxImages": zod.number(),
+  "supportsSeed": zod.boolean(),
+  "supportsNegativePrompt": zod.boolean(),
+  "maxReferences": zod.number(),
+  "priceNote": zod.string(),
+  "requiredTag": zod.string().optional(),
+  "available": zod.boolean(),
+  "unavailableReason": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary List the active tenant's newest image jobs
+ */
+export const listImageStudioJobsQueryLimitDefault = 50;
+export const listImageStudioJobsQueryLimitMax = 100;
+
+
+
+export const ListImageStudioJobsQueryParams = zod.object({
+  "limit": zod.coerce.number().min(1).max(listImageStudioJobsQueryLimitMax).default(listImageStudioJobsQueryLimitDefault)
+})
+
+export const ListImageStudioJobsResponse = zod.object({
+  "jobs": zod.array(zod.object({
+  "id": zod.string(),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string(),
+  "negativePrompt": zod.string().optional(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "count": zod.number(),
+  "seed": zod.number().optional(),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "errorMessage": zod.string().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "referenceAssetIds": zod.array(zod.string()),
+  "maskAssetId": zod.string().nullable(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Submit a durable image task
+ */
+export const createImageStudioJobBodyModelIdMax = 200;
+
+export const createImageStudioJobBodyPromptMax = 10000;
+
+export const createImageStudioJobBodyNegativePromptMax = 5000;
+
+export const createImageStudioJobBodyWidthMax = 32768;
+
+export const createImageStudioJobBodyHeightMax = 32768;
+
+export const createImageStudioJobBodyCountMax = 16;
+
+export const createImageStudioJobBodySeedMin = 0;
+export const createImageStudioJobBodySeedMax = 2147483647;
+
+export const createImageStudioJobBodyReferenceAssetIdsMax = 16;
+
+export const createImageStudioJobBodyRequestKeyMin = 36;
+export const createImageStudioJobBodyRequestKeyMax = 36;
+
+
+
+export const CreateImageStudioJobBody = zod.object({
+  "modelId": zod.string().min(1).max(createImageStudioJobBodyModelIdMax),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string().max(createImageStudioJobBodyPromptMax),
+  "negativePrompt": zod.string().max(createImageStudioJobBodyNegativePromptMax).optional(),
+  "width": zod.number().min(1).max(createImageStudioJobBodyWidthMax),
+  "height": zod.number().min(1).max(createImageStudioJobBodyHeightMax),
+  "count": zod.number().min(1).max(createImageStudioJobBodyCountMax),
+  "seed": zod.number().min(createImageStudioJobBodySeedMin).max(createImageStudioJobBodySeedMax).optional(),
+  "referenceAssetIds": zod.array(zod.string()).max(createImageStudioJobBodyReferenceAssetIdsMax).optional(),
+  "maskAssetId": zod.string().optional(),
+  "cloudConfirmed": zod.boolean().optional(),
+  "requestKey": zod.string().min(createImageStudioJobBodyRequestKeyMin).max(createImageStudioJobBodyRequestKeyMax).optional()
+})
+
+export const CreateImageStudioJobResponse = zod.object({
+  "job": zod.object({
+  "id": zod.string(),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string(),
+  "negativePrompt": zod.string().optional(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "count": zod.number(),
+  "seed": zod.number().optional(),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "errorMessage": zod.string().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "referenceAssetIds": zod.array(zod.string()),
+  "maskAssetId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * @summary Get a tenant-private image job
+ */
+export const GetImageStudioJobParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetImageStudioJobResponse = zod.object({
+  "job": zod.object({
+  "id": zod.string(),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string(),
+  "negativePrompt": zod.string().optional(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "count": zod.number(),
+  "seed": zod.number().optional(),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "errorMessage": zod.string().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "referenceAssetIds": zod.array(zod.string()),
+  "maskAssetId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * @summary Delete a non-active image job
+ */
+export const DeleteImageStudioJobParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteImageStudioJobResponse = zod.void()
+
+
+/**
+ * @summary Cancel an active image job
+ */
+export const CancelImageStudioJobParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CancelImageStudioJobResponse = zod.object({
+  "job": zod.object({
+  "id": zod.string(),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string(),
+  "negativePrompt": zod.string().optional(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "count": zod.number(),
+  "seed": zod.number().optional(),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "errorMessage": zod.string().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "referenceAssetIds": zod.array(zod.string()),
+  "maskAssetId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * @summary Search the active tenant's image assets
+ */
+export const listImageStudioAssetsQuerySearchMax = 200;
+
+export const listImageStudioAssetsQueryCollectionMax = 200;
+
+
+
+export const ListImageStudioAssetsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listImageStudioAssetsQuerySearchMax).optional(),
+  "favorite": zod.coerce.boolean().optional(),
+  "collection": zod.coerce.string().max(listImageStudioAssetsQueryCollectionMax).optional()
+})
+
+export const ListImageStudioAssetsResponse = zod.object({
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Upload a PNG, JPEG, or WebP image
+ */
+export const UploadImageStudioAssetResponse = zod.object({
+  "asset": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * @summary Update image asset library metadata
+ */
+export const UpdateImageStudioAssetParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateImageStudioAssetBodyCollectionMax = 200;
+
+export const updateImageStudioAssetBodyNameMax = 255;
+
+
+
+export const UpdateImageStudioAssetBody = zod.object({
+  "favorite": zod.boolean().optional(),
+  "collection": zod.string().max(updateImageStudioAssetBodyCollectionMax).optional(),
+  "name": zod.string().min(1).max(updateImageStudioAssetBodyNameMax).optional()
+})
+
+export const UpdateImageStudioAssetResponse = zod.object({
+  "asset": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * @summary Delete an unreferenced image asset
+ */
+export const DeleteImageStudioAssetParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteImageStudioAssetResponse = zod.void()
+
+

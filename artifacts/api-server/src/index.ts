@@ -4,6 +4,7 @@ import { startServerHealthChecks } from "./lib/server-health";
 import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
 import { startLongFormOrchestrator } from "./lib/long-form-service";
+import { resumeImageStudioJobs } from "./lib/image-studio-service";
 
 const rawPort = process.env["PORT"];
 
@@ -23,6 +24,7 @@ async function start(): Promise<void> {
   await ensureStudioSeed();
   await resumeActiveGenerations();
   await startLongFormOrchestrator();
+  await resumeImageStudioJobs();
   void startServerHealthChecks();
   app.listen(port, (err) => {
     if (err) {

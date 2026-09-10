@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
+import { sanitizeProviderMessage } from "@/lib/provider-messages";
 
 export default function GenerationDetailPage() {
   const params = useParams();
@@ -102,7 +103,7 @@ export default function GenerationDetailPage() {
                       </p>
                     </div>
                     {job.currentNode && (
-                      <p className="text-xs font-mono text-muted-foreground mt-2">Node: {job.currentNode}</p>
+                      <p className="text-xs font-mono text-muted-foreground mt-2">Node: {sanitizeProviderMessage(job.currentNode)}</p>
                     )}
                   </div>
                 </div>
@@ -112,7 +113,7 @@ export default function GenerationDetailPage() {
                   <div>
                     <p className="font-bold text-lg mb-1">Generation Failed</p>
                     <p className="text-sm font-mono bg-destructive/10 text-destructive border border-destructive/20 p-3 rounded-md max-w-lg">
-                      {job.errorMessage || "Unknown error occurred"}
+                      {sanitizeProviderMessage(job.errorMessage, "Unknown error occurred")}
                     </p>
                   </div>
                 </div>
@@ -179,7 +180,7 @@ export default function GenerationDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Provider</dt>
                 <dd className="font-medium" data-testid="text-generation-provider">
-                  {job.provider === "FAL" ? "fal.ai" : "Local GPU / Comfy"}
+                  {job.provider === "FAL" ? "Cloud" : "Local GPU / Comfy"}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
@@ -242,7 +243,7 @@ function formatProviderModel(providerModelId: string | null) {
     case "fal-ai/kling-video/v3/standard/text-to-video": return "Kling v3 Standard";
     case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "Seedance 2.0 Mini";
     case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "Seedance 2.0 quality";
-    default: return providerModelId || "Cloud model";
+    default: return "Cloud model";
   }
 }
 

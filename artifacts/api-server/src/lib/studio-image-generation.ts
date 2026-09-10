@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   characterAssetsTable,
   charactersTable,
   comfyServersTable,
   db,
+  generationJobsTable,
+  imageStudioJobsTable,
+  pool,
   settingAssetsTable,
   settingsTable,
 } from "@workspace/db";
@@ -16,6 +19,8 @@ import { mediaStorage } from "./storage-service";
 const REQUIRED_TAGS = ["flux2-klein"];
 const GENERATION_TIMEOUT_MS = 5 * 60_000;
 const reservedServers = new Set<string>();
+const ACTIVE_VIDEO_STATUSES = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
+const ACTIVE_IMAGE_STATUSES = ["QUEUED", "RUNNING"] as const;
 
 type ImageOutput = {
   filename: string;
@@ -24,6 +29,49 @@ type ImageOutput = {
 };
 
 export class StudioImageGenerationUnavailableError extends Error {}
+
+async function activeDatabaseJobsByServer(): Promise<Map<string, number>> {
+  const [videoJobs, imageJobs] = await Promise.all([
+    db
+      .select({ serverId: generationJobsTable.comfyServerId })
+      .from(generationJobsTable)
+      .where(inArray(generationJobsTable.status, ACTIVE_VIDEO_STATUSES)),
+    db
+      .select({ serverId: imageStudioJobsTable.comfyServerId })
+      .from(imageStudioJobsTable)
+      .where(inArray(imageStudioJobsTable.status, ACTIVE_IMAGE_STATUSES)),
+  ]);
+  const counts = new Map<string, number>();
+  for (const job of [...videoJobs, ...imageJobs]) {
+    if (job.serverId) counts.set(job.serverId, (counts.get(job.serverId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+async function acquireServerLock(serverId: string): Promise<() => Promise<void>> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query<{ locked: boolean }>(
+      "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
+      [`comfy-server:${serverId}`],
+    );
+    if (!result.rows[0]?.locked) {
+      throw new StudioImageGenerationUnavailableError(
+        "The selected GPU is being reserved by another render. Try again shortly.",
+      );
+    }
+    return async () => {
+      try {
+        await client.query("SELECT pg_advisory_unlock(hashtext($1))", [`comfy-server:${serverId}`]);
+      } finally {
+        client.release();
+      }
+    };
+  } catch (error) {
+    client.release();
+    throw error;
+  }
+}
 
 function buildPrompt(
   kind: Flux2AssetKind,
@@ -109,7 +157,12 @@ export async function generateStudioImage(input: {
     : await db.select().from(settingsTable).where(and(eq(settingsTable.id, input.entityId), eq(settingsTable.tenantId, input.tenantId)));
   if (!entity) throw new Error(`${input.kind === "character" ? "Character" : "Setting"} not found`);
 
+  const activeByServer = await activeDatabaseJobsByServer();
   const servers = (await db.select().from(comfyServersTable))
+    .map((server) => ({
+      ...server,
+      activeJobCount: Math.max(server.activeJobCount, activeByServer.get(server.id) ?? 0),
+    }))
     .filter((server) => !reservedServers.has(server.id));
   const server = selectServer(servers, REQUIRED_TAGS);
   if (!server) {
@@ -119,7 +172,18 @@ export async function generateStudioImage(input: {
   }
 
   reservedServers.add(server.id);
+  let releaseServerLock: (() => Promise<void>) | undefined;
   try {
+    releaseServerLock = await acquireServerLock(server.id);
+    const currentActive = await activeDatabaseJobsByServer();
+    if (
+      Math.max(server.activeJobCount, currentActive.get(server.id) ?? 0)
+      >= (server.maxConcurrentJobs ?? 1)
+    ) {
+      throw new StudioImageGenerationUnavailableError(
+        `${server.displayName} is at its safe render capacity.`,
+      );
+    }
     const seed = input.seed === undefined
       ? Math.floor(Math.random() * 2_147_483_647)
       : Math.floor(input.seed);
@@ -161,6 +225,7 @@ export async function generateStudioImage(input: {
     }
     return { ok: true, assetId: asset.id, mediaUrl, serverName: server.displayName, seed };
   } finally {
+    await releaseServerLock?.();
     reservedServers.delete(server.id);
   }
 }

@@ -12,7 +12,8 @@ import {
   Video,
   Menu,
   X,
-  UserCircle
+  UserCircle,
+  Palette
 } from "lucide-react";
 import { useHealthCheck, useGetSession } from "@workspace/api-client-react";
 import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
@@ -31,7 +32,8 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [location]);
 
   const links = [
-    { href: "/studio", label: "Generate", icon: Clapperboard },
+    { href: "/studio", label: "Generate Video", icon: Clapperboard },
+    { href: "/image-studio", label: "Image Studio", icon: Palette },
     { href: "/reference-video", label: "Reference Video", icon: Video },
     { href: "/projects", label: "Long-Form", icon: Film },
     { href: "/characters", label: "Characters", icon: Users },
@@ -51,6 +53,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const primaryMobileLinks = [
     { href: "/studio", label: "Generate", icon: Clapperboard },
+    { href: "/image-studio", label: "Images", icon: Palette },
     { href: "/projects", label: "Long-Form", icon: Film },
     { href: "/generations", label: "Queue", icon: Activity },
   ];

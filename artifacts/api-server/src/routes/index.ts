@@ -12,6 +12,7 @@ import promptGuidanceRouter from "./prompt-guidance";
 import sessionRouter from "./session";
 import generationCapabilitiesRouter from "./generation-capabilities";
 import authRouter from "./auth";
+import imageStudioRouter from "./image-studio";
 import { requireAuth, requireTenant } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -30,6 +31,7 @@ router.use(generationsRouter);
 router.use(referenceVideosRouter);
 router.use(longFormProjectsRouter);
 router.use(promptGuidanceRouter);
+router.use(imageStudioRouter);
 router.use(mediaRouter);
 
 export default router;

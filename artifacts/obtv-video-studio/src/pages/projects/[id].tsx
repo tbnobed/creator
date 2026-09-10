@@ -51,6 +51,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 import { NLEEditor, type Clip as EditorClip } from "@/components/nle-editor";
+import { sanitizeProviderMessage } from "@/lib/provider-messages";
 
 function editorClipsFromProject(project: any): EditorClip[] {
   const completedShots = project.shots.filter((shot: any) => shot.status === "COMPLETED" && shot.outputUrl);
@@ -508,7 +509,7 @@ export default function ProjectDetailPage() {
                   {isDispatchWaiting
                     ? <Loader2 className="w-4 h-4 shrink-0 mt-0.5 animate-spin" />
                     : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
-                  <p className="break-words">{project.errorMessage}</p>
+                  <p className="break-words">{sanitizeProviderMessage(project.errorMessage)}</p>
                 </div>
               )}
             </div>
@@ -673,7 +674,7 @@ export default function ProjectDetailPage() {
                         
                         {shot.errorMessage && (
                           <div className="mt-2 md:mt-2.5 text-[10px] md:text-xs text-destructive bg-destructive/10 p-2 rounded">
-                            {shot.errorMessage}
+                            {sanitizeProviderMessage(shot.errorMessage)}
                           </div>
                         )}
                       </div>

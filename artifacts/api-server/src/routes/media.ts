@@ -5,7 +5,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { mediaStorage } from "../lib/storage-service";
 
 const router: IRouter = Router();
-const canonicalMediaKey = /^(?:tenants\/[0-9a-f-]{36}\/)?(?:(?:characters|settings)\/[a-z0-9_-]+\.(?:jpe?g|png|webp)|voices\/[a-z0-9_-]+\.wav|(?:reference-videos|generations)\/[a-z0-9_-]+\.(?:mp4|webm))$/i;
+const canonicalMediaKey = /^(?:tenants\/[0-9a-f-]{36}\/)?(?:(?:characters|settings|image-studio)\/[a-z0-9_-]+\.(?:jpe?g|png|webp)|voices\/[a-z0-9_-]+\.wav|(?:reference-videos|generations)\/[a-z0-9_-]+\.(?:mp4|webm))$/i;
 
 function authorizedMediaKey(req: Request, raw: string): boolean {
   if (!canonicalMediaKey.test(raw) || raw.includes("\\")) return false;

@@ -21,6 +21,7 @@ const WorkflowsPage = lazy(() => import("@/pages/workflows"));
 const AdminPage = lazy(() => import("@/pages/admin"));
 const GenerationsPage = lazy(() => import("@/pages/generations"));
 const GenerationDetailPage = lazy(() => import("@/pages/generation-detail"));
+const ImageStudioPage = lazy(() => import("@/pages/image-studio"));
 const ProjectsPage = lazy(() => import("@/pages/projects"));
 const ProjectDetailPage = lazy(() => import("@/pages/projects/[id]"));
 const NewProjectPage = lazy(() => import("@/pages/projects/new"));
@@ -62,6 +63,7 @@ function StudioRouter() {
               <Route path="/studio" component={GeneratePage} />
               <Route path="/reference-video" component={ReferenceVideoPage} />
               <Route path="/projects" component={ProjectsPage} />
+              <Route path="/image-studio" component={ImageStudioPage} />
               <Route path="/projects/new" component={NewProjectPage} />
               <Route path="/projects/:id" component={ProjectDetailPage} />
               <Route path="/characters" component={CharactersPage} />
@@ -107,6 +109,7 @@ function AppRoutes() {
             <Route path="/studio" component={StudioRouter} />
             <Route path="/reference-video" component={StudioRouter} />
             <Route path="/projects" component={StudioRouter} />
+            <Route path="/image-studio" component={StudioRouter} />
             <Route path="/projects/new" component={StudioRouter} />
             <Route path="/projects/:id" component={StudioRouter} />
             <Route path="/characters" component={StudioRouter} />

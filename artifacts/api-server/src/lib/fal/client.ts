@@ -27,6 +27,12 @@ export class FalHttpError extends Error {
   }
 }
 
+function sanitizeCloudDetail(value: unknown): string {
+  return String(value)
+    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
+    .replace(/\bfal(?:\.ai)?\b/gi, "Cloud");
+}
+
 function apiKey(): string {
   const key = process.env.FAL_KEY?.trim();
   if (!key) throw new FalHttpError("FAL_KEY is not configured", null, false);
@@ -34,15 +40,15 @@ function apiKey(): string {
 }
 
 export function validateFalQueueUrl(value: unknown, field = "queue URL"): string {
-  if (typeof value !== "string") throw new FalHttpError(`fal.ai did not return a valid ${field}`, null, false);
+  if (typeof value !== "string") throw new FalHttpError(`Cloud did not return a valid ${field}`, null, false);
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    throw new FalHttpError(`fal.ai returned an invalid ${field}`, null, false);
+    throw new FalHttpError(`Cloud returned an invalid ${field}`, null, false);
   }
   if (url.protocol !== "https:" || url.hostname !== "queue.fal.run" || url.username || url.password) {
-    throw new FalHttpError(`fal.ai returned an untrusted ${field}`, null, false);
+    throw new FalHttpError(`Cloud returned an untrusted ${field}`, null, false);
   }
   return url.toString();
 }
@@ -61,13 +67,13 @@ async function falRequest(urlValue: string, init?: RequestInit): Promise<Record<
       },
     });
   } catch {
-    throw new FalHttpError("fal.ai network request failed", null, true);
+    throw new FalHttpError("Cloud network request failed", null, true);
   }
   let text: string;
   try {
     text = await response.text();
   } catch {
-    throw new FalHttpError("fal.ai response download failed", response.status, true);
+    throw new FalHttpError("Cloud response download failed", response.status, true);
   }
   let body: unknown = {};
   try {
@@ -80,7 +86,7 @@ async function falRequest(urlValue: string, init?: RequestInit): Promise<Record<
       ? (body as { detail?: unknown; message?: unknown }).detail ?? (body as { message?: unknown }).message
       : undefined;
     throw new FalHttpError(
-      `fal.ai request failed (${response.status})${detail ? `: ${String(detail)}` : ""}`,
+      `Cloud request failed (${response.status})${detail ? `: ${sanitizeCloudDetail(detail)}` : ""}`,
       response.status,
       response.status === 429 || response.status >= 500,
     );
@@ -197,7 +203,7 @@ export class FalQueueClient {
       body: JSON.stringify(input),
     });
     if (typeof body.request_id !== "string" || !body.request_id) {
-      throw new FalHttpError("fal.ai did not return a request ID", null, false);
+      throw new FalHttpError("Cloud did not return a request ID", null, false);
     }
     const endpoints = {
       statusUrl: validateFalQueueUrl(body.status_url, "status URL"),
@@ -240,6 +246,6 @@ function findVideoUrl(value: unknown, key = ""): string | null {
 
 export function getFalVideoUrl(result: Record<string, unknown>): string {
   const url = findVideoUrl(result);
-  if (!url) throw new FalHttpError("fal.ai completed without a video output", null, false);
+  if (!url) throw new FalHttpError("Cloud completed without a video output", null, false);
   return url;
 }

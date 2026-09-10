@@ -5,6 +5,181 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type ImageOperation = typeof ImageOperation[keyof typeof ImageOperation];
+
+
+export const ImageOperation = {
+  generate: 'generate',
+  edit: 'edit',
+  inpaint: 'inpaint',
+  outpaint: 'outpaint',
+  upscale: 'upscale',
+  'remove-background': 'remove-background',
+} as const;
+
+export type ImageModelProvider = typeof ImageModelProvider[keyof typeof ImageModelProvider];
+
+
+export const ImageModelProvider = {
+  LOCAL: 'LOCAL',
+  CLOUD: 'CLOUD',
+} as const;
+
+export interface ImageModel {
+  id: string;
+  name: string;
+  provider: ImageModelProvider;
+  description: string;
+  operations: ImageOperation[];
+  aspectRatios: string[];
+  maxImages: number;
+  supportsSeed: boolean;
+  supportsNegativePrompt: boolean;
+  maxReferences: number;
+  priceNote: string;
+  requiredTag?: string;
+  available: boolean;
+  unavailableReason?: string;
+}
+
+export interface ImageModelList {
+  models: ImageModel[];
+}
+
+export type ImageAssetMimeType = typeof ImageAssetMimeType[keyof typeof ImageAssetMimeType];
+
+
+export const ImageAssetMimeType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface ImageAsset {
+  id: string;
+  name: string;
+  url: string;
+  storageKey?: string;
+  mimeType: ImageAssetMimeType;
+  width: number;
+  height: number;
+  favorite: boolean;
+  collection: string;
+  /** @nullable */
+  jobId: string | null;
+  createdAt: string;
+}
+
+export type ImageJobProvider = typeof ImageJobProvider[keyof typeof ImageJobProvider];
+
+
+export const ImageJobProvider = {
+  LOCAL: 'LOCAL',
+  CLOUD: 'CLOUD',
+} as const;
+
+export type ImageJobStatus = typeof ImageJobStatus[keyof typeof ImageJobStatus];
+
+
+export const ImageJobStatus = {
+  QUEUED: 'QUEUED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface ImageJob {
+  id: string;
+  modelId: string;
+  modelName: string;
+  provider: ImageJobProvider;
+  operation: ImageOperation;
+  prompt: string;
+  negativePrompt?: string;
+  width: number;
+  height: number;
+  count: number;
+  seed?: number;
+  status: ImageJobStatus;
+  /** @nullable */
+  errorMessage: string | null;
+  assets: ImageAsset[];
+  referenceAssetIds: string[];
+  /** @nullable */
+  maskAssetId: string | null;
+  createdAt: string;
+}
+
+export interface ImageJobInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  modelId: string;
+  operation: ImageOperation;
+  /** @maxLength 10000 */
+  prompt: string;
+  /** @maxLength 5000 */
+  negativePrompt?: string;
+  /**
+     * @minimum 1
+     * @maximum 32768
+     */
+  width: number;
+  /**
+     * @minimum 1
+     * @maximum 32768
+     */
+  height: number;
+  /**
+     * @minimum 1
+     * @maximum 16
+     */
+  count: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  seed?: number;
+  /** @maxItems 16 */
+  referenceAssetIds?: string[];
+  maskAssetId?: string;
+  cloudConfirmed?: boolean;
+  /**
+     * @minLength 36
+     * @maxLength 36
+     */
+  requestKey?: string;
+}
+
+export interface ImageAssetUpdate {
+  favorite?: boolean;
+  /** @maxLength 200 */
+  collection?: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name?: string;
+}
+
+export interface ImageJobList {
+  jobs: ImageJob[];
+}
+
+export interface ImageJobResult {
+  job: ImageJob;
+}
+
+export interface ImageAssetList {
+  assets: ImageAsset[];
+}
+
+export interface ImageAssetResult {
+  asset: ImageAsset;
+}
+
 export interface AuthConfig {
   registrationEnabled: boolean;
   bootstrapAvailable: boolean;
@@ -893,5 +1068,25 @@ page?: number;
  * @maximum 100
  */
 pageSize?: number;
+};
+
+export type ListImageStudioJobsParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
+
+export type ListImageStudioAssetsParams = {
+/**
+ * @maxLength 200
+ */
+search?: string;
+favorite?: boolean;
+/**
+ * @maxLength 200
+ */
+collection?: string;
 };
 

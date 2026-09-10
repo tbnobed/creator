@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
+import { sanitizeProviderMessage } from "@/lib/provider-messages";
 
 const REFERENCE_VIDEO_STORAGE_KEY = "obtv.referenceVideo";
 const COMPOSER_DRAFT_STORAGE_KEY = "obtv.composerDraft";
@@ -331,8 +332,9 @@ export default function GeneratePage() {
       });
       window.localStorage.removeItem(COMPOSER_DRAFT_STORAGE_KEY);
       setLocation(`/generations/${res.id}`);
-    } catch (err: any) {
-      alert("Failed to submit job: " + (err.message || "Unknown error"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : null;
+      alert("Failed to submit job: " + sanitizeProviderMessage(message, "Unknown error"));
     }
   };
 

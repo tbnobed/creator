@@ -9,6 +9,7 @@ import {
   comfyServersTable,
   db,
   generationJobsTable,
+  imageStudioJobsTable,
   longFormProjectsTable,
   longFormShotsTable,
   pool,
@@ -534,16 +535,23 @@ type DispatchAvailability = {
 };
 
 async function findDispatchAvailability(project: LongFormProject): Promise<DispatchAvailability> {
-  const [servers, workflows, activeJobs] = await Promise.all([
+  const [servers, workflows, activeJobs, activeImageJobs] = await Promise.all([
     db.select().from(comfyServersTable),
     db.select().from(workflowTemplatesTable).where(and(eq(workflowTemplatesTable.generationMode, project.generationMode), eq(workflowTemplatesTable.active, true))),
     db
       .select({ comfyServerId: generationJobsTable.comfyServerId })
       .from(generationJobsTable)
       .where(inArray(generationJobsTable.status, activeGenerationStatuses)),
+    db
+      .select({ comfyServerId: imageStudioJobsTable.comfyServerId })
+      .from(imageStudioJobsTable)
+      .where(inArray(imageStudioJobsTable.status, ["QUEUED", "RUNNING"])),
   ]);
   const activeByServer = new Map<string, number>();
   for (const job of activeJobs) {
+    if (job.comfyServerId) activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
+  }
+  for (const job of activeImageJobs) {
     if (job.comfyServerId) activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
   }
   const compatibleWorkflows = workflows.filter(isLongFormWorkflow);

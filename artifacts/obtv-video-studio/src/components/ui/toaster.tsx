@@ -7,6 +7,7 @@ import {
   ToastViewport,
 } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeProviderMessage } from '@/lib/provider-messages';
 
 export function Toaster() {
   const { toasts } = useToast();
@@ -17,9 +18,11 @@ export function Toaster() {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
+              {title && <ToastTitle>{typeof title === 'string' ? sanitizeProviderMessage(title) : title}</ToastTitle>}
               {description && (
-                <ToastDescription>{description}</ToastDescription>
+                <ToastDescription>
+                  {typeof description === 'string' ? sanitizeProviderMessage(description) : description}
+                </ToastDescription>
               )}
             </div>
             {action}

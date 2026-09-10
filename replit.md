@@ -34,7 +34,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- The UI must call the external provider **Cloud**, never fal.ai; API errors shown in the UI follow the same branding. Keep internal provider IDs, enum values, endpoint URLs, credential keys, and technical documentation unchanged.
 
 ## Gotchas
 

@@ -4,6 +4,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react';
+import { sanitizeProviderMessage } from '@/lib/provider-messages';
 
 export interface ErrorFallbackProps {
   error: Error;
@@ -49,7 +50,7 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
           <pre className="mt-4 overflow-x-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-800">
-            {error.message || String(error)}
+            {sanitizeProviderMessage(error.message || String(error))}
           </pre>
         ) : null}
         <button

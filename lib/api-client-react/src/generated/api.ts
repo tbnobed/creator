@@ -33,7 +33,16 @@ import type {
   GenerationInput,
   GenerationJob,
   HealthStatus,
+  ImageAssetList,
+  ImageAssetResult,
+  ImageAssetUpdate,
+  ImageJobInput,
+  ImageJobList,
+  ImageJobResult,
+  ImageModelList,
   ListGenerationsParams,
+  ListImageStudioAssetsParams,
+  ListImageStudioJobsParams,
   LongFormProject,
   LongFormProjectDetail,
   LongFormProjectInput,
@@ -4490,3 +4499,758 @@ export function useDownloadLongFormNlePackage<TData = Awaited<ReturnType<typeof 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getListImageStudioModelsUrl = () => {
+
+
+
+
+  return `/api/image-studio/models`
+}
+
+/**
+ * @summary List image models and their current availability
+ */
+export const listImageStudioModels = async ( options?: Parameters<typeof customFetch>[1]): Promise<ImageModelList> => {
+
+  return customFetch<ImageModelList>(getListImageStudioModelsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListImageStudioModelsQueryKey = () => {
+    return [
+    `/api/image-studio/models`
+    ] as const;
+    }
+
+
+export const getListImageStudioModelsQueryOptions = <TData = Awaited<ReturnType<typeof listImageStudioModels>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImageStudioModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListImageStudioModelsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listImageStudioModels>>> = ({ signal }) => listImageStudioModels({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listImageStudioModels>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListImageStudioModelsQueryResult = NonNullable<Awaited<ReturnType<typeof listImageStudioModels>>>
+export type ListImageStudioModelsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List image models and their current availability
+ */
+
+export function useListImageStudioModels<TData = Awaited<ReturnType<typeof listImageStudioModels>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImageStudioModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListImageStudioModelsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListImageStudioJobsUrl = (params?: ListImageStudioJobsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/image-studio/jobs?${stringifiedParams}` : `/api/image-studio/jobs`
+}
+
+/**
+ * @summary List the active tenant's newest image jobs
+ */
+export const listImageStudioJobs = async (params?: ListImageStudioJobsParams, options?: Parameters<typeof customFetch>[1]): Promise<ImageJobList> => {
+
+  return customFetch<ImageJobList>(getListImageStudioJobsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListImageStudioJobsQueryKey = (params?: ListImageStudioJobsParams,) => {
+    return [
+    `/api/image-studio/jobs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListImageStudioJobsQueryOptions = <TData = Awaited<ReturnType<typeof listImageStudioJobs>>, TError = ErrorType<unknown>>(params?: ListImageStudioJobsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImageStudioJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListImageStudioJobsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listImageStudioJobs>>> = ({ signal }) => listImageStudioJobs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listImageStudioJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListImageStudioJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listImageStudioJobs>>>
+export type ListImageStudioJobsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the active tenant's newest image jobs
+ */
+
+export function useListImageStudioJobs<TData = Awaited<ReturnType<typeof listImageStudioJobs>>, TError = ErrorType<unknown>>(
+ params?: ListImageStudioJobsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImageStudioJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListImageStudioJobsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateImageStudioJobUrl = () => {
+
+
+
+
+  return `/api/image-studio/jobs`
+}
+
+/**
+ * @summary Submit a durable image task
+ */
+export const createImageStudioJob = async (imageJobInput: ImageJobInput, options?: Parameters<typeof customFetch>[1]): Promise<ImageJobResult> => {
+
+  return customFetch<ImageJobResult>(getCreateImageStudioJobUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(imageJobInput)
+  }
+);}
+
+
+
+
+
+export const getCreateImageStudioJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createImageStudioJob>>, TError,{data: BodyType<ImageJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createImageStudioJob>>, TError,{data: BodyType<ImageJobInput>}, TContext> => {
+
+const mutationKey = ['createImageStudioJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createImageStudioJob>>, {data: BodyType<ImageJobInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createImageStudioJob(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateImageStudioJobMutationResult = NonNullable<Awaited<ReturnType<typeof createImageStudioJob>>>
+    export type CreateImageStudioJobMutationBody = BodyType<ImageJobInput>
+    export type CreateImageStudioJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Submit a durable image task
+ */
+export const useCreateImageStudioJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createImageStudioJob>>, TError,{data: BodyType<ImageJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createImageStudioJob>>,
+        TError,
+        {data: BodyType<ImageJobInput>},
+        TContext
+      > => {
+      return useMutation(getCreateImageStudioJobMutationOptions(options));
+    }
+
+export const getGetImageStudioJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/image-studio/jobs/${id}`
+}
+
+/**
+ * @summary Get a tenant-private image job
+ */
+export const getImageStudioJob = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ImageJobResult> => {
+
+  return customFetch<ImageJobResult>(getGetImageStudioJobUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetImageStudioJobQueryKey = (id: string,) => {
+    return [
+    `/api/image-studio/jobs/${id}`
+    ] as const;
+    }
+
+
+export const getGetImageStudioJobQueryOptions = <TData = Awaited<ReturnType<typeof getImageStudioJob>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getImageStudioJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetImageStudioJobQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getImageStudioJob>>> = ({ signal }) => getImageStudioJob(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getImageStudioJob>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetImageStudioJobQueryResult = NonNullable<Awaited<ReturnType<typeof getImageStudioJob>>>
+export type GetImageStudioJobQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a tenant-private image job
+ */
+
+export function useGetImageStudioJob<TData = Awaited<ReturnType<typeof getImageStudioJob>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getImageStudioJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetImageStudioJobQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteImageStudioJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/image-studio/jobs/${id}`
+}
+
+/**
+ * @summary Delete a non-active image job
+ */
+export const deleteImageStudioJob = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteImageStudioJobUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteImageStudioJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteImageStudioJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteImageStudioJob>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteImageStudioJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteImageStudioJob>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteImageStudioJob(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteImageStudioJobMutationResult = NonNullable<Awaited<ReturnType<typeof deleteImageStudioJob>>>
+
+    export type DeleteImageStudioJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a non-active image job
+ */
+export const useDeleteImageStudioJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteImageStudioJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteImageStudioJob>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteImageStudioJobMutationOptions(options));
+    }
+
+export const getCancelImageStudioJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/image-studio/jobs/${id}/cancel`
+}
+
+/**
+ * @summary Cancel an active image job
+ */
+export const cancelImageStudioJob = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ImageJobResult> => {
+
+  return customFetch<ImageJobResult>(getCancelImageStudioJobUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelImageStudioJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelImageStudioJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelImageStudioJob>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelImageStudioJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelImageStudioJob>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelImageStudioJob(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelImageStudioJobMutationResult = NonNullable<Awaited<ReturnType<typeof cancelImageStudioJob>>>
+
+    export type CancelImageStudioJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Cancel an active image job
+ */
+export const useCancelImageStudioJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelImageStudioJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelImageStudioJob>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelImageStudioJobMutationOptions(options));
+    }
+
+export const getListImageStudioAssetsUrl = (params?: ListImageStudioAssetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/image-studio/assets?${stringifiedParams}` : `/api/image-studio/assets`
+}
+
+/**
+ * @summary Search the active tenant's image assets
+ */
+export const listImageStudioAssets = async (params?: ListImageStudioAssetsParams, options?: Parameters<typeof customFetch>[1]): Promise<ImageAssetList> => {
+
+  return customFetch<ImageAssetList>(getListImageStudioAssetsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListImageStudioAssetsQueryKey = (params?: ListImageStudioAssetsParams,) => {
+    return [
+    `/api/image-studio/assets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListImageStudioAssetsQueryOptions = <TData = Awaited<ReturnType<typeof listImageStudioAssets>>, TError = ErrorType<unknown>>(params?: ListImageStudioAssetsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImageStudioAssets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListImageStudioAssetsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listImageStudioAssets>>> = ({ signal }) => listImageStudioAssets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listImageStudioAssets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListImageStudioAssetsQueryResult = NonNullable<Awaited<ReturnType<typeof listImageStudioAssets>>>
+export type ListImageStudioAssetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search the active tenant's image assets
+ */
+
+export function useListImageStudioAssets<TData = Awaited<ReturnType<typeof listImageStudioAssets>>, TError = ErrorType<unknown>>(
+ params?: ListImageStudioAssetsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImageStudioAssets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListImageStudioAssetsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadImageStudioAssetUrl = () => {
+
+
+
+
+  return `/api/image-studio/uploads`
+}
+
+/**
+ * @summary Upload a PNG, JPEG, or WebP image
+ */
+export const uploadImageStudioAsset = async (uploadImageStudioAssetBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<ImageAssetResult> => {
+
+  return customFetch<ImageAssetResult>(getUploadImageStudioAssetUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'image/png', ...options?.headers },
+    body: uploadImageStudioAssetBody
+  }
+);}
+
+
+
+
+
+export const getUploadImageStudioAssetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadImageStudioAsset>>, TError,{data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadImageStudioAsset>>, TError,{data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadImageStudioAsset'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadImageStudioAsset>>, {data: BodyType<Blob>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadImageStudioAsset(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadImageStudioAssetMutationResult = NonNullable<Awaited<ReturnType<typeof uploadImageStudioAsset>>>
+    export type UploadImageStudioAssetMutationBody = BodyType<Blob>
+    export type UploadImageStudioAssetMutationError = ErrorType<void>
+
+    /**
+ * @summary Upload a PNG, JPEG, or WebP image
+ */
+export const useUploadImageStudioAsset = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadImageStudioAsset>>, TError,{data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadImageStudioAsset>>,
+        TError,
+        {data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadImageStudioAssetMutationOptions(options));
+    }
+
+export const getUpdateImageStudioAssetUrl = (id: string,) => {
+
+
+
+
+  return `/api/image-studio/assets/${id}`
+}
+
+/**
+ * @summary Update image asset library metadata
+ */
+export const updateImageStudioAsset = async (id: string,
+    imageAssetUpdate: ImageAssetUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ImageAssetResult> => {
+
+  return customFetch<ImageAssetResult>(getUpdateImageStudioAssetUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(imageAssetUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateImageStudioAssetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateImageStudioAsset>>, TError,{id: string;data: BodyType<ImageAssetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateImageStudioAsset>>, TError,{id: string;data: BodyType<ImageAssetUpdate>}, TContext> => {
+
+const mutationKey = ['updateImageStudioAsset'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateImageStudioAsset>>, {id: string;data: BodyType<ImageAssetUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateImageStudioAsset(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateImageStudioAssetMutationResult = NonNullable<Awaited<ReturnType<typeof updateImageStudioAsset>>>
+    export type UpdateImageStudioAssetMutationBody = BodyType<ImageAssetUpdate>
+    export type UpdateImageStudioAssetMutationError = ErrorType<void>
+
+    /**
+ * @summary Update image asset library metadata
+ */
+export const useUpdateImageStudioAsset = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateImageStudioAsset>>, TError,{id: string;data: BodyType<ImageAssetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateImageStudioAsset>>,
+        TError,
+        {id: string;data: BodyType<ImageAssetUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateImageStudioAssetMutationOptions(options));
+    }
+
+export const getDeleteImageStudioAssetUrl = (id: string,) => {
+
+
+
+
+  return `/api/image-studio/assets/${id}`
+}
+
+/**
+ * @summary Delete an unreferenced image asset
+ */
+export const deleteImageStudioAsset = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteImageStudioAssetUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteImageStudioAssetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteImageStudioAsset>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteImageStudioAsset>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteImageStudioAsset'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteImageStudioAsset>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteImageStudioAsset(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteImageStudioAssetMutationResult = NonNullable<Awaited<ReturnType<typeof deleteImageStudioAsset>>>
+
+    export type DeleteImageStudioAssetMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete an unreferenced image asset
+ */
+export const useDeleteImageStudioAsset = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteImageStudioAsset>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteImageStudioAsset>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteImageStudioAssetMutationOptions(options));
+    }

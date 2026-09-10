@@ -281,11 +281,11 @@ function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending,
 
 function formatProviderModel(providerModelId: string | null) {
   switch (providerModelId) {
-    case "fal-ai/veo3.1/fast": return "fal.ai · Veo 3.1 Fast";
-    case "fal-ai/kling-video/v3/standard/text-to-video": return "fal.ai · Kling v3 Standard";
-    case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "fal.ai · Seedance 2.0 Mini";
-    case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "fal.ai · Seedance 2.0 quality";
-    default: return providerModelId ? `fal.ai · ${providerModelId}` : "fal.ai";
+    case "fal-ai/veo3.1/fast": return "Cloud · Veo 3.1 Fast";
+    case "fal-ai/kling-video/v3/standard/text-to-video": return "Cloud · Kling v3 Standard";
+    case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "Cloud · Seedance 2.0 Mini";
+    case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "Cloud · Seedance 2.0 quality";
+    default: return providerModelId ? "Cloud · Custom model" : "Cloud";
   }
 }
 

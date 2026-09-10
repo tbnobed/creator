@@ -93,6 +93,9 @@ export function presentGeneration(
     shotNumber: number;
   } | null = null,
 ) {
+  const sanitizeProviderMessage = (message: string | null) => message
+    ?.replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
+    .replace(/\bfal(?:\.ai)?\b/gi, "Cloud") ?? null;
   return {
     id: job.id,
     title: job.title,
@@ -112,7 +115,7 @@ export function presentGeneration(
     durationSeconds: job.durationSeconds,
     seed: job.seed,
     progress: job.progress,
-    currentNode: job.currentNode,
+    currentNode: sanitizeProviderMessage(job.currentNode),
     serverName,
     workflowName,
     longFormProjectId: longFormContext?.projectId ?? null,
@@ -121,7 +124,7 @@ export function presentGeneration(
     longFormShotNumber: longFormContext?.shotNumber ?? null,
     comfyPromptId: job.comfyPromptId,
     outputUrl: job.outputStorageKey ? `/api/media/${job.outputStorageKey}` : null,
-    errorMessage: job.errorMessage,
+    errorMessage: sanitizeProviderMessage(job.errorMessage),
     createdAt: job.createdAt.toISOString(),
     queuedAt: date(job.queuedAt),
     completedAt: date(job.completedAt),
