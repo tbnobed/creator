@@ -40,6 +40,18 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 _Populate as you build — sharp edges, "always run X before Y" rules._
 
+## GPU worker access
+
+These SSH connection details were confirmed by the operator. Keep them available for future worker maintenance; do not ask the operator to supply them again.
+
+- **A100:** `ssh ubuntu@107.180.212.240 -p 225` — password supplied through `GPU_A100_SSH_PASSWORD`.
+- **H100:** `ssh ubuntu@107.180.212.240 -p 226` — password supplied through `GPU_H100_SSH_PASSWORD`.
+- SSH inspection confirmed `/home/ubuntu/ComfyUI` on port 225 (runs as `ubuntu`) and `/opt/ComfyUI` on port 226 (systemd `comfyui.service`, runs as `comfyui`, models in `/srv/comfyui/models`).
+- Both machines reported **NVIDIA A100 80GB PCIe** during SSH verification on 2026-09-10; “H100” remains the operator's label for port 226, not a verified hardware specification.
+- Passwords and Hugging Face credentials belong only in workspace secrets, never in files or logs.
+- Check the actual GPU, ComfyUI process, model directory, and active queue on each SSH host before maintenance. App display labels and API port mappings alone are not proof of worker identity.
+- Preserve existing video/voice workloads and Python environments; do not restart an occupied worker.
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details

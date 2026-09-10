@@ -29,6 +29,40 @@ Use the existing GPU Servers administration to configure workers. Install the ap
 
 The adapter's model-file checks are the source of truth for supported filenames. Models that are not installed remain unavailable in the UI.
 
+### Reproducible worker installation
+
+SSH connection details are recorded under **GPU worker access** in `replit.md`.
+Copy `scripts/provision-image-studio-models.py` to the worker, then run it as
+the owner of the model directory:
+
+```bash
+# A100 worker (SSH port 225)
+python3 /tmp/obtv-provision-image-models.py --models-dir /home/ubuntu/ComfyUI/models
+
+# H100-labeled worker (SSH port 226)
+sudo -u comfyui python3 /tmp/obtv-provision-image-models.py --models-dir /srv/comfyui/models
+```
+
+The installer uses pinned official Comfy-Org model revisions and verifies
+SHA-256 checksums for every file, including files already installed. Downloads
+resume from `.part` files; `aria2c` is used when available, with `curl` as the
+fallback. It neither updates ComfyUI/Python nor restarts services, and refuses
+to overwrite existing files that differ from upstream.
+
+After installation, run the real application adapter checks from this project:
+
+```bash
+node scripts/test-image-worker-models.mjs --api-url http://107.180.212.240:8181/
+node scripts/test-image-worker-models.mjs --api-url http://107.180.212.240:8182/
+```
+
+Each command reserves only its selected development worker, refuses occupied
+queues, generates one image with each local model, checks output dimensions,
+and restores the worker's prior enabled setting. It never submits paid Cloud
+work. On uncertain cancellation, it leaves the worker disabled and prints
+recovery instructions instead of exposing an occupied GPU to new app jobs.
+Assign the capability tags below only after those checks pass.
+
 | Capability tag | Diffusion model | Text encoder | VAE |
 | --- | --- | --- | --- |
 | `flux2-klein` | `flux-2-klein-4b.safetensors` | `qwen_3_4b.safetensors` | `flux2-vae.safetensors` |
