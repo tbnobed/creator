@@ -5,7 +5,6 @@ import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
 import { startLongFormOrchestrator } from "./lib/long-form-service";
 import { resumeImageStudioJobs } from "./lib/image-studio-service";
-import { startSpendingReconciliation } from "./lib/spending-reconciliation";
 
 const rawPort = process.env["PORT"];
 
@@ -27,7 +26,6 @@ async function start(): Promise<void> {
   await startLongFormOrchestrator();
   await resumeImageStudioJobs();
   void startServerHealthChecks();
-  startSpendingReconciliation();
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

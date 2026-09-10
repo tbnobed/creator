@@ -1,6 +1,5 @@
-const PRICING_API = "https://api.fal.ai/v1/models/pricing";
-const PRICING_CACHE_TTL_MS = 5 * 60_000;
 const MAX_QUOTE_USD = 1_000_000;
+const RATE_CARD_DATE = "2026-09-10";
 
 type Quote = { estimatedUsd: number; pricingNote: string };
 type QuoteInput = {
@@ -12,10 +11,8 @@ type QuoteInput = {
 };
 type VideoQuoteInput = { duration: number; resolution?: string; generateAudio?: boolean };
 type Price = {
-  endpointId: string;
   unitPrice: number;
   unit: string;
-  fetchedAt: Date;
 };
 
 export class SpendingPricingError extends Error {
@@ -84,11 +81,28 @@ const videoCatalog = {
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { units: ["1000 tokens"] },
 } as const;
 
-const priceCache = new Map<string, { expiresAt: number; price: Price }>();
-const pendingPrices = new Map<string, Promise<Price>>();
+const localRateCard: Readonly<Record<string, Price>> = {
+  "fal-ai/nano-banana-2": { unitPrice: 0.08, unit: "images" },
+  "fal-ai/nano-banana-2/edit": { unitPrice: 0.08, unit: "images" },
+  "fal-ai/nano-banana-pro": { unitPrice: 0.15, unit: "images" },
+  "fal-ai/nano-banana-pro/edit": { unitPrice: 0.15, unit: "images" },
+  "openai/gpt-image-2": { unitPrice: 1, unit: "units" },
+  "openai/gpt-image-2/edit": { unitPrice: 1, unit: "units" },
+  "fal-ai/flux-2-pro": { unitPrice: 0.03, unit: "processed megapixels" },
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": { unitPrice: 0.035, unit: "images" },
+  "fal-ai/ideogram/v3": { unitPrice: 0.03, unit: "images" },
+  "fal-ai/recraft/v3/text-to-image": { unitPrice: 0.04, unit: "images" },
+  "fal-ai/qwen-image-edit/inpaint": { unitPrice: 0.03, unit: "megapixels" },
+  "fal-ai/esrgan": { unitPrice: 0.00111, unit: "compute seconds" },
+  "fal-ai/imageutils/rembg": { unitPrice: 0.00111, unit: "compute seconds" },
+  "fal-ai/veo3.1/fast": { unitPrice: 0.15, unit: "seconds" },
+  "fal-ai/kling-video/v3/standard/text-to-video": { unitPrice: 0.14, unit: "seconds" },
+  "bytedance/seedance-2.0/enterprise/mini/text-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/enterprise/v2/text-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
+};
 
 function unavailable(message: string): SpendingPricingError {
-  return new SpendingPricingError(`Cloud pricing unavailable: ${message}`);
+  return new SpendingPricingError(`Local pricing unavailable: ${message}`);
 }
 
 function positive(value: number, field: string): void {
@@ -106,68 +120,17 @@ function roundQuote(value: number): number {
   return Math.ceil((value - Number.EPSILON) * 1_000_000) / 1_000_000;
 }
 
-async function fetchPrice(endpointId: string, expectedUnits: readonly string[]): Promise<Price> {
-  const cached = priceCache.get(endpointId);
-  if (cached && cached.expiresAt > Date.now()) return cached.price;
-  const pending = pendingPrices.get(endpointId);
-  if (pending) return pending;
-
-  const promise = (async () => {
-    const key = process.env.FAL_KEY?.trim();
-    if (!key) throw unavailable("credentials are not configured");
-    let response: Response;
-    try {
-      const query = new URLSearchParams({ endpoint_id: endpointId });
-      response = await fetch(`${PRICING_API}?${query}`, {
-        method: "GET",
-        headers: { Authorization: `Key ${key}`, Accept: "application/json" },
-        signal: AbortSignal.timeout(5_000),
-      });
-    } catch {
-      throw unavailable("the live rate could not be retrieved");
-    }
-    if (!response.ok) throw unavailable(`the live rate request returned HTTP ${response.status}`);
-
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch {
-      throw unavailable("the live rate response was not valid JSON");
-    }
-    const prices = body && typeof body === "object"
-      ? (body as { prices?: unknown }).prices
-      : undefined;
-    const row = Array.isArray(prices)
-      ? prices.find((item) => item && typeof item === "object"
-        && (item as { endpoint_id?: unknown }).endpoint_id === endpointId)
-      : undefined;
-    const candidate = row as { unit_price?: unknown; unit?: unknown; currency?: unknown } | undefined;
-    if (!candidate || candidate.currency !== "USD"
-      || typeof candidate.unit_price !== "number" || !Number.isFinite(candidate.unit_price)
-      || candidate.unit_price <= 0 || typeof candidate.unit !== "string"
-      || !expectedUnits.includes(candidate.unit)) {
-      throw unavailable("the live rate had an unknown currency, unit, or value");
-    }
-    const price = {
-      endpointId,
-      unitPrice: candidate.unit_price,
-      unit: candidate.unit,
-      fetchedAt: new Date(),
-    };
-    priceCache.set(endpointId, { price, expiresAt: Date.now() + PRICING_CACHE_TTL_MS });
-    return price;
-  })();
-  pendingPrices.set(endpointId, promise);
-  try {
-    return await promise;
-  } finally {
-    pendingPrices.delete(endpointId);
+function localPrice(endpointId: string, expectedUnits: readonly string[]): Price {
+  const price = localRateCard[endpointId];
+  if (!price) throw unavailable(`no checked-in rate exists for ${endpointId}`);
+  if (!Number.isFinite(price.unitPrice) || price.unitPrice <= 0 || !expectedUnits.includes(price.unit)) {
+    throw unavailable(`the checked-in rate for ${endpointId} has an unsupported unit or value`);
   }
+  return price;
 }
 
 function note(price: Price, detail: string): string {
-  const snapshotDate = price.fetchedAt.toISOString();
-  return `Estimated reservation, not an invoice. pricing-v1 snapshot ${snapshotDate}: `
+  return `Locally estimated using checked-in USD rate card dated ${RATE_CARD_DATE}: `
     + `$${price.unitPrice}/${price.unit}; ${detail}`;
 }
 
@@ -199,7 +162,7 @@ export async function quoteImageSpend(modelId: string, input: QuoteInput): Promi
   const endpoints = model.endpoints as Record<string, string>;
   const endpoint = endpoints[input.operation];
   if (!endpoint) throw unavailable("the operation is not priced for this image model");
-  const price = await fetchPrice(endpoint, model.units);
+  const price = localPrice(endpoint, model.units);
 
   let raw: number;
   let detail: string;
@@ -227,7 +190,7 @@ export async function quoteImageSpend(modelId: string, input: QuoteInput): Promi
   } else if (modelId === "cloud-flux2-pro") {
     const roundedMp = Math.max(1, Math.ceil(mp));
     raw = price.unitPrice * (1 + Math.max(0, roundedMp - 1) * 0.5) * input.count;
-    detail = `${input.count} output(s), ${roundedMp} rounded output MP; first MP at live rate, extras at documented half-rate.`;
+    detail = `${input.count} output(s), ${roundedMp} rounded output MP; first MP at local rate, extras at documented half-rate.`;
   } else if (modelId === "cloud-ideogram-v3") {
     raw = price.unitPrice * 2 * input.count;
     detail = `${input.count} BALANCED output(s), documented 2x base-rate multiplier.`;
@@ -260,7 +223,7 @@ export async function quoteVideoSpend(modelId: string, input: VideoQuoteInput): 
   positive(input.duration, "duration");
   const model = videoCatalog[modelId as keyof typeof videoCatalog];
   if (!model) throw unavailable("unknown video model");
-  const price = await fetchPrice(modelId, model.units);
+  const price = localPrice(modelId, model.units);
   const dimensions = videoDimensions(input.resolution);
   const audio = input.generateAudio === true;
 
@@ -272,17 +235,17 @@ export async function quoteVideoSpend(modelId: string, input: VideoQuoteInput): 
     detail = `${input.duration}s at ${dimensions.label}, 24fps token formula`
       + ` (${Math.ceil(tokens)} estimated tokens); audio does not change the documented token rate.`;
   } else if (modelId === "fal-ai/veo3.1/fast" && dimensions.label === "4k") {
-    // The live rate is the 720p/1080p audio rate. Documented 4K rates are
+    // The local rate is the 720p/1080p audio rate. Documented 4K rates are
     // $0.35 with audio and $0.30 without it, represented as relative factors.
     const multiplier = audio ? 0.35 / 0.15 : 0.30 / 0.15;
     raw = price.unitPrice * multiplier * input.duration;
     detail = `${input.duration}s at 4k, audio ${audio ? "on" : "off"}, documented ${multiplier.toFixed(4)}x multiplier.`;
   } else {
-    // The current live rates exceed the documented no-audio rates for both
-    // endpoints, so using the unmodified live rate safely over-reserves.
+    // The checked-in rates exceed the documented no-audio rates for both
+    // endpoints, so using the unmodified local rate safely over-reserves.
     raw = price.unitPrice * input.duration;
     detail = `${input.duration}s at ${dimensions.label}, audio ${audio ? "on" : "off"};`
-      + " unmodified live per-second rate used conservatively.";
+      + " unmodified local per-second rate used conservatively.";
   }
   return { estimatedUsd: roundQuote(raw), pricingNote: note(price, detail) };
 }

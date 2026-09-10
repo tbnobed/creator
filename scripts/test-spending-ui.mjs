@@ -362,6 +362,15 @@ try {
   await sitePage.getByText(`$${globalReport.body.totals.totalUSD.toFixed(2)}`, { exact: true }).last().waitFor();
   await sitePage.getByText(tenant.name, { exact: true }).first().waitFor();
   await sitePage.getByText(foreignTenant.name, { exact: true }).first().waitFor();
+  assert.equal(await sitePage.getByText("Billed (Actual)", { exact: true }).count(), 0);
+  await sitePage.getByText("Recorded Cost", { exact: true }).waitFor();
+  // A site admin can select tenants they do not belong to, not only their memberships.
+  await sitePage.getByRole("combobox").click();
+  await sitePage.getByRole("option", { name: foreignTenant.name, exact: true }).click();
+  await sitePage.waitForFunction((email) => !document.body.innerText.includes(email), member.email);
+  await sitePage.getByRole("combobox").click();
+  await sitePage.getByRole("option", { name: "All Workspaces", exact: true }).click();
+  await sitePage.getByText(member.email, { exact: true }).waitFor();
   await sitePage.waitForTimeout(700);
   await sitePage.screenshot({ path: "/tmp/spending-admin.png", fullPage: true });
   await sitePage.getByRole("tab", { name: "Ledger Entries" }).click();

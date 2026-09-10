@@ -47,17 +47,6 @@ process.env.NODE_ENV = "production";
 process.env.LOG_LEVEL = "silent";
 globalThis.fetch = async (input) => {
   const url = new URL(typeof input === "string" ? input : input.url);
-  if (url.hostname === "api.fal.ai" && url.pathname === "/v1/models/pricing") {
-    const endpointId = url.searchParams.get("endpoint_id");
-    const known = {
-      "fal-ai/veo3.1/fast": { unit_price: 0.1, unit: "seconds" },
-      "fal-ai/nano-banana-2": { unit_price: 0.08, unit: "images" },
-    }[endpointId];
-    assert(known, `Unexpected pricing endpoint ${endpointId}`);
-    return Response.json({
-      prices: [{ endpoint_id: endpointId, currency: "USD", ...known }],
-    });
-  }
   if (url.hostname === "queue.fal.run") {
     providerDispatches += 1;
     throw new Error("Paid provider dispatch blocked by regression test");

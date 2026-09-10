@@ -34,7 +34,7 @@ import { hasRequiredTags } from "./comfy/scheduler";
 import { logger } from "./logger";
 import { mediaStorage } from "./storage-service";
 import { quoteImageSpend } from "./spending-pricing";
-import { attachSpendReceipt, reserveSpend, settleSpend } from "./spending-service";
+import { reserveSpend, settleSpend } from "./spending-service";
 
 const ACTIVE_STATUSES = ["QUEUED", "RUNNING"] as const;
 const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "CANCELLED"] as const;
@@ -203,49 +203,6 @@ function isDefinitiveSubmissionRejection(error: unknown): boolean {
     && status !== 409
     && status !== 425
     && status !== 429;
-}
-
-function cloudBillingEndpoint(metadata: Record<string, unknown>): string | undefined {
-  const endpoint = metadata.endpoint;
-  if (typeof endpoint !== "string" || !/^[a-z0-9][a-z0-9./_-]+$/i.test(endpoint)) return undefined;
-  return `https://queue.fal.run/${endpoint}`;
-}
-
-async function attachImageSpendReceiptSafely(job: ImageStudioJob): Promise<void> {
-  if (!hasImageSpendLifecycle(job) || !job.providerRequestId) return;
-  const endpoint = cloudBillingEndpoint(job.providerTaskMetadata);
-  if (!endpoint) {
-    logger.error(
-      { jobId: job.id },
-      "Could not attach Cloud image spend receipt because its persisted endpoint is missing",
-    );
-    return;
-  }
-  try {
-    await attachSpendReceipt("image", job.id, job.providerRequestId, endpoint);
-  } catch (error) {
-    logger.error(
-      { err: error, jobId: job.id },
-      "Could not attach Cloud image spend receipt; restart reconciliation will retry",
-    );
-  }
-}
-
-async function attachSubmittedImageSpendReceiptSafely(
-  job: ImageStudioJob,
-  receipt: { requestId: string; metadata: Record<string, unknown> },
-): Promise<void> {
-  if (!hasImageSpendLifecycle(job)) return;
-  const endpoint = cloudBillingEndpoint(receipt.metadata);
-  if (!endpoint) return;
-  try {
-    await attachSpendReceipt("image", job.id, receipt.requestId, endpoint);
-  } catch (error) {
-    logger.error(
-      { err: error, jobId: job.id },
-      "Could not attach accepted Cloud image spend receipt; restart reconciliation will retry",
-    );
-  }
 }
 
 export function inspectImage(
@@ -1305,7 +1262,6 @@ export async function createImageJob(input: {
         }).catch(() => undefined);
         throw new ImageStudioRequestError("The image task was cancelled during submission", 409);
       }
-      await attachImageSpendReceiptSafely(accepted);
       return accepted;
     } catch (error) {
       const outcomeUnknown = job.provider === "CLOUD"
@@ -1314,9 +1270,6 @@ export async function createImageJob(input: {
       const failureMessage = outcomeUnknown
         ? submissionOutcomeUnknownMessage(job.provider)
         : publicFailure(job, error);
-      if (submittedReceipt) {
-        await attachSubmittedImageSpendReceiptSafely(job, submittedReceipt);
-      }
       const [latest] = providerAccepted
         ? await db
           .select()
@@ -1324,7 +1277,7 @@ export async function createImageJob(input: {
           .where(eq(imageStudioJobsTable.id, job.id))
           .limit(1)
         : [];
-      const [failedJob] = await db
+      await db
         .update(imageStudioJobsTable)
         .set({
           status: "FAILED",
@@ -1344,9 +1297,7 @@ export async function createImageJob(input: {
         .where(and(
           eq(imageStudioJobsTable.id, job.id),
           inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
-        ))
-        .returning();
-      if (failedJob) await attachImageSpendReceiptSafely(failedJob);
+        ));
       await settleImageSpendSafely(
         job,
         outcomeUnknown ? "uncertain" : "released",
@@ -1531,9 +1482,6 @@ export async function resumeImageStudioJobs(): Promise<void> {
     ));
   const active = jobs.filter((job) =>
     ACTIVE_STATUSES.includes(job.status as typeof ACTIVE_STATUSES[number]));
-  for (const job of jobs) {
-    await attachImageSpendReceiptSafely(job);
-  }
   for (const job of active) startMonitor(job.id);
   for (const job of jobs) {
     if (!hasImageSpendLifecycle(job) || active.includes(job)) continue;

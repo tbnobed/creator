@@ -18,3 +18,4 @@
 - [Portable auth enrollment](portable-auth-enrollment.md) — Separate operator bootstrap and legacy credential enrollment from ordinary tenant invitations.
 - [Preview auth verification](preview-auth-verification.md) — Test mutations through the real HTTPS preview; localhost and synthetic sessions can hide origin failures.
 - [Comfy monitor error classification](comfy-monitor-error-classification.md) — Only transient Comfy request failures count toward worker reachability; preserve finalization errors.
+- [Local cost tracking](local-cost-tracking.md) — Keep cost tracking in-app; provider billing sync, live pricing lookups, and billing keys require explicit authorization.

@@ -35,7 +35,7 @@ import {
   type FalQueueEndpoints,
 } from "./fal/client";
 import { quoteVideoSpend } from "./spending-pricing";
-import { attachSpendReceipt, reserveSpend, settleSpend } from "./spending-service";
+import { reserveSpend, settleSpend } from "./spending-service";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
@@ -169,21 +169,6 @@ async function settleVideoSpendIfReserved(
   }
 }
 
-async function attachVideoSpendReceiptSafely(
-  jobId: string,
-  requestId: string,
-  endpoint: string,
-): Promise<void> {
-  try {
-    await attachSpendReceipt("video", jobId, requestId, endpoint);
-  } catch (error) {
-    logger.error(
-      { err: error, jobId },
-      "Could not attach Cloud video spend receipt; spending reconciliation will retry",
-    );
-  }
-}
-
 function hasFalSpendLifecycle(metadata: Record<string, unknown>): boolean {
   return metadata.spendLifecycleVersion === FAL_SPEND_LIFECYCLE_VERSION;
 }
@@ -193,10 +178,6 @@ function latestFalStatus(metadata: Record<string, unknown>): string {
   return latest && typeof latest === "object"
     ? String((latest as { status?: unknown }).status ?? "").toUpperCase()
     : "";
-}
-
-function falBillingEndpoint(modelId: string): string {
-  return `https://queue.fal.run/${modelId}`;
 }
 
 function compileGenericPrompt(
@@ -624,13 +605,6 @@ export async function resumeActiveGenerations(): Promise<void> {
     ));
   for (const job of terminalCloudJobs) {
     if (!hasFalSpendLifecycle(job.providerTaskMetadata)) continue;
-    if (job.providerRequestId && job.providerModelId) {
-      await attachVideoSpendReceiptSafely(
-        job.id,
-        job.providerRequestId,
-        falBillingEndpoint(job.providerModelId),
-      );
-    }
     if (job.status === "COMPLETED" || latestFalStatus(job.providerTaskMetadata) === "COMPLETED") {
       await settleVideoSpendIfReserved(
         job.id,
@@ -1120,13 +1094,6 @@ async function createAndSubmitFalGeneration(
         providerRequestId: submitted.requestId,
         providerTaskMetadata: taskMetadata,
       }).where(eq(generationJobsTable.id, job.id)).returning();
-      if (current) {
-        await attachVideoSpendReceiptSafely(
-          job.id,
-          submitted.requestId,
-          falBillingEndpoint(falModels[model]),
-        );
-      }
       await client.cancel(submitted.endpoints).catch((error) => {
         logger.warn({ err: error, jobId: job.id }, "Could not cancel Cloud request after local cancellation");
       });
@@ -1138,11 +1105,6 @@ async function createAndSubmitFalGeneration(
       if (!current) throw new Error("Generation job disappeared after Cloud submission");
       return current;
     }
-    await attachVideoSpendReceiptSafely(
-      job.id,
-      submitted.requestId,
-      falBillingEndpoint(falModels[model]),
-    );
     void monitorFalGeneration(job.id, client, submitted.requestId, submitted.endpoints);
     return queued;
   } catch (error) {

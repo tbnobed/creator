@@ -1,4 +1,4 @@
-# Cloud spending and monthly allowances
+# Local cost tracking and monthly allowances
 
 The Spending page tracks paid Cloud image and video work. Local GPU, Ollama,
 prompt guidance, and local voice generation are not charged to these allowances.
@@ -14,39 +14,24 @@ prompt guidance, and local voice generation are not charged to these allowances.
   membership's allowance.
 - Allowances use USD and UTC calendar months, attributed to the submission date.
 
-## Reservations, estimates, and billed costs
+## Local cost accounting
 
 Estimated cost is reserved transactionally before provider submission. Concurrent
 requests share the same allowance. Provider-confirmed completion initially becomes
 estimated spending. Unknown submissions and uncertain cancellations retain their
 hold: a local failure does not prove that the provider avoided a charge.
 
-The ledger separates **Reserved**, **Estimated**, and **Billed**. Billed records
-replace estimates rather than adding another charge. They are reconciled from
-per-request provider billing events, including explicit zero-cost events. Missing
-events or billing access errors never mean a zero charge.
+The app calculates costs from its checked-in USD rate card and stores them in
+its existing database. The rate card and parameter adjustments are in
+`artifacts/api-server/src/lib/spending-pricing.ts`. Rates do not update remotely.
+The ledger shows completed, locally estimated costs separately from reservations.
+No provider billing connection, billing API calls, pricing API calls, invoice
+synchronization, or extra billing key is required.
 
-Pricing uses live USD rates and documented parameter adjustments. Token-priced
-images include conservative allowances, and compute-priced operations reserve
-conservative runtime allowances. These are not exact invoices or a guaranteed
-provider-side hard cap. A later bill can exceed an estimate; it is recorded
-honestly and reduces the allowance for future submissions.
-
-Tracking starts with jobs submitted after this update. Historical jobs are not
-assigned invented charges. Recent billed receipts are checked for additional
-events/corrections for 90 days; this is not an account-wide invoice/refund
-reconciliation system.
-
-## Billing access
-
-The inference credential may not have permission to read billing events. Set the
-optional server-only `CLOUD_BILLING_API_KEY` to an ADMIN-scoped key for the same
-Cloud provider account. Keep it in secrets, never client configuration or source
-control. If absent, the server tries the existing inference credential. Denied
-billing access leaves estimates and reservations in effect and logs a safe warning.
-
-Billing reconciliation runs in the API process once per minute, with a 15-minute
-backoff after denied access. Restart the API after changing credentials.
+Token- and compute-priced work uses conservative allowances. These are local
+estimates, not exact invoices or guaranteed provider-side caps. Tracking starts
+with new jobs; historical charges are not invented. Existing database columns
+and migrations are retained for compatibility and to avoid deleting stored data.
 
 ## Docker updates
 
@@ -56,8 +41,8 @@ procedure. The existing API startup migrator applies additive migrations
 `0012_cute_ulik.sql` and `0013_unknown_wong.sql`. Back up the database before
 updating. Development migration success does not imply production was migrated.
 
-The compose file forwards the optional billing key to the API. Keep the existing
-database and object storage; no migration to a different storage provider is needed.
+Keep the existing database and object storage; no new billing service or storage
+provider is needed.
 
 ## Tenant boundary
 

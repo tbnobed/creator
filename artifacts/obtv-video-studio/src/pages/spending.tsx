@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   useGetSession,
-  useListTenants,
   useGetSpendingReport,
   getGetSpendingReportQueryKey,
   useListSpendingEntries,
@@ -40,7 +39,7 @@ export default function SpendingPage() {
     <Page>
       <PageHeader
         title="Spending & Limits"
-        description="Track monthly cloud API costs, pending reservations, and user limits."
+        description="Local cost tracking by user and tenant, with monthly spending limits."
         actions={
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <Input
@@ -52,6 +51,7 @@ export default function SpendingPage() {
             />
             {isSiteAdmin && (
               <TenantSelector
+                month={month}
                 value={selectedTenantId}
                 onChange={setSelectedTenantId}
               />
@@ -64,7 +64,7 @@ export default function SpendingPage() {
         <SpendingOverview month={month} tenantId={queryTenantId} />
 
         <div className="text-xs text-muted-foreground bg-secondary/30 p-3 rounded-md border border-border/50">
-          <strong>Note:</strong> Some providers report final bills later. "Estimated" amounts are pending confirmation. We do not claim all estimated spend as final until the actual billed amount is known.
+          Costs are calculated and stored locally using the app's rate card—not fetched from provider bills. Allowances cover Cloud/API jobs only and reset each UTC calendar month. Local GPU usage is excluded.
         </div>
 
         <Tabs defaultValue="members" className="w-full">
@@ -86,8 +86,13 @@ export default function SpendingPage() {
   );
 }
 
-function TenantSelector({ value, onChange }: { value: string, onChange: (v: string) => void }) {
-  const { data: tenants } = useListTenants();
+function TenantSelector({ month, value, onChange }: { month: string, value: string, onChange: (v: string) => void }) {
+  const { data: report } = useGetSpendingReport({ month }, {
+    query: { queryKey: getGetSpendingReportQueryKey({ month }), refetchInterval: 30000 },
+  });
+  const tenants = [...new Map(report?.rows.map(row => [
+    row.tenantId, { id: row.tenantId, name: row.tenantName },
+  ]) ?? []).values()];
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-[200px]">
@@ -116,8 +121,8 @@ function SpendingOverview({ month, tenantId }: { month: string, tenantId?: strin
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map(i => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
           <Card key={i} className="animate-pulse bg-card/50">
             <CardHeader className="pb-2"><div className="h-4 bg-secondary rounded w-24"></div></CardHeader>
             <CardContent><div className="h-8 bg-secondary rounded w-32"></div></CardContent>
@@ -142,28 +147,16 @@ function SpendingOverview({ month, tenantId }: { month: string, tenantId?: strin
   const { totals } = report || { totals: { actualUSD: 0, estimatedUSD: 0, reservedUSD: 0, totalUSD: 0 } };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-2">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
       <Card className="border-border/50 bg-card/30 backdrop-blur-sm shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Coins className="size-4 text-blue-500" /> Billed (Actual)
+            <Coins className="size-4 text-emerald-500" /> Recorded Cost
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold font-mono">${totals.actualUSD.toFixed(2)}</div>
-          <p className="text-xs text-muted-foreground mt-1">Confirmed provider costs</p>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50 bg-card/30 backdrop-blur-sm shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Coins className="size-4 text-emerald-500" /> Estimated
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold font-mono">${totals.estimatedUSD.toFixed(2)}</div>
-          <p className="text-xs text-muted-foreground mt-1">Pending final bill</p>
+          <div className="text-3xl font-bold font-mono">${(totals.estimatedUSD + totals.actualUSD).toFixed(2)}</div>
+          <p className="text-xs text-muted-foreground mt-1">Completed jobs · locally estimated</p>
         </CardContent>
       </Card>
 
@@ -252,8 +245,8 @@ function MembersSpendingTable({ month, tenantId }: { month: string, tenantId?: s
                 <TableCell className="text-right">
                   <div className="font-mono font-medium">${row.totalUSD.toFixed(2)}</div>
                   <div className="text-[10px] flex flex-col items-end gap-0.5 mt-0.5">
-                    {row.actualUSD > 0 && <span className="text-blue-500 font-mono" title="Confirmed provider costs">billed ${row.actualUSD.toFixed(2)}</span>}
-                    {row.estimatedUSD > 0 && <span className="text-emerald-500 font-mono" title="Pending final bill">est ${row.estimatedUSD.toFixed(2)}</span>}
+                    {row.actualUSD > 0 && <span className="text-blue-500 font-mono" title="Previously recorded cost">recorded ${row.actualUSD.toFixed(2)}</span>}
+                    {row.estimatedUSD > 0 && <span className="text-emerald-500 font-mono" title="Locally estimated completed cost">est ${row.estimatedUSD.toFixed(2)}</span>}
                     {row.reservedUSD > 0 && <span className="text-amber-500 font-mono" title="In-flight generations">rsv ${row.reservedUSD.toFixed(2)}</span>}
                   </div>
                 </TableCell>
@@ -539,11 +532,11 @@ function StatusBadge({ outcome }: { outcome: string }) {
     case 'estimated':
       return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Estimated</Badge>;
     case 'actual':
-      return <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">Billed</Badge>;
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">Recorded</Badge>;
     case 'released':
       return <Badge variant="outline" className="bg-secondary text-secondary-foreground border-border">Released</Badge>;
     case 'uncertain':
-      return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 flex items-center gap-1"><AlertCircle className="size-3"/> Error</Badge>;
+      return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 flex items-center gap-1"><AlertCircle className="size-3"/> Uncertain · held</Badge>;
     default:
       return <Badge variant="secondary">{outcome}</Badge>;
   }
