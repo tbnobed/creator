@@ -1429,6 +1429,35 @@ export const listLongFormProjectsResponseTimelineClipsItemTrimStartSecondsMin = 
 
 export const listLongFormProjectsResponseTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
 
+export const listLongFormProjectsResponseContinuityEnabledDefault = false;
+export const listLongFormProjectsResponseContinuityCharactersItemAppearanceMax = 5000;
+
+export const listLongFormProjectsResponseContinuityCharactersItemBehaviorMax = 5000;
+
+export const listLongFormProjectsResponseContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const listLongFormProjectsResponseContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const listLongFormProjectsResponseContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const listLongFormProjectsResponseContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const listLongFormProjectsResponseContinuityCharactersItemWardrobesMax = 30;
+
+export const listLongFormProjectsResponseContinuityCharactersMax = 9;
+
+export const listLongFormProjectsResponseContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const listLongFormProjectsResponseContinuityScenesItemTitleMax = 300;
+
+export const listLongFormProjectsResponseContinuityScenesItemSettingNotesMax = 5000;
+
+export const listLongFormProjectsResponseContinuityScenesItemEmotionNotesMax = 5000;
+
+export const listLongFormProjectsResponseContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const listLongFormProjectsResponseContinuityScenesMax = 1000;
+
 
 
 export const ListLongFormProjectsResponseItem = zod.object({
@@ -1454,6 +1483,31 @@ export const ListLongFormProjectsResponseItem = zod.object({
   "trimStartSeconds": zod.number().min(listLongFormProjectsResponseTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(listLongFormProjectsResponseTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(listLongFormProjectsResponseContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(listLongFormProjectsResponseContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(listLongFormProjectsResponseContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(listLongFormProjectsResponseContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(listLongFormProjectsResponseContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(listLongFormProjectsResponseContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(listLongFormProjectsResponseContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(listLongFormProjectsResponseContinuityCharactersItemWardrobesMax)
+})).max(listLongFormProjectsResponseContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(listLongFormProjectsResponseContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(listLongFormProjectsResponseContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(listLongFormProjectsResponseContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(listLongFormProjectsResponseContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(listLongFormProjectsResponseContinuityScenesItemWardrobeAssignmentsMax)
+})).max(listLongFormProjectsResponseContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1489,6 +1543,35 @@ export const createLongFormProjectBodyWidthMax = 4096;
 export const createLongFormProjectBodyHeightMin = 64;
 export const createLongFormProjectBodyHeightMax = 4096;
 
+export const createLongFormProjectBodyContinuityEnabledDefault = false;
+export const createLongFormProjectBodyContinuityCharactersItemAppearanceMax = 5000;
+
+export const createLongFormProjectBodyContinuityCharactersItemBehaviorMax = 5000;
+
+export const createLongFormProjectBodyContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const createLongFormProjectBodyContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const createLongFormProjectBodyContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const createLongFormProjectBodyContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const createLongFormProjectBodyContinuityCharactersItemWardrobesMax = 30;
+
+export const createLongFormProjectBodyContinuityCharactersMax = 9;
+
+export const createLongFormProjectBodyContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const createLongFormProjectBodyContinuityScenesItemTitleMax = 300;
+
+export const createLongFormProjectBodyContinuityScenesItemSettingNotesMax = 5000;
+
+export const createLongFormProjectBodyContinuityScenesItemEmotionNotesMax = 5000;
+
+export const createLongFormProjectBodyContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const createLongFormProjectBodyContinuityScenesMax = 1000;
+
 
 
 export const CreateLongFormProjectBody = zod.object({
@@ -1504,12 +1587,73 @@ export const CreateLongFormProjectBody = zod.object({
   "width": zod.number().min(createLongFormProjectBodyWidthMin).max(createLongFormProjectBodyWidthMax),
   "height": zod.number().min(createLongFormProjectBodyHeightMin).max(createLongFormProjectBodyHeightMax),
   "fps": zod.union([zod.literal(24),zod.literal(25),zod.literal(30)]),
-  "qualityPreset": zod.enum(['DRAFT', 'STANDARD', 'HIGH'])
+  "qualityPreset": zod.enum(['DRAFT', 'STANDARD', 'HIGH']),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(createLongFormProjectBodyContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(createLongFormProjectBodyContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(createLongFormProjectBodyContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(createLongFormProjectBodyContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(createLongFormProjectBodyContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(createLongFormProjectBodyContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(createLongFormProjectBodyContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(createLongFormProjectBodyContinuityCharactersItemWardrobesMax)
+})).max(createLongFormProjectBodyContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(createLongFormProjectBodyContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(createLongFormProjectBodyContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(createLongFormProjectBodyContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(createLongFormProjectBodyContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(createLongFormProjectBodyContinuityScenesItemWardrobeAssignmentsMax)
+})).max(createLongFormProjectBodyContinuityScenesMax)
+}).optional()
 })
 
 export const createLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
 
 export const createLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const createLongFormProjectResponseOneContinuityEnabledDefault = false;
+export const createLongFormProjectResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const createLongFormProjectResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const createLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const createLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const createLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const createLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const createLongFormProjectResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const createLongFormProjectResponseOneContinuityCharactersMax = 9;
+
+export const createLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const createLongFormProjectResponseOneContinuityScenesItemTitleMax = 300;
+
+export const createLongFormProjectResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const createLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const createLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const createLongFormProjectResponseOneContinuityScenesMax = 1000;
+
+export const createLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const createLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const createLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const createLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
 
 
 
@@ -1536,6 +1680,31 @@ export const CreateLongFormProjectResponse = zod.object({
   "trimStartSeconds": zod.number().min(createLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(createLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(createLongFormProjectResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(createLongFormProjectResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(createLongFormProjectResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(createLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(createLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(createLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(createLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(createLongFormProjectResponseOneContinuityCharactersItemWardrobesMax)
+})).max(createLongFormProjectResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(createLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(createLongFormProjectResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(createLongFormProjectResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(createLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(createLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(createLongFormProjectResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1559,6 +1728,20 @@ export const CreateLongFormProjectResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(createLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(createLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(createLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(createLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1577,6 +1760,42 @@ export const GetLongFormProjectParams = zod.object({
 export const getLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
 
 export const getLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const getLongFormProjectResponseOneContinuityEnabledDefault = false;
+export const getLongFormProjectResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const getLongFormProjectResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const getLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const getLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const getLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const getLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const getLongFormProjectResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const getLongFormProjectResponseOneContinuityCharactersMax = 9;
+
+export const getLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const getLongFormProjectResponseOneContinuityScenesItemTitleMax = 300;
+
+export const getLongFormProjectResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const getLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const getLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const getLongFormProjectResponseOneContinuityScenesMax = 1000;
+
+export const getLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const getLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const getLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const getLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
 
 
 
@@ -1603,6 +1822,31 @@ export const GetLongFormProjectResponse = zod.object({
   "trimStartSeconds": zod.number().min(getLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(getLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(getLongFormProjectResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(getLongFormProjectResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(getLongFormProjectResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(getLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(getLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(getLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(getLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(getLongFormProjectResponseOneContinuityCharactersItemWardrobesMax)
+})).max(getLongFormProjectResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(getLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(getLongFormProjectResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(getLongFormProjectResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(getLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(getLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(getLongFormProjectResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1626,6 +1870,20 @@ export const GetLongFormProjectResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(getLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(getLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(getLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(getLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1655,6 +1913,42 @@ export const startLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin
 
 export const startLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
 
+export const startLongFormProjectResponseOneContinuityEnabledDefault = false;
+export const startLongFormProjectResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const startLongFormProjectResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const startLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const startLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const startLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const startLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const startLongFormProjectResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const startLongFormProjectResponseOneContinuityCharactersMax = 9;
+
+export const startLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const startLongFormProjectResponseOneContinuityScenesItemTitleMax = 300;
+
+export const startLongFormProjectResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const startLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const startLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const startLongFormProjectResponseOneContinuityScenesMax = 1000;
+
+export const startLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const startLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const startLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const startLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
+
 
 
 export const StartLongFormProjectResponse = zod.object({
@@ -1680,6 +1974,31 @@ export const StartLongFormProjectResponse = zod.object({
   "trimStartSeconds": zod.number().min(startLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(startLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(startLongFormProjectResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(startLongFormProjectResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(startLongFormProjectResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(startLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(startLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(startLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(startLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(startLongFormProjectResponseOneContinuityCharactersItemWardrobesMax)
+})).max(startLongFormProjectResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(startLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(startLongFormProjectResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(startLongFormProjectResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(startLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(startLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(startLongFormProjectResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1703,6 +2022,219 @@ export const StartLongFormProjectResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(startLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(startLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(startLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(startLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Replace persistent long-form continuity locks
+ */
+export const UpdateLongFormContinuityParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateLongFormContinuityBodyEnabledDefault = false;
+export const updateLongFormContinuityBodyCharactersItemAppearanceMax = 5000;
+
+export const updateLongFormContinuityBodyCharactersItemBehaviorMax = 5000;
+
+export const updateLongFormContinuityBodyCharactersItemVoiceDescriptionMax = 5000;
+
+export const updateLongFormContinuityBodyCharactersItemWardrobesItemIdMax = 100;
+
+export const updateLongFormContinuityBodyCharactersItemWardrobesItemNameMax = 200;
+
+export const updateLongFormContinuityBodyCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const updateLongFormContinuityBodyCharactersItemWardrobesMax = 30;
+
+export const updateLongFormContinuityBodyCharactersMax = 9;
+
+export const updateLongFormContinuityBodyScenesItemSceneNumberMultipleOf = 1;
+
+export const updateLongFormContinuityBodyScenesItemTitleMax = 300;
+
+export const updateLongFormContinuityBodyScenesItemSettingNotesMax = 5000;
+
+export const updateLongFormContinuityBodyScenesItemEmotionNotesMax = 5000;
+
+export const updateLongFormContinuityBodyScenesItemWardrobeAssignmentsMax = 50;
+
+export const updateLongFormContinuityBodyScenesMax = 1000;
+
+
+
+export const UpdateLongFormContinuityBody = zod.object({
+  "enabled": zod.boolean().default(updateLongFormContinuityBodyEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(updateLongFormContinuityBodyCharactersItemAppearanceMax),
+  "behavior": zod.string().max(updateLongFormContinuityBodyCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(updateLongFormContinuityBodyCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateLongFormContinuityBodyCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(updateLongFormContinuityBodyCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(updateLongFormContinuityBodyCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(updateLongFormContinuityBodyCharactersItemWardrobesMax)
+})).max(updateLongFormContinuityBodyCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(updateLongFormContinuityBodyScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(updateLongFormContinuityBodyScenesItemTitleMax),
+  "settingNotes": zod.string().max(updateLongFormContinuityBodyScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(updateLongFormContinuityBodyScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(updateLongFormContinuityBodyScenesItemWardrobeAssignmentsMax)
+})).max(updateLongFormContinuityBodyScenesMax)
+})
+
+export const updateLongFormContinuityResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
+
+export const updateLongFormContinuityResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const updateLongFormContinuityResponseOneContinuityEnabledDefault = false;
+export const updateLongFormContinuityResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const updateLongFormContinuityResponseOneContinuityCharactersMax = 9;
+
+export const updateLongFormContinuityResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const updateLongFormContinuityResponseOneContinuityScenesItemTitleMax = 300;
+
+export const updateLongFormContinuityResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const updateLongFormContinuityResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const updateLongFormContinuityResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const updateLongFormContinuityResponseOneContinuityScenesMax = 1000;
+
+export const updateLongFormContinuityResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const updateLongFormContinuityResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const updateLongFormContinuityResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const updateLongFormContinuityResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
+
+
+
+export const UpdateLongFormContinuityResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "script": zod.string(),
+  "storyline": zod.string(),
+  "status": zod.enum(['DRAFT', 'READY', 'RUNNING', 'PAUSED', 'EDITING', 'ASSEMBLING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "targetDurationSeconds": zod.number(),
+  "generationMode": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "qualityPreset": zod.string(),
+  "characterIds": zod.array(zod.string()).optional(),
+  "settingId": zod.string().nullish(),
+  "totalShots": zod.number(),
+  "completedShots": zod.number(),
+  "failedShots": zod.number(),
+  "progress": zod.number(),
+  "timelineClips": zod.array(zod.object({
+  "shotId": zod.string(),
+  "trimStartSeconds": zod.number().min(updateLongFormContinuityResponseOneTimelineClipsItemTrimStartSecondsMin),
+  "trimEndSeconds": zod.number().gt(updateLongFormContinuityResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
+})),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(updateLongFormContinuityResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(updateLongFormContinuityResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(updateLongFormContinuityResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(updateLongFormContinuityResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(updateLongFormContinuityResponseOneContinuityCharactersItemWardrobesMax)
+})).max(updateLongFormContinuityResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(updateLongFormContinuityResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(updateLongFormContinuityResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(updateLongFormContinuityResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(updateLongFormContinuityResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(updateLongFormContinuityResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(updateLongFormContinuityResponseOneContinuityScenesMax)
+}),
+  "finalOutputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "shots": zod.array(zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(updateLongFormContinuityResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(updateLongFormContinuityResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(updateLongFormContinuityResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(updateLongFormContinuityResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1721,6 +2253,42 @@ export const ReassembleLongFormProjectParams = zod.object({
 export const reassembleLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
 
 export const reassembleLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const reassembleLongFormProjectResponseOneContinuityEnabledDefault = false;
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const reassembleLongFormProjectResponseOneContinuityCharactersMax = 9;
+
+export const reassembleLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const reassembleLongFormProjectResponseOneContinuityScenesItemTitleMax = 300;
+
+export const reassembleLongFormProjectResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const reassembleLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const reassembleLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const reassembleLongFormProjectResponseOneContinuityScenesMax = 1000;
+
+export const reassembleLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const reassembleLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const reassembleLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const reassembleLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
 
 
 
@@ -1747,6 +2315,31 @@ export const ReassembleLongFormProjectResponse = zod.object({
   "trimStartSeconds": zod.number().min(reassembleLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(reassembleLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(reassembleLongFormProjectResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(reassembleLongFormProjectResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(reassembleLongFormProjectResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(reassembleLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(reassembleLongFormProjectResponseOneContinuityCharactersItemWardrobesMax)
+})).max(reassembleLongFormProjectResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(reassembleLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(reassembleLongFormProjectResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(reassembleLongFormProjectResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(reassembleLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(reassembleLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(reassembleLongFormProjectResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1770,6 +2363,20 @@ export const ReassembleLongFormProjectResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(reassembleLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(reassembleLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(reassembleLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(reassembleLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1788,6 +2395,42 @@ export const PauseLongFormProjectParams = zod.object({
 export const pauseLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
 
 export const pauseLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const pauseLongFormProjectResponseOneContinuityEnabledDefault = false;
+export const pauseLongFormProjectResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const pauseLongFormProjectResponseOneContinuityCharactersMax = 9;
+
+export const pauseLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const pauseLongFormProjectResponseOneContinuityScenesItemTitleMax = 300;
+
+export const pauseLongFormProjectResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const pauseLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const pauseLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const pauseLongFormProjectResponseOneContinuityScenesMax = 1000;
+
+export const pauseLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const pauseLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const pauseLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const pauseLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
 
 
 
@@ -1814,6 +2457,31 @@ export const PauseLongFormProjectResponse = zod.object({
   "trimStartSeconds": zod.number().min(pauseLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(pauseLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(pauseLongFormProjectResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(pauseLongFormProjectResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(pauseLongFormProjectResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(pauseLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(pauseLongFormProjectResponseOneContinuityCharactersItemWardrobesMax)
+})).max(pauseLongFormProjectResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(pauseLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(pauseLongFormProjectResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(pauseLongFormProjectResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(pauseLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(pauseLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(pauseLongFormProjectResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1837,6 +2505,20 @@ export const PauseLongFormProjectResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(pauseLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(pauseLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(pauseLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(pauseLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1855,6 +2537,42 @@ export const CancelLongFormProjectParams = zod.object({
 export const cancelLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin = 0;
 
 export const cancelLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
+
+export const cancelLongFormProjectResponseOneContinuityEnabledDefault = false;
+export const cancelLongFormProjectResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const cancelLongFormProjectResponseOneContinuityCharactersMax = 9;
+
+export const cancelLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const cancelLongFormProjectResponseOneContinuityScenesItemTitleMax = 300;
+
+export const cancelLongFormProjectResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const cancelLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const cancelLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const cancelLongFormProjectResponseOneContinuityScenesMax = 1000;
+
+export const cancelLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const cancelLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const cancelLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const cancelLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
 
 
 
@@ -1881,6 +2599,31 @@ export const CancelLongFormProjectResponse = zod.object({
   "trimStartSeconds": zod.number().min(cancelLongFormProjectResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(cancelLongFormProjectResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(cancelLongFormProjectResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(cancelLongFormProjectResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(cancelLongFormProjectResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(cancelLongFormProjectResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(cancelLongFormProjectResponseOneContinuityCharactersItemWardrobesMax)
+})).max(cancelLongFormProjectResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(cancelLongFormProjectResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(cancelLongFormProjectResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(cancelLongFormProjectResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(cancelLongFormProjectResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(cancelLongFormProjectResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(cancelLongFormProjectResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -1904,6 +2647,20 @@ export const CancelLongFormProjectResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(cancelLongFormProjectResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(cancelLongFormProjectResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(cancelLongFormProjectResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(cancelLongFormProjectResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1932,8 +2689,17 @@ export const updateLongFormShotBodyMotionInstructionsMax = 5000;
 
 export const updateLongFormShotBodyContinuityNoteMax = 5000;
 
+export const updateLongFormShotBodySceneNumberMax = 999;
+
 export const updateLongFormShotBodyDurationSecondsMin = 2;
 export const updateLongFormShotBodyDurationSecondsMax = 30;
+
+export const updateLongFormShotBodyContinuityCharacterIdsMax = 9;
+
+export const updateLongFormShotBodyContinuityVoiceCloningEnabledDefault = false;
+export const updateLongFormShotBodyContinuityEmotionNotesMax = 5000;
+
+export const updateLongFormShotBodyContinuityPerformanceNotesMax = 5000;
 
 
 
@@ -1945,8 +2711,25 @@ export const UpdateLongFormShotBody = zod.object({
   "motionInstructions": zod.string().max(updateLongFormShotBodyMotionInstructionsMax).optional(),
   "continuityNote": zod.string().max(updateLongFormShotBodyContinuityNoteMax).optional(),
   "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']).optional(),
-  "durationSeconds": zod.number().min(updateLongFormShotBodyDurationSecondsMin).max(updateLongFormShotBodyDurationSecondsMax).optional()
+  "sceneNumber": zod.number().min(1).max(updateLongFormShotBodySceneNumberMax).optional(),
+  "durationSeconds": zod.number().min(updateLongFormShotBodyDurationSecondsMin).max(updateLongFormShotBodyDurationSecondsMax).optional(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(updateLongFormShotBodyContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(updateLongFormShotBodyContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(updateLongFormShotBodyContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(updateLongFormShotBodyContinuityPerformanceNotesMax).optional()
+}).optional()
 })
+
+export const updateLongFormShotResponseContinuityCharacterIdsMax = 9;
+
+export const updateLongFormShotResponseContinuityVoiceCloningEnabledDefault = false;
+export const updateLongFormShotResponseContinuityEmotionNotesMax = 5000;
+
+export const updateLongFormShotResponseContinuityPerformanceNotesMax = 5000;
+
+
 
 export const UpdateLongFormShotResponse = zod.object({
   "id": zod.string(),
@@ -1964,6 +2747,20 @@ export const UpdateLongFormShotResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(updateLongFormShotResponseContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(updateLongFormShotResponseContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(updateLongFormShotResponseContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(updateLongFormShotResponseContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -1978,6 +2775,15 @@ export const RetryLongFormShotParams = zod.object({
   "id": zod.coerce.string(),
   "shotId": zod.coerce.string()
 })
+
+export const retryLongFormShotResponseContinuityCharacterIdsMax = 9;
+
+export const retryLongFormShotResponseContinuityVoiceCloningEnabledDefault = false;
+export const retryLongFormShotResponseContinuityEmotionNotesMax = 5000;
+
+export const retryLongFormShotResponseContinuityPerformanceNotesMax = 5000;
+
+
 
 export const RetryLongFormShotResponse = zod.object({
   "id": zod.string(),
@@ -1995,6 +2801,198 @@ export const RetryLongFormShotResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(retryLongFormShotResponseContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(retryLongFormShotResponseContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(retryLongFormShotResponseContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(retryLongFormShotResponseContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Upload or attach an Image Studio still for continuity review
+ */
+export const AttachLongFormShotStillParams = zod.object({
+  "id": zod.coerce.string(),
+  "shotId": zod.coerce.string()
+})
+
+export const AttachLongFormShotStillBody = zod.object({
+  "assetId": zod.string()
+})
+
+export const attachLongFormShotStillResponseContinuityCharacterIdsMax = 9;
+
+export const attachLongFormShotStillResponseContinuityVoiceCloningEnabledDefault = false;
+export const attachLongFormShotStillResponseContinuityEmotionNotesMax = 5000;
+
+export const attachLongFormShotStillResponseContinuityPerformanceNotesMax = 5000;
+
+
+
+export const AttachLongFormShotStillResponse = zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(attachLongFormShotStillResponseContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(attachLongFormShotStillResponseContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(attachLongFormShotStillResponseContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(attachLongFormShotStillResponseContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Clear a shot continuity still
+ */
+export const ClearLongFormShotStillParams = zod.object({
+  "id": zod.coerce.string(),
+  "shotId": zod.coerce.string()
+})
+
+export const clearLongFormShotStillResponseContinuityCharacterIdsMax = 9;
+
+export const clearLongFormShotStillResponseContinuityVoiceCloningEnabledDefault = false;
+export const clearLongFormShotStillResponseContinuityEmotionNotesMax = 5000;
+
+export const clearLongFormShotStillResponseContinuityPerformanceNotesMax = 5000;
+
+
+
+export const ClearLongFormShotStillResponse = zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(clearLongFormShotStillResponseContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(clearLongFormShotStillResponseContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(clearLongFormShotStillResponseContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(clearLongFormShotStillResponseContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
+  "generationId": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "errorMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Approve or reject the current still revision
+ */
+export const ReviewLongFormShotStillParams = zod.object({
+  "id": zod.coerce.string(),
+  "shotId": zod.coerce.string()
+})
+
+export const reviewLongFormShotStillBodyRevisionMultipleOf = 1;
+
+export const reviewLongFormShotStillBodyNoteMax = 5000;
+
+
+
+export const ReviewLongFormShotStillBody = zod.object({
+  "action": zod.enum(['approve', 'reject']),
+  "revision": zod.number().min(1).multipleOf(reviewLongFormShotStillBodyRevisionMultipleOf),
+  "note": zod.string().max(reviewLongFormShotStillBodyNoteMax).optional()
+})
+
+export const reviewLongFormShotStillResponseContinuityCharacterIdsMax = 9;
+
+export const reviewLongFormShotStillResponseContinuityVoiceCloningEnabledDefault = false;
+export const reviewLongFormShotStillResponseContinuityEmotionNotesMax = 5000;
+
+export const reviewLongFormShotStillResponseContinuityPerformanceNotesMax = 5000;
+
+
+
+export const ReviewLongFormShotStillResponse = zod.object({
+  "id": zod.string(),
+  "sceneNumber": zod.number(),
+  "shotNumber": zod.number(),
+  "title": zod.string(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "continuityNote": zod.string(),
+  "transition": zod.enum(['CUT', 'DISSOLVE', 'FADE']),
+  "durationSeconds": zod.number(),
+  "status": zod.enum(['PLANNED', 'QUEUED', 'RENDERING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "retryCount": zod.number(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(reviewLongFormShotStillResponseContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(reviewLongFormShotStillResponseContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(reviewLongFormShotStillResponseContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(reviewLongFormShotStillResponseContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),
@@ -2029,6 +3027,42 @@ export const updateLongFormTimelineResponseOneTimelineClipsItemTrimStartSecondsM
 
 export const updateLongFormTimelineResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin = 0;
 
+export const updateLongFormTimelineResponseOneContinuityEnabledDefault = false;
+export const updateLongFormTimelineResponseOneContinuityCharactersItemAppearanceMax = 5000;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersItemBehaviorMax = 5000;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersItemVoiceDescriptionMax = 5000;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesItemIdMax = 100;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesItemNameMax = 200;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesItemDescriptionMax = 2000;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesMax = 30;
+
+export const updateLongFormTimelineResponseOneContinuityCharactersMax = 9;
+
+export const updateLongFormTimelineResponseOneContinuityScenesItemSceneNumberMultipleOf = 1;
+
+export const updateLongFormTimelineResponseOneContinuityScenesItemTitleMax = 300;
+
+export const updateLongFormTimelineResponseOneContinuityScenesItemSettingNotesMax = 5000;
+
+export const updateLongFormTimelineResponseOneContinuityScenesItemEmotionNotesMax = 5000;
+
+export const updateLongFormTimelineResponseOneContinuityScenesItemWardrobeAssignmentsMax = 50;
+
+export const updateLongFormTimelineResponseOneContinuityScenesMax = 1000;
+
+export const updateLongFormTimelineResponseTwoShotsItemContinuityCharacterIdsMax = 9;
+
+export const updateLongFormTimelineResponseTwoShotsItemContinuityVoiceCloningEnabledDefault = false;
+export const updateLongFormTimelineResponseTwoShotsItemContinuityEmotionNotesMax = 5000;
+
+export const updateLongFormTimelineResponseTwoShotsItemContinuityPerformanceNotesMax = 5000;
+
 
 
 export const UpdateLongFormTimelineResponse = zod.object({
@@ -2054,6 +3088,31 @@ export const UpdateLongFormTimelineResponse = zod.object({
   "trimStartSeconds": zod.number().min(updateLongFormTimelineResponseOneTimelineClipsItemTrimStartSecondsMin),
   "trimEndSeconds": zod.number().gt(updateLongFormTimelineResponseOneTimelineClipsItemTrimEndSecondsExclusiveMin)
 })),
+  "continuity": zod.object({
+  "enabled": zod.boolean().default(updateLongFormTimelineResponseOneContinuityEnabledDefault),
+  "characters": zod.array(zod.object({
+  "characterId": zod.string(),
+  "appearance": zod.string().max(updateLongFormTimelineResponseOneContinuityCharactersItemAppearanceMax),
+  "behavior": zod.string().max(updateLongFormTimelineResponseOneContinuityCharactersItemBehaviorMax),
+  "voiceDescription": zod.string().max(updateLongFormTimelineResponseOneContinuityCharactersItemVoiceDescriptionMax),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesItemIdMax),
+  "name": zod.string().min(1).max(updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesItemNameMax),
+  "description": zod.string().max(updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesItemDescriptionMax),
+  "referenceAssetId": zod.string().optional()
+})).max(updateLongFormTimelineResponseOneContinuityCharactersItemWardrobesMax)
+})).max(updateLongFormTimelineResponseOneContinuityCharactersMax),
+  "scenes": zod.array(zod.object({
+  "sceneNumber": zod.number().min(1).multipleOf(updateLongFormTimelineResponseOneContinuityScenesItemSceneNumberMultipleOf),
+  "title": zod.string().max(updateLongFormTimelineResponseOneContinuityScenesItemTitleMax),
+  "settingNotes": zod.string().max(updateLongFormTimelineResponseOneContinuityScenesItemSettingNotesMax),
+  "emotionNotes": zod.string().max(updateLongFormTimelineResponseOneContinuityScenesItemEmotionNotesMax),
+  "wardrobeAssignments": zod.array(zod.object({
+  "characterId": zod.string(),
+  "wardrobeId": zod.string()
+})).max(updateLongFormTimelineResponseOneContinuityScenesItemWardrobeAssignmentsMax)
+})).max(updateLongFormTimelineResponseOneContinuityScenesMax)
+}),
   "finalOutputUrl": zod.string().nullable(),
   "errorMessage": zod.string().nullable(),
   "startedAt": zod.string().nullish(),
@@ -2077,6 +3136,20 @@ export const UpdateLongFormTimelineResponse = zod.object({
   "retryCount": zod.number(),
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
+  "continuity": zod.object({
+  "characterIds": zod.array(zod.string()).min(1).max(updateLongFormTimelineResponseTwoShotsItemContinuityCharacterIdsMax).optional(),
+  "speakerCharacterId": zod.string().optional(),
+  "voiceCloningEnabled": zod.boolean().default(updateLongFormTimelineResponseTwoShotsItemContinuityVoiceCloningEnabledDefault),
+  "emotionNotes": zod.string().max(updateLongFormTimelineResponseTwoShotsItemContinuityEmotionNotesMax).optional(),
+  "performanceNotes": zod.string().max(updateLongFormTimelineResponseTwoShotsItemContinuityPerformanceNotesMax).optional()
+}),
+  "still": zod.object({
+  "status": zod.enum(['NONE', 'PENDING', 'APPROVED', 'REJECTED']),
+  "assetUrl": zod.string().nullable(),
+  "revision": zod.number(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "reviewNote": zod.string().nullable()
+}),
   "generationId": zod.string().nullable(),
   "serverName": zod.string().nullable(),
   "outputUrl": zod.string().nullable(),

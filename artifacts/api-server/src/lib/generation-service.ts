@@ -80,7 +80,14 @@ export type GenerationRequest = {
   provider?: "COMFYUI" | "FAL";
   model?: FalModel;
   voiceCloningEnabled?: boolean;
+  /** Deliberately selected consented voice identity; never inferred from text. */
+  speakerCharacterId?: string;
   characterIds?: string[];
+  /** Ordered image storage keys. Long-form continuity puts its approved still first. */
+  referenceImageKeys?: string[];
+  /** Required continuity references (still plus assigned wardrobes); cast refs may be capped. */
+  mandatoryReferenceImageCount?: number;
+  continuityContext?: string;
   settingId?: string;
   prompt: string;
   negativePrompt?: string;
@@ -191,6 +198,7 @@ function compileGenericPrompt(
       : "",
     setting?.promptDescription ? `SETTING\n${setting.promptDescription}` : "",
     input.dialogue ? `DIALOGUE\n${input.dialogue}` : "",
+    input.continuityContext ? `CONTINUITY\n${input.continuityContext}` : "",
     `ACTION\n${input.prompt}`,
     input.cameraInstructions ? `CAMERA\n${input.cameraInstructions}` : "",
     input.motionInstructions ? `MOTION\n${input.motionInstructions}` : "",
@@ -252,7 +260,7 @@ function extractPromptAudio(prompt: string): { soundscape: string | null; music:
 }
 
 function compileMiniMaxH3StandardPrompt(
-  characters: { name: string; promptDescription: string }[],
+  characters: { id: string; name: string; promptDescription: string }[],
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
@@ -277,7 +285,12 @@ function compileMiniMaxH3StandardPrompt(
       `<Subject ${settingSubjectNumber}> is the referenced environment: ${compactPromptText(setting.promptDescription)}`,
     );
   }
-  const primarySpeaker = referencedCharacters[0]
+  const selectedSpeaker = input.speakerCharacterId
+    ? characters.find((character) => input.speakerCharacterId === character.id)
+    : undefined;
+  const primarySpeaker = selectedSpeaker
+    ? `<Subject ${characters.indexOf(selectedSpeaker) + 1}>`
+    : referencedCharacters[0]
     ? `<Subject ${characters.indexOf(referencedCharacters[0]) + 1}>`
     : "The on-screen speaker";
   const hasOnScreenSpeech = /\b(speaks?|talks?|says?|addresses?|looks directly into (?:the )?camera)\b/i.test(shotPrompt);
@@ -299,6 +312,7 @@ function compileMiniMaxH3StandardPrompt(
       : "",
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
     spokenAction,
+    input.continuityContext ? `Continuity locks for this shot: ${compactPromptText(input.continuityContext)}` : "",
     compactPromptText(shotPrompt),
     input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
     input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
@@ -326,6 +340,7 @@ function compileMiniMaxH3StandardPrompt(
   ];
 
   return [
+    dialogue ? `exact_dialogue:\n${dialogue}` : "",
     `subject_definitions:\n${subjectDefinitions.join("\n") || "No supplied reference subject is required to appear in this shot."}`,
     `summary:\n[reference generation] Create a single-shot target video using ${summarySubjects || "the described scene"}.`,
     `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,
@@ -336,7 +351,7 @@ function compileMiniMaxH3StandardPrompt(
 }
 
 function compileMiniMaxH3ReferenceVideoPrompt(
-  characters: { name: string; promptDescription: string }[],
+  characters: { id: string; name: string; promptDescription: string }[],
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
@@ -385,7 +400,12 @@ function compileMiniMaxH3ReferenceVideoPrompt(
         : "<Audio 1> is the synchronized original audio track from <Video 1>, reused directly in the target video.",
     );
   }
-  const primarySpeaker = referencedCharacters[0]
+  const selectedSpeaker = input.speakerCharacterId
+    ? characters.find((character) => input.speakerCharacterId === character.id)
+    : undefined;
+  const primarySpeaker = selectedSpeaker
+    ? `<Subject ${characters.indexOf(selectedSpeaker) + 1}>`
+    : referencedCharacters[0]
     ? `<Subject ${characters.indexOf(referencedCharacters[0]) + 1}>`
     : input.referenceVideoKey
       ? "The presenter from <Video 1>"
@@ -417,6 +437,7 @@ function compileMiniMaxH3ReferenceVideoPrompt(
       ? "Clone the presenter's voice characteristics from <Audio 1>, replace the original spoken content completely, and speak only the exact dialogue supplied below."
       : "",
     spokenAction,
+    input.continuityContext ? `Continuity locks for this shot: ${compactPromptText(input.continuityContext)}` : "",
     visualShotPrompt ? compactPromptText(visualShotPrompt) : "",
     input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
     input.motionInstructions && !hasAuthoredMotion ? `Motion: ${compactPromptText(input.motionInstructions)}` : "",
@@ -472,6 +493,7 @@ function compileMiniMaxH3ReferenceVideoPrompt(
     : music;
 
   return [
+    dialogue ? `exact_dialogue:\n${dialogue}` : "",
     `subject_definitions:\n${subjectDefinitions.join("\n") || "No supplied reference subject is required to appear in this shot."}`,
     `summary:\n${taskTypes} Create a single-shot target video using ${summarySubjects || "the described scene"}${summaryAudio}.`,
     `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,
@@ -508,7 +530,7 @@ function routeMiniMaxReferenceVideoAudio(
 
 function compilePrompt(
   modelFamily: string,
-  characters: { name: string; promptDescription: string }[],
+  characters: { id: string; name: string; promptDescription: string }[],
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
@@ -520,11 +542,52 @@ function compilePrompt(
     : compileMiniMaxH3StandardPrompt(characters, setting, input);
 }
 
+/** Pure, mockable contract for continuity reference ordering. */
+export function planContinuityReferenceSlots(
+  mappings: ParameterMappings,
+  approvedStillKeys: string[],
+  canonicalCharacterKeys: string[],
+  mandatoryReferenceImageCount = approvedStillKeys.length,
+): Array<{ field: string; storageKey: string }> {
+  const fields = Object.keys(mappings)
+    .filter((field) => /^referenceImage\d+$/.test(field))
+    .sort((left, right) => Number(left.slice(14)) - Number(right.slice(14)));
+  if (approvedStillKeys.length && !mappings.referenceImage1) {
+    throw new Error("This workflow lacks referenceImage1 required by the approved continuity still");
+  }
+  if (mandatoryReferenceImageCount > fields.length) {
+    throw new Error("This workflow does not have enough reference image slots for the approved still and assigned wardrobe references");
+  }
+  return [...approvedStillKeys, ...canonicalCharacterKeys]
+    .slice(0, fields.length)
+    .map((storageKey, index) => ({ field: fields[index]!, storageKey }));
+}
+
+/** The voice snapshot, not cast order, is authoritative during local and Cloud completion. */
+export function completionVoiceCharacterId(
+  voiceCharacterId: string | null,
+  castCharacterIds: string[],
+): string | null {
+  if (voiceCharacterId && !castCharacterIds.includes(voiceCharacterId)) {
+    throw new Error("The saved voice speaker is not part of this generation cast");
+  }
+  return voiceCharacterId ?? castCharacterIds[0] ?? null;
+}
+
+export function compileLongFormPromptForTest(
+  characters: { id: string; name: string; promptDescription: string }[],
+  input: GenerationRequest,
+): string {
+  return compilePrompt("MiniMax H3", characters, undefined, input);
+}
+
 async function uploadMappedReferences(
   client: ComfyUIClient,
   mappings: ParameterMappings,
   characterIds: string[] = [],
   settingId?: string,
+  referenceImageKeys: string[] = [],
+  mandatoryReferenceImageCount?: number,
 ): Promise<Record<string, string>> {
   const [characterAssets, settingAssets] = await Promise.all([
     characterIds.length
@@ -542,8 +605,32 @@ async function uploadMappedReferences(
         .orderBy(asc(settingAssetsTable.sortOrder))
       : Promise.resolve([]),
   ]);
+  const approvedStillAssets = referenceImageKeys.map((storageKey, index) => ({
+    storageKey,
+    originalName: `continuity-still-${index + 1}`,
+    mimeType: storageKey.endsWith(".webp") ? "image/webp" : storageKey.match(/\.jpe?g$/i) ? "image/jpeg" : "image/png",
+  }));
+  const canonicalCharacterAssets = characterIds.flatMap((characterId) => {
+    const first = (characterAssets as Array<{
+      characterId: string;
+      storageKey: string;
+      originalName: string;
+      mimeType: string;
+    }>).find((asset) => asset.characterId === characterId);
+    return first ? [first] : [];
+  });
+  // The reference mapping is positional. Keep approved continuity stills first;
+  // canonical character references fill any remaining workflow capacity.
+  const referenceAssets = new Map(
+    [...approvedStillAssets, ...canonicalCharacterAssets].map((asset) => [asset.storageKey, asset]),
+  );
   const fields: Array<readonly [string, { storageKey: string; originalName: string; mimeType: string }]> = [
-    ...characterAssets.map((asset, index) => [`referenceImage${index + 1}`, asset] as const),
+    ...planContinuityReferenceSlots(
+      mappings,
+      referenceImageKeys,
+      canonicalCharacterAssets.map((asset) => asset.storageKey),
+      mandatoryReferenceImageCount,
+    ).map(({ field, storageKey }) => [field, referenceAssets.get(storageKey)!] as const),
     ...settingAssets.map((asset, index) => [`settingImage${index + 1}`, asset] as const),
   ];
   const mapped: Record<string, string> = {};
@@ -557,6 +644,21 @@ async function uploadMappedReferences(
     mapped[field] = uploaded.name;
   }
   return mapped;
+}
+
+async function selectedVoiceSpeaker(jobId: string, voiceCharacterId: string | null) {
+  // Both local and Cloud completion call this shared resolver. The persisted
+  // explicit speaker wins over cast order, and a corrupt snapshot fails closed.
+  const speakers = await db.select({
+    id: charactersTable.id,
+    voiceStorageKey: charactersTable.voiceStorageKey,
+    voiceConsentAt: charactersTable.voiceConsentAt,
+  }).from(generationCharactersTable)
+    .innerJoin(charactersTable, eq(generationCharactersTable.characterId, charactersTable.id))
+    .where(eq(generationCharactersTable.generationJobId, jobId))
+    .orderBy(asc(generationCharactersTable.sortOrder))
+  const selectedId = completionVoiceCharacterId(voiceCharacterId, speakers.map((speaker) => speaker.id));
+  return speakers.find((speaker) => speaker.id === selectedId);
 }
 
 type ComfyOutputFile = {
@@ -726,6 +828,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       throw new ResourceNotFoundError("Reference video not found");
     }
   }
+  if (input.referenceImageKeys?.some((key) => !key.startsWith(`tenants/${input.tenantId}/`))) {
+    throw new ResourceNotFoundError("Continuity reference image not found");
+  }
   const [foundCharacters, setting] = await Promise.all([
     input.characterIds?.length
       ? db.select().from(charactersTable).where(and(
@@ -755,9 +860,11 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     if (!input.dialogue?.trim()) {
       throw new Error("Voice cloning requires dialogue");
     }
-    const speaker = characters[0];
+    const speaker = input.speakerCharacterId
+      ? characters.find((character) => character.id === input.speakerCharacterId)
+      : characters[0];
     if (!speaker?.voiceStorageKey || !speaker.voiceConsentAt) {
-      throw new Error("Voice cloning requires the first selected Character to have a consented voice sample");
+      throw new Error("Voice cloning requires the selected speaker Character to have a consented voice sample");
     }
   }
   if ((input.provider ?? "COMFYUI") === "FAL") {
@@ -780,11 +887,19 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   const compatibleWorkflows = inputTypeWorkflows.filter((candidate) => {
     const required = getWorkflowReferenceRequirements(candidate.apiWorkflow, candidate.mappings);
-    return (!required.requiresCharacterReferences || characters.length > 0)
-      && (!required.requiresSettingReference || setting.length > 0);
+    return (!required.requiresCharacterReferences || characters.length > 0 || Boolean(input.referenceImageKeys?.length))
+      && (!required.requiresSettingReference || setting.length > 0)
+      && (!input.referenceImageKeys?.length || Boolean((candidate.mappings as ParameterMappings).referenceImage1))
+      && (!input.mandatoryReferenceImageCount || Object.keys(candidate.mappings)
+        .filter((field) => /^referenceImage\d+$/.test(field)).length >= input.mandatoryReferenceImageCount);
   });
   if (inputTypeWorkflows.length > 0 && compatibleWorkflows.length === 0) {
     throw new Error("This pipeline requires reference inputs. Choose a prompt-only pipeline or add the required references.");
+  }
+  if (input.referenceImageKeys?.length && !compatibleWorkflows.some((candidate) =>
+    Boolean((candidate.mappings as ParameterMappings).referenceImage1),
+  )) {
+    throw new Error("No active workflow supports the approved continuity still reference");
   }
   const servers = await db.select().from(comfyServersTable);
   const requestedServer = input.preferredServerId
@@ -893,12 +1008,17 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       qualityPreset: input.qualityPreset,
       provider: "COMFYUI",
       voiceCloningEnabled: input.voiceCloningEnabled ?? false,
+      voiceCharacterId: input.speakerCharacterId ?? null,
+      referenceImageKeys: input.referenceImageKeys ?? [],
     })
     .returning();
   await input.onJobCreated?.(job);
   if (characters.length > 0) {
+    const voiceFirstCharacters = [...characters].sort((left, right) =>
+      Number(right.id === input.speakerCharacterId) - Number(left.id === input.speakerCharacterId),
+    );
     await db.insert(generationCharactersTable).values(
-      characters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
+      voiceFirstCharacters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
     );
   }
   if (setting[0]) {
@@ -906,7 +1026,14 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   try {
     const client = new ComfyUIClient(server);
-    const assetParameters = await uploadMappedReferences(client, workflow.mappings as ParameterMappings, input.characterIds, input.settingId);
+    const assetParameters = await uploadMappedReferences(
+      client,
+      workflow.mappings as ParameterMappings,
+      input.characterIds,
+      input.settingId,
+      input.referenceImageKeys,
+      input.mandatoryReferenceImageCount,
+    );
     const requiredReferences = getWorkflowReferenceRequirements(apiWorkflow, workflow.mappings);
     if (
       requiredReferences.requiresCharacterReferences &&
@@ -1016,6 +1143,8 @@ async function createAndSubmitFalGeneration(
       submissionOutcome: "not-submitted",
     },
     voiceCloningEnabled: input.voiceCloningEnabled ?? false,
+    voiceCharacterId: input.speakerCharacterId ?? null,
+    referenceImageKeys: input.referenceImageKeys ?? [],
     longFormShotId: input.longFormShotId ?? null,
     prompt: input.prompt,
     compiledPrompt,
@@ -1032,8 +1161,11 @@ async function createAndSubmitFalGeneration(
   }).returning();
   await input.onJobCreated?.(job);
   if (characters.length) {
+    const voiceFirstCharacters = [...characters].sort((left, right) =>
+      Number(right.id === input.speakerCharacterId) - Number(left.id === input.speakerCharacterId),
+    );
     await db.insert(generationCharactersTable).values(
-      characters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
+      voiceFirstCharacters.map((character, index) => ({ generationJobId: job.id, characterId: character.id, sortOrder: index })),
     );
   }
   if (setting) {
@@ -1191,44 +1323,39 @@ async function completeFalOutput(
     tenantId: generationJobsTable.tenantId,
     dialogue: generationJobsTable.dialogue,
     voiceCloningEnabled: generationJobsTable.voiceCloningEnabled,
+    voiceCharacterId: generationJobsTable.voiceCharacterId,
     durationSeconds: generationJobsTable.durationSeconds,
     seed: generationJobsTable.seed,
   }).from(generationJobsTable).where(eq(generationJobsTable.id, jobId));
   if (!job) return;
   if (job.voiceCloningEnabled && job.dialogue.trim()) {
-    const [[speaker], [server]] = await Promise.all([
-      db.select({
-        voiceStorageKey: charactersTable.voiceStorageKey,
-        voiceConsentAt: charactersTable.voiceConsentAt,
-      }).from(generationCharactersTable)
-        .innerJoin(charactersTable, eq(generationCharactersTable.characterId, charactersTable.id))
-        .where(eq(generationCharactersTable.generationJobId, jobId))
-        .orderBy(asc(generationCharactersTable.sortOrder))
-        .limit(1),
+    const [speaker, [server]] = await Promise.all([
+      selectedVoiceSpeaker(jobId, job.voiceCharacterId),
       db.select().from(comfyServersTable)
         .where(and(eq(comfyServersTable.enabled, true), eq(comfyServersTable.status, "ONLINE")))
         .orderBy(asc(comfyServersTable.priority))
         .limit(1),
     ]);
-    if (speaker?.voiceStorageKey && speaker.voiceConsentAt) {
-      if (!server) throw new Error("Voice cloning was requested, but no online ComfyUI voice worker is available");
-      await db.update(generationJobsTable).set({ currentNode: "Cloning character voice" })
-        .where(eq(generationJobsTable.id, jobId));
-      const speech = await generateClonedSpeech({
-        client: new ComfyUIClient(server),
-        dialogue: job.dialogue,
-        referenceAudio: await mediaStorage.readBuffer(speaker.voiceStorageKey),
-        seed: job.seed,
-      });
-      bytes = await muxClonedSpeech({
-        video: bytes,
-        videoMimeType: mimeType,
-        speech,
-        targetDurationSeconds: job.durationSeconds,
-      });
-      mimeType = "video/mp4";
-      outputName = `fal-${requestId}-voiced.mp4`;
+    if (!speaker?.voiceStorageKey || !speaker.voiceConsentAt) {
+      throw new Error("Voice cloning could not complete because the selected speaker's consented voice sample is unavailable");
     }
+    if (!server) throw new Error("Voice cloning was requested, but no online ComfyUI voice worker is available");
+    await db.update(generationJobsTable).set({ currentNode: "Cloning character voice" })
+      .where(eq(generationJobsTable.id, jobId));
+    const speech = await generateClonedSpeech({
+      client: new ComfyUIClient(server),
+      dialogue: job.dialogue,
+      referenceAudio: await mediaStorage.readBuffer(speaker.voiceStorageKey),
+      seed: job.seed,
+    });
+    bytes = await muxClonedSpeech({
+      video: bytes,
+      videoMimeType: mimeType,
+      speech,
+      targetDurationSeconds: job.durationSeconds,
+    });
+    mimeType = "video/mp4";
+    outputName = `fal-${requestId}-voiced.mp4`;
   }
   const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes, job.tenantId);
   await db.update(generationJobsTable).set({
@@ -1480,6 +1607,7 @@ async function downloadCompletedOutput(
       durationSeconds: generationJobsTable.durationSeconds,
       seed: generationJobsTable.seed,
       voiceCloningEnabled: generationJobsTable.voiceCloningEnabled,
+      voiceCharacterId: generationJobsTable.voiceCharacterId,
     });
   if (!downloading) return false;
 
@@ -1491,41 +1619,33 @@ async function downloadCompletedOutput(
     let outputName = output.filename;
 
     if (downloading.voiceCloningEnabled && downloading.dialogue.trim()) {
-      const [speaker] = await db
-        .select({
-          voiceStorageKey: charactersTable.voiceStorageKey,
-          voiceConsentAt: charactersTable.voiceConsentAt,
-        })
-        .from(generationCharactersTable)
-        .innerJoin(charactersTable, eq(generationCharactersTable.characterId, charactersTable.id))
-        .where(eq(generationCharactersTable.generationJobId, jobId))
-        .orderBy(asc(generationCharactersTable.sortOrder))
-        .limit(1);
-      if (speaker?.voiceStorageKey && speaker.voiceConsentAt) {
-        await db
-          .update(generationJobsTable)
-          .set({ currentNode: "Cloning character voice" })
-          .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
-        const referenceAudio = await mediaStorage.readBuffer(speaker.voiceStorageKey);
-        const speech = await generateClonedSpeech({
-          client,
-          dialogue: downloading.dialogue,
-          referenceAudio,
-          seed: downloading.seed,
-        });
-        await db
-          .update(generationJobsTable)
-          .set({ currentNode: "Adding character voice" })
-          .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
-        bytes = await muxClonedSpeech({
-          video: bytes,
-          videoMimeType: mimeType,
-          speech,
-          targetDurationSeconds: downloading.durationSeconds,
-        });
-        mimeType = "video/mp4";
-        outputName = output.filename.replace(/\.(webm|mp4)$/i, "-voiced.mp4");
+      const speaker = await selectedVoiceSpeaker(jobId, downloading.voiceCharacterId);
+      if (!speaker?.voiceStorageKey || !speaker.voiceConsentAt) {
+        throw new Error("Voice cloning could not complete because the selected speaker's consented voice sample is unavailable");
       }
+      await db
+        .update(generationJobsTable)
+        .set({ currentNode: "Cloning character voice" })
+        .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+      const referenceAudio = await mediaStorage.readBuffer(speaker.voiceStorageKey);
+      const speech = await generateClonedSpeech({
+        client,
+        dialogue: downloading.dialogue,
+        referenceAudio,
+        seed: downloading.seed,
+      });
+      await db
+        .update(generationJobsTable)
+        .set({ currentNode: "Adding character voice" })
+        .where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
+      bytes = await muxClonedSpeech({
+        video: bytes,
+        videoMimeType: mimeType,
+        speech,
+        targetDurationSeconds: downloading.durationSeconds,
+      });
+      mimeType = "video/mp4";
+      outputName = output.filename.replace(/\.(webm|mp4)$/i, "-voiced.mp4");
     }
 
     const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes, downloading.tenantId);

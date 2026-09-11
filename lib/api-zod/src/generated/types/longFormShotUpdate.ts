@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { LongFormShotContinuity } from './longFormShotContinuity';
 import type { LongFormShotUpdateTransition } from './longFormShotUpdateTransition';
 
 export interface LongFormShotUpdate {
@@ -28,8 +29,14 @@ export interface LongFormShotUpdate {
   continuityNote?: string;
   transition?: LongFormShotUpdateTransition;
   /**
+     * @minimum 1
+     * @maximum 999
+     */
+  sceneNumber?: number;
+  /**
      * @minimum 2
      * @maximum 30
      */
   durationSeconds?: number;
+  continuity?: LongFormShotContinuity;
 }

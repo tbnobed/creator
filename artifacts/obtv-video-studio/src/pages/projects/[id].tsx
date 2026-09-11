@@ -46,12 +46,18 @@ import {
   Camera,
   Move3d,
   MessageSquare,
-  Link2
+  Link2,
+  Settings2
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 import { NLEEditor, type Clip as EditorClip } from "@/components/nle-editor";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
+import { ContinuityEditor } from "@/components/long-form/ContinuityEditor";
+import { ShotStillReview } from "@/components/long-form/ShotStillReview";
 
 function editorClipsFromProject(project: any): EditorClip[] {
   const completedShots = project.shots.filter((shot: any) => shot.status === "COMPLETED" && shot.outputUrl);
@@ -109,8 +115,10 @@ export default function ProjectDetailPage() {
 
   const [editingShot, setEditingShot] = useState<any>(null);
   const [previewShot, setPreviewShot] = useState<any>(null);
+  const [reviewingShot, setReviewingShot] = useState<any>(null);
   const [timelineClips, setTimelineClips] = useState<EditorClip[]>([]);
   const [selectedTimelineClipId, setSelectedTimelineClipId] = useState<string | null>(null);
+  const [isContinuityEditorOpen, setIsContinuityEditorOpen] = useState(false);
   const [timelineDirty, setTimelineDirty] = useState(false);
   const [isDownloadingPackage, setIsDownloadingPackage] = useState(false);
 
@@ -208,9 +216,11 @@ export default function ProjectDetailPage() {
   };
 
   const handleRetryShot = (shotId: string) => {
+    const preparingRevision = project?.continuity?.enabled && project.shots.find((shot) => shot.id === shotId)?.status === "COMPLETED";
+    if (preparingRevision && !window.confirm("Prepare a revision of this shot? Its current clip will be removed from the active timeline, and production will pause for still approval. Other shots are preserved.")) return;
     retryShot.mutate({ id: id as string, shotId }, {
       onSuccess: () => {
-        toast({ title: "Shot queued for retry" });
+        toast({ title: preparingRevision ? "Shot ready for revision" : "Shot queued for retry", description: preparingRevision ? "Update continuity or replace the still, approve it, then resume production." : undefined });
         invalidateProject();
       },
       onError: (err: any) => toast({ title: "Failed to retry shot", description: err.message, variant: "destructive" })
@@ -305,6 +315,11 @@ export default function ProjectDetailPage() {
   const isDone = project.status === "COMPLETED";
   const isEditing = project.status === "EDITING";
   const allClipsGenerated = project.shots.length > 0 && project.shots.every((shot: any) => shot.status === "COMPLETED" && shot.outputUrl);
+  const shotsNeedingApproval = project.continuity?.enabled 
+    ? project.shots.filter((shot: any) => shot.status === "PLANNED" && (!shot.still || shot.still.status !== "APPROVED"))
+    : [];
+  const needsStillApproval = shotsNeedingApproval.length > 0;
+
   const isDispatchWaiting = project.status === "RUNNING" && (
     project.errorMessage?.startsWith("Waiting for") ||
     project.errorMessage?.startsWith("All compatible GPUs")
@@ -369,9 +384,22 @@ export default function ProjectDetailPage() {
 
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             {(isReady || isPaused || isDraft) && (
-              <Button onClick={handleStart} disabled={startProject.isPending} size="sm" className="md:h-10 md:px-4 brand-glow bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg text-xs md:text-sm">
-                <Play className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Start<span className="hidden sm:inline">&nbsp;Production</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                {needsStillApproval && (
+                  <span className="text-xs font-medium text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md border border-amber-500/20">
+                    Approve {shotsNeedingApproval.length} still{shotsNeedingApproval.length === 1 ? "" : "s"} to start
+                  </span>
+                )}
+                <Button 
+                  onClick={handleStart} 
+                  disabled={startProject.isPending || needsStillApproval} 
+                  size="sm" 
+                  className="md:h-10 md:px-4 brand-glow bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg text-xs md:text-sm disabled:opacity-50"
+                  title={needsStillApproval ? "All planned shots need an approved still before starting" : ""}
+                >
+                  <Play className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" /> Start<span className="hidden sm:inline">&nbsp;Production</span>
+                </Button>
+              </div>
             )}
 
             {(isDone || isEditing) && (
@@ -515,7 +543,20 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="border-t border-border/50 bg-muted/10 p-3 md:p-4">
-              <h3 className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Production Assets</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Production Assets</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => setIsContinuityEditorOpen(true)} 
+                  data-testid="button-manage-continuity"
+                  disabled={isRunning || project.status === "ASSEMBLING" || isDone}
+                  title={isRunning || project.status === "ASSEMBLING" || isDone ? "Cannot edit continuity while rendering or completed" : ""}
+                >
+                  <Settings2 className="w-3 h-3 mr-1" /> Continuity
+                </Button>
+              </div>
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center gap-1.5 text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -642,16 +683,33 @@ export default function ProjectDetailPage() {
                           </h4>
                           
                           <div className="flex items-center gap-1 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0 -mr-1 md:mr-0 -mt-1 md:mt-0">
-                            {(shot.status === 'FAILED' || shot.status === 'CANCELLED') && (
+                            {(shot.status === 'FAILED' || shot.status === 'CANCELLED' || (project.continuity?.enabled && shot.status === 'COMPLETED' && !isRunning && project.status !== "ASSEMBLING")) && (
                               <Button
                                 size="icon"
                                 variant="ghost"
                                 className="w-7 h-7 md:w-7 md:h-7 text-amber-500"
                                 onClick={() => handleRetryShot(shot.id)}
-                                aria-label={`Retry ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
-                                title="Retry shot"
+                                aria-label={`${shot.status === "COMPLETED" ? "Prepare revision for" : "Retry"} ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                                title={shot.status === "COMPLETED" ? "Prepare revision (pauses for still approval)" : "Retry shot"}
                               >
                                 <RefreshCw className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            {project.continuity?.enabled && (
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className={`w-7 h-7 md:w-7 md:h-7 ${
+                                  shot.still?.status === "APPROVED" ? "text-emerald-500" :
+                                  shot.still?.status === "REJECTED" ? "text-destructive" :
+                                  shot.still?.status === "PENDING" ? "text-amber-500" : "text-muted-foreground"
+                                }`} 
+                                onClick={() => setReviewingShot(shot)}
+                                disabled={isRunning || project.status === "ASSEMBLING" || isDone}
+                                title="Review Still Frame"
+                                data-testid={`button-review-still-${shot.id}`}
+                              >
+                                <Camera className="w-3.5 h-3.5" />
                               </Button>
                             )}
                             <Button size="icon" variant="ghost" className="w-7 h-7 md:w-7 md:h-7" onClick={() => setEditingShot(shot)}>
@@ -695,6 +753,7 @@ export default function ProjectDetailPage() {
           onOpenChange={(open) => !open && setEditingShot(null)}
           projectId={project.id}
           generationMode={project.generationMode}
+          characters={projectCharacters}
         />
       )}
 
@@ -707,6 +766,24 @@ export default function ProjectDetailPage() {
           settings={settings}
           fallbackCharacterIds={projectCharacterIds}
           fallbackSettingId={project.settingId}
+        />
+      )}
+
+      {isContinuityEditorOpen && (
+        <ContinuityEditor 
+          project={project} 
+          open={isContinuityEditorOpen} 
+          onOpenChange={setIsContinuityEditorOpen} 
+        />
+      )}
+
+      {reviewingShot && (
+        <ShotStillReview
+          key={reviewingShot.id}
+          project={project}
+          shot={project.shots.find((shot) => shot.id === reviewingShot.id) ?? reviewingShot}
+          open={!!reviewingShot}
+          onOpenChange={(open) => !open && setReviewingShot(null)}
         />
       )}
     </div>
@@ -872,6 +949,7 @@ function ShotPreviewDialog({
 }
 
 const shotFormSchema = z.object({
+  sceneNumber: z.coerce.number().int().min(1).max(10000),
   title: z.string().min(1).max(180).optional(),
   prompt: z.string().min(1).max(10000).optional(),
   dialogue: z.string().max(5000).optional(),
@@ -880,9 +958,16 @@ const shotFormSchema = z.object({
   continuityNote: z.string().max(5000).optional(),
   transition: z.enum(["CUT", "DISSOLVE", "FADE"]).optional(),
   durationSeconds: z.coerce.number().min(2).max(30).optional(),
+  continuity: z.object({
+    characterIds: z.array(z.string()).optional(),
+    speakerCharacterId: z.string().optional(),
+    voiceCloningEnabled: z.boolean().default(false),
+    emotionNotes: z.string().optional(),
+    performanceNotes: z.string().optional(),
+  }).optional(),
 });
 
-function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }: { shot: any, open: boolean, onOpenChange: (o: boolean) => void, projectId: string, generationMode: string }) {
+function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode, characters }: { shot: any, open: boolean, onOpenChange: (o: boolean) => void, projectId: string, generationMode: string, characters: any[] }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateShot = useUpdateLongFormShot();
@@ -891,6 +976,7 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }:
   const form = useForm<z.infer<typeof shotFormSchema>>({
     resolver: zodResolver(shotFormSchema),
     defaultValues: {
+      sceneNumber: shot.sceneNumber,
       title: shot.title || "",
       prompt: shot.prompt || "",
       dialogue: shot.dialogue || "",
@@ -899,10 +985,23 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }:
       continuityNote: shot.continuityNote || "",
       transition: shot.transition || "CUT",
       durationSeconds: shot.durationSeconds || 5,
+      continuity: {
+        characterIds: shot.continuity?.characterIds || [],
+        speakerCharacterId: shot.continuity?.speakerCharacterId || undefined,
+        voiceCloningEnabled: shot.continuity?.voiceCloningEnabled || false,
+        emotionNotes: shot.continuity?.emotionNotes || "",
+        performanceNotes: shot.continuity?.performanceNotes || "",
+      }
     }
   });
 
   const onSubmit = (data: z.infer<typeof shotFormSchema>) => {
+    if (data.continuity?.characterIds?.length && data.continuity.speakerCharacterId
+      && !data.continuity.characterIds.includes(data.continuity.speakerCharacterId)) {
+      form.setError("continuity.speakerCharacterId", { message: "Include the speaker in the shot cast or choose another speaker." });
+      return;
+    }
+
     updateShot.mutate({ id: projectId, shotId: shot.id, data }, {
       onSuccess: () => {
         toast({
@@ -926,123 +1025,254 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode }:
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6 mt-2 md:mt-4">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs md:text-sm">Title</FormLabel>
-                    <FormControl>
-                      <Input className="h-9 md:h-10 text-sm" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="durationSeconds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs md:text-sm">Duration (seconds)</FormLabel>
-                    <FormControl>
-                      <Input className="h-9 md:h-10 text-sm" type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <Tabs defaultValue="general">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="continuity">Continuity Overrides</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs md:text-sm">Title</FormLabel>
+                        <FormControl>
+                          <Input className="h-9 md:h-10 text-sm" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="durationSeconds"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs md:text-sm">Duration (seconds)</FormLabel>
+                        <FormControl>
+                          <Input className="h-9 md:h-10 text-sm" type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            <PromptGuidancePanel
-              prompt={form.watch("prompt") ?? ""}
-              onPromptChange={(value) => form.setValue("prompt", value, { shouldDirty: true })}
-              cameraInstructions={form.watch("cameraInstructions") ?? ""}
-              onCameraChange={(value) => form.setValue("cameraInstructions", value, { shouldDirty: true })}
-              motionInstructions={form.watch("motionInstructions") ?? ""}
-              onMotionChange={(value) => form.setValue("motionInstructions", value, { shouldDirty: true })}
-              negativePrompt=""
-              onNegativeChange={() => undefined}
-              dialogue={form.watch("dialogue") ?? ""}
-              onDialogueChange={(value) => form.setValue("dialogue", value, { shouldDirty: true })}
-              continuityNote={form.watch("continuityNote") ?? ""}
-              onContinuityChange={(value) => form.setValue("continuityNote", value, { shouldDirty: true })}
-              generationMode={generationMode}
-              shotKind={/^b[- ]?roll/i.test(shot.title ?? "") ? "B-ROLL" : "SHOT"}
-            />
+                <PromptGuidancePanel
+                  prompt={form.watch("prompt") ?? ""}
+                  onPromptChange={(value) => form.setValue("prompt", value, { shouldDirty: true })}
+                  cameraInstructions={form.watch("cameraInstructions") ?? ""}
+                  onCameraChange={(value) => form.setValue("cameraInstructions", value, { shouldDirty: true })}
+                  motionInstructions={form.watch("motionInstructions") ?? ""}
+                  onMotionChange={(value) => form.setValue("motionInstructions", value, { shouldDirty: true })}
+                  negativePrompt=""
+                  onNegativeChange={() => undefined}
+                  dialogue={form.watch("dialogue") ?? ""}
+                  onDialogueChange={(value) => form.setValue("dialogue", value, { shouldDirty: true })}
+                  continuityNote={form.watch("continuityNote") ?? ""}
+                  onContinuityChange={(value) => form.setValue("continuityNote", value, { shouldDirty: true })}
+                  generationMode={generationMode}
+                  shotKind={/^b[- ]?roll/i.test(shot.title ?? "") ? "B-ROLL" : "SHOT"}
+                />
 
-            <FormField
-              control={form.control}
-              name="prompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs md:text-sm">Base Prompt</FormLabel>
-                  <FormControl>
-                    <Textarea className="h-24 md:h-32 text-sm resize-none" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="prompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Base Prompt</FormLabel>
+                      <FormControl>
+                        <Textarea className="h-24 md:h-32 text-sm resize-none" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="dialogue"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs md:text-sm">Dialogue</FormLabel>
-                  <FormControl>
-                    <Textarea className="h-20 text-sm resize-none" placeholder="Spoken words for this shot. Leave empty for B-roll." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="dialogue"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Dialogue</FormLabel>
+                      <FormControl>
+                        <Textarea className="h-20 text-sm resize-none" placeholder="Spoken words for this shot. Leave empty for B-roll." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-              <FormField
-                control={form.control}
-                name="cameraInstructions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs md:text-sm">Camera Motion</FormLabel>
-                    <FormControl>
-                      <Input className="h-9 md:h-10 text-sm" placeholder="e.g. Slow pan right" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="motionInstructions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs md:text-sm">Subject Motion</FormLabel>
-                    <FormControl>
-                      <Input className="h-9 md:h-10 text-sm" placeholder="e.g. Character turns head" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                  <FormField
+                    control={form.control}
+                    name="cameraInstructions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs md:text-sm">Camera Motion</FormLabel>
+                        <FormControl>
+                          <Input className="h-9 md:h-10 text-sm" placeholder="e.g. Slow pan right" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="motionInstructions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs md:text-sm">Subject Motion</FormLabel>
+                        <FormControl>
+                          <Input className="h-9 md:h-10 text-sm" placeholder="e.g. Character turns head" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            <FormField
-              control={form.control}
-              name="continuityNote"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs md:text-sm">Continuity Note</FormLabel>
-                  <FormControl>
-                    <Input className="h-9 md:h-10 text-sm" placeholder="Ensure character wears hat" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="continuityNote"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Continuity Note</FormLabel>
+                      <FormControl>
+                        <Input className="h-9 md:h-10 text-sm" placeholder="Ensure character wears hat" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value="continuity" className="space-y-4 mt-4">
+                <FormField
+                  control={form.control}
+                  name="sceneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Scene number</FormLabel>
+                      <FormControl><Input type="number" min={1} max={10000} step={1} data-testid="input-shot-scene-number" {...field} /></FormControl>
+                      <p className="text-xs text-muted-foreground">Shots in the same scene share its wardrobe and emotion settings. After regrouping, use Sync Scenes in Continuity.</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="continuity.emotionNotes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Emotion Overrides</FormLabel>
+                      <FormControl>
+                        <Input className="h-9 md:h-10 text-sm" placeholder="e.g. Character 1 looks surprised" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="continuity.performanceNotes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Performance / Delivery Notes</FormLabel>
+                      <FormControl>
+                        <Textarea className="h-20 text-sm resize-none" placeholder="e.g. Speaks in a hushed, anxious tone" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="continuity.voiceCloningEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border/50 bg-muted/20 p-4">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Enable Voice Cloning</FormLabel>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Use the speaker's cloned voice. A voice profile with active consent is required.
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="continuity.speakerCharacterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Speaker Character</FormLabel>
+                      <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? undefined : v)}>
+                        <FormControl>
+                          <SelectTrigger className="h-9 md:h-10 text-sm">
+                            <SelectValue placeholder="Select speaker..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None (No dialogue / Off-screen)</SelectItem>
+                          {characters.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="continuity.characterIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs md:text-sm">Explicit Shot Cast (Overrides Scene Cast)</FormLabel>
+                      <FormControl>
+                        <div className="flex flex-wrap gap-2 pt-2 border p-3 rounded-md bg-muted/10">
+                          {characters.length === 0 && <span className="text-xs text-muted-foreground">No characters in project</span>}
+                          {characters.map(c => {
+                            const isSelected = field.value?.includes(c.id);
+                            return (
+                              <button
+                                type="button"
+                                key={c.id}
+                                onClick={() => {
+                                  const current = field.value || [];
+                                  const next = isSelected 
+                                    ? current.filter(id => id !== c.id)
+                                    : [...current, c.id].slice(0, 9);
+                                  field.onChange(next);
+                                }}
+                                className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
+                                  isSelected 
+                                    ? "bg-primary/20 border-primary text-primary" 
+                                    : "bg-background border-border text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                                }`}
+                              >
+                                {c.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+            </Tabs>
 
             <div className="flex justify-end gap-2.5 md:gap-3 pt-3 md:pt-4 border-t border-border">
               <Button type="button" variant="outline" size="sm" className="md:h-10 md:px-4" onClick={() => onOpenChange(false)}>Cancel</Button>

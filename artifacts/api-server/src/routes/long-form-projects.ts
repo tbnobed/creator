@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { rm, stat } from "node:fs/promises";
 import { and, desc, eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import express, { Router, type IRouter } from "express";
 import {
   CancelLongFormProjectParams,
   CancelLongFormProjectResponse,
@@ -26,6 +26,16 @@ import {
   UpdateLongFormTimelineParams,
   UpdateLongFormTimelineResponse,
   DownloadLongFormNlePackageParams,
+  AttachLongFormShotStillParams,
+  AttachLongFormShotStillResponse,
+  ClearLongFormShotStillParams,
+  ClearLongFormShotStillResponse,
+  ReviewLongFormShotStillBody,
+  ReviewLongFormShotStillParams,
+  ReviewLongFormShotStillResponse,
+  UpdateLongFormContinuityBody,
+  UpdateLongFormContinuityParams,
+  UpdateLongFormContinuityResponse,
 } from "@workspace/api-zod";
 import { db, longFormProjectsTable, longFormShotsTable } from "@workspace/db";
 import {
@@ -35,15 +45,47 @@ import {
   deleteLongFormProject,
   pauseLongFormProject,
   presentLongFormProject,
+  presentShotForContinuity,
   reassembleLongFormProject,
   retryLongFormShot,
   startLongFormProject,
   updateLongFormShot,
   updateLongFormTimeline,
+  updateLongFormContinuity,
 } from "../lib/long-form-service";
 import { ResourceNotFoundError } from "../lib/resource-errors";
+import {
+  clearShotStill,
+  reviewShotStill,
+  setShotStillFromAsset,
+} from "../lib/continuity-service";
+import { createUploadedAsset } from "../lib/image-studio-service";
 
 const router: IRouter = Router();
+const stillUploadBody = express.raw({
+  type: ["image/png", "image/jpeg", "image/webp", "multipart/form-data"],
+  limit: "15mb",
+});
+
+function uploadedImageFromMultipart(req: express.Request): { name: string; mimeType: string; bytes: Buffer } | null {
+  if (!Buffer.isBuffer(req.body)) return null;
+  const contentType = req.get("content-type") ?? "";
+  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;\s]+))/i)?.[1]
+    ?? contentType.match(/boundary=(?:"([^"]+)"|([^;\s]+))/i)?.[2];
+  if (!boundary) return null;
+  const marker = Buffer.from(`--${boundary}`);
+  for (const part of req.body.toString("binary").split(marker.toString("binary"))) {
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd < 0) continue;
+    const header = part.slice(0, headerEnd);
+    const mimeType = header.match(/content-type:\s*([^\r\n;]+)/i)?.[1]?.toLowerCase();
+    if (!mimeType || !["image/png", "image/jpeg", "image/webp"].includes(mimeType)) continue;
+    const name = header.match(/filename="([^"\\/]+)"/i)?.[1] ?? "continuity-still";
+    const binary = part.slice(headerEnd + 4).replace(/\r\n$/, "");
+    return { name, mimeType, bytes: Buffer.from(binary, "binary") };
+  }
+  return null;
+}
 
 async function detail(projectId: string, tenantId: string) {
   const [project] = await db.select().from(longFormProjectsTable).where(and(
@@ -149,6 +191,22 @@ router.post("/long-form-projects/:id/start", async (req, res): Promise<void> => 
   }
 });
 
+router.put("/long-form-projects/:id/continuity", async (req, res): Promise<void> => {
+  const params = UpdateLongFormContinuityParams.safeParse(req.params);
+  const input = UpdateLongFormContinuityBody.safeParse(req.body);
+  if (!params.success || !input.success) {
+    res.status(400).json({ error: !params.success ? params.error.message : input.error!.message });
+    return;
+  }
+  try {
+    res.json(UpdateLongFormContinuityResponse.parse(await updateLongFormContinuity(params.data.id, input.data)));
+  } catch (error) {
+    res.status(error instanceof ResourceNotFoundError ? 404 : 409).json({
+      error: error instanceof Error ? error.message : "Could not update continuity",
+    });
+  }
+});
+
 router.post("/long-form-projects/:id/reassemble", async (req, res): Promise<void> => {
   const params = ReassembleLongFormProjectParams.safeParse(req.params);
   if (!params.success) {
@@ -216,6 +274,86 @@ router.post("/long-form-projects/:id/shots/:shotId/retry", async (req, res): Pro
     res.json(RetryLongFormShotResponse.parse(await retryLongFormShot(params.data.id, params.data.shotId)));
   } catch (error) {
     res.status(409).json({ error: error instanceof Error ? error.message : "Could not retry shot" });
+  }
+});
+
+router.post("/long-form-projects/:id/shots/:shotId/still", stillUploadBody, async (req, res): Promise<void> => {
+  const params = AttachLongFormShotStillParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    let assetId: string | undefined;
+    if (req.is("application/json")) {
+      const body = req.body as { assetId?: unknown };
+      assetId = typeof body.assetId === "string" ? body.assetId : undefined;
+    } else {
+      const upload = uploadedImageFromMultipart(req) ?? (
+        Buffer.isBuffer(req.body) && ["image/png", "image/jpeg", "image/webp"].includes(req.get("content-type")?.split(";", 1)[0] ?? "")
+          ? {
+              name: req.get("x-file-name")?.replace(/[/\\\0]/g, "") || "continuity-still",
+              mimeType: req.get("content-type")!.split(";", 1)[0],
+              bytes: req.body,
+            }
+          : null
+      );
+      if (upload) {
+        assetId = (await createUploadedAsset({
+          tenantId: req.context!.tenant!.id,
+          userId: req.context!.user.id,
+          ...upload,
+        })).id;
+      }
+    }
+    if (!assetId) {
+      res.status(400).json({ error: "Provide an Image Studio assetId or an image file" });
+      return;
+    }
+    const shot = await setShotStillFromAsset({
+      projectId: params.data.id,
+      shotId: params.data.shotId,
+      tenantId: req.context!.tenant!.id,
+      assetId,
+    });
+    res.status(201).json(AttachLongFormShotStillResponse.parse(await presentShotForContinuity(shot)));
+  } catch (error) {
+    res.status(error instanceof ResourceNotFoundError ? 404 : 409).json({
+      error: error instanceof Error ? error.message : "Could not attach still",
+    });
+  }
+});
+
+router.post("/long-form-projects/:id/shots/:shotId/still/review", async (req, res): Promise<void> => {
+  const params = ReviewLongFormShotStillParams.safeParse(req.params);
+  const input = ReviewLongFormShotStillBody.safeParse(req.body);
+  if (!params.success || !input.success) {
+    res.status(400).json({ error: !params.success ? params.error.message : input.error!.message });
+    return;
+  }
+  try {
+    const shot = await reviewShotStill({ projectId: params.data.id, shotId: params.data.shotId, ...input.data });
+    res.json(ReviewLongFormShotStillResponse.parse(await presentShotForContinuity(shot)));
+  } catch (error) {
+    res.status(error instanceof ResourceNotFoundError ? 404 : 409).json({
+      error: error instanceof Error ? error.message : "Could not review still",
+    });
+  }
+});
+
+router.delete("/long-form-projects/:id/shots/:shotId/still", async (req, res): Promise<void> => {
+  const params = ClearLongFormShotStillParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    const shot = await clearShotStill(params.data.id, params.data.shotId);
+    res.json(ClearLongFormShotStillResponse.parse(await presentShotForContinuity(shot)));
+  } catch (error) {
+    res.status(error instanceof ResourceNotFoundError ? 404 : 409).json({
+      error: error instanceof Error ? error.message : "Could not clear still",
+    });
   }
 });
 

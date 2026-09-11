@@ -1051,6 +1051,60 @@ export const LongFormProjectInputQualityPreset = {
   HIGH: 'HIGH',
 } as const;
 
+export interface LongFormContinuityWardrobe {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @maxLength 2000 */
+  description: string;
+  referenceAssetId?: string;
+}
+
+export interface LongFormContinuityCharacter {
+  characterId: string;
+  /** @maxLength 5000 */
+  appearance: string;
+  /** @maxLength 5000 */
+  behavior: string;
+  /** @maxLength 5000 */
+  voiceDescription: string;
+  /** @maxItems 30 */
+  wardrobes: LongFormContinuityWardrobe[];
+}
+
+export type LongFormContinuitySceneWardrobeAssignmentsItem = {
+  characterId: string;
+  wardrobeId: string;
+};
+
+export interface LongFormContinuityScene {
+  /** @minimum 1 */
+  sceneNumber: number;
+  /** @maxLength 300 */
+  title: string;
+  /** @maxLength 5000 */
+  settingNotes: string;
+  /** @maxLength 5000 */
+  emotionNotes: string;
+  /** @maxItems 50 */
+  wardrobeAssignments: LongFormContinuitySceneWardrobeAssignmentsItem[];
+}
+
+export interface LongFormContinuitySettings {
+  enabled: boolean;
+  /** @maxItems 9 */
+  characters: LongFormContinuityCharacter[];
+  /** @maxItems 1000 */
+  scenes: LongFormContinuityScene[];
+}
+
 export interface LongFormProjectInput {
   /**
      * @minLength 1
@@ -1095,6 +1149,7 @@ export interface LongFormProjectInput {
   height: number;
   fps: LongFormProjectInputFps;
   qualityPreset: LongFormProjectInputQualityPreset;
+  continuity?: LongFormContinuitySettings;
 }
 
 export type LongFormProjectStatus = typeof LongFormProjectStatus[keyof typeof LongFormProjectStatus];
@@ -1140,6 +1195,7 @@ export interface LongFormProject {
   failedShots: number;
   progress: number;
   timelineClips: LongFormTimelineClip[];
+  continuity: LongFormContinuitySettings;
   /** @nullable */
   finalOutputUrl: string | null;
   /** @nullable */
@@ -1173,6 +1229,41 @@ export const LongFormShotStatus = {
   CANCELLED: 'CANCELLED',
 } as const;
 
+export interface LongFormShotContinuity {
+  /**
+     * @minItems 1
+     * @maxItems 9
+     */
+  characterIds?: string[];
+  speakerCharacterId?: string;
+  voiceCloningEnabled: boolean;
+  /** @maxLength 5000 */
+  emotionNotes?: string;
+  /** @maxLength 5000 */
+  performanceNotes?: string;
+}
+
+export type LongFormShotStillStatus = typeof LongFormShotStillStatus[keyof typeof LongFormShotStillStatus];
+
+
+export const LongFormShotStillStatus = {
+  NONE: 'NONE',
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface LongFormShotStill {
+  status: LongFormShotStillStatus;
+  /** @nullable */
+  assetUrl: string | null;
+  revision: number;
+  /** @nullable */
+  approvedAt: string | null;
+  /** @nullable */
+  reviewNote: string | null;
+}
+
 export interface LongFormShot {
   id: string;
   sceneNumber: number;
@@ -1190,6 +1281,8 @@ export interface LongFormShot {
   characterIds: string[];
   /** @nullable */
   settingId: string | null;
+  continuity: LongFormShotContinuity;
+  still: LongFormShotStill;
   /** @nullable */
   generationId: string | null;
   /** @nullable */
@@ -1230,10 +1323,36 @@ export interface LongFormShotUpdate {
   continuityNote?: string;
   transition?: LongFormShotUpdateTransition;
   /**
+     * @minimum 1
+     * @maximum 999
+     */
+  sceneNumber?: number;
+  /**
      * @minimum 2
      * @maximum 30
      */
   durationSeconds?: number;
+  continuity?: LongFormShotContinuity;
+}
+
+export interface LongFormStillAttach {
+  assetId: string;
+}
+
+export type LongFormStillReviewAction = typeof LongFormStillReviewAction[keyof typeof LongFormStillReviewAction];
+
+
+export const LongFormStillReviewAction = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface LongFormStillReview {
+  action: LongFormStillReviewAction;
+  /** @minimum 1 */
+  revision: number;
+  /** @maxLength 5000 */
+  note?: string;
 }
 
 export interface LongFormTimelineInput {
@@ -1284,6 +1403,10 @@ page?: number;
  * @maximum 100
  */
 pageSize?: number;
+};
+
+export type AttachLongFormShotStillBodyTwo = {
+  file: string;
 };
 
 export type ListImageStudioJobsParams = {

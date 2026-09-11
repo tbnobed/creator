@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Wand2 } from "lucide-react";
 import { ScriptGuidance } from "@/components/script-guidance";
 
@@ -45,6 +46,11 @@ const formSchema = z.object({
   height: z.coerce.number().min(64).max(4096),
   fps: z.union([z.literal(24), z.literal(25), z.literal(30)]),
   qualityPreset: z.enum(["DRAFT", "STANDARD", "HIGH"]),
+  continuity: z.object({
+    enabled: z.boolean(),
+    characters: z.array(z.any()).default([]),
+    scenes: z.array(z.any()).default([]),
+  }).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -85,6 +91,11 @@ export default function NewProjectPage() {
       height: 720,
       fps: 24,
       qualityPreset: "STANDARD",
+      continuity: {
+        enabled: true,
+        characters: [],
+        scenes: [],
+      }
     },
   });
 
@@ -338,6 +349,26 @@ export default function NewProjectPage() {
                           </SelectContent>
                         </Select>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="continuity.enabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border/50 bg-muted/20 p-4 lg:col-span-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Enable Continuity</FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Stabilize characters, wardrobe, and voice across shots. Requires approving still frames before video generation.
+                          </p>
+                        </div>
                       </FormItem>
                     )}
                   />

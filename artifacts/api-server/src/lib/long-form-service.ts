@@ -3,12 +3,13 @@ import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   charactersTable,
   comfyServersTable,
   db,
   generationJobsTable,
+  imageStudioAssetsTable,
   imageStudioJobsTable,
   longFormProjectsTable,
   longFormShotsTable,
@@ -19,12 +20,25 @@ import {
   type LongFormProject,
   type LongFormShot,
   type LongFormTimelineClip,
+  type LongFormContinuitySettings,
+  type LongFormShotContinuity,
 } from "@workspace/db";
 import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { mediaStorage } from "./storage-service";
 import { ResourceNotFoundError } from "./resource-errors";
+import {
+  activeShotsForProject,
+  defaultContinuity,
+  defaultShotContinuity,
+  invalidateShotStill,
+  invalidatedStillValues,
+  missingApprovedContinuityShot,
+  stillForShot,
+  validateContinuitySettings,
+  validateShotContinuity,
+} from "./continuity-service";
 
 const execFileAsync = promisify(execFile);
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
@@ -47,6 +61,7 @@ export type LongFormProjectInput = {
   height: number;
   fps: number;
   qualityPreset: string;
+  continuity?: LongFormContinuitySettings;
 };
 
 export type OwnedLongFormProjectInput = LongFormProjectInput & {
@@ -56,8 +71,11 @@ export type OwnedLongFormProjectInput = LongFormProjectInput & {
 
 export type LongFormShotUpdate = Partial<Pick<
   LongFormShot,
-  "title" | "prompt" | "dialogue" | "cameraInstructions" | "motionInstructions" | "continuityNote" | "transition" | "durationSeconds"
+  "title" | "prompt" | "dialogue" | "cameraInstructions" | "motionInstructions" | "continuityNote" | "transition" | "durationSeconds" | "sceneNumber"
 >>;
+export type LongFormShotContinuityUpdate = LongFormShotUpdate & {
+  continuity?: LongFormShotContinuity;
+};
 
 type PlannedShot = {
   sceneNumber: number;
@@ -386,7 +404,13 @@ async function presentShot(shot: LongFormShot) {
     serverName: server?.displayName ?? null,
     outputUrl: shot.outputStorageKey ? `/api/media/${shot.outputStorageKey}` : null,
     errorMessage: shot.errorMessage,
+    continuity: shot.continuity ?? defaultShotContinuity(),
+    still: stillForShot(shot),
   };
+}
+
+export async function presentShotForContinuity(shot: LongFormShot) {
+  return presentShot(shot);
 }
 
 export async function presentLongFormProject(project: LongFormProject, includeShots = false) {
@@ -411,6 +435,7 @@ export async function presentLongFormProject(project: LongFormProject, includeSh
     timelineClips: project.timelineClips ?? [],
     finalOutputUrl: project.finalOutputStorageKey ? `/api/media/${project.finalOutputStorageKey}` : null,
     errorMessage: project.errorMessage,
+    continuity: project.continuity ?? defaultContinuity(),
     startedAt: date(project.startedAt),
     completedAt: date(project.completedAt),
     createdAt: project.createdAt.toISOString(),
@@ -441,6 +466,15 @@ export async function createLongFormProject(input: OwnedLongFormProjectInput) {
   }
   if (input.targetDurationSeconds > 600) throw new Error("Long-form projects are limited to 10 minutes.");
   const shots = planShots(input);
+  const continuity = await validateContinuitySettings(
+    input.tenantId,
+    input.continuity ?? defaultContinuity(),
+    input.characterIds,
+  );
+  const authoredSceneNumbers = new Set(shots.map((shot) => shot.sceneNumber));
+  if (continuity.scenes.some((scene) => !authoredSceneNumbers.has(scene.sceneNumber))) {
+    throw new Error("Continuity scenes may only target scene numbers authored by the project script");
+  }
   // Project totals are stored as integer seconds, while individual shot durations
   // may remain fractional for accurate dialogue timing.
   const plannedDurationSeconds = Math.ceil(shots.reduce((sum, shot) => sum + shot.durationSeconds, 0));
@@ -464,6 +498,7 @@ export async function createLongFormProject(input: OwnedLongFormProjectInput) {
       characterIds: input.characterIds,
       settingId: input.settingId,
       timelineClips: [],
+       continuity,
       totalShots: shots.length,
       })
       .returning();
@@ -474,6 +509,7 @@ export async function createLongFormProject(input: OwnedLongFormProjectInput) {
         characterIds: input.characterIds,
         settingId: input.settingId,
         status: "PLANNED",
+        continuity: defaultShotContinuity(),
       })),
     );
     return created;
@@ -511,6 +547,7 @@ export async function deleteLongFormProject(projectId: string): Promise<void> {
     const mediaKeys = [...new Set([
       project.finalOutputStorageKey,
       ...shots.map((shot) => shot.outputStorageKey),
+      ...shots.map((shot) => shot.stillStorageKey),
       ...childJobs.map((job) => job.outputStorageKey),
     ].filter((key): key is string => Boolean(key)))];
 
@@ -534,7 +571,7 @@ type DispatchAvailability = {
   reason: string | null;
 };
 
-async function findDispatchAvailability(project: LongFormProject): Promise<DispatchAvailability> {
+async function findDispatchAvailability(project: LongFormProject, requiredReferenceSlots = 0): Promise<DispatchAvailability> {
   const [servers, workflows, activeJobs, activeImageJobs] = await Promise.all([
     db.select().from(comfyServersTable),
     db.select().from(workflowTemplatesTable).where(and(eq(workflowTemplatesTable.generationMode, project.generationMode), eq(workflowTemplatesTable.active, true))),
@@ -554,11 +591,19 @@ async function findDispatchAvailability(project: LongFormProject): Promise<Dispa
   for (const job of activeImageJobs) {
     if (job.comfyServerId) activeByServer.set(job.comfyServerId, (activeByServer.get(job.comfyServerId) ?? 0) + 1);
   }
-  const compatibleWorkflows = workflows.filter(isLongFormWorkflow);
+  const compatibleWorkflows = workflows.filter((workflow) => (
+    isLongFormWorkflow(workflow) &&
+    (!project.continuity?.enabled || (
+      Boolean(workflow.mappings.referenceImage1) &&
+      Object.keys(workflow.mappings).filter((field) => /^referenceImage\d+$/.test(field)).length >= requiredReferenceSlots
+    ))
+  ));
   if (compatibleWorkflows.length === 0) {
     return {
       server: null,
-      reason: `Waiting for an active ${project.generationMode} workflow that accepts character and environment references.`,
+      reason: project.continuity?.enabled
+        ? `Continuity is enabled, but no active ${project.generationMode} workflow accepts the approved still reference.`
+        : `Waiting for an active ${project.generationMode} workflow that accepts character and environment references.`,
     };
   }
   const onlineCompatibleServers = servers.filter((server) => (
@@ -599,19 +644,82 @@ async function recordDispatchBlock(project: LongFormProject, reason: string): Pr
   logger.warn({ projectId: project.id, generationMode: project.generationMode, reason }, "Long-form dispatch waiting");
 }
 
+function conciseContinuityContext(project: LongFormProject, shot: LongFormShot): string | undefined {
+  const continuity = project.continuity ?? defaultContinuity();
+  if (!continuity.enabled) return undefined;
+  const cast = shot.continuity?.characterIds?.length ? shot.continuity.characterIds : shot.characterIds;
+  const locks = continuity.characters
+    .filter((character) => cast.includes(character.characterId))
+    .map((character) => [
+      character.appearance && `appearance: ${character.appearance}`,
+      character.behavior && `behavior: ${character.behavior}`,
+      character.voiceDescription && `voice delivery: ${character.voiceDescription}`,
+    ].filter(Boolean).join("; "))
+    .filter(Boolean)
+    .join(" | ");
+  const scene = continuity.scenes.find((candidate) => candidate.sceneNumber === shot.sceneNumber);
+  const wardrobe = scene?.wardrobeAssignments
+    .filter((assignment) => cast.includes(assignment.characterId))
+    .map((assignment) => {
+      const character = continuity.characters.find((candidate) => candidate.characterId === assignment.characterId);
+      return character?.wardrobes.find((item) => item.id === assignment.wardrobeId)?.description;
+    })
+    .filter((value): value is string => Boolean(value))
+    .join("; ");
+  return [
+    locks && `Character locks: ${locks.slice(0, 900)}`,
+    scene?.settingNotes && `Scene setting: ${scene.settingNotes.slice(0, 400)}`,
+    scene?.emotionNotes && `Scene emotion: ${scene.emotionNotes.slice(0, 300)}`,
+    wardrobe && `Wardrobe: ${wardrobe.slice(0, 500)}`,
+    shot.continuity?.emotionNotes && `Shot emotion: ${shot.continuity.emotionNotes.slice(0, 300)}`,
+    shot.continuity?.performanceNotes && `Performance: ${shot.continuity.performanceNotes.slice(0, 400)}`,
+  ].filter(Boolean).join("\n") || undefined;
+}
+
+async function wardrobeReferenceKeys(project: LongFormProject, shot: LongFormShot): Promise<string[]> {
+  if (!project.continuity?.enabled) return [];
+  const cast = shot.continuity?.characterIds?.length ? shot.continuity.characterIds : project.characterIds;
+  const scene = project.continuity.scenes.find((item) => item.sceneNumber === shot.sceneNumber);
+  if (!scene) return [];
+  const assetIds = cast.flatMap((characterId) => {
+    const assignment = scene.wardrobeAssignments.find((item) => item.characterId === characterId);
+    const character = project.continuity!.characters.find((item) => item.characterId === characterId);
+    const wardrobe = character?.wardrobes.find((item) => item.id === assignment?.wardrobeId);
+    return wardrobe?.referenceAssetId ? [wardrobe.referenceAssetId] : [];
+  });
+  if (!assetIds.length) return [];
+  const assets = await db.select({ id: imageStudioAssetsTable.id, storageKey: imageStudioAssetsTable.storageKey })
+    .from(imageStudioAssetsTable)
+    .where(and(eq(imageStudioAssetsTable.tenantId, project.tenantId), inArray(imageStudioAssetsTable.id, assetIds)));
+  const byId = new Map(assets.map((asset) => [asset.id, asset.storageKey]));
+  if (assetIds.some((assetId) => !byId.has(assetId))) {
+    throw new Error("A continuity wardrobe reference asset is unavailable; update the wardrobe before dispatching.");
+  }
+  return assetIds.map((assetId) => byId.get(assetId)!);
+}
+
 async function reconcileShotJobs(project: LongFormProject, shots: LongFormShot[]) {
   const generationIds = shots.flatMap((shot) => shot.generationJobId ? [shot.generationJobId] : []);
   const correlatedJobs = await db
     .select()
     .from(generationJobsTable)
-    .where(inArray(generationJobsTable.longFormShotId, shots.map((shot) => shot.id)));
+    .where(inArray(generationJobsTable.longFormShotId, shots.map((shot) => shot.id)))
+    .orderBy(desc(generationJobsTable.createdAt));
   for (const shot of shots) {
     if (shot.generationJobId) continue;
-    const correlatedJob = correlatedJobs.find((job) => job.longFormShotId === shot.id);
+    // Retried shots may have historical failed jobs. Only a newest active job
+    // may be recovered into a planned shot; never resurrect an old attempt.
+    const correlatedJob = correlatedJobs.find((job) => (
+      job.longFormShotId === shot.id && activeGenerationStatuses.includes(job.status)
+    ));
     if (correlatedJob) {
       await db.update(longFormShotsTable)
         .set({ generationJobId: correlatedJob.id })
-        .where(and(eq(longFormShotsTable.id, shot.id), eq(longFormShotsTable.status, "QUEUED")));
+        .where(and(
+          eq(longFormShotsTable.id, shot.id),
+          eq(longFormShotsTable.status, "QUEUED"),
+          sql`${longFormShotsTable.generationJobId} IS NULL`,
+        ));
     }
   }
   const reconciledShotIds = [...new Set([...generationIds, ...correlatedJobs.map((job) => job.id)])];
@@ -959,19 +1067,36 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
     }
     return;
   }
+  if (project.continuity?.enabled) {
+    const missingStill = missingApprovedContinuityShot(true, remaining);
+    if (missingStill) {
+      await recordDispatchBlock(
+        project,
+        `Continuity is enabled: approve the current still for Scene ${missingStill.sceneNumber}, Shot ${missingStill.shotNumber} before dispatching it.`,
+      );
+      return;
+    }
+  }
 
-  let availability = await findDispatchAvailability(project);
+  let nextShot = remaining[0];
+  let nextWardrobeReferences = nextShot ? await wardrobeReferenceKeys(project, nextShot) : [];
+  let availability = await findDispatchAvailability(
+    project,
+    project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0,
+  );
   let server = availability.server;
   if (!server) {
     await recordDispatchBlock(project, availability.reason ?? "Waiting for a compatible GPU worker.");
     return;
   }
-  let nextShot = remaining[0];
   while (server && nextShot) {
     const dispatched = await (async () => {
       const [currentProject] = await db.select({ status: longFormProjectsTable.status }).from(longFormProjectsTable).where(eq(longFormProjectsTable.id, project.id));
       if (currentProject?.status !== "RUNNING") return false;
-      const confirmedAvailability = await findDispatchAvailability(project);
+      const confirmedAvailability = await findDispatchAvailability(
+        project,
+        project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0,
+      );
       const confirmedServer = confirmedAvailability.server;
       if (confirmedServer?.id !== server.id) return false;
       const [claimed] = await db.update(longFormShotsTable)
@@ -986,10 +1111,11 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
             .set({ durationSeconds: renderDurationSeconds })
             .where(eq(longFormShotsTable.id, claimed.id));
         }
+        const wardrobeReferences = await wardrobeReferenceKeys(project, claimed);
         const job = await createAndSubmitGeneration({
           tenantId: project.tenantId,
           createdByUserId: project.createdByUserId,
-          characterIds: project.characterIds,
+           characterIds: claimed.continuity?.characterIds?.length ? claimed.continuity.characterIds : project.characterIds,
           settingId: project.settingId ?? undefined,
           prompt: claimed.dialogue ? removeDialogueFromPrompt(claimed.prompt) : claimed.prompt,
           negativePrompt: project.negativePrompt,
@@ -1003,6 +1129,15 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
           height: project.height,
           qualityPreset: project.qualityPreset,
           seedMode: "RANDOM",
+           speakerCharacterId: claimed.continuity?.speakerCharacterId,
+           voiceCloningEnabled: claimed.continuity?.voiceCloningEnabled === true,
+            referenceImageKeys: project.continuity?.enabled && claimed.stillStorageKey
+              ? [claimed.stillStorageKey, ...wardrobeReferences]
+              : [],
+            mandatoryReferenceImageCount: project.continuity?.enabled && claimed.stillStorageKey
+              ? 1 + wardrobeReferences.length
+              : 0,
+           continuityContext: conciseContinuityContext(project, claimed),
           preferredServerId: server.id,
           longFormShotId: claimed.id,
           onJobCreated: async (job) => {
@@ -1032,9 +1167,13 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
       }
     })();
     if (!dispatched) break;
-    availability = await findDispatchAvailability(project);
-    server = availability.server;
     nextShot = (await db.select().from(longFormShotsTable).where(and(eq(longFormShotsTable.projectId, project.id), eq(longFormShotsTable.status, "PLANNED"))).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber)))[0];
+    nextWardrobeReferences = nextShot ? await wardrobeReferenceKeys(project, nextShot) : [];
+    availability = await findDispatchAvailability(
+      project,
+      project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0,
+    );
+    server = availability.server;
   }
   if (!server && nextShot && availability.reason) {
     await recordDispatchBlock(project, availability.reason);
@@ -1052,10 +1191,57 @@ function scheduleLongFormOrchestration(projectId: string, source: string): void 
 }
 
 export async function startLongFormProject(projectId: string) {
-  const [project] = await db.update(longFormProjectsTable)
-    .set({ status: "RUNNING", startedAt: new Date(), errorMessage: null })
-    .where(and(eq(longFormProjectsTable.id, projectId), inArray(longFormProjectsTable.status, ["READY", "PAUSED", "FAILED"])))
-    .returning();
+  const project = await withProjectLock(projectId, async () => {
+    const [current] = await db.select({
+      status: longFormProjectsTable.status,
+      continuity: longFormProjectsTable.continuity,
+      generationMode: longFormProjectsTable.generationMode,
+    }).from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (current?.continuity?.enabled) {
+      const requiredReferenceSlots = 1 + Math.max(
+        0,
+        ...current.continuity.scenes.map((scene) => scene.wardrobeAssignments.filter((assignment) => {
+          const character = current.continuity!.characters.find((item) => item.characterId === assignment.characterId);
+          return Boolean(character?.wardrobes.find((wardrobe) => wardrobe.id === assignment.wardrobeId)?.referenceAssetId);
+        }).length),
+      );
+      const workflows = await db.select({
+        apiWorkflow: workflowTemplatesTable.apiWorkflow,
+        mappings: workflowTemplatesTable.mappings,
+      }).from(workflowTemplatesTable).where(and(
+        eq(workflowTemplatesTable.generationMode, current.generationMode),
+        eq(workflowTemplatesTable.active, true),
+      ));
+      if (!workflows.some((workflow) =>
+        isLongFormWorkflow(workflow) &&
+        Boolean(workflow.mappings.referenceImage1) &&
+        Object.keys(workflow.mappings).filter((field) => /^referenceImage\d+$/.test(field)).length >= requiredReferenceSlots,
+      )) {
+        throw new Error("Continuity is enabled, but no active compatible workflow has enough reference slots for the approved still and assigned wardrobes.");
+      }
+      const [missingStill] = await db.select({
+        sceneNumber: longFormShotsTable.sceneNumber,
+        shotNumber: longFormShotsTable.shotNumber,
+      }).from(longFormShotsTable).where(and(
+        eq(longFormShotsTable.projectId, projectId),
+        eq(longFormShotsTable.status, "PLANNED"),
+        // SQL's three-valued null comparison is not relevant: still status is
+        // non-null and old projects receive the migration default.
+        sql`${longFormShotsTable.stillStatus} <> 'APPROVED' OR ${longFormShotsTable.stillStorageKey} IS NULL`,
+      )).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber)).limit(1);
+      if (missingStill) {
+        throw new Error(
+          `Continuity is enabled: approve the current still for Scene ${missingStill.sceneNumber}, Shot ${missingStill.shotNumber} before starting production.`,
+        );
+      }
+    }
+    const [updated] = await db.update(longFormProjectsTable)
+      .set({ status: "RUNNING", startedAt: new Date(), errorMessage: null })
+      .where(and(eq(longFormProjectsTable.id, projectId), inArray(longFormProjectsTable.status, ["READY", "PAUSED", "FAILED"])))
+      .returning();
+    return updated;
+  });
+  if (project === null) throw new Error("Project is currently being updated; try again.");
   if (!project) throw new Error("Project cannot be started from its current status");
   scheduleLongFormOrchestration(project.id, "start");
   return presentLongFormProject(project, true);
@@ -1159,10 +1345,14 @@ export async function updateLongFormTimeline(projectId: string, input: LongFormT
 }
 
 export async function pauseLongFormProject(projectId: string) {
-  const [project] = await db.update(longFormProjectsTable)
-    .set({ status: "PAUSED" })
-    .where(and(eq(longFormProjectsTable.id, projectId), eq(longFormProjectsTable.status, "RUNNING")))
-    .returning();
+  const project = await withProjectLock(projectId, async () => {
+    const [updated] = await db.update(longFormProjectsTable)
+      .set({ status: "PAUSED" })
+      .where(and(eq(longFormProjectsTable.id, projectId), eq(longFormProjectsTable.status, "RUNNING")))
+      .returning();
+    return updated;
+  });
+  if (project === null) throw new Error("Project is currently being updated; try again.");
   if (!project) throw new Error("Only a running project can be paused");
   return presentLongFormProject(project, true);
 }
@@ -1188,7 +1378,7 @@ export async function cancelLongFormProject(projectId: string) {
   return result;
 }
 
-export async function updateLongFormShot(projectId: string, shotId: string, input: LongFormShotUpdate) {
+export async function updateLongFormShot(projectId: string, shotId: string, input: LongFormShotContinuityUpdate) {
   const result = await withProjectLock(projectId, async () => {
     const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
     if (!project) throw new Error("Long-form project not found");
@@ -1204,12 +1394,29 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
     if (activeShotStatuses.includes(existingShot.status)) {
       throw new Error("This shot is currently rendering and cannot be edited");
     }
+    const continuity = input.continuity
+      ? await validateShotContinuity(project.tenantId, project.characterIds, input.continuity)
+      : undefined;
+    const update = { ...input, ...(continuity ? { continuity } : {}) };
+    delete (update as { continuity?: LongFormShotContinuity }).continuity;
+    if (input.sceneNumber !== undefined && (!Number.isInteger(input.sceneNumber) || input.sceneNumber < 1)) {
+      throw new Error("Scene number must be a positive whole number");
+    }
+    if (Object.keys(input).length > 0) await invalidateShotStill(existingShot.id);
 
+    if (input.sceneNumber && input.sceneNumber !== existingShot.sceneNumber) {
+      const [lastInScene] = await db.select({ shotNumber: longFormShotsTable.shotNumber })
+        .from(longFormShotsTable)
+        .where(and(eq(longFormShotsTable.projectId, projectId), eq(longFormShotsTable.sceneNumber, input.sceneNumber)))
+        .orderBy(desc(longFormShotsTable.shotNumber)).limit(1);
+      (update as Partial<LongFormShot>).shotNumber = (lastInScene?.shotNumber ?? 0) + 1;
+    }
     const regenerate = existingShot.status === "COMPLETED";
     const [shot] = await db.update(longFormShotsTable)
       .set(regenerate
         ? {
-            ...input,
+            ...update,
+            ...(continuity ? { continuity } : {}),
             status: "PLANNED",
             generationJobId: null,
             assignedServerId: null,
@@ -1219,7 +1426,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
             completedAt: null,
             retryCount: existingShot.retryCount + 1,
           }
-        : input)
+        : { ...update, ...(continuity ? { continuity } : {}) })
       .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId)))
       .returning();
 
@@ -1236,7 +1443,6 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
         })
         .where(eq(longFormProjectsTable.id, projectId));
     }
-
     return {
       shot,
       regenerate,
@@ -1253,25 +1459,95 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
   return presentShot(result.shot);
 }
 
+export async function updateLongFormContinuity(
+  projectId: string,
+  input: LongFormContinuitySettings,
+) {
+  const result = await withProjectLock(projectId, async () => {
+    const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (!project) throw new ResourceNotFoundError("Long-form project not found");
+    if (["RUNNING", "ASSEMBLING", "COMPLETED"].includes(project.status)) {
+      throw new Error("Pause production before changing continuity; completed projects must retry a shot first.");
+    }
+    const active = await activeShotsForProject(projectId);
+    if (active.length) {
+      throw new Error("Pause until active shots finish before changing continuity locks");
+    }
+    const projectShots = await db.select({ sceneNumber: longFormShotsTable.sceneNumber })
+      .from(longFormShotsTable).where(eq(longFormShotsTable.projectId, projectId));
+    const projectSceneNumbers = new Set(projectShots.map((shot) => shot.sceneNumber));
+    if (input.scenes.some((scene) => !projectSceneNumbers.has(scene.sceneNumber))) {
+      throw new Error("Continuity scenes may only target existing project shot scene numbers");
+    }
+    const continuity = await validateContinuitySettings(project.tenantId, input, project.characterIds);
+    const [updated] = await db.update(longFormProjectsTable).set({ continuity, errorMessage: null })
+      .where(eq(longFormProjectsTable.id, projectId)).returning();
+    const shots = await db.select({ id: longFormShotsTable.id }).from(longFormShotsTable)
+      .where(eq(longFormShotsTable.projectId, projectId));
+    await Promise.all(shots.map((shot) => invalidateShotStill(shot.id)));
+    return updated;
+  });
+  if (!result) throw new Error("Project is currently being updated; try again.");
+  return presentLongFormProject(result, true);
+}
+
 export async function retryLongFormShot(projectId: string, shotId: string) {
-  const [existingShot] = await db
-    .select({ retryCount: longFormShotsTable.retryCount })
-    .from(longFormShotsTable)
-    .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId)));
-  if (!existingShot) throw new Error("Long-form shot not found");
-  const [shot] = await db.update(longFormShotsTable).set({
-    status: "PLANNED",
-    generationJobId: null,
-    assignedServerId: null,
-    outputStorageKey: null,
-    outputMimeType: null,
-    errorMessage: null,
-    retryCount: existingShot.retryCount + 1,
-  }).where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId), inArray(longFormShotsTable.status, ["FAILED", "CANCELLED"]))).returning();
-  if (!shot) throw new Error("Only failed or cancelled shots can be retried");
-  await db.update(longFormProjectsTable).set({ status: "RUNNING", errorMessage: null }).where(eq(longFormProjectsTable.id, projectId));
-  scheduleLongFormOrchestration(projectId, "retry-shot");
-  return presentShot(shot);
+  const result = await withProjectLock(projectId, async () => {
+    const [project] = await db.select({
+      continuity: longFormProjectsTable.continuity,
+      status: longFormProjectsTable.status,
+    }).from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (!project) throw new ResourceNotFoundError("Long-form project not found");
+    const [existingShot] = await db
+      .select({
+        retryCount: longFormShotsTable.retryCount,
+        status: longFormShotsTable.status,
+        stillRevision: longFormShotsTable.stillRevision,
+        stillStorageKey: longFormShotsTable.stillStorageKey,
+        outputStorageKey: longFormShotsTable.outputStorageKey,
+      })
+      .from(longFormShotsTable)
+      .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId)));
+    if (!existingShot) throw new Error("Long-form shot not found");
+    const preparingCompletedRevision = existingShot.status === "COMPLETED" && project.continuity?.enabled;
+    if (preparingCompletedRevision && (["RUNNING", "ASSEMBLING"].includes(project.status) || (await activeShotsForProject(projectId)).length > 0)) {
+      throw new Error("Pause production and wait for active renders to finish before preparing a completed-shot revision.");
+    }
+    if (!preparingCompletedRevision && !["FAILED", "CANCELLED"].includes(existingShot.status)) {
+      throw new Error("Only failed or cancelled shots can be retried. With continuity enabled, use Prepare revision for a completed shot.");
+    }
+    const [updated] = await db.update(longFormShotsTable).set({
+      status: "PLANNED",
+      generationJobId: null,
+      assignedServerId: null,
+      outputStorageKey: null,
+      outputMimeType: null,
+      errorMessage: null,
+      retryCount: existingShot.retryCount + 1,
+      ...(preparingCompletedRevision
+        ? invalidatedStillValues(existingShot.stillStorageKey, existingShot.stillRevision)
+        : {}),
+    }).where(and(
+      eq(longFormShotsTable.id, shotId),
+      eq(longFormShotsTable.projectId, projectId),
+      eq(longFormShotsTable.status, existingShot.status),
+    )).returning();
+    if (!updated) throw new Error("The shot changed before the retry could be prepared");
+    await db.update(longFormProjectsTable).set({
+      status: preparingCompletedRevision ? "PAUSED" : "RUNNING",
+      errorMessage: null,
+    })
+      .where(eq(longFormProjectsTable.id, projectId));
+    return {
+      shot: updated,
+      outputStorageKey: preparingCompletedRevision ? existingShot.outputStorageKey : null,
+      shouldSchedule: !preparingCompletedRevision,
+    };
+  });
+  if (result === null) throw new Error("Project is currently being updated; try again.");
+  if (result.outputStorageKey) await mediaStorage.deleteOutput(result.outputStorageKey);
+  if (result.shouldSchedule) scheduleLongFormOrchestration(projectId, "retry-shot");
+  return presentShot(result.shot);
 }
 
 export async function startLongFormOrchestrator(): Promise<void> {

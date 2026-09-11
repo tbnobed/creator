@@ -20,3 +20,4 @@
 - [Comfy monitor error classification](comfy-monitor-error-classification.md) — Only transient Comfy request failures count toward worker reachability; preserve finalization errors.
 - [Local cost tracking](local-cost-tracking.md) — Keep cost tracking in-app; provider billing sync, live pricing lookups, and billing keys require explicit authorization.
 - [Local image conditioning](local-image-conditioning.md) — Latent image-to-image is not instruction editing; reduced strength must retain valid sampling transitions.
+- [Long-form continuity contract](long-form-continuity-contract.md) — Required reference capacity must fail closed; completed-shot revisions need a paused approval stage.

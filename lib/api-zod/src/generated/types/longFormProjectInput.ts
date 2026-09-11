@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { LongFormContinuitySettings } from './longFormContinuitySettings';
 import type { LongFormProjectInputFps } from './longFormProjectInputFps';
 import type { LongFormProjectInputQualityPreset } from './longFormProjectInputQualityPreset';
 
@@ -52,4 +53,5 @@ export interface LongFormProjectInput {
   height: number;
   fps: LongFormProjectInputFps;
   qualityPreset: LongFormProjectInputQualityPreset;
+  continuity?: LongFormContinuitySettings;
 }

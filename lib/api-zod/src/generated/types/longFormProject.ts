@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { LongFormContinuitySettings } from './longFormContinuitySettings';
 import type { LongFormProjectStatus } from './longFormProjectStatus';
 import type { LongFormTimelineClip } from './longFormTimelineClip';
 
@@ -28,6 +29,7 @@ export interface LongFormProject {
   failedShots: number;
   progress: number;
   timelineClips: LongFormTimelineClip[];
+  continuity: LongFormContinuitySettings;
   /** @nullable */
   finalOutputUrl: string | null;
   /** @nullable */

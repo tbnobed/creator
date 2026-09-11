@@ -153,6 +153,28 @@ export class LocalMediaStorage {
     return key;
   }
 
+  /** A continuity still is copied out of Image Studio so deleting its source asset
+   * can never invalidate an approved long-form reference. */
+  async storeContinuityStill(
+    originalName: string,
+    mimeType: string,
+    bytes: Buffer,
+    tenantId: string,
+  ): Promise<string> {
+    if (!IMAGE_MIME_TYPES.has(mimeType)) throw new Error("Only JPEG, PNG, and WebP images are allowed");
+    if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) {
+      throw new Error("Image must be between 1 byte and 15 MB");
+    }
+    const key = tenantKey(
+      tenantId,
+      `long-form-continuity/${randomUUID()}${safeExtension(originalName, mimeType)}`,
+    );
+    const destination = resolveKey(key);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx" });
+    return key;
+  }
+
   async readBuffer(key: string): Promise<Buffer> {
     return readFile(resolveKey(key));
   }

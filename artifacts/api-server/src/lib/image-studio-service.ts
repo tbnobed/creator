@@ -13,6 +13,7 @@ import {
   generationJobsTable,
   imageStudioAssetsTable,
   imageStudioJobsTable,
+  longFormProjectsTable,
   pool,
   type ComfyServer,
   type ImageStudioAsset,
@@ -1496,6 +1497,17 @@ export async function deleteImageAsset(
     ))
     .limit(1);
   if (reference) return "referenced";
+  const [continuityReference] = await db.select({ id: longFormProjectsTable.id })
+    .from(longFormProjectsTable)
+    .where(and(
+      eq(longFormProjectsTable.tenantId, tenantId),
+      sql`${longFormProjectsTable.continuity} @> jsonb_build_object(
+        'characters', jsonb_build_array(jsonb_build_object(
+          'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}))
+        ))
+      )`,
+    )).limit(1);
+  if (continuityReference) return "referenced";
   const [deleted] = await db
     .delete(imageStudioAssetsTable)
     .where(and(

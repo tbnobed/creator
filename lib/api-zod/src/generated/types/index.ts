@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './attachLongFormShotStillBodyTwo';
 export * from './authConfig';
 export * from './authLoginInput';
 export * from './authRegistrationInput';
@@ -48,6 +49,11 @@ export * from './listGenerationsParams';
 export * from './listImageStudioAssetsParams';
 export * from './listImageStudioJobsParams';
 export * from './listSpendingEntriesParams';
+export * from './longFormContinuityCharacter';
+export * from './longFormContinuityScene';
+export * from './longFormContinuitySceneWardrobeAssignmentsItem';
+export * from './longFormContinuitySettings';
+export * from './longFormContinuityWardrobe';
 export * from './longFormProject';
 export * from './longFormProjectDetail';
 export * from './longFormProjectInput';
@@ -55,10 +61,16 @@ export * from './longFormProjectInputFps';
 export * from './longFormProjectInputQualityPreset';
 export * from './longFormProjectStatus';
 export * from './longFormShot';
+export * from './longFormShotContinuity';
 export * from './longFormShotStatus';
+export * from './longFormShotStill';
+export * from './longFormShotStillStatus';
 export * from './longFormShotTransition';
 export * from './longFormShotUpdate';
 export * from './longFormShotUpdateTransition';
+export * from './longFormStillAttach';
+export * from './longFormStillReview';
+export * from './longFormStillReviewAction';
 export * from './longFormTimelineClip';
 export * from './longFormTimelineInput';
 export * from './paginatedGenerations';

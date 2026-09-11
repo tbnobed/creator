@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AttachLongFormShotStillBodyTwo,
   AuthConfig,
   AuthLoginInput,
   AuthRegistrationInput,
@@ -45,11 +46,14 @@ import type {
   ListImageStudioAssetsParams,
   ListImageStudioJobsParams,
   ListSpendingEntriesParams,
+  LongFormContinuitySettings,
   LongFormProject,
   LongFormProjectDetail,
   LongFormProjectInput,
   LongFormShot,
   LongFormShotUpdate,
+  LongFormStillAttach,
+  LongFormStillReview,
   LongFormTimelineInput,
   PaginatedGenerations,
   PromptCheckResult,
@@ -4245,6 +4249,78 @@ export const useStartLongFormProject = <TError = ErrorType<unknown>,
       return useMutation(getStartLongFormProjectMutationOptions(options));
     }
 
+export const getUpdateLongFormContinuityUrl = (id: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/continuity`
+}
+
+/**
+ * @summary Replace persistent long-form continuity locks
+ */
+export const updateLongFormContinuity = async (id: string,
+    longFormContinuitySettings: LongFormContinuitySettings, options?: Parameters<typeof customFetch>[1]): Promise<LongFormProjectDetail> => {
+
+  return customFetch<LongFormProjectDetail>(getUpdateLongFormContinuityUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(longFormContinuitySettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateLongFormContinuityMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormContinuity>>, TError,{id: string;data: BodyType<LongFormContinuitySettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLongFormContinuity>>, TError,{id: string;data: BodyType<LongFormContinuitySettings>}, TContext> => {
+
+const mutationKey = ['updateLongFormContinuity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLongFormContinuity>>, {id: string;data: BodyType<LongFormContinuitySettings>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateLongFormContinuity(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLongFormContinuityMutationResult = NonNullable<Awaited<ReturnType<typeof updateLongFormContinuity>>>
+    export type UpdateLongFormContinuityMutationBody = BodyType<LongFormContinuitySettings>
+    export type UpdateLongFormContinuityMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Replace persistent long-form continuity locks
+ */
+export const useUpdateLongFormContinuity = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormContinuity>>, TError,{id: string;data: BodyType<LongFormContinuitySettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLongFormContinuity>>,
+        TError,
+        {id: string;data: BodyType<LongFormContinuitySettings>},
+        TContext
+      > => {
+      return useMutation(getUpdateLongFormContinuityMutationOptions(options));
+    }
+
 export const getReassembleLongFormProjectUrl = (id: string,) => {
 
 
@@ -4603,6 +4679,227 @@ export const useRetryLongFormShot = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRetryLongFormShotMutationOptions(options));
+    }
+
+export const getAttachLongFormShotStillUrl = (id: string,
+    shotId: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/shots/${shotId}/still`
+}
+
+/**
+ * @summary Upload or attach an Image Studio still for continuity review
+ */
+export const attachLongFormShotStill = async (id: string,
+    shotId: string,
+    attachLongFormShotStillBody: LongFormStillAttach | AttachLongFormShotStillBodyTwo, options?: Parameters<typeof customFetch>[1]): Promise<LongFormShot> => {
+
+  return customFetch<LongFormShot>(getAttachLongFormShotStillUrl(id,shotId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: JSON.stringify(attachLongFormShotStillBody)
+  }
+);}
+
+
+
+
+
+export const getAttachLongFormShotStillMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachLongFormShotStill>>, TError,{id: string;shotId: string;data: BodyType<LongFormStillAttach | AttachLongFormShotStillBodyTwo>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof attachLongFormShotStill>>, TError,{id: string;shotId: string;data: BodyType<LongFormStillAttach | AttachLongFormShotStillBodyTwo>}, TContext> => {
+
+const mutationKey = ['attachLongFormShotStill'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof attachLongFormShotStill>>, {id: string;shotId: string;data: BodyType<LongFormStillAttach | AttachLongFormShotStillBodyTwo>}> = (props) => {
+          const {id,shotId,data} = props ?? {};
+
+          return  attachLongFormShotStill(id,shotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AttachLongFormShotStillMutationResult = NonNullable<Awaited<ReturnType<typeof attachLongFormShotStill>>>
+    export type AttachLongFormShotStillMutationBody = BodyType<LongFormStillAttach | AttachLongFormShotStillBodyTwo>
+    export type AttachLongFormShotStillMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload or attach an Image Studio still for continuity review
+ */
+export const useAttachLongFormShotStill = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachLongFormShotStill>>, TError,{id: string;shotId: string;data: BodyType<LongFormStillAttach | AttachLongFormShotStillBodyTwo>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof attachLongFormShotStill>>,
+        TError,
+        {id: string;shotId: string;data: BodyType<LongFormStillAttach | AttachLongFormShotStillBodyTwo>},
+        TContext
+      > => {
+      return useMutation(getAttachLongFormShotStillMutationOptions(options));
+    }
+
+export const getClearLongFormShotStillUrl = (id: string,
+    shotId: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/shots/${shotId}/still`
+}
+
+/**
+ * @summary Clear a shot continuity still
+ */
+export const clearLongFormShotStill = async (id: string,
+    shotId: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormShot> => {
+
+  return customFetch<LongFormShot>(getClearLongFormShotStillUrl(id,shotId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearLongFormShotStillMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearLongFormShotStill>>, TError,{id: string;shotId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearLongFormShotStill>>, TError,{id: string;shotId: string}, TContext> => {
+
+const mutationKey = ['clearLongFormShotStill'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearLongFormShotStill>>, {id: string;shotId: string}> = (props) => {
+          const {id,shotId} = props ?? {};
+
+          return  clearLongFormShotStill(id,shotId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearLongFormShotStillMutationResult = NonNullable<Awaited<ReturnType<typeof clearLongFormShotStill>>>
+
+    export type ClearLongFormShotStillMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Clear a shot continuity still
+ */
+export const useClearLongFormShotStill = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearLongFormShotStill>>, TError,{id: string;shotId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearLongFormShotStill>>,
+        TError,
+        {id: string;shotId: string},
+        TContext
+      > => {
+      return useMutation(getClearLongFormShotStillMutationOptions(options));
+    }
+
+export const getReviewLongFormShotStillUrl = (id: string,
+    shotId: string,) => {
+
+
+
+
+  return `/api/long-form-projects/${id}/shots/${shotId}/still/review`
+}
+
+/**
+ * @summary Approve or reject the current still revision
+ */
+export const reviewLongFormShotStill = async (id: string,
+    shotId: string,
+    longFormStillReview: LongFormStillReview, options?: Parameters<typeof customFetch>[1]): Promise<LongFormShot> => {
+
+  return customFetch<LongFormShot>(getReviewLongFormShotStillUrl(id,shotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(longFormStillReview)
+  }
+);}
+
+
+
+
+
+export const getReviewLongFormShotStillMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewLongFormShotStill>>, TError,{id: string;shotId: string;data: BodyType<LongFormStillReview>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewLongFormShotStill>>, TError,{id: string;shotId: string;data: BodyType<LongFormStillReview>}, TContext> => {
+
+const mutationKey = ['reviewLongFormShotStill'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewLongFormShotStill>>, {id: string;shotId: string;data: BodyType<LongFormStillReview>}> = (props) => {
+          const {id,shotId,data} = props ?? {};
+
+          return  reviewLongFormShotStill(id,shotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewLongFormShotStillMutationResult = NonNullable<Awaited<ReturnType<typeof reviewLongFormShotStill>>>
+    export type ReviewLongFormShotStillMutationBody = BodyType<LongFormStillReview>
+    export type ReviewLongFormShotStillMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject the current still revision
+ */
+export const useReviewLongFormShotStill = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewLongFormShotStill>>, TError,{id: string;shotId: string;data: BodyType<LongFormStillReview>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewLongFormShotStill>>,
+        TError,
+        {id: string;shotId: string;data: BodyType<LongFormStillReview>},
+        TContext
+      > => {
+      return useMutation(getReviewLongFormShotStillMutationOptions(options));
     }
 
 export const getUpdateLongFormTimelineUrl = (id: string,) => {
@@ -5502,3 +5799,4 @@ export const useDeleteImageStudioAsset = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteImageStudioAssetMutationOptions(options));
     }
+

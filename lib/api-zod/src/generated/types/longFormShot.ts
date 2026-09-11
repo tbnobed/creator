@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { LongFormShotContinuity } from './longFormShotContinuity';
 import type { LongFormShotStatus } from './longFormShotStatus';
+import type { LongFormShotStill } from './longFormShotStill';
 import type { LongFormShotTransition } from './longFormShotTransition';
 
 export interface LongFormShot {
@@ -25,6 +27,8 @@ export interface LongFormShot {
   characterIds: string[];
   /** @nullable */
   settingId: string | null;
+  continuity: LongFormShotContinuity;
+  still: LongFormShotStill;
   /** @nullable */
   generationId: string | null;
   /** @nullable */

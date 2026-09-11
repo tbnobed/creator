@@ -935,6 +935,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LongFormProjectDetail"
+  /long-form-projects/{id}/continuity:
+    put:
+      operationId: updateLongFormContinuity
+      tags: [long-form-projects]
+      summary: Replace persistent long-form continuity locks
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LongFormContinuitySettings" }
+      responses:
+        "200":
+          description: Updated project continuity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LongFormProjectDetail" }
   /long-form-projects/{id}/reassemble:
     post:
       operationId: reassembleLongFormProject
@@ -1021,6 +1039,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LongFormShot"
+  /long-form-projects/{id}/shots/{shotId}/still:
+    post:
+      operationId: attachLongFormShotStill
+      tags: [long-form-projects]
+      summary: Upload or attach an Image Studio still for continuity review
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: shotId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LongFormStillAttach" }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                # Kept as a string in generated server contracts because the
+                # shared Node typecheck deliberately excludes DOM Blob types.
+                file: { type: string }
+      responses:
+        "201":
+          description: Still awaiting approval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LongFormShot" }
+    delete:
+      operationId: clearLongFormShotStill
+      tags: [long-form-projects]
+      summary: Clear a shot continuity still
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: shotId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Cleared shot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LongFormShot" }
+  /long-form-projects/{id}/shots/{shotId}/still/review:
+    post:
+      operationId: reviewLongFormShotStill
+      tags: [long-form-projects]
+      summary: Approve or reject the current still revision
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: shotId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LongFormStillReview" }
+      responses:
+        "200":
+          description: Reviewed shot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LongFormShot" }
   /long-form-projects/{id}/timeline:
     patch:
       operationId: updateLongFormTimeline
@@ -1981,9 +2067,10 @@ components:
         height: { type: number, minimum: 64, maximum: 4096 }
         fps: { type: number, enum: [24, 25, 30] }
         qualityPreset: { type: string, enum: [DRAFT, STANDARD, HIGH] }
+        continuity: { $ref: "#/components/schemas/LongFormContinuitySettings" }
     LongFormProject:
       type: object
-      required: [id, title, script, storyline, status, targetDurationSeconds, generationMode, width, height, fps, qualityPreset, totalShots, completedShots, failedShots, progress, timelineClips, finalOutputUrl, errorMessage, createdAt, updatedAt]
+      required: [id, title, script, storyline, status, targetDurationSeconds, generationMode, width, height, fps, qualityPreset, totalShots, completedShots, failedShots, progress, timelineClips, continuity, finalOutputUrl, errorMessage, createdAt, updatedAt]
       properties:
         id: { type: string }
         title: { type: string }
@@ -2006,6 +2093,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LongFormTimelineClip"
+        continuity: { $ref: "#/components/schemas/LongFormContinuitySettings" }
         finalOutputUrl: { type: ["string", "null"] }
         errorMessage: { type: ["string", "null"] }
         startedAt: { type: ["string", "null"] }
@@ -2014,7 +2102,7 @@ components:
         updatedAt: { type: string }
     LongFormShot:
       type: object
-      required: [id, sceneNumber, shotNumber, title, prompt, dialogue, cameraInstructions, motionInstructions, continuityNote, transition, durationSeconds, status, retryCount, characterIds, settingId, generationId, serverName, outputUrl, errorMessage]
+      required: [id, sceneNumber, shotNumber, title, prompt, dialogue, cameraInstructions, motionInstructions, continuityNote, transition, durationSeconds, status, retryCount, characterIds, settingId, continuity, still, generationId, serverName, outputUrl, errorMessage]
       properties:
         id: { type: string }
         sceneNumber: { type: number }
@@ -2031,6 +2119,8 @@ components:
         retryCount: { type: number }
         characterIds: { type: array, items: { type: string } }
         settingId: { type: ["string", "null"] }
+        continuity: { $ref: "#/components/schemas/LongFormShotContinuity" }
+        still: { $ref: "#/components/schemas/LongFormShotStill" }
         generationId: { type: ["string", "null"] }
         serverName: { type: ["string", "null"] }
         outputUrl: { type: ["string", "null"] }
@@ -2045,7 +2135,89 @@ components:
         motionInstructions: { type: string, maxLength: 5000 }
         continuityNote: { type: string, maxLength: 5000 }
         transition: { type: string, enum: [CUT, DISSOLVE, FADE] }
+        sceneNumber: { type: number, minimum: 1, maximum: 999 }
         durationSeconds: { type: number, minimum: 2, maximum: 30 }
+        continuity: { $ref: "#/components/schemas/LongFormShotContinuity" }
+    LongFormContinuityWardrobe:
+      type: object
+      required: [id, name, description]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 100 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        referenceAssetId: { type: string }
+    LongFormContinuityCharacter:
+      type: object
+      required: [characterId, appearance, behavior, voiceDescription, wardrobes]
+      properties:
+        characterId: { type: string }
+        appearance: { type: string, maxLength: 5000 }
+        behavior: { type: string, maxLength: 5000 }
+        voiceDescription: { type: string, maxLength: 5000 }
+        wardrobes:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/LongFormContinuityWardrobe" }
+    LongFormContinuityScene:
+      type: object
+      required: [sceneNumber, title, settingNotes, emotionNotes, wardrobeAssignments]
+      properties:
+        sceneNumber: { type: number, minimum: 1, multipleOf: 1 }
+        title: { type: string, maxLength: 300 }
+        settingNotes: { type: string, maxLength: 5000 }
+        emotionNotes: { type: string, maxLength: 5000 }
+        wardrobeAssignments:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [characterId, wardrobeId]
+            properties:
+              characterId: { type: string }
+              wardrobeId: { type: string }
+    LongFormContinuitySettings:
+      type: object
+      required: [enabled, characters, scenes]
+      properties:
+        enabled: { type: boolean, default: false }
+        characters:
+          type: array
+          maxItems: 9
+          items: { $ref: "#/components/schemas/LongFormContinuityCharacter" }
+        scenes:
+          type: array
+          maxItems: 1000
+          items: { $ref: "#/components/schemas/LongFormContinuityScene" }
+    LongFormShotContinuity:
+      type: object
+      required: [voiceCloningEnabled]
+      properties:
+        characterIds: { type: array, minItems: 1, maxItems: 9, items: { type: string } }
+        speakerCharacterId: { type: string }
+        voiceCloningEnabled: { type: boolean, default: false }
+        emotionNotes: { type: string, maxLength: 5000 }
+        performanceNotes: { type: string, maxLength: 5000 }
+    LongFormShotStill:
+      type: object
+      required: [status, assetUrl, revision, approvedAt, reviewNote]
+      properties:
+        status: { type: string, enum: [NONE, PENDING, APPROVED, REJECTED] }
+        assetUrl: { type: ["string", "null"] }
+        revision: { type: number }
+        approvedAt: { type: ["string", "null"], format: date-time }
+        reviewNote: { type: ["string", "null"] }
+    LongFormStillAttach:
+      type: object
+      required: [assetId]
+      properties:
+        assetId: { type: string }
+    LongFormStillReview:
+      type: object
+      required: [action, revision]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        revision: { type: number, minimum: 1, multipleOf: 1 }
+        note: { type: string, maxLength: 5000 }
     LongFormTimelineClip:
       type: object
       required: [shotId, trimStartSeconds, trimEndSeconds]
