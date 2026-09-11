@@ -76,6 +76,18 @@ const STYLE_PRESETS = [
   { label: "Editorial", modifier: "Contemporary editorial photography with natural texture and confident composition." },
 ];
 
+const DEFAULT_DENOISE_STRENGTH = 0.65;
+const LOCAL_EDIT_MIN_DIMENSION = 256;
+const LOCAL_EDIT_MAX_DIMENSION = 2048;
+const LOCAL_EDIT_DIMENSION_STEP = 16;
+
+function isValidLocalEditDimension(value: number): boolean {
+  return Number.isInteger(value)
+    && value >= LOCAL_EDIT_MIN_DIMENSION
+    && value <= LOCAL_EDIT_MAX_DIMENSION
+    && value % LOCAL_EDIT_DIMENSION_STEP === 0;
+}
+
 const MODE_ICONS: Record<WorkspaceMode, React.ReactNode> = {
   generate: <Sparkles className="h-4 w-4" />,
   edit: <ImageIcon className="h-4 w-4" />,
@@ -109,9 +121,11 @@ export function GenerationPanel({
   const [count, setCount] = useState(1);
   const [upscaleFactor, setUpscaleFactor] = useState(2);
   const [seed, setSeed] = useState("");
+  const [denoiseStrength, setDenoiseStrength] = useState(DEFAULT_DENOISE_STRENGTH);
   const [cloudConfirmed, setCloudConfirmed] = useState(false);
   const paidRequest = useRef<{ key: string; signature: string } | undefined>(undefined);
   const handledUpload = useRef<string | undefined>(undefined);
+  const modelSelectionCleared = useRef(false);
 
   const availableModels = useMemo(
     () => models.filter((model) => model.operations.includes(mode) && model.available),
@@ -127,11 +141,35 @@ export function GenerationPanel({
     [activeModel],
   );
 
+  const handleModelChange = (nextModelId: string) => {
+    modelSelectionCleared.current = false;
+    setModelId(nextModelId);
+  };
+
   useEffect(() => {
+    if (!models.length) return;
     if (!availableModels.some((model) => model.id === modelId)) {
-      setModelId(availableModels[0]?.id || "");
+      const selectedModel = models.find((model) => model.id === modelId);
+      const sameProviderModel = selectedModel
+        ? availableModels.find((model) => model.provider === selectedModel.provider)
+        : undefined;
+      const initialLocalModel = availableModels.find((model) => model.provider === "LOCAL");
+      const localOperationSupported = models.some(
+        (model) => model.provider === "LOCAL" && model.operations.includes(mode),
+      );
+      const operationRequiresCloud = Boolean(
+        selectedModel
+        && selectedModel.provider === "LOCAL"
+        && !localOperationSupported
+        && availableModels.some((model) => model.provider === "CLOUD"),
+      );
+      const nextModel = sameProviderModel
+        || (operationRequiresCloud ? availableModels.find((model) => model.provider === "CLOUD") : undefined)
+        || (!selectedModel && !modelSelectionCleared.current ? initialLocalModel || availableModels[0] : undefined);
+      modelSelectionCleared.current = !nextModel;
+      setModelId(nextModel?.id || "");
     }
-  }, [availableModels, modelId]);
+  }, [availableModels, modelId, mode, models]);
 
   useEffect(() => {
     setCount((current) => Math.min(current, activeModel?.maxImages || 1));
@@ -146,26 +184,47 @@ export function GenerationPanel({
   useEffect(() => {
     if (!uploadedInput || !modelsData || handledUpload.current === uploadedInput.id || uploadedInput.intent !== mode) return;
     handledUpload.current = uploadedInput.id;
-    const needed = mode === "generate" ? referenceAssets.length : 1;
-    const compatible = availableModels.filter((model) => model.maxReferences >= needed);
-    setModelId(compatible.find((model) => model.id === modelId)?.id || compatible[0]?.id || "");
+    const selectedModel = models.find((model) => model.id === modelId);
+    if (selectedModel?.provider === "CLOUD") {
+      const needed = mode === "generate" ? referenceAssets.length : 1;
+      const compatibleCloud = availableModels.filter(
+        (model) => model.provider === "CLOUD" && model.maxReferences >= needed,
+      );
+      setModelId(
+        compatibleCloud.find((model) => model.id === modelId)?.id
+          || compatibleCloud[0]?.id
+          || modelId,
+      );
+      modelSelectionCleared.current = false;
+    }
     setCloudConfirmed(false);
-  }, [uploadedInput, modelsData, mode, referenceAssets.length, availableModels, modelId]);
+  }, [uploadedInput, modelsData, models, modelId, mode, referenceAssets.length, availableModels]);
 
   useEffect(() => {
     if (!reuseJob) return;
+    modelSelectionCleared.current = false;
     setModelId(reuseJob.modelId);
     setPrompt(reuseJob.prompt);
     setNegativePrompt(reuseJob.negativePrompt || "");
     setDimensions({ width: reuseJob.width, height: reuseJob.height });
     setCount(reuseJob.count);
     setSeed(reuseJob.seed === undefined ? "" : String(reuseJob.seed));
+    const reusedDenoiseStrength = "denoiseStrength" in reuseJob
+      && typeof reuseJob.denoiseStrength === "number"
+      && Number.isFinite(reuseJob.denoiseStrength)
+      ? reuseJob.denoiseStrength
+      : DEFAULT_DENOISE_STRENGTH;
+    setDenoiseStrength(Math.min(1, Math.max(0.05, reusedDenoiseStrength)));
     setCloudConfirmed(false);
     paidRequest.current = undefined;
   }, [reuseJob]);
 
   const sourceRequired = mode !== "generate";
   const operationSource = mode === "outpaint" ? preparedOutpaintAsset : activeAsset;
+  const localEditDimensions = mode === "edit" && activeModel?.provider === "LOCAL";
+  const showDimensionControls = mode === "generate" || localEditDimensions;
+  const localEditDimensionsValid = !localEditDimensions
+    || (isValidLocalEditDimension(dimensions.width) && isValidLocalEditDimension(dimensions.height));
   const submittedReferences = mode === "generate"
     ? referenceAssets
     : [
@@ -173,17 +232,38 @@ export function GenerationPanel({
         ...referenceAssets.filter((asset) => asset.id !== operationSource?.id),
       ];
   const tooManyReferences = Boolean(activeModel && submittedReferences.length > activeModel.maxReferences);
+  const localImageToImageMode = mode === "generate" || mode === "edit";
+  const localReferenceOverflow = Boolean(
+    activeModel?.provider === "LOCAL"
+    && localImageToImageMode
+    && submittedReferences.length > 1,
+  );
+  const localImageToImage = Boolean(
+    activeModel?.provider === "LOCAL"
+    && localImageToImageMode
+    && (mode === "generate" || Boolean(operationSource))
+    && submittedReferences.length === 1,
+  );
   const maskRequired = mode === "inpaint" || mode === "outpaint";
   const canSubmit = Boolean(
     activeModel
     && (!sourceRequired || operationSource)
     && (!maskRequired || maskAssetId)
-    && !tooManyReferences,
+    && !tooManyReferences
+    && !localReferenceOverflow
+    && localEditDimensionsValid,
   );
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!activeModel) return;
+    if (!activeModel) {
+      toast({
+        title: "Model unavailable",
+        description: "Select an available model before starting this image job.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (activeModel.provider === "CLOUD" && !cloudConfirmed) {
       toast({
         title: "Confirmation required",
@@ -195,7 +275,11 @@ export function GenerationPanel({
     if (!canSubmit) {
       toast({
         title: "Inputs are not ready",
-        description: tooManyReferences
+        description: localReferenceOverflow
+          ? "Local image-to-image supports one reference image. Remove the extra reference before submitting."
+          : localEditDimensions && !localEditDimensionsValid
+          ? "Local edit dimensions must be whole numbers from 256 to 2048 and divisible by 16."
+          : tooManyReferences
           ? `${activeModel.name} accepts at most ${activeModel.maxReferences} reference images.`
           : maskRequired && !maskAssetId
             ? mode === "outpaint"
@@ -212,7 +296,10 @@ export function GenerationPanel({
     if (mode === "outpaint" && preparedOutpaintAsset) {
       width = preparedOutpaintAsset.width;
       height = preparedOutpaintAsset.height;
-    } else if ((mode === "inpaint" || mode === "edit") && activeAsset) {
+    } else if (
+      (mode === "inpaint" || (mode === "edit" && activeModel.provider === "CLOUD"))
+      && activeAsset
+    ) {
       width = activeAsset.width;
       height = activeAsset.height;
     } else if ((mode === "upscale" || mode === "remove-background") && activeAsset) {
@@ -241,6 +328,7 @@ export function GenerationPanel({
         ? submittedReferences.map((asset) => asset.id)
         : undefined,
       maskAssetId: maskRequired ? maskAssetId : undefined,
+      ...(localImageToImage ? { denoiseStrength } : {}),
       cloudConfirmed: isPaid ? cloudConfirmed : undefined,
     };
     const requestSignature = JSON.stringify(requestData);
@@ -299,7 +387,7 @@ export function GenerationPanel({
       <form onSubmit={(event) => void handleSubmit(event)} className="flex-1 space-y-5 p-4">
         <div className="space-y-2">
           <Label>Model engine</Label>
-          <Select value={modelId} onValueChange={setModelId} disabled={modelsLoading}>
+          <Select value={modelId} onValueChange={handleModelChange} disabled={modelsLoading}>
             <SelectTrigger className="h-11 w-full bg-black/40"><SelectValue placeholder="Select a model" /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -388,9 +476,9 @@ export function GenerationPanel({
           </div>
         )}
 
-        {mode === "generate" && (
+        {showDimensionControls && (
           <div className="space-y-3">
-            <Label>Dimensions</Label>
+            <Label>{localEditDimensions ? "Output dimensions" : "Dimensions"}</Label>
             <div className="grid grid-cols-3 gap-2">
               {availableRatios.map((ratio) => (
                 <button
@@ -409,9 +497,35 @@ export function GenerationPanel({
               ))}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Input type="number" min={1} max={32768} aria-label="Width" value={dimensions.width} onChange={(event) => setDimensions((value) => ({ ...value, width: Number(event.target.value) }))} />
-              <Input type="number" min={1} max={32768} aria-label="Height" value={dimensions.height} onChange={(event) => setDimensions((value) => ({ ...value, height: Number(event.target.value) }))} />
+              <Input
+                type="number"
+                min={localEditDimensions ? LOCAL_EDIT_MIN_DIMENSION : 1}
+                max={localEditDimensions ? LOCAL_EDIT_MAX_DIMENSION : 32768}
+                step={localEditDimensions ? LOCAL_EDIT_DIMENSION_STEP : 1}
+                aria-label="Width"
+                value={dimensions.width}
+                onChange={(event) => setDimensions((value) => ({ ...value, width: Number(event.target.value) }))}
+              />
+              <Input
+                type="number"
+                min={localEditDimensions ? LOCAL_EDIT_MIN_DIMENSION : 1}
+                max={localEditDimensions ? LOCAL_EDIT_MAX_DIMENSION : 32768}
+                step={localEditDimensions ? LOCAL_EDIT_DIMENSION_STEP : 1}
+                aria-label="Height"
+                value={dimensions.height}
+                onChange={(event) => setDimensions((value) => ({ ...value, height: Number(event.target.value) }))}
+              />
             </div>
+            {localEditDimensions && (
+              <p
+                data-testid="text-local-edit-dimensions-help"
+                className={`text-xs ${localEditDimensionsValid ? "text-muted-foreground" : "text-destructive"}`}
+              >
+                {localEditDimensionsValid
+                  ? `The source is resized to the ${dimensions.width} × ${dimensions.height} output before this local edit.`
+                  : "Use whole numbers from 256 to 2048, with both dimensions divisible by 16."}
+              </p>
+            )}
           </div>
         )}
 
@@ -440,7 +554,42 @@ export function GenerationPanel({
                 </span>
               ))}
             </div>
+            {localReferenceOverflow && (
+              <p data-testid="text-local-reference-error" className="text-xs text-destructive">
+                Local image-to-image supports one reference image. Remove the extra reference before submitting.
+              </p>
+            )}
             {tooManyReferences && <p className="text-xs text-destructive">Remove references to match this model's limit.</p>}
+          </div>
+        )}
+
+        {localImageToImage && (
+          <div data-testid="local-image-to-image-controls" className="space-y-3 rounded-xl border border-primary/20 bg-primary/10 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="local-denoise-strength">
+                {mode === "generate" ? "Image-to-image" : "Source strength"}
+              </Label>
+              <span data-testid="text-local-denoise-strength" className="text-xs font-medium text-primary">
+                {denoiseStrength.toFixed(2)}
+              </span>
+            </div>
+            <Slider
+              id="local-denoise-strength"
+              data-testid="slider-local-denoise-strength"
+              aria-label={mode === "generate" ? "Image-to-image strength" : "Source strength"}
+              value={[denoiseStrength]}
+              min={0.05}
+              max={1}
+              step={0.05}
+              onValueChange={([value]) => {
+                if (Number.isFinite(value)) {
+                  setDenoiseStrength(Math.min(1, Math.max(0.05, value)));
+                }
+              }}
+            />
+            <p data-testid="text-local-denoise-help" className="text-xs text-muted-foreground">
+              Lower preserves more of the original; higher changes more.
+            </p>
           </div>
         )}
 

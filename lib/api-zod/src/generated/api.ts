@@ -2130,6 +2130,11 @@ export const ListImageStudioJobsQueryParams = zod.object({
   "limit": zod.coerce.number().min(1).max(listImageStudioJobsQueryLimitMax).default(listImageStudioJobsQueryLimitDefault)
 })
 
+export const listImageStudioJobsResponseJobsItemDenoiseStrengthMin = 0.05;
+export const listImageStudioJobsResponseJobsItemDenoiseStrengthMax = 1;
+
+
+
 export const ListImageStudioJobsResponse = zod.object({
   "jobs": zod.array(zod.object({
   "id": zod.string(),
@@ -2143,6 +2148,7 @@ export const ListImageStudioJobsResponse = zod.object({
   "height": zod.number(),
   "count": zod.number(),
   "seed": zod.number().optional(),
+  "denoiseStrength": zod.number().min(listImageStudioJobsResponseJobsItemDenoiseStrengthMin).max(listImageStudioJobsResponseJobsItemDenoiseStrengthMax).optional(),
   "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "errorMessage": zod.string().nullable(),
   "assets": zod.array(zod.object({
@@ -2183,6 +2189,9 @@ export const createImageStudioJobBodyCountMax = 16;
 export const createImageStudioJobBodySeedMin = 0;
 export const createImageStudioJobBodySeedMax = 2147483647;
 
+export const createImageStudioJobBodyDenoiseStrengthMin = 0.05;
+export const createImageStudioJobBodyDenoiseStrengthMax = 1;
+
 export const createImageStudioJobBodyReferenceAssetIdsMax = 16;
 
 export const createImageStudioJobBodyRequestKeyMin = 36;
@@ -2199,11 +2208,17 @@ export const CreateImageStudioJobBody = zod.object({
   "height": zod.number().min(1).max(createImageStudioJobBodyHeightMax),
   "count": zod.number().min(1).max(createImageStudioJobBodyCountMax),
   "seed": zod.number().min(createImageStudioJobBodySeedMin).max(createImageStudioJobBodySeedMax).optional(),
+  "denoiseStrength": zod.number().min(createImageStudioJobBodyDenoiseStrengthMin).max(createImageStudioJobBodyDenoiseStrengthMax).optional(),
   "referenceAssetIds": zod.array(zod.string()).max(createImageStudioJobBodyReferenceAssetIdsMax).optional(),
   "maskAssetId": zod.string().optional(),
   "cloudConfirmed": zod.boolean().optional(),
   "requestKey": zod.string().min(createImageStudioJobBodyRequestKeyMin).max(createImageStudioJobBodyRequestKeyMax).optional()
 })
+
+export const createImageStudioJobResponseJobDenoiseStrengthMin = 0.05;
+export const createImageStudioJobResponseJobDenoiseStrengthMax = 1;
+
+
 
 export const CreateImageStudioJobResponse = zod.object({
   "job": zod.object({
@@ -2218,6 +2233,7 @@ export const CreateImageStudioJobResponse = zod.object({
   "height": zod.number(),
   "count": zod.number(),
   "seed": zod.number().optional(),
+  "denoiseStrength": zod.number().min(createImageStudioJobResponseJobDenoiseStrengthMin).max(createImageStudioJobResponseJobDenoiseStrengthMax).optional(),
   "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "errorMessage": zod.string().nullable(),
   "assets": zod.array(zod.object({
@@ -2247,6 +2263,11 @@ export const GetImageStudioJobParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getImageStudioJobResponseJobDenoiseStrengthMin = 0.05;
+export const getImageStudioJobResponseJobDenoiseStrengthMax = 1;
+
+
+
 export const GetImageStudioJobResponse = zod.object({
   "job": zod.object({
   "id": zod.string(),
@@ -2260,6 +2281,7 @@ export const GetImageStudioJobResponse = zod.object({
   "height": zod.number(),
   "count": zod.number(),
   "seed": zod.number().optional(),
+  "denoiseStrength": zod.number().min(getImageStudioJobResponseJobDenoiseStrengthMin).max(getImageStudioJobResponseJobDenoiseStrengthMax).optional(),
   "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "errorMessage": zod.string().nullable(),
   "assets": zod.array(zod.object({
@@ -2299,6 +2321,11 @@ export const CancelImageStudioJobParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const cancelImageStudioJobResponseJobDenoiseStrengthMin = 0.05;
+export const cancelImageStudioJobResponseJobDenoiseStrengthMax = 1;
+
+
+
 export const CancelImageStudioJobResponse = zod.object({
   "job": zod.object({
   "id": zod.string(),
@@ -2312,6 +2339,7 @@ export const CancelImageStudioJobResponse = zod.object({
   "height": zod.number(),
   "count": zod.number(),
   "seed": zod.number().optional(),
+  "denoiseStrength": zod.number().min(cancelImageStudioJobResponseJobDenoiseStrengthMin).max(cancelImageStudioJobResponseJobDenoiseStrengthMax).optional(),
   "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
   "errorMessage": zod.string().nullable(),
   "assets": zod.array(zod.object({

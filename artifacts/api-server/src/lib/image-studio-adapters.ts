@@ -23,6 +23,7 @@ export type ImageTaskInput = {
   height: number;
   seed?: number;
   count: number;
+  denoiseStrength?: number;
   referenceImages: Array<{ bytes: Buffer; mimeType: string }>;
   mask?: { bytes: Buffer; mimeType: string };
   server?: ComfyServer;
@@ -87,13 +88,17 @@ const MAX_OBJECT_INFO_BYTES = 24 * 1024 * 1024;
 const CLOUD_REQUEST_TIMEOUT_MS = 30_000;
 const LOCAL_TASK_VISIBILITY_GRACE_MS = 20_000;
 const ALLOWED_INPUT_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+export const DEFAULT_DENOISE_STRENGTH = 0.65;
+const MIN_DENOISE_STRENGTH = 0.05;
+const MAX_DENOISE_STRENGTH = 1;
 
 const localRequirements: Record<string, LocalRequirement> = {
   "local-flux2-klein-4b": {
     nodeClasses: [
       "UNETLoader", "CLIPLoader", "VAELoader", "CLIPTextEncode", "ConditioningZeroOut",
       "EmptyFlux2LatentImage", "Flux2Scheduler", "KSamplerSelect", "CFGGuider", "RandomNoise",
-      "SamplerCustomAdvanced", "VAEDecode", "SaveImage",
+      "SamplerCustomAdvanced", "LoadImage", "ImageScale", "VAEEncode", "RepeatLatentBatch",
+      "SplitSigmas", "VAEDecode", "SaveImage",
     ],
     files: [
       { nodeClass: "UNETLoader", name: "flux-2-klein-4b.safetensors" },
@@ -104,7 +109,8 @@ const localRequirements: Record<string, LocalRequirement> = {
   "local-qwen-image-2512": {
     nodeClasses: [
       "UNETLoader", "CLIPLoader", "VAELoader", "CLIPTextEncode", "ModelSamplingAuraFlow",
-      "EmptySD3LatentImage", "KSampler", "VAEDecode", "SaveImage",
+      "EmptySD3LatentImage", "KSampler", "LoadImage", "ImageScale", "VAEEncode", "RepeatLatentBatch",
+      "VAEDecode", "SaveImage",
     ],
     files: [
       { nodeClass: "UNETLoader", name: "qwen_image_2512_fp8_e4m3fn.safetensors" },
@@ -115,7 +121,8 @@ const localRequirements: Record<string, LocalRequirement> = {
   "local-z-image-turbo": {
     nodeClasses: [
       "UNETLoader", "CLIPLoader", "VAELoader", "CLIPTextEncode", "ConditioningZeroOut",
-      "ModelSamplingAuraFlow", "EmptySD3LatentImage", "KSampler", "VAEDecode", "SaveImage",
+      "ModelSamplingAuraFlow", "EmptySD3LatentImage", "KSampler", "LoadImage", "ImageScale",
+      "VAEEncode", "RepeatLatentBatch", "VAEDecode", "SaveImage",
     ],
     files: [
       { nodeClass: "UNETLoader", name: "z_image_turbo_bf16.safetensors" },
@@ -251,6 +258,23 @@ function validateInput(input: ImageTaskInput, model: ImageModel): void {
   if (input.seed !== undefined && (!model.supportsSeed || !Number.isSafeInteger(input.seed) || input.seed < 0)) {
     throw new Error(`${model.name} does not accept this seed.`);
   }
+  if (input.denoiseStrength !== undefined) {
+    if (
+      model.provider !== "LOCAL"
+      || !Number.isFinite(input.denoiseStrength)
+      || input.denoiseStrength < MIN_DENOISE_STRENGTH
+      || input.denoiseStrength > MAX_DENOISE_STRENGTH
+    ) {
+      throw new Error(
+        model.provider === "LOCAL"
+          ? "Denoise strength must be a number from 0.05 to 1."
+          : "Denoise strength is only supported for local image models.",
+      );
+    }
+    if (input.referenceImages.length === 0) {
+      throw new Error("Denoise strength requires a reference image.");
+    }
+  }
   if (input.negativePrompt?.trim() && !model.supportsNegativePrompt) {
     throw new Error(`${model.name} does not support a negative prompt.`);
   }
@@ -289,8 +313,8 @@ function validateInput(input: ImageTaskInput, model: ImageModel): void {
   if (!model.operations.includes("inpaint") && input.mask) {
     throw new Error(`${model.name} does not support mask-guided editing.`);
   }
-  if (model.provider === "LOCAL" && (input.referenceImages.length > 0 || input.mask)) {
-    throw new Error(`${model.name} currently supports local text-to-image generation only.`);
+  if (model.provider === "LOCAL" && input.mask) {
+    throw new Error(`${model.name} does not support mask-guided local editing.`);
   }
 }
 
@@ -387,9 +411,19 @@ function localInstallHint(modelId: string): string {
   return requirements.files.map(({ name }) => name).join(", ");
 }
 
-function createQwenImage2512Workflow(input: ImageTaskInput, seed: number): ApiWorkflow {
+function effectiveDenoiseStrength(input: ImageTaskInput): number | undefined {
+  if (input.referenceImages.length === 0) return undefined;
+  return input.denoiseStrength ?? DEFAULT_DENOISE_STRENGTH;
+}
+
+function createQwenImage2512Workflow(
+  input: ImageTaskInput,
+  seed: number,
+  referenceImageName?: string,
+): ApiWorkflow {
   const negative = input.negativePrompt?.trim() || "";
-  return {
+  const hasReference = referenceImageName !== undefined;
+  const workflow: ApiWorkflow = {
     "1": { class_type: "UNETLoader", inputs: { unet_name: "qwen_image_2512_fp8_e4m3fn.safetensors", weight_dtype: "default" } },
     "2": { class_type: "CLIPLoader", inputs: { clip_name: "qwen_2.5_vl_7b_fp8_scaled.safetensors", type: "qwen_image", device: "default" } },
     "3": { class_type: "VAELoader", inputs: { vae_name: "qwen_image_vae.safetensors" } },
@@ -401,16 +435,38 @@ function createQwenImage2512Workflow(input: ImageTaskInput, seed: number): ApiWo
       class_type: "KSampler",
       inputs: {
         model: ["4", 0], positive: ["5", 0], negative: ["6", 0], latent_image: ["7", 0],
-        seed, steps: 50, cfg: 4, sampler_name: "euler", scheduler: "simple", denoise: 1,
+        seed, steps: 50, cfg: 4, sampler_name: "euler", scheduler: "simple",
+        denoise: effectiveDenoiseStrength(input) ?? 1,
       },
     },
     "9": { class_type: "VAEDecode", inputs: { samples: ["8", 0], vae: ["3", 0] } },
     "10": { class_type: "SaveImage", inputs: { images: ["9", 0], filename_prefix: "image-studio/qwen-2512" } },
   };
+  if (hasReference) {
+    workflow["11"] = { class_type: "LoadImage", inputs: { image: referenceImageName } };
+    workflow["12"] = {
+      class_type: "ImageScale",
+      inputs: {
+        image: ["11", 0], upscale_method: "lanczos", width: input.width, height: input.height, crop: "disabled",
+      },
+    };
+    workflow["13"] = { class_type: "VAEEncode", inputs: { pixels: ["12", 0], vae: ["3", 0] } };
+    workflow["14"] = {
+      class_type: "RepeatLatentBatch",
+      inputs: { samples: ["13", 0], amount: input.count },
+    };
+    workflow["8"].inputs.latent_image = ["14", 0];
+  }
+  return workflow;
 }
 
-function createZImageTurboWorkflow(input: ImageTaskInput, seed: number): ApiWorkflow {
-  return {
+function createZImageTurboWorkflow(
+  input: ImageTaskInput,
+  seed: number,
+  referenceImageName?: string,
+): ApiWorkflow {
+  const hasReference = referenceImageName !== undefined;
+  const workflow: ApiWorkflow = {
     "1": { class_type: "UNETLoader", inputs: { unet_name: "z_image_turbo_bf16.safetensors", weight_dtype: "default" } },
     "2": { class_type: "CLIPLoader", inputs: { clip_name: "qwen_3_4b.safetensors", type: "lumina2", device: "default" } },
     "3": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
@@ -422,17 +478,38 @@ function createZImageTurboWorkflow(input: ImageTaskInput, seed: number): ApiWork
       class_type: "KSampler",
       inputs: {
         model: ["4", 0], positive: ["5", 0], negative: ["6", 0], latent_image: ["7", 0],
-        seed, steps: 8, cfg: 1, sampler_name: "res_multistep", scheduler: "simple", denoise: 1,
+        seed, steps: 8, cfg: 1, sampler_name: "res_multistep", scheduler: "simple",
+        denoise: effectiveDenoiseStrength(input) ?? 1,
       },
     },
     "9": { class_type: "VAEDecode", inputs: { samples: ["8", 0], vae: ["3", 0] } },
     "10": { class_type: "SaveImage", inputs: { images: ["9", 0], filename_prefix: "image-studio/z-image-turbo" } },
   };
+  if (hasReference) {
+    workflow["11"] = { class_type: "LoadImage", inputs: { image: referenceImageName } };
+    workflow["12"] = {
+      class_type: "ImageScale",
+      inputs: {
+        image: ["11", 0], upscale_method: "lanczos", width: input.width, height: input.height, crop: "disabled",
+      },
+    };
+    workflow["13"] = { class_type: "VAEEncode", inputs: { pixels: ["12", 0], vae: ["3", 0] } };
+    workflow["14"] = {
+      class_type: "RepeatLatentBatch",
+      inputs: { samples: ["13", 0], amount: input.count },
+    };
+    workflow["8"].inputs.latent_image = ["14", 0];
+  }
+  return workflow;
 }
 
-function createLocalWorkflow(input: ImageTaskInput, seed: number): ApiWorkflow {
-  if (input.modelId === "local-qwen-image-2512") return createQwenImage2512Workflow(input, seed);
-  if (input.modelId === "local-z-image-turbo") return createZImageTurboWorkflow(input, seed);
+function createLocalWorkflow(input: ImageTaskInput, seed: number, referenceImageName?: string): ApiWorkflow {
+  if (input.modelId === "local-qwen-image-2512") {
+    return createQwenImage2512Workflow(input, seed, referenceImageName);
+  }
+  if (input.modelId === "local-z-image-turbo") {
+    return createZImageTurboWorkflow(input, seed, referenceImageName);
+  }
   if (input.modelId === "local-flux2-klein-4b") {
     const workflow = createFlux2KleinWorkflow({
       kind: "setting",
@@ -445,9 +522,67 @@ function createLocalWorkflow(input: ImageTaskInput, seed: number): ApiWorkflow {
     workflow["7"].inputs.width = input.width;
     workflow["7"].inputs.height = input.height;
     workflow["13"].inputs.filename_prefix = "image-studio/flux2-klein-4b";
+    if (referenceImageName !== undefined) {
+      workflow["14"] = { class_type: "LoadImage", inputs: { image: referenceImageName } };
+      workflow["15"] = {
+        class_type: "ImageScale",
+        inputs: {
+          image: ["14", 0],
+          upscale_method: "lanczos",
+          width: input.width,
+          height: input.height,
+          crop: "disabled",
+        },
+      };
+      workflow["16"] = { class_type: "VAEEncode", inputs: { pixels: ["15", 0], vae: ["3", 0] } };
+      const originalSteps = Number(workflow["7"].inputs.steps);
+      const denoise = effectiveDenoiseStrength(input) ?? 1;
+      const expandedSteps = Math.max(originalSteps, Math.floor(originalSteps / denoise));
+      workflow["7"].inputs.steps = expandedSteps;
+      workflow["17"] = {
+        class_type: "SplitSigmas",
+        inputs: { sigmas: ["7", 0], step: expandedSteps - originalSteps },
+      };
+      workflow["18"] = {
+        class_type: "RepeatLatentBatch",
+        inputs: { samples: ["16", 0], amount: input.count },
+      };
+      // Flux2Scheduler emits the dimension-shifted sigma schedule used by the
+      // custom sampler. Expanding the schedule before splitting avoids
+      // SplitSigmasDenoise rounding short schedules down to zero transitions.
+      // SplitSigmas's second output starts at the denoise offset and keeps the
+      // original number of sampling transitions.
+      workflow["11"].inputs.sigmas = ["17", 1];
+      workflow["11"].inputs.latent_image = ["18", 0];
+    }
     return workflow;
   }
   throw new ImageTaskError("Unknown local image model.", false);
+}
+
+function referenceImageExtension(mimeType: string): "png" | "jpg" | "webp" {
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/webp") return "webp";
+  return "png";
+}
+
+async function uploadLocalReference(
+  server: ComfyServer,
+  reference: { bytes: Buffer; mimeType: string },
+): Promise<string> {
+  try {
+    const uploaded = await new ComfyUIClient(server).uploadImage({
+      name: `image-studio-reference-${randomUUID()}.${referenceImageExtension(reference.mimeType)}`,
+      mimeType: reference.mimeType,
+      bytes: reference.bytes,
+    });
+    if (typeof uploaded.name !== "string" || !uploaded.name.trim()) {
+      throw new ImageTaskError("Local worker did not return an uploaded image name.", false);
+    }
+    return uploaded.name;
+  } catch (error) {
+    throw fromComfyError(error, "Local worker reference image upload failed.");
+  }
 }
 
 function asDataUri(file: { bytes: Buffer; mimeType: string }): string {
@@ -903,7 +1038,10 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
       );
     }
     const seed = input.seed ?? Math.floor(Math.random() * 2_147_483_647);
-    const workflow = createLocalWorkflow(input, seed);
+    const referenceImageName = input.referenceImages[0]
+      ? await uploadLocalReference(input.server, input.referenceImages[0])
+      : undefined;
+    const workflow = createLocalWorkflow(input, seed, referenceImageName);
     let submitted: { prompt_id: string };
     try {
       submitted = await new ComfyUIClient(input.server).submitWorkflow(workflow, input.clientId);
@@ -926,6 +1064,9 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
         height: input.height,
         seed,
         count: input.count,
+        ...(effectiveDenoiseStrength(input) === undefined
+          ? {}
+          : { denoiseStrength: effectiveDenoiseStrength(input) }),
         submittedAt: Date.now(),
       },
     };

@@ -27,6 +27,7 @@ import {
 import {
   cancelImageTask,
   checkLocalImageModel,
+  DEFAULT_DENOISE_STRENGTH,
   pollImageTask,
   submitImageTask,
 } from "./image-studio-adapters";
@@ -64,6 +65,7 @@ export type ImageJobRequest = {
   height: number;
   count: number;
   seed?: number;
+  denoiseStrength?: number;
   referenceAssetIds?: string[];
   maskAssetId?: string;
   cloudConfirmed?: boolean;
@@ -96,6 +98,7 @@ export type PresentedImageJob = {
   height: number;
   count: number;
   seed?: number;
+  denoiseStrength?: number;
   status: ImageStudioJob["status"];
   errorMessage: string | null;
   assets: PresentedImageAsset[];
@@ -302,6 +305,13 @@ function presentImageJob(
   job: ImageStudioJob,
   assets: ImageStudioAsset[],
 ): PresentedImageJob {
+  const denoiseStrength = job.provider === "LOCAL"
+    && typeof job.providerTaskMetadata.denoiseStrength === "number"
+    && Number.isFinite(job.providerTaskMetadata.denoiseStrength)
+    && job.providerTaskMetadata.denoiseStrength >= 0.05
+    && job.providerTaskMetadata.denoiseStrength <= 1
+    ? job.providerTaskMetadata.denoiseStrength
+    : undefined;
   return {
     id: job.id,
     modelId: job.modelId,
@@ -314,6 +324,7 @@ function presentImageJob(
     height: job.height,
     count: job.count,
     ...(job.seed == null ? {} : { seed: job.seed }),
+    ...(denoiseStrength === undefined ? {} : { denoiseStrength }),
     status: job.status,
     errorMessage: job.errorMessage,
     assets: assets.map(presentImageAsset),
@@ -531,6 +542,21 @@ function validateRequest(model: ImageModel, input: ImageJobRequest): void {
     && (!model.supportsSeed || !Number.isSafeInteger(input.seed) || input.seed < 0)
   ) {
     throw new ImageStudioRequestError(`${model.name} does not support this seed`, 400);
+  }
+  if (input.denoiseStrength !== undefined) {
+    if (
+      !Number.isFinite(input.denoiseStrength)
+      || input.denoiseStrength < 0.05
+      || input.denoiseStrength > 1
+    ) {
+      throw new ImageStudioRequestError("Denoise strength must be a number from 0.05 to 1", 400);
+    }
+    if (model.provider !== "LOCAL") {
+      throw new ImageStudioRequestError("Denoise strength is only supported for local image models", 400);
+    }
+    if (!(input.referenceAssetIds?.length)) {
+      throw new ImageStudioRequestError("Denoise strength requires a reference image", 400);
+    }
   }
   if (input.negativePrompt && !model.supportsNegativePrompt) {
     throw new ImageStudioRequestError(`${model.name} does not support negative prompts`, 400);
@@ -1126,6 +1152,15 @@ export async function createImageJob(input: {
             submissionIntent: true,
             submissionIntentAt: new Date().toISOString(),
             cancellationRequested: false,
+            ...(
+              input.request.denoiseStrength === undefined
+              && !(input.request.referenceAssetIds?.length)
+                ? {}
+                : {
+                  denoiseStrength: input.request.denoiseStrength
+                    ?? DEFAULT_DENOISE_STRENGTH,
+                }
+            ),
           },
       })
       .onConflictDoNothing({
@@ -1217,6 +1252,7 @@ export async function createImageJob(input: {
         height: input.request.height,
         seed: input.request.seed,
         count: input.request.count,
+        denoiseStrength: input.request.denoiseStrength,
         referenceImages: loadedAssets.references,
         mask: loadedAssets.mask,
         ...(server ? { server } : {}),

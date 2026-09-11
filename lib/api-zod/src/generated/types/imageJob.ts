@@ -22,6 +22,11 @@ export interface ImageJob {
   height: number;
   count: number;
   seed?: number;
+  /**
+     * @minimum 0.05
+     * @maximum 1
+     */
+  denoiseStrength?: number;
   status: ImageJobStatus;
   /** @nullable */
   errorMessage: string | null;

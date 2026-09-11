@@ -101,6 +101,11 @@ export interface ImageJob {
   height: number;
   count: number;
   seed?: number;
+  /**
+     * @minimum 0.05
+     * @maximum 1
+     */
+  denoiseStrength?: number;
   status: ImageJobStatus;
   /** @nullable */
   errorMessage: string | null;
@@ -142,6 +147,11 @@ export interface ImageJobInput {
      * @maximum 2147483647
      */
   seed?: number;
+  /**
+     * @minimum 0.05
+     * @maximum 1
+     */
+  denoiseStrength?: number;
   /** @maxItems 16 */
   referenceAssetIds?: string[];
   maskAssetId?: string;

@@ -50,7 +50,10 @@ export function ImageWorkspace() {
       if (current.some((item) => item.id === asset.id)) {
         return current.filter((item) => item.id !== asset.id);
       }
-      if (current.length >= maxReferences) return current;
+      const availableReferenceSlots = mode === "generate"
+        ? maxReferences
+        : Math.max(0, maxReferences - (activeAsset ? 1 : 0));
+      if (current.length >= availableReferenceSlots) return current;
       return [...current, asset];
     });
   };
@@ -118,7 +121,9 @@ export function ImageWorkspace() {
           <ImageGallery 
             activeAssetId={activeAsset?.id} 
             selectedReferenceIds={referenceAssets.map((asset) => asset.id)}
-            maxReferences={maxReferences}
+            maxReferences={mode === "generate"
+              ? maxReferences
+              : Math.max(0, maxReferences - (activeAsset ? 1 : 0))}
             onSelect={selectAsset}
             onToggleReference={toggleReference}
             onReuseJob={reuseSettings}

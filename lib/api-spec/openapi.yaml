@@ -1301,6 +1301,7 @@ components:
         height: { type: number }
         count: { type: number }
         seed: { type: number }
+        denoiseStrength: { type: number, minimum: 0.05, maximum: 1 }
         status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED] }
         errorMessage: { type: ["string", "null"] }
         assets:
@@ -1321,6 +1322,7 @@ components:
         height: { type: number, minimum: 1, maximum: 32768 }
         count: { type: number, minimum: 1, maximum: 16 }
         seed: { type: number, minimum: 0, maximum: 2147483647 }
+        denoiseStrength: { type: number, minimum: 0.05, maximum: 1 }
         referenceAssetIds:
           type: array
           maxItems: 16
