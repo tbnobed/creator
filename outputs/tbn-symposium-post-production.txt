@@ -1,0 +1,153 @@
+TBN AI Symposium — Post-production sidecar
+NOT FOR THE H3 FULL SCRIPT FIELD
+30 shots, 190 seconds. Hard cuts; final fade. Narration, music and typography are applied separately in post. Original complete direction is in the source production script.
+
+SHOT 1 | 0:00 | 6s
+VO: —
+Text overlay: —
+Music cue: pad enters on the LED.
+
+SHOT 2 | 0:06 | 6s
+VO: "This building has more than two hundred devices that report their state every second."
+Text overlay: —
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 3 | 0:12 | 8s
+VO: "Until now, none of it could answer a question."
+Text overlay: TBN AI SYMPOSIUM — fades in at 0:16, holds to end of shot
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 4 | 0:20 | 6s
+VO: "Three things changed. It became fast enough."
+Text overlay: FAST
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 5 | 0:26 | 6s
+VO: "It became affordable enough to run on hardware we already own."
+Text overlay: AFFORDABLE
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 6 | 0:32 | 7s
+VO: "And it became private enough that nothing we make ever has to leave the building."
+Text overlay: PRIVATE
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 7 | 0:39 | 6s
+VO: "This is what we did with that."
+Text overlay: —
+Music cue: first percussion layer enters.
+
+SHOT 8 | 0:45 | 6s
+VO: "Two hundred and forty-seven hours of footage. Every frame, every word, every face, indexed."
+Text overlay: OBTV.AI — THE LIBRARY
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 9 | 0:51 | 6s
+VO: "Ask it for a theme, not a filename. It finds the moment."
+Text overlay: SEMANTIC SEARCH
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 10 | 0:57 | 6s
+VO: "It knows who is speaking, what they said, and how it felt when they said it."
+Text overlay: PEOPLE · TRANSCRIPT · TONE
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 11 | 1:03 | 7s
+VO: "Give it a brief in plain English and it returns a draft cut — with its reasoning."
+Text overlay: "GIVE ME AN HOUR ON FAITH AND HARDSHIP" — 28 CLIPS · 59:59
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 12 | 1:10 | 6s
+VO: "It suggests. It does not decide. The editor is still the editor."
+Text overlay: THE HUMAN STAYS
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 13 | 1:16 | 7s
+VO: "It can build the location you could never travel to, on our own walls, from our own GPUs."
+Text overlay: CREATORAI · THE VOLUME
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 14 | 1:23 | 7s
+VO: "It can clone a voice. Which is exactly why the rules matter more than the technology."
+Text overlay: VOICE · CONSENT REQUIRED
+Music cue: percussion drops out for this shot only, pad continues.
+
+SHOT 15 | 1:30 | 6s
+VO: "So we built one system that knows every room, every device, and every wall panel in this building."
+Text overlay: TALLY — FACILITY CONTROL
+Music cue: full percussion returns.
+
+SHOT 16 | 1:36 | 6s
+VO: "Every source, through the router, to every destination. Watched continuously."
+Text overlay: SIGNAL PATH · ROUTING CORE
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 17 | 1:42 | 7s
+VO: "Let me break something."
+Text overlay: —
+Music cue: hard cut to near-silence — pad only, low.
+
+SHOT 18 | 1:49 | 7s
+VO: "Five alarms from four systems, correlated into one incident, with the cause named and the blast radius computed."
+Text overlay: 5 ALARMS → 1 INCIDENT · 41 SECONDS
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 19 | 1:56 | 6s
+VO: "And the right person knows before anyone in the room has finished reacting."
+Text overlay: ROUTED TO THE PERSON WHO CAN ACT
+Music cue: percussion returns on the phone lighting.
+
+SHOT 20 | 2:02 | 7s
+VO: "Four people. Same plant. Four different briefings — because what matters to an engineer is not what matters to the chief executive."
+Text overlay: PERSONALISED INTELLIGENCE
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 21 | 2:09 | 6s
+VO: "It predicts. Eighty-seven percent this card fails within fourteen days — and here is the evidence."
+Text overlay: PREDICTED · 87% · 14 DAYS
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 22 | 2:15 | 6s
+VO: "For developers and IS, one gateway sits in front of every model — and every application and agent reaches it through defined tools with defined scopes."
+Text overlay: LITELLM GATEWAY · MCP SERVERS
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 23 | 2:21 | 7s
+VO: "Agents write code, run the tests, fail, fix their own mistakes — and cannot approve their own work."
+Text overlay: FORGE · RELAY · AI REVIEWS, A HUMAN APPROVES
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 24 | 2:28 | 6s
+VO: "Not one agent. A planner, specialists working in parallel, and a reviewer who raises the question the tests could not."
+Text overlay: MULTI-AGENT · FULL TRACE OF EVERY CALL
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 25 | 2:34 | 5s
+VO: "Donor records are never reachable by any agent. That is not a policy. It is architecture."
+Text overlay: DONOR DIRECT · MIDDLEWARE ONLY
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 26 | 2:39 | 6s
+VO: "And a place to build together — prompts, agents and integrations published once, reused everywhere."
+Text overlay: THE HUB · DEVELOPER AND IS WORKING SESSION
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 27 | 2:45 | 6s
+VO: "Every commit, every deploy, every cut to air — a person presses the button."
+Text overlay: AI ARMS · A HUMAN COMMITS
+Music cue: pulls back to pad.
+
+SHOT 28 | 2:51 | 6s
+VO: "Three tiers of data. On-prem only. Approved tools. Open use. If you would not email it outside, it does not go into a model we do not control."
+Text overlay: CLASSIFY FIRST
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 29 | 2:57 | 6s
+VO: "Everything you are about to see is running down the hall."
+Text overlay: —
+Music cue: Continue the continuous bed per original direction.
+
+SHOT 30 | 3:03 | 7s
+VO: "Made here. On our hardware. By our people."
+Text overlay: TBN AI SYMPOSIUM — holds, then fade
+Music cue: resolves and ends with the fade.

@@ -1,4 +1,5 @@
 import { useLocation, Link } from "wouter";
+import { useEffect, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -38,7 +39,7 @@ const formSchema = z.object({
   storyline: z.string().max(20000).optional(),
   targetDurationSeconds: z.coerce.number().min(1).max(600),
   shotDurationSeconds: z.coerce.number().min(2).max(30).optional(),
-  characterIds: z.array(z.string()).min(1, "Select at least one character").max(9),
+  characterIds: z.array(z.string()).max(9),
   settingId: z.string().min(1, "Setting is required"),
   generationMode: z.string().min(1, "Workflow/generation mode is required"),
   negativePrompt: z.string().max(5000).optional(),
@@ -92,12 +93,20 @@ export default function NewProjectPage() {
       fps: 24,
       qualityPreset: "STANDARD",
       continuity: {
-        enabled: true,
+        enabled: false,
         characters: [],
         scenes: [],
       }
     },
   });
+  const selectedCharacterIds = form.watch("characterIds");
+  const continuityUserChanged = useRef(false);
+
+  useEffect(() => {
+    if (!continuityUserChanged.current) {
+      form.setValue("continuity.enabled", selectedCharacterIds.length > 0, { shouldDirty: false });
+    }
+  }, [form, selectedCharacterIds.length]);
 
   const onSubmit = (values: FormValues) => {
     createProject.mutate(
@@ -237,7 +246,10 @@ export default function NewProjectPage() {
                     name="characterIds"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Characters (Select up to 9)</FormLabel>
+                        <FormLabel>Characters (Optional; select up to 9)</FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Leave empty for anonymous B-roll and environment shots.
+                        </p>
                         <FormControl>
                           <div className="flex flex-wrap gap-2 pt-2">
                             {characters.length === 0 && <span className="text-sm text-muted-foreground">No characters available</span>}
@@ -360,7 +372,10 @@ export default function NewProjectPage() {
                         <FormControl>
                           <Checkbox
                             checked={field.value}
-                            onCheckedChange={field.onChange}
+                            onCheckedChange={(checked) => {
+                              continuityUserChanged.current = true;
+                              field.onChange(checked);
+                            }}
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">

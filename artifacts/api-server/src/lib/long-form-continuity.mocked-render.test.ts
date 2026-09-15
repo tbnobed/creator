@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { CreateLongFormProjectBody } from "@workspace/api-zod";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import {
   completionVoiceCharacterId,
   compileLongFormPromptForTest,
   planContinuityReferenceSlots,
 } from "./generation-service";
+import { characterIdsForLongFormShot } from "./long-form-service";
 import {
   invalidatedStillValues,
   missingApprovedContinuityShot,
@@ -98,4 +100,42 @@ test("H3 receives exact dialogue early and concise shot-only continuity context"
   assert.ok(prompt.indexOf("exact_dialogue") < prompt.indexOf("subject_definitions"));
   assert.match(prompt, /Wardrobe: indigo jacket/);
   assert.doesNotMatch(prompt, /unrelated project bible/i);
+});
+
+test("anonymous H3 long-form dispatch preserves an empty cast", () => {
+  assert.equal(CreateLongFormProjectBody.safeParse({
+    title: "Anonymous B-roll",
+    script: "B-ROLL 1: Empty broadcast facility",
+    targetDurationSeconds: 5,
+    characterIds: [],
+    settingId: "broadcast-facility",
+    generationMode: "H3",
+    width: 1280,
+    height: 720,
+    fps: 24,
+    qualityPreset: "DRAFT",
+  }).success, true);
+
+  const characterIds = characterIdsForLongFormShot([], {
+    characterIds: [],
+    continuity: { voiceCloningEnabled: false },
+  });
+  assert.deepEqual(characterIds, []);
+  assert.equal(completionVoiceCharacterId(null, characterIds), null);
+
+  const prompt = compileLongFormPromptForTest([], {
+    tenantId: "tenant",
+    createdByUserId: "creator",
+    characterIds,
+    prompt: "A wide broadcast facility stage with empty seats and soft practical lighting.",
+    generationMode: "H3",
+    durationSeconds: 5,
+    fps: 24,
+    width: 1280,
+    height: 720,
+    qualityPreset: "DRAFT",
+    seedMode: "RANDOM",
+  });
+  assert.match(prompt, /No supplied reference subject is required/);
+  assert.doesNotMatch(prompt, /<Subject 1>|CHARACTERS|first-character/i);
 });

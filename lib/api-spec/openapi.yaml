@@ -2391,7 +2391,7 @@ components:
         storyline: { type: string, maxLength: 20000 }
         targetDurationSeconds: { type: number, minimum: 1, maximum: 600 }
         shotDurationSeconds: { type: number, minimum: 2, maximum: 30, default: 8 }
-        characterIds: { type: array, items: { type: string }, minItems: 1, maxItems: 9 }
+        characterIds: { type: array, items: { type: string }, minItems: 0, maxItems: 9 }
         settingId: { type: string }
         generationMode: { type: string }
         negativePrompt: { type: string, maxLength: 5000 }

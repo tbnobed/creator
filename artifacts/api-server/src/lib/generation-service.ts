@@ -42,6 +42,152 @@ const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
 const generationTimeoutMs = 6 * 60 * 60 * 1000;
 const maxConsecutiveMonitorErrors = 3;
 const FAL_SPEND_LIFECYCLE_VERSION = 1;
+const MINIMAX_H3_FPS = 24;
+const MINIMAX_H3_DIMENSION_MULTIPLE = 32;
+const MINIMAX_H3_MIN_FRAMES = 5;
+const MINIMAX_H3_FRAME_STEP = 17;
+// Keep this in lockstep with the ComfyMathExpression in the seeded H3 graph.
+// The expression is the model's input-length contract; it is not a generic
+// video frame rounding rule.
+const MINIMAX_H3_LENGTH_EXPRESSION =
+  "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17";
+
+type MiniMaxH3SubmissionGeometry = {
+  width: number;
+  height: number;
+  frameCount: number;
+  requestedDurationSeconds: number;
+  effectiveDurationSeconds: number;
+};
+
+function ceilToMultiple(value: number, multiple: number): number {
+  return Math.ceil(value / multiple) * multiple;
+}
+
+/**
+ * Return the dimensions and frame grid accepted by the seeded MiniMax H3
+ * workflow. H3 emits the effective dimensions; the long-form project keeps
+ * its authored target dimensions for final assembly.
+ */
+export function normalizeMiniMaxH3SubmissionGeometry(input: {
+  width: number;
+  height: number;
+  durationSeconds: number;
+  fps: number;
+}): MiniMaxH3SubmissionGeometry {
+  if (
+    !Number.isFinite(input.width)
+    || !Number.isFinite(input.height)
+    || input.width <= 0
+    || input.height <= 0
+  ) {
+    throw new Error("MiniMax H3 requires positive output dimensions");
+  }
+  if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
+    throw new Error("MiniMax H3 requires a positive duration");
+  }
+  // The seeded node 131 expression is hard-coded to 24fps. Rejecting other
+  // rates avoids submitting a graph whose model length would be shorter than
+  // the requested duration.
+  if (input.fps !== MINIMAX_H3_FPS) {
+    throw new Error("MiniMax H3 long-form renders require 24 fps");
+  }
+
+  const requestedFrames = Math.max(
+    MINIMAX_H3_MIN_FRAMES,
+    Math.round(input.durationSeconds * MINIMAX_H3_FPS),
+  );
+  // This mirrors node 131 exactly: valid lengths are 5 + 17n, with the
+  // smallest valid length at or above the requested 24fps frame count.
+  const frameCount = requestedFrames
+    + (
+      MINIMAX_H3_MIN_FRAMES
+      - (requestedFrames % MINIMAX_H3_FRAME_STEP)
+      + MINIMAX_H3_FRAME_STEP
+    ) % MINIMAX_H3_FRAME_STEP;
+
+  return {
+    width: ceilToMultiple(input.width, MINIMAX_H3_DIMENSION_MULTIPLE),
+    height: ceilToMultiple(input.height, MINIMAX_H3_DIMENSION_MULTIPLE),
+    frameCount,
+    requestedDurationSeconds: input.durationSeconds,
+    effectiveDurationSeconds: frameCount / MINIMAX_H3_FPS,
+  };
+}
+
+type WorkflowNodeForGeometry = {
+  class_type?: unknown;
+  inputs?: Record<string, unknown>;
+};
+
+function workflowNodeForGeometry(
+  workflow: Record<string, unknown>,
+  nodeId: string | undefined,
+): WorkflowNodeForGeometry | null {
+  if (!nodeId) return null;
+  const node = workflow[nodeId];
+  if (!node || typeof node !== "object" || Array.isArray(node)) return null;
+  const candidate = node as WorkflowNodeForGeometry;
+  return candidate.inputs && typeof candidate.inputs === "object" && !Array.isArray(candidate.inputs)
+    ? candidate
+    : null;
+}
+
+function isLinkTo(value: unknown, nodeId: string): boolean {
+  return Array.isArray(value) && value[0] === nodeId && typeof value[1] === "number";
+}
+
+/**
+ * H3 dimensions and length are only normalized when the imported workflow
+ * exposes the actual seeded H3 nodes. This fails closed for an incomplete or
+ * incompatible workflow rather than guessing at a model's geometry contract.
+ */
+function validateMiniMaxH3WorkflowCapabilities(
+  apiWorkflow: Record<string, unknown>,
+  mappings: ParameterMappings,
+): void {
+  const widthMapping = mappings.width;
+  const heightMapping = mappings.height;
+  const durationMapping = mappings.durationSeconds;
+  const fpsMapping = mappings.fps;
+  if (!widthMapping || !heightMapping || !durationMapping || !fpsMapping) {
+    throw new Error("MiniMax H3 workflow is missing its geometry input mappings");
+  }
+
+  const outputNode = workflowNodeForGeometry(apiWorkflow, widthMapping.nodeId);
+  const heightNode = workflowNodeForGeometry(apiWorkflow, heightMapping.nodeId);
+  const durationNode = workflowNodeForGeometry(apiWorkflow, durationMapping.nodeId);
+  const fpsNode = workflowNodeForGeometry(apiWorkflow, fpsMapping.nodeId);
+  if (
+    !outputNode
+    || outputNode.class_type !== "MiniMaxH3ReferenceToVideo"
+    || !(widthMapping.input in outputNode.inputs!)
+    || heightNode !== outputNode
+    || !(heightMapping.input in outputNode.inputs!)
+    || !durationNode
+    || !(durationMapping.input in durationNode.inputs!)
+    || !fpsNode
+    || fpsNode.class_type !== "CreateVideo"
+    || !(fpsMapping.input in fpsNode.inputs!)
+  ) {
+    throw new Error("MiniMax H3 workflow does not expose the supported geometry nodes");
+  }
+
+  const lengthExpression = Object.entries(apiWorkflow).find(([nodeId]) => {
+    const node = workflowNodeForGeometry(apiWorkflow, nodeId);
+    return node?.class_type === "ComfyMathExpression"
+      && node.inputs?.expression === MINIMAX_H3_LENGTH_EXPRESSION;
+  });
+  const lengthNodeId = lengthExpression?.[0];
+  const lengthNode = workflowNodeForGeometry(apiWorkflow, lengthNodeId);
+  const lengthValue = lengthNode?.inputs?.["values.a"];
+  if (!lengthNodeId || !lengthNode || !isLinkTo(lengthValue, durationMapping.nodeId)) {
+    throw new Error("MiniMax H3 workflow is missing its official 24fps frame-grid expression");
+  }
+  if (!isLinkTo(outputNode.inputs?.length, lengthNodeId)) {
+    throw new Error("MiniMax H3 workflow does not connect its frame-grid expression to length");
+  }
+}
 
 function cloudProviderErrorDetail(value: unknown): string {
   return String(value)
@@ -957,12 +1103,29 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
   const isLtx25Workflow = workflow.modelFamily.trim().toLowerCase() === "ltx 2.5";
-  const outputWidth = isLtx25Workflow ? normalizeLtx25OutputDimension(input.width) : input.width;
-  const outputHeight = isLtx25Workflow ? normalizeLtx25OutputDimension(input.height) : input.height;
+  const isMiniMaxH3Workflow = workflow.modelFamily.trim().toLowerCase() === "minimax h3";
+  const apiWorkflow = workflow.apiWorkflow;
+  if (!apiWorkflow) {
+    throw new Error("No active imported API workflow is configured for this generation mode");
+  }
+  const h3Geometry = isMiniMaxH3Workflow
+    ? normalizeMiniMaxH3SubmissionGeometry(input)
+    : null;
+  if (isMiniMaxH3Workflow) {
+    validateMiniMaxH3WorkflowCapabilities(
+      apiWorkflow,
+      workflow.mappings as ParameterMappings,
+    );
+  }
+  const outputWidth = isLtx25Workflow
+    ? normalizeLtx25OutputDimension(input.width)
+    : h3Geometry?.width ?? input.width;
+  const outputHeight = isLtx25Workflow
+    ? normalizeLtx25OutputDimension(input.height)
+    : h3Geometry?.height ?? input.height;
   if ((workflow.mappings as ParameterMappings).referenceVideo && !input.referenceVideoKey) {
     throw new Error("No active workflow without reference-video input is configured for this generation mode");
   }
-  const apiWorkflow = workflow.apiWorkflow;
   const server = selected?.server;
   if (!server) {
     const compatibleServerNames = [...new Set(candidates.map(({ server: candidate }) => candidate.displayName))];
@@ -987,7 +1150,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       throw new Error(`${server.displayName} is at its safe render capacity.`);
     }
   const compiledPrompt = compilePrompt(workflow.modelFamily, characters, setting[0], input);
-  const frameCount = Math.round(input.durationSeconds * input.fps);
+    const frameCount = h3Geometry?.frameCount ?? Math.round(input.durationSeconds * input.fps);
   const [job] = await db
     .insert(generationJobsTable)
     .values({

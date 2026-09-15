@@ -1965,6 +1965,7 @@ export const createLongFormProjectBodyShotDurationSecondsDefault = 8;
 export const createLongFormProjectBodyShotDurationSecondsMin = 2;
 export const createLongFormProjectBodyShotDurationSecondsMax = 30;
 
+export const createLongFormProjectBodyCharacterIdsMin = 0;
 export const createLongFormProjectBodyCharacterIdsMax = 9;
 
 export const createLongFormProjectBodyNegativePromptMax = 5000;
@@ -2012,7 +2013,7 @@ export const CreateLongFormProjectBody = zod.object({
   "storyline": zod.string().max(createLongFormProjectBodyStorylineMax).optional(),
   "targetDurationSeconds": zod.number().min(1).max(createLongFormProjectBodyTargetDurationSecondsMax),
   "shotDurationSeconds": zod.number().min(createLongFormProjectBodyShotDurationSecondsMin).max(createLongFormProjectBodyShotDurationSecondsMax).default(createLongFormProjectBodyShotDurationSecondsDefault),
-  "characterIds": zod.array(zod.string()).min(1).max(createLongFormProjectBodyCharacterIdsMax),
+  "characterIds": zod.array(zod.string()).min(createLongFormProjectBodyCharacterIdsMin).max(createLongFormProjectBodyCharacterIdsMax),
   "settingId": zod.string(),
   "generationMode": zod.string(),
   "negativePrompt": zod.string().max(createLongFormProjectBodyNegativePromptMax).optional(),

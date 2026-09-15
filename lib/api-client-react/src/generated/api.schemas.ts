@@ -1445,7 +1445,7 @@ export interface LongFormProjectInput {
      */
   shotDurationSeconds?: number;
   /**
-     * @minItems 1
+     * @minItems 0
      * @maxItems 9
      */
   characterIds: string[];

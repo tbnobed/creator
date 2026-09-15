@@ -90,6 +90,13 @@ type PlannedShot = {
   durationSeconds: number;
 };
 
+export function characterIdsForLongFormShot(
+  projectCharacterIds: string[],
+  shot: Pick<LongFormShot, "characterIds" | "continuity">,
+): string[] {
+  return shot.continuity?.characterIds?.length ? shot.continuity.characterIds : projectCharacterIds;
+}
+
 export type LongFormTimelineInput = {
   clips: LongFormTimelineClip[];
 };
@@ -647,7 +654,7 @@ async function recordDispatchBlock(project: LongFormProject, reason: string): Pr
 function conciseContinuityContext(project: LongFormProject, shot: LongFormShot): string | undefined {
   const continuity = project.continuity ?? defaultContinuity();
   if (!continuity.enabled) return undefined;
-  const cast = shot.continuity?.characterIds?.length ? shot.continuity.characterIds : shot.characterIds;
+  const cast = characterIdsForLongFormShot(shot.characterIds, shot);
   const locks = continuity.characters
     .filter((character) => cast.includes(character.characterId))
     .map((character) => [
@@ -678,7 +685,7 @@ function conciseContinuityContext(project: LongFormProject, shot: LongFormShot):
 
 async function wardrobeReferenceKeys(project: LongFormProject, shot: LongFormShot): Promise<string[]> {
   if (!project.continuity?.enabled) return [];
-  const cast = shot.continuity?.characterIds?.length ? shot.continuity.characterIds : project.characterIds;
+  const cast = characterIdsForLongFormShot(project.characterIds, shot);
   const scene = project.continuity.scenes.find((item) => item.sceneNumber === shot.sceneNumber);
   if (!scene) return [];
   const assetIds = cast.flatMap((characterId) => {
@@ -757,26 +764,129 @@ async function runMediaTool(
   await execFileAsync(command, args, { maxBuffer: 10 * 1024 * 1024, ...options });
 }
 
-async function validateShotMedia(shot: LongFormShot): Promise<{ durationSeconds: number; hasAudio: boolean }> {
+async function validateShotMedia(shot: LongFormShot): Promise<{
+  durationSeconds: number;
+  hasAudio: boolean;
+  width: number;
+  height: number;
+}> {
   if (!shot.outputStorageKey) throw new Error(`Shot ${shot.title} has no output file`);
   const result = await execFileAsync("ffprobe", [
     "-v", "error",
-    "-show_entries", "format=duration:stream=codec_type",
+    "-show_entries", "format=duration:stream=codec_type,width,height",
     "-of", "json",
     mediaStorage.resolvePath(shot.outputStorageKey),
   ]);
   const parsed = JSON.parse(result.stdout) as {
     format?: { duration?: string };
-    streams?: Array<{ codec_type?: string }>;
+    streams?: Array<{ codec_type?: string; width?: number; height?: number }>;
   };
   const durationSeconds = Number(parsed.format?.duration);
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
     throw new Error(`Shot ${shot.title} is not a playable video`);
   }
+  const videoStream = parsed.streams?.find((stream) => stream.codec_type === "video");
+  const width = Number(videoStream?.width);
+  const height = Number(videoStream?.height);
+  if (!Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0) {
+    throw new Error(`Shot ${shot.title} does not expose playable video dimensions`);
+  }
   return {
     durationSeconds,
     hasAudio: parsed.streams?.some((stream) => stream.codec_type === "audio") ?? false,
+    width,
+    height,
   };
+}
+
+type LongFormAssemblyProject = Pick<LongFormProject, "generationMode" | "width" | "height" | "fps">;
+type LongFormAssemblyMediaInfo = Awaited<ReturnType<typeof validateShotMedia>>;
+
+function isH3Assembly(project: LongFormAssemblyProject): boolean {
+  return project.generationMode.toLowerCase().includes("h3");
+}
+
+function assemblyVideoFilter(
+  project: LongFormAssemblyProject,
+  mediaInfo: LongFormAssemblyMediaInfo,
+  padFrames: number,
+): string {
+  const filters = isH3Assembly(project)
+    && mediaInfo.width >= project.width
+    && mediaInfo.height >= project.height
+    ? [
+      `crop=${project.width}:${project.height}:(iw-${project.width})/2:(ih-${project.height})/2`,
+      "setsar=1",
+    ]
+    : [
+      `scale=${project.width}:${project.height}:force_original_aspect_ratio=decrease`,
+      `pad=${project.width}:${project.height}:(ow-iw)/2:(oh-ih)/2`,
+    ];
+  filters.push(`fps=${project.fps}`);
+  if (padFrames > 0) {
+    filters.push(`tpad=stop_mode=clone:stop_duration=${(padFrames / project.fps).toFixed(6)}`);
+  }
+  return filters.join(",");
+}
+
+export type LongFormAssemblyFfmpegOptions = {
+  sourcePath: string;
+  destinationPath: string;
+  project: LongFormAssemblyProject;
+  mediaInfo: LongFormAssemblyMediaInfo;
+  clip: Pick<LongFormTimelineClip, "trimStartSeconds" | "trimEndSeconds">;
+};
+
+export function buildLongFormAssemblyFfmpegArgs(options: LongFormAssemblyFfmpegOptions): string[] {
+  const { project, mediaInfo, clip } = options;
+  const trimStart = Math.max(0, clip.trimStartSeconds);
+  const requestedTrimEnd = clip.trimEndSeconds;
+  if (
+    !Number.isFinite(trimStart)
+    || !Number.isFinite(requestedTrimEnd)
+    || requestedTrimEnd <= trimStart
+  ) {
+    throw new Error("The timeline trim points are invalid.");
+  }
+  const targetFrames = Math.max(1, Math.round((requestedTrimEnd - trimStart) * project.fps));
+  const availableFrames = Math.max(0, Math.floor((mediaInfo.durationSeconds - trimStart) * project.fps + 1e-6));
+  const missingFrames = targetFrames - availableFrames;
+  // A one-frame shortfall can come from ffprobe's duration rounding. Clone only
+  // that final frame; silently padding a materially short render hides a bad
+  // source clip and must fail closed.
+  if (missingFrames > 1) {
+    throw new Error("The source clip is shorter than its timeline trim.");
+  }
+  if (availableFrames === 0) {
+    throw new Error("The source clip has no frames at the requested trim start.");
+  }
+  const padFrames = Math.max(0, missingFrames);
+  const durationSeconds = targetFrames / project.fps;
+  const ffmpegArgs = [
+    "-y",
+    "-i", options.sourcePath,
+  ];
+  if (!mediaInfo.hasAudio) {
+    ffmpegArgs.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
+  }
+  ffmpegArgs.push(
+    "-ss", String(trimStart),
+    "-map", "0:v:0",
+    "-map", mediaInfo.hasAudio ? "0:a:0" : "1:a:0",
+    "-vf", assemblyVideoFilter(project, mediaInfo, padFrames),
+    "-frames:v", String(targetFrames),
+    "-t", String(durationSeconds),
+    "-c:v", "libx264",
+    "-pix_fmt", "yuv420p",
+    "-c:a", "aac",
+    "-ar", "48000",
+    "-ac", "2",
+    "-b:a", "192k",
+    "-af", "apad",
+    "-movflags", "+faststart",
+    options.destinationPath,
+  );
+  return ffmpegArgs;
 }
 
 async function assembleProject(project: LongFormProject, shots: LongFormShot[]): Promise<void> {
@@ -800,29 +910,13 @@ async function assembleProject(project: LongFormProject, shots: LongFormShot[]):
         throw new Error(`The trim for ${shot.title} is empty.`);
       }
       const normalizedPath = path.join(workDir, `shot-${String(index).padStart(3, "0")}.mp4`);
-      const ffmpegArgs = [
-        "-y",
-        "-ss", String(trimStart),
-        "-i", mediaStorage.resolvePath(shot.outputStorageKey),
-      ];
-      if (!mediaInfo.hasAudio) {
-        ffmpegArgs.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000");
-      }
-      ffmpegArgs.push(
-        "-map", "0:v:0",
-        "-map", mediaInfo.hasAudio ? "0:a:0" : "1:a:0",
-        "-vf", `scale=${project.width}:${project.height}:force_original_aspect_ratio=decrease,pad=${project.width}:${project.height}:(ow-iw)/2:(oh-ih)/2,fps=${project.fps}`,
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-ar", "48000",
-        "-ac", "2",
-        "-b:a", "192k",
-        "-af", "apad",
-        "-t", String(trimEnd - trimStart),
-        "-movflags", "+faststart",
-        normalizedPath,
-      );
+      const ffmpegArgs = buildLongFormAssemblyFfmpegArgs({
+        sourcePath: mediaStorage.resolvePath(shot.outputStorageKey),
+        destinationPath: normalizedPath,
+        project,
+        mediaInfo,
+        clip: { trimStartSeconds: trimStart, trimEndSeconds: clip.trimEndSeconds },
+      });
       await runMediaTool("ffmpeg", ffmpegArgs);
       normalizedPaths.push(normalizedPath);
     }
@@ -1115,7 +1209,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
         const job = await createAndSubmitGeneration({
           tenantId: project.tenantId,
           createdByUserId: project.createdByUserId,
-           characterIds: claimed.continuity?.characterIds?.length ? claimed.continuity.characterIds : project.characterIds,
+          characterIds: characterIdsForLongFormShot(project.characterIds, claimed),
           settingId: project.settingId ?? undefined,
           prompt: claimed.dialogue ? removeDialogueFromPrompt(claimed.prompt) : claimed.prompt,
           negativePrompt: project.negativePrompt,

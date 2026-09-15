@@ -14,3 +14,31 @@ mtime_ms = 1789415157698
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/9efeb5fe-8d0f-4acd-8405-49a7934f76e6/e1957be4-150e-4f8b-92e3-6f3cb43773d4"
 storage_version_token = "1789415193508430"
 content_type = "image/png"
+
+[[outputs]]
+id = "OLv6OgiCpSQdXUlai_Ebo"
+uri = "file://outputs/tbn-symposium-h3-paste-script.txt"
+type = "text"
+title = "H3 visual script — paste into Full Script"
+description = "All 30 visual-only SHOT blocks, with the shared style prefix included in every shot."
+logical_id = "e0d34dc7-cbbb-4e01-9ca0-d9230a625952"
+content_hash = "sha256:c51900fbaefdffde3fb17b693b1fb00f51624dea3e74861832cb13377c7351da"
+size = 18461
+mtime_ms = 1789488610280
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/e0d34dc7-cbbb-4e01-9ca0-d9230a625952/eddc135a-5a88-4aa3-8956-ec12e3bac111"
+storage_version_token = "1789488610934857"
+content_type = "text/plain"
+
+[[outputs]]
+id = "eFMqrXrcJRQL-gE3a3f1W"
+uri = "file://outputs/tbn-symposium-post-production.txt"
+type = "text"
+title = "Timing, narration and overlay sidecar"
+description = "Exact shot durations and separate post-production cues. Do not paste this into the H3 generation script."
+logical_id = "79e8ed46-f50a-4352-9bf7-5d4a2ff37919"
+content_hash = "sha256:1bf681ac1afda1283ddc89aca9c9acb61ec73c7f7db704608855ef6a169258b3"
+size = 6396
+mtime_ms = 1789488610436
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/79e8ed46-f50a-4352-9bf7-5d4a2ff37919/58e2363c-4a16-46b0-b81b-7594449938f7"
+storage_version_token = "1789488611469629"
+content_type = "text/plain"

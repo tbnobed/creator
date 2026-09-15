@@ -1,0 +1,783 @@
+{
+  "manifestVersion": 1,
+  "status": "STAGED_READ_ONLY",
+  "generatedAt": "2026-09-15T15:37:08.637Z",
+  "authorization": {
+    "creationAuthorized": false,
+    "updateAuthorized": false,
+    "startAuthorized": false,
+    "providerDispatchAuthorized": false,
+    "note": "No project, shot, setting, auth session, render, upload, or provider request was created by this manifest preparation."
+  },
+  "source": {
+    "path": "attached_assets/symposium-intro-video-script_1789486065822.md",
+    "sha256": "5920fff95fa4c49ce14daa20898adbd388fff28ec5d8595795d624be4f7f3f23",
+    "script": "# TBN AI Symposium — Intro Film\n## Production script for MiniMax Hailuo video generation\n\n**Runtime:** 3:10 (expanded from 1:30 to cover every Seminar 2 and 3 topic without rushing)\n**Aspect:** 16:9, 1080p minimum, 24 fps\n**Shots:** 34 generated clips, 5–7 seconds each, assembled in post\n**Deliverable:** one continuous cut with VO, music, and text overlays applied in post\n\n---\n\n## How to use this script\n\nEach shot has a **generation prompt** written for MiniMax. Paste the **style prefix** below at the start of every prompt so the film holds together visually. Text on screen is added in post, not generated — video models do not render type reliably. VO is recorded separately and laid over the cut.\n\nNo shot depicts a real, identifiable person. Where a person appears they are anonymous, seen from behind, in silhouette, or at a distance. This is deliberate and matches the voice-and-likeness governance in Seminar 2.\n\n---\n\n## Style prefix — paste at the start of every prompt\n\n> Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain.\n\n**Consistency rules across all shots:** teal is always the colour of live signal and measured data; violet is always the colour of AI inference. Keep every light source motivated — monitors, LED walls, rack LEDs, fibre. Never flat-lit.\n\n---\n\n## Music and VO direction\n\n**Music:** one continuous bed. Opens sparse — a low sustained synth pad with a slow pulse at roughly 70 bpm. Builds through the plant and engineering acts with layered percussion. Pulls back to the pad for governance. Resolves on the close. No lyrics. Reference feel: restrained, confident, institutional rather than hype.\n\n**VO:** single voice, warm and unhurried, mid-register. Not a movie-trailer read. The tone is someone explaining what their team built, not selling it. Recorded dry, light room tone, no processing beyond EQ.\n\n---\n\n## ACT 1 — COLD OPEN (0:00 – 0:20)\n\n### Shot 1 · 0:00 · 6s\n**Prompt:** [prefix] Extreme close-up of a single coaxial fibre connector, purple jacket, being seated into a patch panel in a dark equipment rack. A small green LED illuminates at the moment of connection. Macro lens, very shallow focus, rack LEDs blurred in the background. Camera holds still.\n**VO:** —\n**Text (post):** —\n**Music:** pad enters on the LED.\n\n### Shot 2 · 0:06 · 6s\n**Prompt:** [prefix] Slow dolly back from a wall of broadcast patch bays, hundreds of BNC jacks in neat rows, purple and yellow cables looped between them, rack LEDs blinking. The pull-back reveals row after row of equipment racks receding into darkness, lit only by their own indicator lights.\n**VO:** \"This building has more than two hundred devices that report their state every second.\"\n**Text (post):** —\n\n### Shot 3 · 0:12 · 8s\n**Prompt:** [prefix] Wide interior of a television production control room at night, empty chairs, a large monitor wall glowing with abstract colour bars and waveforms, blue LED under-lighting on the console, a single desk lamp. The camera drifts slowly from left to right across the room.\n**VO:** \"Until now, none of it could answer a question.\"\n**Text (post):** TBN AI SYMPOSIUM — fades in at 0:16, holds to end of shot\n\n---\n\n## ACT 2 — WHAT CHANGED (0:20 – 0:45)\n\n### Shot 4 · 0:20 · 6s\n**Prompt:** [prefix] A rack of GPU servers in a dark machine room, cooling fans spinning, dense rows of small teal status lights, one row pulsing brighter than the rest. Slow push in toward the pulsing row.\n**VO:** \"Three things changed. It became fast enough.\"\n**Text (post):** FAST\n\n### Shot 5 · 0:26 · 6s\n**Prompt:** [prefix] Overhead view of a clean server room floor, racks in parallel rows, purple fibre bundles running in overhead trays, a single engineer seen from directly above walking between the rows carrying a laptop. Camera slowly descends.\n**VO:** \"It became affordable enough to run on hardware we already own.\"\n**Text (post):** AFFORDABLE\n\n### Shot 6 · 0:32 · 7s\n**Prompt:** [prefix] A closed steel data centre door with a small window, warm light spilling out around its edges into a dark corridor. Beyond the window, blurred racks with glowing lights. The camera holds on the door, which stays closed.\n**VO:** \"And it became private enough that nothing we make ever has to leave the building.\"\n**Text (post):** PRIVATE\n\n### Shot 7 · 0:39 · 6s\n**Prompt:** [prefix] Close-up on a broadcast camera lens in a dark studio, the glass reflecting a soft violet and teal gradient, a small red tally light above the lens switching on. Very shallow focus, background studio lights as bokeh.\n**VO:** \"This is what we did with that.\"\n**Text (post):** —\n**Music:** first percussion layer enters.\n\n---\n\n## ACT 3 — CONTENT CREATION (0:45 – 1:30)\n\n### Shot 8 · 0:45 · 6s\n**Prompt:** [prefix] A vast dark archive visualised as thousands of small glowing rectangular film frames floating in space, arranged in loose rows receding to infinity, teal and white, each one faintly flickering with abstract moving imagery. Slow forward drift through them.\n**VO:** \"Two hundred and forty-seven hours of footage. Every frame, every word, every face, indexed.\"\n**Text (post):** OBTV.AI — THE LIBRARY\n\n### Shot 9 · 0:51 · 6s\n**Prompt:** [prefix] The same floating archive of glowing frames; a single beam of violet light sweeps across them like a search, and a handful of frames scattered across the field brighten and lift slightly forward, the rest dim. Camera slowly orbits.\n**VO:** \"Ask it for a theme, not a filename. It finds the moment.\"\n**Text (post):** SEMANTIC SEARCH\n\n### Shot 10 · 0:57 · 6s\n**Prompt:** [prefix] A dark studio set with a curved white desk and empty chairs, seen through the glass of a control room. Overlaid softly across the scene, abstract translucent violet waveform lines rise and fall like a voice, and thin timeline bars scroll horizontally at the bottom of frame. Camera pushes gently toward the glass.\n**VO:** \"It knows who is speaking, what they said, and how it felt when they said it.\"\n**Text (post):** PEOPLE · TRANSCRIPT · TONE\n\n### Shot 11 · 1:03 · 7s\n**Prompt:** [prefix] Close-up of a video editing timeline on a large dark monitor, dozens of colour-coded clip blocks, a playhead moving steadily left to right. As it passes, clip blocks rearrange themselves into a new order, some rising, some falling away. The screen glows teal and violet. Slight lens breathing.\n**VO:** \"Give it a brief in plain English and it returns a draft cut — with its reasoning.\"\n**Text (post):** \"GIVE ME AN HOUR ON FAITH AND HARDSHIP\" — 28 CLIPS · 59:59\n\n### Shot 12 · 1:10 · 6s\n**Prompt:** [prefix] A hand seen from behind, resting on an editing keyboard in a dark suite, two large monitors glowing, the person's head out of frame. On the nearer monitor, an abstract story arc curve rises and falls with small glowing markers at its peaks. The hand does not move. Calm, held frame.\n**VO:** \"It suggests. It does not decide. The editor is still the editor.\"\n**Text (post):** THE HUMAN STAYS\n\n### Shot 13 · 1:16 · 7s\n**Prompt:** [prefix] Wide shot of a large LED volume wall in a dark studio, the wall displaying a photorealistic sunset over a desert canyon, a single empty director's chair silhouetted in front of it. The virtual sky on the wall slowly shifts from gold to violet. Camera dollies slowly sideways, parallax between chair and wall.\n**VO:** \"It can build the location you could never travel to, on our own walls, from our own GPUs.\"\n**Text (post):** CREATORAI · THE VOLUME\n\n### Shot 14 · 1:23 · 7s\n**Prompt:** [prefix] Extreme close-up of a studio microphone on a stand in near darkness, a single teal light catching the grille. A violet sound waveform, translucent, drifts slowly out of the microphone into the air and then freezes and fades. The microphone remains still. No person present.\n**VO:** \"It can clone a voice. Which is exactly why the rules matter more than the technology.\"\n**Text (post):** VOICE · CONSENT REQUIRED\n**Music:** percussion drops out for this shot only, pad continues.\n\n---\n\n## ACT 4 — ENGINEERING AND THE PLANT (1:30 – 2:15)\n\n### Shot 15 · 1:30 · 6s\n**Prompt:** [prefix] A floor plan of a large studio complex drawn in thin glowing teal lines on a black surface, viewed from directly above, rooms and corridors gradually illuminating one section at a time until the whole plan is lit. Slow rise of the camera as it fills in.\n**VO:** \"So we built one system that knows every room, every device, and every wall panel in this building.\"\n**Text (post):** TALLY — FACILITY CONTROL\n**Music:** full percussion returns.\n\n### Shot 16 · 1:36 · 6s\n**Prompt:** [prefix] A schematic of signal flow rendered in light: thin teal lines run from small glowing nodes on the left, converge into a tall bright central bar, and fan out to nodes on the right. Small points of light travel along the lines continuously. Black background, slight depth, gentle camera drift.\n**VO:** \"Every source, through the router, to every destination. Watched continuously.\"\n**Text (post):** SIGNAL PATH · ROUTING CORE\n\n### Shot 17 · 1:42 · 7s\n**Prompt:** [prefix] Close-up of a fibre connector at a studio wall box, a hand seen only at the wrist pulling it free. At the instant of disconnection, the small green LED on the panel snaps to red. Macro, shallow focus, the red glow reflecting on the metal.\n**VO:** \"Let me break something.\"\n**Text (post):** —\n**Music:** hard cut to near-silence — pad only, low.\n\n### Shot 18 · 1:49 · 7s\n**Prompt:** [prefix] A dark monitor showing a cascade of small text-like lines scrolling upward in rapid succession, some tinted red, some amber, arriving from different directions and then, over two seconds, converging into a single glowing violet block at the centre of the screen. Reflections on a glass desk surface below.\n**VO:** \"Five alarms from four systems, correlated into one incident, with the cause named and the blast radius computed.\"\n**Text (post):** 5 ALARMS → 1 INCIDENT · 41 SECONDS\n\n### Shot 19 · 1:56 · 6s\n**Prompt:** [prefix] A smartphone lying face-up on a dark control room console, screen off. The screen lights up with a single notification glow — teal — illuminating the console surface around it. Nothing else in frame moves. Slow push in.\n**VO:** \"And the right person knows before anyone in the room has finished reacting.\"\n**Text (post):** ROUTED TO THE PERSON WHO CAN ACT\n**Music:** percussion returns on the phone lighting.\n\n### Shot 20 · 2:02 · 7s\n**Prompt:** [prefix] Four identical dark monitors side by side on a long desk, each displaying a different abstract arrangement of glowing panels — one dense with teal data, one sparse with a few violet lines, one mostly amber, one nearly empty with a single large number. Camera tracks slowly along the row.\n**VO:** \"Four people. Same plant. Four different briefings — because what matters to an engineer is not what matters to the chief executive.\"\n**Text (post):** PERSONALISED INTELLIGENCE\n\n### Shot 21 · 2:09 · 6s\n**Prompt:** [prefix] A single rack-mounted encoder card in a dark chassis, one status LED slowly pulsing amber where the others are steady green. Overlaid faintly, a translucent violet trend line curving upward toward the right edge of frame. Macro, held.\n**VO:** \"It predicts. Eighty-seven percent this card fails within fourteen days — and here is the evidence.\"\n**Text (post):** PREDICTED · 87% · 14 DAYS\n\n---\n\n## ACT 5 — DEVELOPERS AND IS (2:15 – 2:45)\n\n### Shot 22 · 2:15 · 6s\n**Prompt:** [prefix] A single glowing violet ring in a black void, and ten small teal nodes arranged in a circle around it. Thin lines of light connect each node to the ring and pulse outward and back, one at a time, in sequence. Slow orbit around the structure.\n**VO:** \"For developers and IS, one gateway sits in front of every model — and every application and agent reaches it through defined tools with defined scopes.\"\n**Text (post):** LITELLM GATEWAY · MCP SERVERS\n\n### Shot 23 · 2:21 · 7s\n**Prompt:** [prefix] Close-up of a dark code editor screen; lines of code are being written rapidly by an unseen hand, syntax glowing teal and violet against black. Midway, a single line turns red and the typing stops. Then the red line is replaced, turns green, and the typing resumes. Shallow focus on the screen.\n**VO:** \"Agents write code, run the tests, fail, fix their own mistakes — and cannot approve their own work.\"\n**Text (post):** FORGE · RELAY · AI REVIEWS, A HUMAN APPROVES\n\n### Shot 24 · 2:28 · 6s\n**Prompt:** [prefix] Five small glowing orbs of different colours — violet, blue, teal, green, amber — moving independently across a dark surface, each leaving a faint trail, occasionally two trails touching and then separating. Overhead view, slow descent.\n**VO:** \"Not one agent. A planner, specialists working in parallel, and a reviewer who raises the question the tests could not.\"\n**Text (post):** MULTI-AGENT · FULL TRACE OF EVERY CALL\n\n### Shot 25 · 2:34 · 5s\n**Prompt:** [prefix] A heavy vault-style door in a dark corridor, closed, a single small violet light above it. A thin beam of teal light approaches the door along the floor and stops precisely at its threshold without crossing. Static camera.\n**VO:** \"Donor records are never reachable by any agent. That is not a policy. It is architecture.\"\n**Text (post):** DONOR DIRECT · MIDDLEWARE ONLY\n\n### Shot 26 · 2:39 · 6s\n**Prompt:** [prefix] A large empty conference table in a dark room, laptops closed along its length, a single wall display glowing with abstract shared panels. The camera slowly rises above the table. Warm and inviting rather than cold.\n**VO:** \"And a place to build together — prompts, agents and integrations published once, reused everywhere.\"\n**Text (post):** THE HUB · DEVELOPER AND IS WORKING SESSION\n\n---\n\n## ACT 6 — GOVERNANCE AND CLOSE (2:45 – 3:10)\n\n### Shot 27 · 2:45 · 6s\n**Prompt:** [prefix] A close-up of a hand at a mixing console pressing a single large illuminated button, the button turning from amber to green under the finger. The rest of the console is dark. The hand is anonymous — cuff of a plain shirt, no jewellery.\n**VO:** \"Every commit, every deploy, every cut to air — a person presses the button.\"\n**Text (post):** AI ARMS · A HUMAN COMMITS\n**Music:** pulls back to pad.\n\n### Shot 28 · 2:51 · 6s\n**Prompt:** [prefix] Three sealed glass containers in a row on a dark surface, each faintly lit from within — the first red, the second amber, the third teal. Nothing moves. Slow lateral dolly across them.\n**VO:** \"Three tiers of data. On-prem only. Approved tools. Open use. If you would not email it outside, it does not go into a model we do not control.\"\n**Text (post):** CLASSIFY FIRST\n\n### Shot 29 · 2:57 · 6s\n**Prompt:** [prefix] Return to the empty production control room from the opening, but now the monitor wall is alive — every screen showing abstract live imagery, teal signal graphs, one violet panel of flowing text, the room lit and ready. The camera drifts slowly forward toward the wall.\n**VO:** \"Everything you are about to see is running down the hall.\"\n**Text (post):** —\n\n### Shot 30 · 3:03 · 7s\n**Prompt:** [prefix] The same fibre connector from the first shot, now firmly seated, its green LED steady. Slow pull back reveals the rack, then the room, then the rows of racks — all quietly lit, all reporting. Fade to black on the last second.\n**VO:** \"Made here. On our hardware. By our people.\"\n**Text (post):** TBN AI SYMPOSIUM — holds, then fade\n**Music:** resolves and ends with the fade.\n\n---\n\n## Post-production notes\n\n**Transitions:** cuts throughout, no dissolves except the final fade. Shot 17 to 18 should be a hard cut on the LED going red.\n\n**Text overlays:** one typeface, all caps, small, lower-left, teal for measured facts and violet for anything the AI inferred (matches the platform's colour system). Never centred, never large. Text should feel like a caption, not a title card — except the two TBN AI SYMPOSIUM cards, which sit centre and hold.\n\n**Colour:** grade every generated clip to the same reference — lift the teal, keep violet soft, crush nothing. Generated clips will vary; a unified grade is what makes thirty-four of them read as one film.\n\n**Audio:** VO sits slightly above the music throughout. Leave two beats of silence after \"Let me break something\" before shot 18's VO begins.\n\n**Running time check:** 34 shots totalling 3:10 including the final fade. If it must come down toward two minutes, cut shots 5, 10, 20, 26 and 28 in that order — the remaining cut still covers every topic in both seminars, just with less breathing room.\n\n---\n\n## Topic coverage check\n\n| Seminar 2 topic | Shot |\n|---|---|\n| Cold open / made here | 1–3, 29–30 |\n| What changed: fast, affordable, private | 4–6 |\n| Craft: helps, does not, human stays | 12 |\n| OBTV.AI library and search | 8–9 |\n| People, transcript, tone | 10 |\n| Creative and Studio draft cut | 11 |\n| CreatorAi and the volume | 13 |\n| Voice, likeness, consent | 14 |\n| Library link | 8 + 18 (implied by correlation) |\n| Three rules | 27–28 |\n\n| Seminar 3 topic | Shot |\n|---|---|\n| Plant that cannot answer | 2–3 |\n| Broadcast applications / signal path | 15–16 |\n| Force multiplier / on-prem argument | 4–6, 30 |\n| Tally and correlation | 15–19 |\n| Fault injection set piece | 17–19 |\n| Personal briefings | 20 |\n| Predictions | 21 |\n| Connected systems | 22 |\n| LiteLLM gateway and MCP | 22 |\n| Forge, Relay, agents | 23–24 |\n| Donor data boundary | 25 |\n| Hub and working session | 26 |\n| Control room: arms vs commits | 27 |\n| Governance and classification | 27–28 |\n"
+  },
+  "ownership": {
+    "mayaCharacterId": "54fc5f61-583a-400e-8601-3e7bc505d55a",
+    "mayaCharacterName": "Maya",
+    "tenantId": "90b26d9c-35a6-44b9-b19d-a210890f8273",
+    "tenantMembership": {
+      "userId": "973d54d8-dfc6-4734-b36a-74575166d17d",
+      "displayName": "OBTV Admin",
+      "role": "OWNER",
+      "activeTenantId": "90b26d9c-35a6-44b9-b19d-a210890f8273"
+    },
+    "mayaContentOwnerId": "__obtv_legacy__",
+    "creatorPolicy": "Use the verified tenant OWNER membership user above as createdByUserId; do not synthesize an auth session or impersonate Maya."
+  },
+  "settingResolution": {
+    "tenantOwnedMatch": null,
+    "queryResult": "NO_MATCHING_BROADCAST_FACILITY_SETTING",
+    "action": "CREATE_ONLY_AFTER_EXPLICIT_AUTHORIZATION",
+    "proposedSetting": {
+      "tenantId": "90b26d9c-35a6-44b9-b19d-a210890f8273",
+      "createdByUserId": "973d54d8-dfc6-4734-b36a-74575166d17d",
+      "name": "Broadcast Facility",
+      "description": "Generic tenant-owned broadcast production facility for anonymous symposium B-roll and systems imagery.",
+      "promptDescription": "A generic modern broadcast production facility: dark equipment racks, patch bays, control rooms, studio spaces, machine rooms, signal-routing infrastructure, LED walls, and fibre cabling. Deep navy and near-black surfaces with motivated teal live-signal/data lights and soft violet AI-inference accents. No logos, no signage, no visible text, no identifiable people, and no unique real-world location cues.",
+      "tags": [
+        "broadcast",
+        "facility",
+        "production",
+        "generic"
+      ],
+      "assetPolicy": "NO_REFERENCE_ASSETS"
+    },
+    "guard": "At execution, first re-query this tenant for a matching owned setting and reuse it if present; create the proposed setting only after explicit go-ahead, then record its returned ID. Never use another tenant setting."
+  },
+  "generation": {
+    "provider": "COMFYUI",
+    "generationMode": "r2v",
+    "workflow": {
+      "id": "cb5132dc-9e9c-4274-91f2-fabaa3e39c3b",
+      "name": "MiniMax H3 REF2VA (A100)",
+      "modelFamily": "MiniMax H3",
+      "active": true,
+      "version": 2,
+      "compatibleServerTags": [
+        "minimax-h3",
+        "a100"
+      ],
+      "requiresReferenceVideo": false,
+      "referenceImageInputs": [
+        "referenceImage1",
+        "referenceImage2"
+      ],
+      "turbo": false
+    },
+    "preferredServer": {
+      "id": "1ad14c98-113c-4996-87ed-3adea0a2619e",
+      "displayName": "PN A100",
+      "status": "ONLINE",
+      "enabled": true,
+      "tags": [
+        "z-image-turbo",
+        "qwen-image-2512",
+        "minimax-h3",
+        "flux2-klein",
+        "chatterbox-turbo",
+        "ltx-2.5",
+        "wan-2.2",
+        "a100"
+      ],
+      "gpuName": "cuda:0 NVIDIA A100 80GB PCIe : cudaMallocAsync",
+      "maxConcurrentJobs": 1,
+      "activeJobCountAtStaging": 0,
+      "queueSizeAtStaging": 0
+    },
+    "dispatchPolicy": {
+      "maxConcurrentDispatches": 1,
+      "preferredServerId": "1ad14c98-113c-4996-87ed-3adea0a2619e",
+      "recheckOnlineStatusAndCapacityBeforeEveryDispatch": true,
+      "noTurboWorkflow": true
+    },
+    "excludedEntity": {
+      "identifier": "8182",
+      "serverId": "695f833e-b49c-4fd0-872e-2718905d030c",
+      "displayName": "H100",
+      "endpointPort": 8182,
+      "reason": "Explicitly excluded busy/offline server endpoint; never dispatch, reserve, or probe it for this project."
+    }
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "qualityPreset": "STANDARD",
+    "aspect": "16:9",
+    "targetDurationSeconds": 190,
+    "totalShots": 30,
+    "audioPost": "VO, text overlays, and continuous music are separate post-production sidecar fields; prompts contain visuals only."
+  },
+  "h3Geometry": {
+    "modelDimensionMultiple": 32,
+    "frameMultiple": 17,
+    "requestedOutput": {
+      "width": 1920,
+      "height": 1080,
+      "fps": 24
+    },
+    "normalizationRequiredBeforeDispatch": true,
+    "rule": "Keep the requested deliverable at 1920x1080/24fps, normalize MiniMax H3 model dimensions to its 32-grid and each generated frame length to the required 17-frame geometry, then retain the requested output contract in the job metadata.",
+    "perShotRequestedFrames": [
+      {
+        "shotNumber": 1,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 2,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 3,
+        "durationSeconds": 8,
+        "requestedFrames": 192
+      },
+      {
+        "shotNumber": 4,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 5,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 6,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 7,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 8,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 9,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 10,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 11,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 12,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 13,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 14,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 15,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 16,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 17,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 18,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 19,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 20,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 21,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 22,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 23,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      },
+      {
+        "shotNumber": 24,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 25,
+        "durationSeconds": 5,
+        "requestedFrames": 120
+      },
+      {
+        "shotNumber": 26,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 27,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 28,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 29,
+        "durationSeconds": 6,
+        "requestedFrames": 144
+      },
+      {
+        "shotNumber": 30,
+        "durationSeconds": 7,
+        "requestedFrames": 168
+      }
+    ]
+  },
+  "script": {
+    "title": "TBN AI Symposium — Intro Film",
+    "stylePrefix": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain.",
+    "normalizedScript": "SHOT 1\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Extreme close-up of a single coaxial fibre connector, purple jacket, being seated into a patch panel in a dark equipment rack. A small green LED illuminates at the moment of connection. Macro lens, very shallow focus, rack LEDs blurred in the background. Camera holds still.\n\nSHOT 2\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Slow dolly back from a wall of broadcast patch bays, hundreds of BNC jacks in neat rows, purple and yellow cables looped between them, rack LEDs blinking. The pull-back reveals row after row of equipment racks receding into darkness, lit only by their own indicator lights.\n\nSHOT 3\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Wide interior of a television production control room at night, empty chairs, a large monitor wall glowing with abstract colour bars and waveforms, blue LED under-lighting on the console, a single desk lamp. The camera drifts slowly from left to right across the room.\n\nSHOT 4\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A rack of GPU servers in a dark machine room, cooling fans spinning, dense rows of small teal status lights, one row pulsing brighter than the rest. Slow push in toward the pulsing row.\n\nSHOT 5\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Overhead view of a clean server room floor, racks in parallel rows, purple fibre bundles running in overhead trays, a single engineer seen from directly above walking between the rows carrying a laptop. Camera slowly descends.\n\nSHOT 6\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A closed steel data centre door with a small window, warm light spilling out around its edges into a dark corridor. Beyond the window, blurred racks with glowing lights. The camera holds on the door, which stays closed.\n\nSHOT 7\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up on a broadcast camera lens in a dark studio, the glass reflecting a soft violet and teal gradient, a small red tally light above the lens switching on. Very shallow focus, background studio lights as bokeh.\n\nSHOT 8\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A vast dark archive visualised as thousands of small glowing rectangular film frames floating in space, arranged in loose rows receding to infinity, teal and white, each one faintly flickering with abstract moving imagery. Slow forward drift through them.\n\nSHOT 9\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. The same floating archive of glowing frames; a single beam of violet light sweeps across them like a search, and a handful of frames scattered across the field brighten and lift slightly forward, the rest dim. Camera slowly orbits.\n\nSHOT 10\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A dark studio set with a curved white desk and empty chairs, seen through the glass of a control room. Overlaid softly across the scene, abstract translucent violet waveform lines rise and fall like a voice, and thin timeline bars scroll horizontally at the bottom of frame. Camera pushes gently toward the glass.\n\nSHOT 11\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a video editing timeline on a large dark monitor, dozens of colour-coded clip blocks, a playhead moving steadily left to right. As it passes, clip blocks rearrange themselves into a new order, some rising, some falling away. The screen glows teal and violet. Slight lens breathing.\n\nSHOT 12\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A hand seen from behind, resting on an editing keyboard in a dark suite, two large monitors glowing, the person's head out of frame. On the nearer monitor, an abstract story arc curve rises and falls with small glowing markers at its peaks. The hand does not move. Calm, held frame.\n\nSHOT 13\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Wide shot of a large LED volume wall in a dark studio, the wall displaying a photorealistic sunset over a desert canyon, a single empty director's chair silhouetted in front of it. The virtual sky on the wall slowly shifts from gold to violet. Camera dollies slowly sideways, parallax between chair and wall.\n\nSHOT 14\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Extreme close-up of a studio microphone on a stand in near darkness, a single teal light catching the grille. A violet sound waveform, translucent, drifts slowly out of the microphone into the air and then freezes and fades. The microphone remains still. No person present.\n\nSHOT 15\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A floor plan of a large studio complex drawn in thin glowing teal lines on a black surface, viewed from directly above, rooms and corridors gradually illuminating one section at a time until the whole plan is lit. Slow rise of the camera as it fills in.\n\nSHOT 16\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A schematic of signal flow rendered in light: thin teal lines run from small glowing nodes on the left, converge into a tall bright central bar, and fan out to nodes on the right. Small points of light travel along the lines continuously. Black background, slight depth, gentle camera drift.\n\nSHOT 17\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a fibre connector at a studio wall box, a hand seen only at the wrist pulling it free. At the instant of disconnection, the small green LED on the panel snaps to red. Macro, shallow focus, the red glow reflecting on the metal.\n\nSHOT 18\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A dark monitor showing a cascade of small text-like lines scrolling upward in rapid succession, some tinted red, some amber, arriving from different directions and then, over two seconds, converging into a single glowing violet block at the centre of the screen. Reflections on a glass desk surface below.\n\nSHOT 19\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A smartphone lying face-up on a dark control room console, screen off. The screen lights up with a single notification glow — teal — illuminating the console surface around it. Nothing else in frame moves. Slow push in.\n\nSHOT 20\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Four identical dark monitors side by side on a long desk, each displaying a different abstract arrangement of glowing panels — one dense with teal data, one sparse with a few violet lines, one mostly amber, one nearly empty with a single large number. Camera tracks slowly along the row.\n\nSHOT 21\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A single rack-mounted encoder card in a dark chassis, one status LED slowly pulsing amber where the others are steady green. Overlaid faintly, a translucent violet trend line curving upward toward the right edge of frame. Macro, held.\n\nSHOT 22\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A single glowing violet ring in a black void, and ten small teal nodes arranged in a circle around it. Thin lines of light connect each node to the ring and pulse outward and back, one at a time, in sequence. Slow orbit around the structure.\n\nSHOT 23\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a dark code editor screen; lines of code are being written rapidly by an unseen hand, syntax glowing teal and violet against black. Midway, a single line turns red and the typing stops. Then the red line is replaced, turns green, and the typing resumes. Shallow focus on the screen.\n\nSHOT 24\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Five small glowing orbs of different colours — violet, blue, teal, green, amber — moving independently across a dark surface, each leaving a faint trail, occasionally two trails touching and then separating. Overhead view, slow descent.\n\nSHOT 25\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A heavy vault-style door in a dark corridor, closed, a single small violet light above it. A thin beam of teal light approaches the door along the floor and stops precisely at its threshold without crossing. Static camera.\n\nSHOT 26\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A large empty conference table in a dark room, laptops closed along its length, a single wall display glowing with abstract shared panels. The camera slowly rises above the table. Warm and inviting rather than cold.\n\nSHOT 27\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A close-up of a hand at a mixing console pressing a single large illuminated button, the button turning from amber to green under the finger. The rest of the console is dark. The hand is anonymous — cuff of a plain shirt, no jewellery.\n\nSHOT 28\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Three sealed glass containers in a row on a dark surface, each faintly lit from within — the first red, the second amber, the third teal. Nothing moves. Slow lateral dolly across them.\n\nSHOT 29\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Return to the empty production control room from the opening, but now the monitor wall is alive — every screen showing abstract live imagery, teal signal graphs, one violet panel of flowing text, the room lit and ready. The camera drifts slowly forward toward the wall.\n\nSHOT 30\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. The same fibre connector from the first shot, now firmly seated, its green LED steady. Slow pull back reveals the rack, then the room, then the rows of racks — all quietly lit, all reporting. Fade to black on the last second.",
+    "authoredDurationTotalSeconds": 190,
+    "shots": [
+      {
+        "shotNumber": 1,
+        "startTimecode": "0:00",
+        "durationSeconds": 6,
+        "title": "Shot 1",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Extreme close-up of a single coaxial fibre connector, purple jacket, being seated into a patch panel in a dark equipment rack. A small green LED illuminates at the moment of connection. Macro lens, very shallow focus, rack LEDs blurred in the background. Camera holds still.",
+        "vo": null,
+        "textOverlay": null,
+        "music": "pad enters on the LED."
+      },
+      {
+        "shotNumber": 2,
+        "startTimecode": "0:06",
+        "durationSeconds": 6,
+        "title": "Shot 2",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Slow dolly back from a wall of broadcast patch bays, hundreds of BNC jacks in neat rows, purple and yellow cables looped between them, rack LEDs blinking. The pull-back reveals row after row of equipment racks receding into darkness, lit only by their own indicator lights.",
+        "vo": "\"This building has more than two hundred devices that report their state every second.\"",
+        "textOverlay": null,
+        "music": null
+      },
+      {
+        "shotNumber": 3,
+        "startTimecode": "0:12",
+        "durationSeconds": 8,
+        "title": "Shot 3",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Wide interior of a television production control room at night, empty chairs, a large monitor wall glowing with abstract colour bars and waveforms, blue LED under-lighting on the console, a single desk lamp. The camera drifts slowly from left to right across the room.",
+        "vo": "\"Until now, none of it could answer a question.\"",
+        "textOverlay": "TBN AI SYMPOSIUM — fades in at 0:16, holds to end of shot",
+        "music": null
+      },
+      {
+        "shotNumber": 4,
+        "startTimecode": "0:20",
+        "durationSeconds": 6,
+        "title": "Shot 4",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A rack of GPU servers in a dark machine room, cooling fans spinning, dense rows of small teal status lights, one row pulsing brighter than the rest. Slow push in toward the pulsing row.",
+        "vo": "\"Three things changed. It became fast enough.\"",
+        "textOverlay": "FAST",
+        "music": null
+      },
+      {
+        "shotNumber": 5,
+        "startTimecode": "0:26",
+        "durationSeconds": 6,
+        "title": "Shot 5",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Overhead view of a clean server room floor, racks in parallel rows, purple fibre bundles running in overhead trays, a single engineer seen from directly above walking between the rows carrying a laptop. Camera slowly descends.",
+        "vo": "\"It became affordable enough to run on hardware we already own.\"",
+        "textOverlay": "AFFORDABLE",
+        "music": null
+      },
+      {
+        "shotNumber": 6,
+        "startTimecode": "0:32",
+        "durationSeconds": 7,
+        "title": "Shot 6",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A closed steel data centre door with a small window, warm light spilling out around its edges into a dark corridor. Beyond the window, blurred racks with glowing lights. The camera holds on the door, which stays closed.",
+        "vo": "\"And it became private enough that nothing we make ever has to leave the building.\"",
+        "textOverlay": "PRIVATE",
+        "music": null
+      },
+      {
+        "shotNumber": 7,
+        "startTimecode": "0:39",
+        "durationSeconds": 6,
+        "title": "Shot 7",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up on a broadcast camera lens in a dark studio, the glass reflecting a soft violet and teal gradient, a small red tally light above the lens switching on. Very shallow focus, background studio lights as bokeh.",
+        "vo": "\"This is what we did with that.\"",
+        "textOverlay": null,
+        "music": "first percussion layer enters."
+      },
+      {
+        "shotNumber": 8,
+        "startTimecode": "0:45",
+        "durationSeconds": 6,
+        "title": "Shot 8",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A vast dark archive visualised as thousands of small glowing rectangular film frames floating in space, arranged in loose rows receding to infinity, teal and white, each one faintly flickering with abstract moving imagery. Slow forward drift through them.",
+        "vo": "\"Two hundred and forty-seven hours of footage. Every frame, every word, every face, indexed.\"",
+        "textOverlay": "OBTV.AI — THE LIBRARY",
+        "music": null
+      },
+      {
+        "shotNumber": 9,
+        "startTimecode": "0:51",
+        "durationSeconds": 6,
+        "title": "Shot 9",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. The same floating archive of glowing frames; a single beam of violet light sweeps across them like a search, and a handful of frames scattered across the field brighten and lift slightly forward, the rest dim. Camera slowly orbits.",
+        "vo": "\"Ask it for a theme, not a filename. It finds the moment.\"",
+        "textOverlay": "SEMANTIC SEARCH",
+        "music": null
+      },
+      {
+        "shotNumber": 10,
+        "startTimecode": "0:57",
+        "durationSeconds": 6,
+        "title": "Shot 10",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A dark studio set with a curved white desk and empty chairs, seen through the glass of a control room. Overlaid softly across the scene, abstract translucent violet waveform lines rise and fall like a voice, and thin timeline bars scroll horizontally at the bottom of frame. Camera pushes gently toward the glass.",
+        "vo": "\"It knows who is speaking, what they said, and how it felt when they said it.\"",
+        "textOverlay": "PEOPLE · TRANSCRIPT · TONE",
+        "music": null
+      },
+      {
+        "shotNumber": 11,
+        "startTimecode": "1:03",
+        "durationSeconds": 7,
+        "title": "Shot 11",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a video editing timeline on a large dark monitor, dozens of colour-coded clip blocks, a playhead moving steadily left to right. As it passes, clip blocks rearrange themselves into a new order, some rising, some falling away. The screen glows teal and violet. Slight lens breathing.",
+        "vo": "\"Give it a brief in plain English and it returns a draft cut — with its reasoning.\"",
+        "textOverlay": "\"GIVE ME AN HOUR ON FAITH AND HARDSHIP\" — 28 CLIPS · 59:59",
+        "music": null
+      },
+      {
+        "shotNumber": 12,
+        "startTimecode": "1:10",
+        "durationSeconds": 6,
+        "title": "Shot 12",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A hand seen from behind, resting on an editing keyboard in a dark suite, two large monitors glowing, the person's head out of frame. On the nearer monitor, an abstract story arc curve rises and falls with small glowing markers at its peaks. The hand does not move. Calm, held frame.",
+        "vo": "\"It suggests. It does not decide. The editor is still the editor.\"",
+        "textOverlay": "THE HUMAN STAYS",
+        "music": null
+      },
+      {
+        "shotNumber": 13,
+        "startTimecode": "1:16",
+        "durationSeconds": 7,
+        "title": "Shot 13",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Wide shot of a large LED volume wall in a dark studio, the wall displaying a photorealistic sunset over a desert canyon, a single empty director's chair silhouetted in front of it. The virtual sky on the wall slowly shifts from gold to violet. Camera dollies slowly sideways, parallax between chair and wall.",
+        "vo": "\"It can build the location you could never travel to, on our own walls, from our own GPUs.\"",
+        "textOverlay": "CREATORAI · THE VOLUME",
+        "music": null
+      },
+      {
+        "shotNumber": 14,
+        "startTimecode": "1:23",
+        "durationSeconds": 7,
+        "title": "Shot 14",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Extreme close-up of a studio microphone on a stand in near darkness, a single teal light catching the grille. A violet sound waveform, translucent, drifts slowly out of the microphone into the air and then freezes and fades. The microphone remains still. No person present.",
+        "vo": "\"It can clone a voice. Which is exactly why the rules matter more than the technology.\"",
+        "textOverlay": "VOICE · CONSENT REQUIRED",
+        "music": "percussion drops out for this shot only, pad continues."
+      },
+      {
+        "shotNumber": 15,
+        "startTimecode": "1:30",
+        "durationSeconds": 6,
+        "title": "Shot 15",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A floor plan of a large studio complex drawn in thin glowing teal lines on a black surface, viewed from directly above, rooms and corridors gradually illuminating one section at a time until the whole plan is lit. Slow rise of the camera as it fills in.",
+        "vo": "\"So we built one system that knows every room, every device, and every wall panel in this building.\"",
+        "textOverlay": "TALLY — FACILITY CONTROL",
+        "music": "full percussion returns."
+      },
+      {
+        "shotNumber": 16,
+        "startTimecode": "1:36",
+        "durationSeconds": 6,
+        "title": "Shot 16",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A schematic of signal flow rendered in light: thin teal lines run from small glowing nodes on the left, converge into a tall bright central bar, and fan out to nodes on the right. Small points of light travel along the lines continuously. Black background, slight depth, gentle camera drift.",
+        "vo": "\"Every source, through the router, to every destination. Watched continuously.\"",
+        "textOverlay": "SIGNAL PATH · ROUTING CORE",
+        "music": null
+      },
+      {
+        "shotNumber": 17,
+        "startTimecode": "1:42",
+        "durationSeconds": 7,
+        "title": "Shot 17",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a fibre connector at a studio wall box, a hand seen only at the wrist pulling it free. At the instant of disconnection, the small green LED on the panel snaps to red. Macro, shallow focus, the red glow reflecting on the metal.",
+        "vo": "\"Let me break something.\"",
+        "textOverlay": null,
+        "music": "hard cut to near-silence — pad only, low."
+      },
+      {
+        "shotNumber": 18,
+        "startTimecode": "1:49",
+        "durationSeconds": 7,
+        "title": "Shot 18",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A dark monitor showing a cascade of small text-like lines scrolling upward in rapid succession, some tinted red, some amber, arriving from different directions and then, over two seconds, converging into a single glowing violet block at the centre of the screen. Reflections on a glass desk surface below.",
+        "vo": "\"Five alarms from four systems, correlated into one incident, with the cause named and the blast radius computed.\"",
+        "textOverlay": "5 ALARMS → 1 INCIDENT · 41 SECONDS",
+        "music": null
+      },
+      {
+        "shotNumber": 19,
+        "startTimecode": "1:56",
+        "durationSeconds": 6,
+        "title": "Shot 19",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A smartphone lying face-up on a dark control room console, screen off. The screen lights up with a single notification glow — teal — illuminating the console surface around it. Nothing else in frame moves. Slow push in.",
+        "vo": "\"And the right person knows before anyone in the room has finished reacting.\"",
+        "textOverlay": "ROUTED TO THE PERSON WHO CAN ACT",
+        "music": "percussion returns on the phone lighting."
+      },
+      {
+        "shotNumber": 20,
+        "startTimecode": "2:02",
+        "durationSeconds": 7,
+        "title": "Shot 20",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Four identical dark monitors side by side on a long desk, each displaying a different abstract arrangement of glowing panels — one dense with teal data, one sparse with a few violet lines, one mostly amber, one nearly empty with a single large number. Camera tracks slowly along the row.",
+        "vo": "\"Four people. Same plant. Four different briefings — because what matters to an engineer is not what matters to the chief executive.\"",
+        "textOverlay": "PERSONALISED INTELLIGENCE",
+        "music": null
+      },
+      {
+        "shotNumber": 21,
+        "startTimecode": "2:09",
+        "durationSeconds": 6,
+        "title": "Shot 21",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A single rack-mounted encoder card in a dark chassis, one status LED slowly pulsing amber where the others are steady green. Overlaid faintly, a translucent violet trend line curving upward toward the right edge of frame. Macro, held.",
+        "vo": "\"It predicts. Eighty-seven percent this card fails within fourteen days — and here is the evidence.\"",
+        "textOverlay": "PREDICTED · 87% · 14 DAYS",
+        "music": null
+      },
+      {
+        "shotNumber": 22,
+        "startTimecode": "2:15",
+        "durationSeconds": 6,
+        "title": "Shot 22",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A single glowing violet ring in a black void, and ten small teal nodes arranged in a circle around it. Thin lines of light connect each node to the ring and pulse outward and back, one at a time, in sequence. Slow orbit around the structure.",
+        "vo": "\"For developers and IS, one gateway sits in front of every model — and every application and agent reaches it through defined tools with defined scopes.\"",
+        "textOverlay": "LITELLM GATEWAY · MCP SERVERS",
+        "music": null
+      },
+      {
+        "shotNumber": 23,
+        "startTimecode": "2:21",
+        "durationSeconds": 7,
+        "title": "Shot 23",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a dark code editor screen; lines of code are being written rapidly by an unseen hand, syntax glowing teal and violet against black. Midway, a single line turns red and the typing stops. Then the red line is replaced, turns green, and the typing resumes. Shallow focus on the screen.",
+        "vo": "\"Agents write code, run the tests, fail, fix their own mistakes — and cannot approve their own work.\"",
+        "textOverlay": "FORGE · RELAY · AI REVIEWS, A HUMAN APPROVES",
+        "music": null
+      },
+      {
+        "shotNumber": 24,
+        "startTimecode": "2:28",
+        "durationSeconds": 6,
+        "title": "Shot 24",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Five small glowing orbs of different colours — violet, blue, teal, green, amber — moving independently across a dark surface, each leaving a faint trail, occasionally two trails touching and then separating. Overhead view, slow descent.",
+        "vo": "\"Not one agent. A planner, specialists working in parallel, and a reviewer who raises the question the tests could not.\"",
+        "textOverlay": "MULTI-AGENT · FULL TRACE OF EVERY CALL",
+        "music": null
+      },
+      {
+        "shotNumber": 25,
+        "startTimecode": "2:34",
+        "durationSeconds": 5,
+        "title": "Shot 25",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A heavy vault-style door in a dark corridor, closed, a single small violet light above it. A thin beam of teal light approaches the door along the floor and stops precisely at its threshold without crossing. Static camera.",
+        "vo": "\"Donor records are never reachable by any agent. That is not a policy. It is architecture.\"",
+        "textOverlay": "DONOR DIRECT · MIDDLEWARE ONLY",
+        "music": null
+      },
+      {
+        "shotNumber": 26,
+        "startTimecode": "2:39",
+        "durationSeconds": 6,
+        "title": "Shot 26",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A large empty conference table in a dark room, laptops closed along its length, a single wall display glowing with abstract shared panels. The camera slowly rises above the table. Warm and inviting rather than cold.",
+        "vo": "\"And a place to build together — prompts, agents and integrations published once, reused everywhere.\"",
+        "textOverlay": "THE HUB · DEVELOPER AND IS WORKING SESSION",
+        "music": null
+      },
+      {
+        "shotNumber": 27,
+        "startTimecode": "2:45",
+        "durationSeconds": 6,
+        "title": "Shot 27",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A close-up of a hand at a mixing console pressing a single large illuminated button, the button turning from amber to green under the finger. The rest of the console is dark. The hand is anonymous — cuff of a plain shirt, no jewellery.",
+        "vo": "\"Every commit, every deploy, every cut to air — a person presses the button.\"",
+        "textOverlay": "AI ARMS · A HUMAN COMMITS",
+        "music": "pulls back to pad."
+      },
+      {
+        "shotNumber": 28,
+        "startTimecode": "2:51",
+        "durationSeconds": 6,
+        "title": "Shot 28",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Three sealed glass containers in a row on a dark surface, each faintly lit from within — the first red, the second amber, the third teal. Nothing moves. Slow lateral dolly across them.",
+        "vo": "\"Three tiers of data. On-prem only. Approved tools. Open use. If you would not email it outside, it does not go into a model we do not control.\"",
+        "textOverlay": "CLASSIFY FIRST",
+        "music": null
+      },
+      {
+        "shotNumber": 29,
+        "startTimecode": "2:57",
+        "durationSeconds": 6,
+        "title": "Shot 29",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Return to the empty production control room from the opening, but now the monitor wall is alive — every screen showing abstract live imagery, teal signal graphs, one violet panel of flowing text, the room lit and ready. The camera drifts slowly forward toward the wall.",
+        "vo": "\"Everything you are about to see is running down the hall.\"",
+        "textOverlay": null,
+        "music": null
+      },
+      {
+        "shotNumber": 30,
+        "startTimecode": "3:03",
+        "durationSeconds": 7,
+        "title": "Shot 30",
+        "cast": [],
+        "visualPrompt": "Cinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. The same fibre connector from the first shot, now firmly seated, its green LED steady. Slow pull back reveals the rack, then the room, then the rows of racks — all quietly lit, all reporting. Fade to black on the last second.",
+        "vo": "\"Made here. On our hardware. By our people.\"",
+        "textOverlay": "TBN AI SYMPOSIUM — holds, then fade",
+        "music": "resolves and ends with the fade."
+      }
+    ]
+  },
+  "stagedCreateInput": {
+    "title": "TBN AI Symposium — Intro Film",
+    "script": "SHOT 1\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Extreme close-up of a single coaxial fibre connector, purple jacket, being seated into a patch panel in a dark equipment rack. A small green LED illuminates at the moment of connection. Macro lens, very shallow focus, rack LEDs blurred in the background. Camera holds still.\n\nSHOT 2\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Slow dolly back from a wall of broadcast patch bays, hundreds of BNC jacks in neat rows, purple and yellow cables looped between them, rack LEDs blinking. The pull-back reveals row after row of equipment racks receding into darkness, lit only by their own indicator lights.\n\nSHOT 3\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Wide interior of a television production control room at night, empty chairs, a large monitor wall glowing with abstract colour bars and waveforms, blue LED under-lighting on the console, a single desk lamp. The camera drifts slowly from left to right across the room.\n\nSHOT 4\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A rack of GPU servers in a dark machine room, cooling fans spinning, dense rows of small teal status lights, one row pulsing brighter than the rest. Slow push in toward the pulsing row.\n\nSHOT 5\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Overhead view of a clean server room floor, racks in parallel rows, purple fibre bundles running in overhead trays, a single engineer seen from directly above walking between the rows carrying a laptop. Camera slowly descends.\n\nSHOT 6\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A closed steel data centre door with a small window, warm light spilling out around its edges into a dark corridor. Beyond the window, blurred racks with glowing lights. The camera holds on the door, which stays closed.\n\nSHOT 7\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up on a broadcast camera lens in a dark studio, the glass reflecting a soft violet and teal gradient, a small red tally light above the lens switching on. Very shallow focus, background studio lights as bokeh.\n\nSHOT 8\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A vast dark archive visualised as thousands of small glowing rectangular film frames floating in space, arranged in loose rows receding to infinity, teal and white, each one faintly flickering with abstract moving imagery. Slow forward drift through them.\n\nSHOT 9\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. The same floating archive of glowing frames; a single beam of violet light sweeps across them like a search, and a handful of frames scattered across the field brighten and lift slightly forward, the rest dim. Camera slowly orbits.\n\nSHOT 10\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A dark studio set with a curved white desk and empty chairs, seen through the glass of a control room. Overlaid softly across the scene, abstract translucent violet waveform lines rise and fall like a voice, and thin timeline bars scroll horizontally at the bottom of frame. Camera pushes gently toward the glass.\n\nSHOT 11\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a video editing timeline on a large dark monitor, dozens of colour-coded clip blocks, a playhead moving steadily left to right. As it passes, clip blocks rearrange themselves into a new order, some rising, some falling away. The screen glows teal and violet. Slight lens breathing.\n\nSHOT 12\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A hand seen from behind, resting on an editing keyboard in a dark suite, two large monitors glowing, the person's head out of frame. On the nearer monitor, an abstract story arc curve rises and falls with small glowing markers at its peaks. The hand does not move. Calm, held frame.\n\nSHOT 13\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Wide shot of a large LED volume wall in a dark studio, the wall displaying a photorealistic sunset over a desert canyon, a single empty director's chair silhouetted in front of it. The virtual sky on the wall slowly shifts from gold to violet. Camera dollies slowly sideways, parallax between chair and wall.\n\nSHOT 14\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Extreme close-up of a studio microphone on a stand in near darkness, a single teal light catching the grille. A violet sound waveform, translucent, drifts slowly out of the microphone into the air and then freezes and fades. The microphone remains still. No person present.\n\nSHOT 15\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A floor plan of a large studio complex drawn in thin glowing teal lines on a black surface, viewed from directly above, rooms and corridors gradually illuminating one section at a time until the whole plan is lit. Slow rise of the camera as it fills in.\n\nSHOT 16\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A schematic of signal flow rendered in light: thin teal lines run from small glowing nodes on the left, converge into a tall bright central bar, and fan out to nodes on the right. Small points of light travel along the lines continuously. Black background, slight depth, gentle camera drift.\n\nSHOT 17\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a fibre connector at a studio wall box, a hand seen only at the wrist pulling it free. At the instant of disconnection, the small green LED on the panel snaps to red. Macro, shallow focus, the red glow reflecting on the metal.\n\nSHOT 18\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A dark monitor showing a cascade of small text-like lines scrolling upward in rapid succession, some tinted red, some amber, arriving from different directions and then, over two seconds, converging into a single glowing violet block at the centre of the screen. Reflections on a glass desk surface below.\n\nSHOT 19\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A smartphone lying face-up on a dark control room console, screen off. The screen lights up with a single notification glow — teal — illuminating the console surface around it. Nothing else in frame moves. Slow push in.\n\nSHOT 20\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Four identical dark monitors side by side on a long desk, each displaying a different abstract arrangement of glowing panels — one dense with teal data, one sparse with a few violet lines, one mostly amber, one nearly empty with a single large number. Camera tracks slowly along the row.\n\nSHOT 21\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A single rack-mounted encoder card in a dark chassis, one status LED slowly pulsing amber where the others are steady green. Overlaid faintly, a translucent violet trend line curving upward toward the right edge of frame. Macro, held.\n\nSHOT 22\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A single glowing violet ring in a black void, and ten small teal nodes arranged in a circle around it. Thin lines of light connect each node to the ring and pulse outward and back, one at a time, in sequence. Slow orbit around the structure.\n\nSHOT 23\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Close-up of a dark code editor screen; lines of code are being written rapidly by an unseen hand, syntax glowing teal and violet against black. Midway, a single line turns red and the typing stops. Then the red line is replaced, turns green, and the typing resumes. Shallow focus on the screen.\n\nSHOT 24\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Five small glowing orbs of different colours — violet, blue, teal, green, amber — moving independently across a dark surface, each leaving a faint trail, occasionally two trails touching and then separating. Overhead view, slow descent.\n\nSHOT 25\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A heavy vault-style door in a dark corridor, closed, a single small violet light above it. A thin beam of teal light approaches the door along the floor and stops precisely at its threshold without crossing. Static camera.\n\nSHOT 26\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A large empty conference table in a dark room, laptops closed along its length, a single wall display glowing with abstract shared panels. The camera slowly rises above the table. Warm and inviting rather than cold.\n\nSHOT 27\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. A close-up of a hand at a mixing console pressing a single large illuminated button, the button turning from amber to green under the finger. The rest of the console is dark. The hand is anonymous — cuff of a plain shirt, no jewellery.\n\nSHOT 28\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Three sealed glass containers in a row on a dark surface, each faintly lit from within — the first red, the second amber, the third teal. Nothing moves. Slow lateral dolly across them.\n\nSHOT 29\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. Return to the empty production control room from the opening, but now the monitor wall is alive — every screen showing abstract live imagery, teal signal graphs, one violet panel of flowing text, the room lit and ready. The camera drifts slowly forward toward the wall.\n\nSHOT 30\nCinematic broadcast facility, ultra-realistic, shot on a digital cinema camera, shallow depth of field, dark environment with deep navy and near-black tones, accents of glowing teal and soft violet light, subtle atmospheric haze, clean and modern, no visible text, no logos, no identifiable faces, slow deliberate camera movement, 24 fps, filmic grain. The same fibre connector from the first shot, now firmly seated, its green LED steady. Slow pull back reveals the rack, then the room, then the rows of racks — all quietly lit, all reporting. Fade to black on the last second.",
+    "storyline": "A cinematic broadcast-facility systems film moving from signal connection and plant infrastructure through content creation, engineering, developers, governance, and a made-here close. Keep teal as live signal/measured data and violet as AI inference.",
+    "targetDurationSeconds": 190,
+    "shotDurationSeconds": 6,
+    "characterIds": [],
+    "settingId": null,
+    "generationMode": "r2v",
+    "negativePrompt": "No dialogue text in the image, no captions, no logos, no signage, no watermarks, no identifiable faces, no real-person likeness, no synthetic presenter, no turbo mode.",
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "qualityPreset": "STANDARD",
+    "continuity": {
+      "enabled": false,
+      "characters": [],
+      "scenes": []
+    },
+    "settingIdResolution": "Resolve or create the tenant-owned Broadcast Facility setting only after explicit authorization; do not submit this null settingId to the create helper."
+  },
+  "runnerBindings": {
+    "create": "createLongFormProject",
+    "updateShot": "updateLongFormShot",
+    "start": "startLongFormProject",
+    "bindingModule": "artifacts/api-server/src/lib/long-form-service.ts",
+    "invocationPolicy": "Read-only manifest preparation only. Do not invoke any binding until explicit authorization.",
+    "guardedSequenceAfterAuthorization": [
+      "Re-query and assert the tenant OWNER membership and creator user identity.",
+      "Re-query and reuse a matching tenant-owned Broadcast Facility setting; if absent, create exactly one generic no-asset setting and retain its returned ID.",
+      "Create the project through the internal owned helper with the normalized bare-SHOT visual-only script, verified tenantId, verified createdByUserId, and settingId.",
+      "Fetch the created project and assert 30 shots, visual prompts beginning with the exact style prefix, cast/character IDs empty, and no dialogue in prompts.",
+      "Update every shot through updateLongFormShot with the authored duration from the sidecar before start; assert sum 190 seconds.",
+      "Re-query active MiniMax H3 r2v workflows and ONLINE A100-compatible workers; exclude endpoint 8182 and cap server dispatch at one.",
+      "Only after all assertions pass and a second explicit start authorization, invoke startLongFormProject exactly once."
+    ],
+    "preStartDurationUpdates": [
+      {
+        "shotNumber": 1,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 2,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 3,
+        "durationSeconds": 8
+      },
+      {
+        "shotNumber": 4,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 5,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 6,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 7,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 8,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 9,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 10,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 11,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 12,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 13,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 14,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 15,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 16,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 17,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 18,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 19,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 20,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 21,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 22,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 23,
+        "durationSeconds": 7
+      },
+      {
+        "shotNumber": 24,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 25,
+        "durationSeconds": 5
+      },
+      {
+        "shotNumber": 26,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 27,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 28,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 29,
+        "durationSeconds": 6
+      },
+      {
+        "shotNumber": 30,
+        "durationSeconds": 7
+      }
+    ],
+    "failClosedGuards": [
+      "tenantId must equal the verified Maya tenant and creator must hold OWNER membership in that tenant.",
+      "settingId must be non-null, tenant-owned, and resolved from the current database state.",
+      "project and shot ownership must be rechecked before every update.",
+      "generationMode must remain r2v and active workflow modelFamily must remain MiniMax H3.",
+      "qualityPreset must remain STANDARD; reject DRAFT/HIGH/Turbo substitutions.",
+      "server must be ONLINE, enabled, A100-compatible, below capacity, and not endpoint/job 8182.",
+      "never create an auth session, call an external provider, upload an asset, render, or dispatch while staging."
+    ]
+  }
+}
