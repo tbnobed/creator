@@ -17,9 +17,10 @@ import { rm } from "node:fs/promises";
 import { chromium } from "@playwright/test";
 
 if (process.env.NODE_ENV === "production") throw new Error("Development test only");
-if (process.env.CHARACTER_REFERENCE_TEST !== "1") {
+const orderOnly = process.env.CHARACTER_ORDER_TEST === "1";
+if (process.env.CHARACTER_REFERENCE_TEST !== "1" && !orderOnly) {
   throw new Error(
-    "Refusing to run without CHARACTER_REFERENCE_TEST=1; this harness creates isolated fixture tenants.",
+    "Refusing to run without CHARACTER_REFERENCE_TEST=1 or CHARACTER_ORDER_TEST=1; this harness creates isolated fixture tenants.",
   );
 }
 if (!process.env.REPLIT_DEV_DOMAIN) throw new Error("REPLIT_DEV_DOMAIN is required");
@@ -588,13 +589,13 @@ async function loginThroughPreview(account) {
   return page;
 }
 
-async function createCharacter(account) {
+async function createCharacter(account, overrides = {}) {
   const response = await api(account, "/characters", {
     method: "POST",
     body: json({
-      name: `Reference Viewer ${account.label} ${runId.slice(0, 8)}`,
-      description: "Isolated character-reference viewer fixture.",
-      promptDescription: "A presenter in a copper scarf.",
+      name: overrides.name ?? `Reference Viewer ${account.label} ${runId.slice(0, 8)}`,
+      description: overrides.description ?? "Isolated character-reference viewer fixture.",
+      promptDescription: overrides.promptDescription ?? "A presenter in a copper scarf.",
     }),
   });
   assertStatus(response, 201, `${account.label} character creation`);
@@ -602,6 +603,145 @@ async function createCharacter(account) {
   assert(character?.id && character?.name);
   account.characterIds.push(character.id);
   return character;
+}
+
+async function setFixtureCharacterCreatedAt(account, characterIds, baseTime) {
+  assert(characterIds.length > 0, "Created-at fixture helper requires owned character IDs");
+  for (const [index, characterId] of characterIds.entries()) {
+    const createdAt = new Date(baseTime.getTime() + index * 1000);
+    const result = await pool.query(
+      "UPDATE obtv_characters SET created_at=$1 WHERE tenant_id=$2 AND id=$3 RETURNING id",
+      [createdAt, account.tenantId, characterId],
+    );
+    assert.equal(result.rowCount, 1, "Created-at fixture helper must update only an owned fixture character");
+  }
+}
+
+async function tieFixtureCharacterCreatedAt(account, characterIds) {
+  const tieTime = new Date("2000-01-01T00:00:00.000Z");
+  const result = await pool.query(
+    "UPDATE obtv_characters SET created_at=$1 WHERE tenant_id=$2 AND id=ANY($3::uuid[]) RETURNING id",
+    [tieTime, account.tenantId, characterIds],
+  );
+  assert.equal(
+    result.rowCount,
+    characterIds.length,
+    "Created-at tie fixture must update exactly the owned character IDs",
+  );
+}
+
+function charactersList(response) {
+  return response.body?.characters ?? response.body ?? [];
+}
+
+async function fetchCharacterList(account, context) {
+  const response = await api(account, "/characters");
+  assertStatus(response, 200, context);
+  const characters = charactersList(response);
+  assert(Array.isArray(characters), `${context} must return a character array`);
+  return characters;
+}
+
+function assertCharacterIdOrder(characters, expectedIds, context) {
+  assert.deepEqual(
+    characters.map((character) => character.id),
+    expectedIds,
+    `${context} must preserve created_at ASC, id ASC ordering`,
+  );
+}
+
+async function browserCharacterOrder(page, expectedNames, context) {
+  for (const name of expectedNames) {
+    await page.getByText(name, { exact: true }).first().waitFor({ state: "visible", timeout: 15_000 });
+  }
+  const fixtureNames = new Set(expectedNames);
+  const visibleNames = (await page.locator("h3").allTextContents())
+    .map((name) => name.trim())
+    .filter((name) => fixtureNames.has(name));
+  assert.deepEqual(visibleNames, expectedNames, `${context} must match the API character ordering`);
+}
+
+async function testCharacterOrdering(owner) {
+  const suffix = runId.slice(0, 8);
+  const initialNames = [`Order Z ${suffix}`, `Order Y ${suffix}`, `Order X ${suffix}`];
+  const fixtureCharacters = [];
+  for (const [index, name] of initialNames.entries()) {
+    fixtureCharacters.push(await createCharacter(owner, {
+      name,
+      description: `Order fixture description ${index}`,
+      promptDescription: `Order fixture prompt ${index}`,
+    }));
+  }
+  const fixtureIds = fixtureCharacters.map((character) => character.id);
+  await setFixtureCharacterCreatedAt(owner, fixtureIds, new Date("2020-01-01T00:00:00.000Z"));
+
+  let characters = await fetchCharacterList(owner, "Initial character ordering");
+  assertCharacterIdOrder(characters, fixtureIds, "Initial character ordering");
+  assert.deepEqual(
+    characters.map((character) => character.name),
+    initialNames,
+    "Initial fixture names must remain in creation order rather than alphabetical order",
+  );
+
+  await tieFixtureCharacterCreatedAt(owner, fixtureIds);
+  const tiedIds = [...fixtureIds].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+  characters = await fetchCharacterList(owner, "Tied character ordering");
+  assertCharacterIdOrder(characters, tiedIds, "Tied character ordering");
+
+  const firstCharacter = fixtureCharacters[0];
+  const lastCharacter = fixtureCharacters.at(-1);
+  const updatedFirstName = `Order First Updated ${suffix}`;
+  const updatedLastName = `Order Last Updated ${suffix}`;
+  const lastUpdate = await api(owner, `/characters/${lastCharacter.id}`, {
+    method: "PATCH",
+    body: json({
+      name: updatedLastName,
+      description: "Updated last fixture description",
+      promptDescription: lastCharacter.promptDescription ?? "",
+    }),
+  });
+  assertStatus(lastUpdate, 200, "Last character update");
+  const firstUpdate = await api(owner, `/characters/${firstCharacter.id}`, {
+    method: "PATCH",
+    body: json({
+      name: updatedFirstName,
+      description: "Updated first fixture description",
+      promptDescription: firstCharacter.promptDescription ?? "",
+    }),
+  });
+  assertStatus(firstUpdate, 200, "First character update");
+
+  characters = await fetchCharacterList(owner, "Ordering after first/last PATCH updates");
+  assertCharacterIdOrder(characters, tiedIds, "Ordering after first/last PATCH updates");
+
+  const referenceOwner = characters.find((character) => character.id === tiedIds[1]) ?? characters[1];
+  const referenceUpload = await api(owner, `/characters/${referenceOwner.id}/assets`, {
+    method: "POST",
+    headers: {
+      "content-type": "image/png",
+      "x-file-name": `order-reference-${suffix}.png`,
+      "x-asset-label": "headshot",
+    },
+    body: originalPng,
+  });
+  assertStatus(referenceUpload, 201, "Reference addition in ordering fixture");
+  characters = await fetchCharacterList(owner, "Ordering after adding a reference");
+  assertCharacterIdOrder(characters, tiedIds, "Ordering after adding a reference");
+
+  const fourth = await createCharacter(owner, {
+    name: `Order Fourth ${suffix}`,
+    description: "Fourth order fixture description",
+    promptDescription: "Fourth order fixture prompt",
+  });
+  characters = await fetchCharacterList(owner, "Ordering after adding a fourth character");
+  assertCharacterIdOrder(characters, [...tiedIds, fourth.id], "Ordering after adding a fourth character");
+  const expectedNames = characters.map((character) => character.name);
+
+  await owner.browserPage.goto(`${origin}/characters`, { waitUntil: "domcontentloaded" });
+  await browserCharacterOrder(owner.browserPage, expectedNames, "Initial refreshed browser ordering");
+  await owner.browserPage.reload({ waitUntil: "domcontentloaded" });
+  await browserCharacterOrder(owner.browserPage, expectedNames, "Reloaded browser ordering");
+  stageLog("order-only fixture verified created_at ordering, id tie-break, PATCH/reference stability, fourth append, and browser refresh");
 }
 
 async function openCharacterReferences(page, characterName) {
@@ -1506,19 +1646,28 @@ async function cleanupAccount(account) {
 }
 
 try {
-  fakeWorker = await startMockWorker();
-  stageLog(`mock worker listening at ${fakeWorker.apiBaseUrl}`);
-  await insertMockWorker();
-  stageLog("isolated mock worker registered");
-  const owner = await createAccount("Owner");
-  const foreign = await createAccount("Foreign");
-  stageLog("owner and foreign fixture tenants created");
-  browser = await chromium.launch({ headless: true, executablePath: chromiumPath, args: ["--no-sandbox"] });
-  await loginThroughPreview(owner);
-  const character = await createCharacter(owner);
-  stageLog(`owner character created id=${character.id}`);
-  await testReferenceLifecycle(owner, foreign, character);
-  console.log("PASS: native original-reference conditioning, exact source upload, aspect-preserving resize, profile/three-quarter prompt views, accessible uncropped viewer zoom, active-source delete guard, confirmed generated-reference delete, reload persistence, mobile controls, and tenant isolation");
+  if (orderOnly) {
+    const owner = await createAccount("Order");
+    stageLog("order-only fixture tenant created");
+    browser = await chromium.launch({ headless: true, executablePath: chromiumPath, args: ["--no-sandbox"] });
+    await loginThroughPreview(owner);
+    await testCharacterOrdering(owner);
+    console.log("PASS: order-only character API and refreshed browser ordering");
+  } else {
+    fakeWorker = await startMockWorker();
+    stageLog(`mock worker listening at ${fakeWorker.apiBaseUrl}`);
+    await insertMockWorker();
+    stageLog("isolated mock worker registered");
+    const owner = await createAccount("Owner");
+    const foreign = await createAccount("Foreign");
+    stageLog("owner and foreign fixture tenants created");
+    browser = await chromium.launch({ headless: true, executablePath: chromiumPath, args: ["--no-sandbox"] });
+    await loginThroughPreview(owner);
+    const character = await createCharacter(owner);
+    stageLog(`owner character created id=${character.id}`);
+    await testReferenceLifecycle(owner, foreign, character);
+    console.log("PASS: native original-reference conditioning, exact source upload, aspect-preserving resize, profile/three-quarter prompt views, accessible uncropped viewer zoom, active-source delete guard, confirmed generated-reference delete, reload persistence, mobile controls, and tenant isolation");
+  }
 } catch (error) {
   process.exitCode = 1;
   console.error(`FAIL character reference viewer: ${safeError(error)}`);

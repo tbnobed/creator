@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import express, { Router, type IRouter } from "express";
 import {
   ApproveCharacterDossierBody,
@@ -52,7 +52,9 @@ import { presentCharacter } from "../lib/studio-presenters";
 const router: IRouter = Router();
 
 async function list(tenantId: string) {
-  const characters = await db.select().from(charactersTable).where(eq(charactersTable.tenantId, tenantId));
+  const characters = await db.select().from(charactersTable)
+    .where(eq(charactersTable.tenantId, tenantId))
+    .orderBy(asc(charactersTable.createdAt), asc(charactersTable.id));
   return Promise.all(characters.map(async (character) => {
     const assets = await db.select({ id: characterAssetsTable.id }).from(characterAssetsTable).where(eq(characterAssetsTable.characterId, character.id));
     return presentCharacter(character, assets.length);
