@@ -116,6 +116,13 @@ export const charactersTable = pgTable("obtv_characters", {
   voiceOriginalName: text("voice_original_name"),
   voiceMimeType: text("voice_mime_type"),
   voiceConsentAt: timestamp("voice_consent_at", { withTimezone: true }),
+  dossier: jsonb("dossier")
+    .$type<CharacterDossier>()
+    .notNull()
+    .default({ role: "", performanceNotes: "", wardrobes: [] }),
+  dossierStatus: text("dossier_status").notNull().default("DRAFT").$type<"DRAFT" | "APPROVED">(),
+  dossierRevision: integer("dossier_revision").notNull().default(0),
+  dossierApprovedAt: timestamp("dossier_approved_at", { withTimezone: true }),
   ...timestamps,
 });
 
@@ -128,12 +135,27 @@ export const characterAssetsTable = pgTable("obtv_character_assets", {
   originalName: text("original_name").notNull(),
   mimeType: text("mime_type").notNull(),
   angle: text("angle"),
+  label: text("label").notNull().default("other"),
   description: text("description").notNull().default(""),
+  isPrimary: boolean("is_primary").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
+
+export type CharacterWardrobe = {
+  id: string;
+  name: string;
+  description: string;
+  referenceAssetId?: string | null;
+};
+
+export type CharacterDossier = {
+  role: string;
+  performanceNotes: string;
+  wardrobes: CharacterWardrobe[];
+};
 
 export const settingsTable = pgTable("obtv_settings", {
   id: uuid("id").defaultRandom().primaryKey(),

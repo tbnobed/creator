@@ -14,3 +14,9 @@ Revising a completed continuity-controlled shot must leave time for review befor
 **Why:** The ordinary edit-and-regenerate flow conflicts with a required still-approval stage. Continuity revisions need a deliberate paused review state, while existing projects without continuity retain their original behavior.
 
 **How to apply:** Keep destructive revision actions explicit, preserve unrelated completed shots, and require a current approval before resuming. Voice cloning remains a separate explicit per-shot opt-in.
+
+Reusable character dossiers are a source for explicitly imported production settings, not live-linked replacements for project continuity.
+
+**Why:** Updating a cast-library wardrobe must not unexpectedly change an ongoing production's approved look. Dossier approval is advisory for legacy character use, separate from shot-still approval.
+
+**How to apply:** Import approved dossier data only by producer action, confirm replacements, and retain project-owned snapshots. Describe text-only reference generation honestly; a saved primary image does not mean every image workflow consumes it.

@@ -22,6 +22,8 @@ export interface Character {
   voiceSampleUrl: string | null;
   /** @nullable */
   voiceConsentAt: string | null;
+  /** @minimum 0 */
+  dossierRevision: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -25,7 +25,16 @@ import type {
   AuthLoginInput,
   AuthRegistrationInput,
   Character,
+  CharacterAssetMutationResponse,
+  CharacterAssetUpdate,
+  CharacterAssetUploadResult,
+  CharacterDossier,
+  CharacterDossierApprovalInput,
+  CharacterDossierInput,
+  CharacterImageGeneration,
+  CharacterImageGenerationInput,
   CharacterInput,
+  CharacterUpdateInput,
   CharacterVoiceSampleResult,
   ComfyServer,
   ConnectionTest,
@@ -1548,14 +1557,14 @@ export const getUpdateCharacterUrl = (id: string,) => {
  * @summary Update a character
  */
 export const updateCharacter = async (id: string,
-    characterInput: CharacterInput, options?: Parameters<typeof customFetch>[1]): Promise<Character> => {
+    characterUpdateInput: CharacterUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<Character> => {
 
   return customFetch<Character>(getUpdateCharacterUrl(id),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(characterInput)
+    body: JSON.stringify(characterUpdateInput)
   }
 );}
 
@@ -1563,9 +1572,9 @@ export const updateCharacter = async (id: string,
 
 
 
-export const getUpdateCharacterMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacter>>, TError,{id: string;data: BodyType<CharacterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateCharacter>>, TError,{id: string;data: BodyType<CharacterInput>}, TContext> => {
+export const getUpdateCharacterMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacter>>, TError,{id: string;data: BodyType<CharacterUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCharacter>>, TError,{id: string;data: BodyType<CharacterUpdateInput>}, TContext> => {
 
 const mutationKey = ['updateCharacter'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1577,7 +1586,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCharacter>>, {id: string;data: BodyType<CharacterInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCharacter>>, {id: string;data: BodyType<CharacterUpdateInput>}> = (props) => {
           const {id,data} = props ?? {};
 
           return  updateCharacter(id,data,requestOptions)
@@ -1591,18 +1600,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateCharacterMutationResult = NonNullable<Awaited<ReturnType<typeof updateCharacter>>>
-    export type UpdateCharacterMutationBody = BodyType<CharacterInput>
-    export type UpdateCharacterMutationError = ErrorType<unknown>
+    export type UpdateCharacterMutationBody = BodyType<CharacterUpdateInput>
+    export type UpdateCharacterMutationError = ErrorType<void>
 
     /**
  * @summary Update a character
  */
-export const useUpdateCharacter = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacter>>, TError,{id: string;data: BodyType<CharacterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useUpdateCharacter = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacter>>, TError,{id: string;data: BodyType<CharacterUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateCharacter>>,
         TError,
-        {id: string;data: BodyType<CharacterInput>},
+        {id: string;data: BodyType<CharacterUpdateInput>},
         TContext
       > => {
       return useMutation(getUpdateCharacterMutationOptions(options));
@@ -1634,7 +1643,7 @@ export const deleteCharacter = async (id: string, options?: Parameters<typeof cu
 
 
 
-export const getDeleteCharacterMutationOptions = <TError = ErrorType<unknown>,
+export const getDeleteCharacterMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCharacter>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteCharacter>>, TError,{id: string}, TContext> => {
 
@@ -1663,12 +1672,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteCharacterMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCharacter>>>
 
-    export type DeleteCharacterMutationError = ErrorType<unknown>
+    export type DeleteCharacterMutationError = ErrorType<void>
 
     /**
  * @summary Delete a character
  */
-export const useDeleteCharacter = <TError = ErrorType<unknown>,
+export const useDeleteCharacter = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCharacter>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteCharacter>>,
@@ -1691,14 +1700,14 @@ export const getGenerateCharacterImageUrl = (id: string,) => {
  * @summary Generate and attach a character reference image
  */
 export const generateCharacterImage = async (id: string,
-    studioImageGenerationInput: StudioImageGenerationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioImageGenerationResult> => {
+    characterImageGenerationInput: CharacterImageGenerationInput, options?: Parameters<typeof customFetch>[1]): Promise<CharacterImageGeneration> => {
 
-  return customFetch<StudioImageGenerationResult>(getGenerateCharacterImageUrl(id),
+  return customFetch<CharacterImageGeneration>(getGenerateCharacterImageUrl(id),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(studioImageGenerationInput)
+    body: JSON.stringify(characterImageGenerationInput)
   }
 );}
 
@@ -1706,9 +1715,9 @@ export const generateCharacterImage = async (id: string,
 
 
 
-export const getGenerateCharacterImageMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext> => {
+export const getGenerateCharacterImageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<CharacterImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<CharacterImageGenerationInput>}, TContext> => {
 
 const mutationKey = ['generateCharacterImage'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1720,7 +1729,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateCharacterImage>>, {id: string;data: BodyType<StudioImageGenerationInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateCharacterImage>>, {id: string;data: BodyType<CharacterImageGenerationInput>}> = (props) => {
           const {id,data} = props ?? {};
 
           return  generateCharacterImage(id,data,requestOptions)
@@ -1734,21 +1743,462 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type GenerateCharacterImageMutationResult = NonNullable<Awaited<ReturnType<typeof generateCharacterImage>>>
-    export type GenerateCharacterImageMutationBody = BodyType<StudioImageGenerationInput>
-    export type GenerateCharacterImageMutationError = ErrorType<unknown>
+    export type GenerateCharacterImageMutationBody = BodyType<CharacterImageGenerationInput>
+    export type GenerateCharacterImageMutationError = ErrorType<void>
 
     /**
  * @summary Generate and attach a character reference image
  */
-export const useGenerateCharacterImage = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<StudioImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useGenerateCharacterImage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateCharacterImage>>, TError,{id: string;data: BodyType<CharacterImageGenerationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateCharacterImage>>,
         TError,
-        {id: string;data: BodyType<StudioImageGenerationInput>},
+        {id: string;data: BodyType<CharacterImageGenerationInput>},
         TContext
       > => {
       return useMutation(getGenerateCharacterImageMutationOptions(options));
+    }
+
+export const getGetCharacterDossierUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/dossier`
+}
+
+/**
+ * @summary Read the persisted character dossier and references
+ */
+export const getCharacterDossier = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CharacterDossier> => {
+
+  return customFetch<CharacterDossier>(getGetCharacterDossierUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCharacterDossierQueryKey = (id: string,) => {
+    return [
+    `/api/characters/${id}/dossier`
+    ] as const;
+    }
+
+
+export const getGetCharacterDossierQueryOptions = <TData = Awaited<ReturnType<typeof getCharacterDossier>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCharacterDossier>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCharacterDossierQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCharacterDossier>>> = ({ signal }) => getCharacterDossier(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCharacterDossier>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCharacterDossierQueryResult = NonNullable<Awaited<ReturnType<typeof getCharacterDossier>>>
+export type GetCharacterDossierQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the persisted character dossier and references
+ */
+
+export function useGetCharacterDossier<TData = Awaited<ReturnType<typeof getCharacterDossier>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCharacterDossier>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCharacterDossierQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCharacterDossierUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/dossier`
+}
+
+/**
+ * @summary Replace the character dossier
+ */
+export const updateCharacterDossier = async (id: string,
+    characterDossierInput: CharacterDossierInput, options?: Parameters<typeof customFetch>[1]): Promise<CharacterDossier> => {
+
+  return customFetch<CharacterDossier>(getUpdateCharacterDossierUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(characterDossierInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCharacterDossierMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacterDossier>>, TError,{id: string;data: BodyType<CharacterDossierInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCharacterDossier>>, TError,{id: string;data: BodyType<CharacterDossierInput>}, TContext> => {
+
+const mutationKey = ['updateCharacterDossier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCharacterDossier>>, {id: string;data: BodyType<CharacterDossierInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCharacterDossier(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCharacterDossierMutationResult = NonNullable<Awaited<ReturnType<typeof updateCharacterDossier>>>
+    export type UpdateCharacterDossierMutationBody = BodyType<CharacterDossierInput>
+    export type UpdateCharacterDossierMutationError = ErrorType<void>
+
+    /**
+ * @summary Replace the character dossier
+ */
+export const useUpdateCharacterDossier = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacterDossier>>, TError,{id: string;data: BodyType<CharacterDossierInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCharacterDossier>>,
+        TError,
+        {id: string;data: BodyType<CharacterDossierInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCharacterDossierMutationOptions(options));
+    }
+
+export const getApproveCharacterDossierUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/dossier/approve`
+}
+
+/**
+ * @summary Approve a character dossier revision
+ */
+export const approveCharacterDossier = async (id: string,
+    characterDossierApprovalInput: CharacterDossierApprovalInput, options?: Parameters<typeof customFetch>[1]): Promise<CharacterDossier> => {
+
+  return customFetch<CharacterDossier>(getApproveCharacterDossierUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(characterDossierApprovalInput)
+  }
+);}
+
+
+
+
+
+export const getApproveCharacterDossierMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCharacterDossier>>, TError,{id: string;data: BodyType<CharacterDossierApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveCharacterDossier>>, TError,{id: string;data: BodyType<CharacterDossierApprovalInput>}, TContext> => {
+
+const mutationKey = ['approveCharacterDossier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveCharacterDossier>>, {id: string;data: BodyType<CharacterDossierApprovalInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveCharacterDossier(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveCharacterDossierMutationResult = NonNullable<Awaited<ReturnType<typeof approveCharacterDossier>>>
+    export type ApproveCharacterDossierMutationBody = BodyType<CharacterDossierApprovalInput>
+    export type ApproveCharacterDossierMutationError = ErrorType<void>
+
+    /**
+ * @summary Approve a character dossier revision
+ */
+export const useApproveCharacterDossier = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCharacterDossier>>, TError,{id: string;data: BodyType<CharacterDossierApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveCharacterDossier>>,
+        TError,
+        {id: string;data: BodyType<CharacterDossierApprovalInput>},
+        TContext
+      > => {
+      return useMutation(getApproveCharacterDossierMutationOptions(options));
+    }
+
+export const getUpdateCharacterAssetUrl = (id: string,
+    assetId: string,) => {
+
+
+
+
+  return `/api/characters/${id}/assets/${assetId}`
+}
+
+/**
+ * @summary Update character reference metadata
+ */
+export const updateCharacterAsset = async (id: string,
+    assetId: string,
+    characterAssetUpdate: CharacterAssetUpdate, options?: Parameters<typeof customFetch>[1]): Promise<CharacterAssetMutationResponse> => {
+
+  return customFetch<CharacterAssetMutationResponse>(getUpdateCharacterAssetUrl(id,assetId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(characterAssetUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateCharacterAssetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacterAsset>>, TError,{id: string;assetId: string;data: BodyType<CharacterAssetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCharacterAsset>>, TError,{id: string;assetId: string;data: BodyType<CharacterAssetUpdate>}, TContext> => {
+
+const mutationKey = ['updateCharacterAsset'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCharacterAsset>>, {id: string;assetId: string;data: BodyType<CharacterAssetUpdate>}> = (props) => {
+          const {id,assetId,data} = props ?? {};
+
+          return  updateCharacterAsset(id,assetId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCharacterAssetMutationResult = NonNullable<Awaited<ReturnType<typeof updateCharacterAsset>>>
+    export type UpdateCharacterAssetMutationBody = BodyType<CharacterAssetUpdate>
+    export type UpdateCharacterAssetMutationError = ErrorType<void>
+
+    /**
+ * @summary Update character reference metadata
+ */
+export const useUpdateCharacterAsset = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCharacterAsset>>, TError,{id: string;assetId: string;data: BodyType<CharacterAssetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCharacterAsset>>,
+        TError,
+        {id: string;assetId: string;data: BodyType<CharacterAssetUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateCharacterAssetMutationOptions(options));
+    }
+
+export const getDeleteCharacterAssetUrl = (id: string,
+    assetId: string,) => {
+
+
+
+
+  return `/api/characters/${id}/assets/${assetId}`
+}
+
+/**
+ * @summary Remove a character reference
+ */
+export const deleteCharacterAsset = async (id: string,
+    assetId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCharacterAssetUrl(id,assetId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCharacterAssetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCharacterAsset>>, TError,{id: string;assetId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCharacterAsset>>, TError,{id: string;assetId: string}, TContext> => {
+
+const mutationKey = ['deleteCharacterAsset'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCharacterAsset>>, {id: string;assetId: string}> = (props) => {
+          const {id,assetId} = props ?? {};
+
+          return  deleteCharacterAsset(id,assetId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCharacterAssetMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCharacterAsset>>>
+
+    export type DeleteCharacterAssetMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a character reference
+ */
+export const useDeleteCharacterAsset = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCharacterAsset>>, TError,{id: string;assetId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCharacterAsset>>,
+        TError,
+        {id: string;assetId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCharacterAssetMutationOptions(options));
+    }
+
+export const getUploadCharacterAssetUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/assets`
+}
+
+/**
+ * Send image bytes directly. Optional x-asset-label and x-asset-description headers annotate the reference.
+ * @summary Upload a character reference image
+ */
+export const uploadCharacterAsset = async (id: string,
+    uploadCharacterAssetBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<CharacterAssetUploadResult> => {
+
+  return customFetch<CharacterAssetUploadResult>(getUploadCharacterAssetUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg', ...options?.headers },
+    body: uploadCharacterAssetBody
+  }
+);}
+
+
+
+
+
+export const getUploadCharacterAssetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCharacterAsset>>, TError,{id: string;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadCharacterAsset>>, TError,{id: string;data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadCharacterAsset'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadCharacterAsset>>, {id: string;data: BodyType<Blob>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadCharacterAsset(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadCharacterAssetMutationResult = NonNullable<Awaited<ReturnType<typeof uploadCharacterAsset>>>
+    export type UploadCharacterAssetMutationBody = BodyType<Blob>
+    export type UploadCharacterAssetMutationError = ErrorType<void>
+
+    /**
+ * @summary Upload a character reference image
+ */
+export const useUploadCharacterAsset = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCharacterAsset>>, TError,{id: string;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadCharacterAsset>>,
+        TError,
+        {id: string;data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadCharacterAssetMutationOptions(options));
     }
 
 export const getUploadCharacterVoiceSampleUrl = (id: string,) => {

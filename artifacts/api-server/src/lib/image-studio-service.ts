@@ -4,11 +4,13 @@ import {
   eq,
   ilike,
   inArray,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
 import {
   comfyServersTable,
+  charactersTable,
   db,
   generationJobsTable,
   imageStudioAssetsTable,
@@ -359,7 +361,10 @@ export async function listImageJobs(
   const jobs = await db
     .select()
     .from(imageStudioJobsTable)
-    .where(eq(imageStudioJobsTable.tenantId, tenantId))
+    .where(and(
+      eq(imageStudioJobsTable.tenantId, tenantId),
+      isNull(imageStudioJobsTable.characterId),
+    ))
     .orderBy(desc(imageStudioJobsTable.createdAt))
     .limit(limit);
   const assets = await assetsByJobIds(jobs.map((job) => job.id));
@@ -374,7 +379,11 @@ export async function getImageJob(
   const [job] = await db
     .select()
     .from(imageStudioJobsTable)
-    .where(and(eq(imageStudioJobsTable.id, id), eq(imageStudioJobsTable.tenantId, tenantId)))
+    .where(and(
+      eq(imageStudioJobsTable.id, id),
+      eq(imageStudioJobsTable.tenantId, tenantId),
+      isNull(imageStudioJobsTable.characterId),
+    ))
     .limit(1);
   if (!job) return null;
   const assets = await db
@@ -1061,6 +1070,7 @@ export async function createImageJob(input: {
       .where(and(
         eq(imageStudioJobsTable.tenantId, input.tenantId),
         eq(imageStudioJobsTable.requestKey, input.request.requestKey),
+        isNull(imageStudioJobsTable.characterId),
       ))
       .limit(1);
     if (existing) {
@@ -1369,7 +1379,11 @@ export async function cancelImageJob(
     const [current] = await tx
       .select()
       .from(imageStudioJobsTable)
-      .where(and(eq(imageStudioJobsTable.id, id), eq(imageStudioJobsTable.tenantId, tenantId)))
+      .where(and(
+        eq(imageStudioJobsTable.id, id),
+        eq(imageStudioJobsTable.tenantId, tenantId),
+        isNull(imageStudioJobsTable.characterId),
+      ))
       .for("update")
       .limit(1);
     if (!current || !ACTIVE_STATUSES.includes(current.status as typeof ACTIVE_STATUSES[number])) {
@@ -1408,13 +1422,21 @@ export async function deleteImageJob(tenantId: string, id: string): Promise<"del
   const [job] = await db
     .select()
     .from(imageStudioJobsTable)
-    .where(and(eq(imageStudioJobsTable.id, id), eq(imageStudioJobsTable.tenantId, tenantId)))
+    .where(and(
+      eq(imageStudioJobsTable.id, id),
+      eq(imageStudioJobsTable.tenantId, tenantId),
+      isNull(imageStudioJobsTable.characterId),
+    ))
     .limit(1);
   if (!job) return "missing";
   if (ACTIVE_STATUSES.includes(job.status as typeof ACTIVE_STATUSES[number])) return "active";
   await db
     .delete(imageStudioJobsTable)
-    .where(and(eq(imageStudioJobsTable.id, id), eq(imageStudioJobsTable.tenantId, tenantId)));
+    .where(and(
+      eq(imageStudioJobsTable.id, id),
+      eq(imageStudioJobsTable.tenantId, tenantId),
+      isNull(imageStudioJobsTable.characterId),
+    ));
   return "deleted";
 }
 
@@ -1479,44 +1501,64 @@ export async function deleteImageAsset(
   id: string,
 ): Promise<"deleted" | "referenced" | "missing"> {
   if (!UUID_PATTERN.test(id)) return "missing";
-  const [asset] = await db
-    .select()
-    .from(imageStudioAssetsTable)
-    .where(and(eq(imageStudioAssetsTable.id, id), eq(imageStudioAssetsTable.tenantId, tenantId)))
-    .limit(1);
-  if (!asset) return "missing";
-  const [reference] = await db
-    .select({ id: imageStudioJobsTable.id })
-    .from(imageStudioJobsTable)
-    .where(and(
-      eq(imageStudioJobsTable.tenantId, tenantId),
-      or(
-        eq(imageStudioJobsTable.maskAssetId, id),
-        sql`${id} = ANY(${imageStudioJobsTable.referenceAssetIds})`,
-      ),
-    ))
-    .limit(1);
-  if (reference) return "referenced";
-  const [continuityReference] = await db.select({ id: longFormProjectsTable.id })
-    .from(longFormProjectsTable)
-    .where(and(
-      eq(longFormProjectsTable.tenantId, tenantId),
-      sql`${longFormProjectsTable.continuity} @> jsonb_build_object(
-        'characters', jsonb_build_array(jsonb_build_object(
+  const result = await db.transaction(async (tx) => {
+    const [asset] = await tx
+      .select()
+      .from(imageStudioAssetsTable)
+      .where(and(eq(imageStudioAssetsTable.id, id), eq(imageStudioAssetsTable.tenantId, tenantId)))
+      .limit(1);
+    if (!asset) return { kind: "missing" as const };
+    const [reference] = await tx
+      .select({ id: imageStudioJobsTable.id })
+      .from(imageStudioJobsTable)
+      .where(and(
+        eq(imageStudioJobsTable.tenantId, tenantId),
+        or(
+          eq(imageStudioJobsTable.maskAssetId, id),
+          sql`${id} = ANY(${imageStudioJobsTable.referenceAssetIds})`,
+        ),
+      ))
+      .limit(1);
+    if (reference) return { kind: "referenced" as const };
+    const [continuityReference] = await tx.select({ id: longFormProjectsTable.id })
+      .from(longFormProjectsTable)
+      .where(and(
+        eq(longFormProjectsTable.tenantId, tenantId),
+        sql`${longFormProjectsTable.continuity} @> jsonb_build_object(
+          'characters', jsonb_build_array(jsonb_build_object(
+            'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}))
+          ))
+        )`,
+      )).limit(1);
+    if (continuityReference) return { kind: "referenced" as const };
+    // Lock character rows while checking dossier wardrobe references. Dossier writes
+    // take the same row lock before validating references, preventing a delete/write race.
+    await tx.select({ id: charactersTable.id })
+      .from(charactersTable)
+      .where(eq(charactersTable.tenantId, tenantId))
+      .for("update");
+    const [characterDossierReference] = await tx.select({ id: charactersTable.id })
+      .from(charactersTable)
+      .where(and(
+        eq(charactersTable.tenantId, tenantId),
+        sql`${charactersTable.dossier} @> jsonb_build_object(
           'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}))
-        ))
-      )`,
-    )).limit(1);
-  if (continuityReference) return "referenced";
-  const [deleted] = await db
-    .delete(imageStudioAssetsTable)
-    .where(and(
-      eq(imageStudioAssetsTable.id, id),
-      eq(imageStudioAssetsTable.tenantId, tenantId),
-    ))
-    .returning();
-  if (!deleted) return "missing";
-  await mediaStorage.deleteImageStudioImage(deleted.storageKey);
+        )`,
+      ))
+      .limit(1);
+    if (characterDossierReference) return { kind: "referenced" as const };
+    const [deleted] = await tx
+      .delete(imageStudioAssetsTable)
+      .where(and(
+        eq(imageStudioAssetsTable.id, id),
+        eq(imageStudioAssetsTable.tenantId, tenantId),
+      ))
+      .returning();
+    if (!deleted) return { kind: "missing" as const };
+    return { kind: "deleted" as const, asset: deleted };
+  });
+  if (result.kind !== "deleted") return result.kind;
+  await mediaStorage.deleteImageStudioImage(result.asset.storageKey);
   return "deleted";
 }
 
@@ -1525,8 +1567,11 @@ export async function resumeImageStudioJobs(): Promise<void> {
     .select()
     .from(imageStudioJobsTable)
     .where(or(
-      inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
-      eq(imageStudioJobsTable.provider, "CLOUD"),
+      and(
+        inArray(imageStudioJobsTable.status, [...ACTIVE_STATUSES]),
+        isNull(imageStudioJobsTable.characterId),
+      ),
+      and(eq(imageStudioJobsTable.provider, "CLOUD"), isNull(imageStudioJobsTable.characterId)),
     ));
   const active = jobs.filter((job) =>
     ACTIVE_STATUSES.includes(job.status as typeof ACTIVE_STATUSES[number]));

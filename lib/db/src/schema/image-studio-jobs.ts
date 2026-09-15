@@ -8,7 +8,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { comfyServersTable, tenantsTable, usersTable } from "./obtv";
+import { charactersTable, comfyServersTable, tenantsTable, usersTable } from "./obtv";
 
 export type ImageStudioProvider = "LOCAL" | "CLOUD";
 export type ImageStudioJobStatus =
@@ -37,6 +37,8 @@ export const imageStudioJobsTable = pgTable(
     seed: integer("seed"),
     referenceAssetIds: text("reference_asset_ids").array().notNull().default([]),
     maskAssetId: uuid("mask_asset_id"),
+    characterId: uuid("character_id").references(() => charactersTable.id, { onDelete: "cascade" }),
+    referenceLabel: text("reference_label"),
     status: text("status").notNull().default("QUEUED").$type<ImageStudioJobStatus>(),
     errorMessage: text("error_message"),
     providerRequestId: text("provider_request_id"),
@@ -45,6 +47,8 @@ export const imageStudioJobsTable = pgTable(
       .notNull()
       .default({}),
     comfyServerId: uuid("comfy_server_id").references(() => comfyServersTable.id),
+    outputStorageKey: text("output_storage_key"),
+    outputMimeType: text("output_mime_type"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),

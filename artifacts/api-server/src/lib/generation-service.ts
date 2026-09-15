@@ -616,7 +616,13 @@ async function uploadMappedReferences(
       storageKey: string;
       originalName: string;
       mimeType: string;
-    }>).find((asset) => asset.characterId === characterId);
+      label?: string | null;
+      angle?: string | null;
+    }>).find((asset) => (
+      asset.characterId === characterId
+      && asset.label !== "wardrobe"
+      && asset.angle !== "wardrobe"
+    ));
     return first ? [first] : [];
   });
   // The reference mapping is positional. Keep approved continuity stills first;

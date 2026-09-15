@@ -9,7 +9,11 @@ import { parseApiWorkflow } from "./comfy/workflow-parser";
 
 const date = (value: Date | null) => (value ? value.toISOString() : null);
 
-export function presentCharacter(character: Character, assetCount: number) {
+export function presentCharacter(
+  character: Character,
+  assetCount: number,
+  dossierRevision = character.dossierRevision,
+) {
   return {
     id: character.id,
     name: character.name,
@@ -24,6 +28,7 @@ export function presentCharacter(character: Character, assetCount: number) {
       ? `/api/media/${character.voiceStorageKey.split("/").map(encodeURIComponent).join("/")}`
       : null,
     voiceConsentAt: date(character.voiceConsentAt),
+    dossierRevision,
     createdAt: character.createdAt.toISOString(),
     updatedAt: character.updatedAt.toISOString(),
   };

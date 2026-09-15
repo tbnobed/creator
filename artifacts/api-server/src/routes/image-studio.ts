@@ -279,7 +279,7 @@ router.delete("/image-studio/assets/:id", async (req, res): Promise<void> => {
       return;
     }
     if (result === "referenced") {
-      res.status(409).json({ error: "This image is still used as a job reference or mask" });
+      res.status(409).json({ error: "This image is still used by a job, continuity record, or character wardrobe" });
       return;
     }
     res.sendStatus(204);

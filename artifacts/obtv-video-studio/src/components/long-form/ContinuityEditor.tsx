@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,17 @@ export function ContinuityEditor({ project, open, onOpenChange }: { project: any
       scenes: project.continuity?.scenes ?? [],
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        enabled: project.continuity?.enabled ?? false,
+        characters: project.continuity?.characters ?? [],
+        scenes: project.continuity?.scenes ?? [],
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const { fields: charFields, append: appendChar, remove: removeChar } = useFieldArray({
     control: form.control,
@@ -218,12 +229,45 @@ export function ContinuityEditor({ project, open, onOpenChange }: { project: any
                                 <div className="mt-4 p-3 bg-black/20 rounded-lg border border-border/50">
                                   <div className="flex items-center justify-between mb-3">
                                     <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Wardrobe Presets</h5>
-                                    <Button type="button" variant="secondary" size="sm" onClick={() => {
-                                      const w = form.getValues(`characters.${index}.wardrobes`);
-                                      form.setValue(`characters.${index}.wardrobes`, [...w, { id: crypto.randomUUID(), name: "New Outfit", description: "" }]);
-                                    }}>
-                                      <Plus className="w-3 h-3 mr-1" /> Add
-                                    </Button>
+                                    <div className="flex gap-2">
+                                      <Button type="button" variant="outline" size="sm" onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/characters/${field.characterId}/dossier`);
+                                          if (res.ok) {
+                                            const dossier = await res.json();
+                                            if (dossier.status !== "APPROVED") {
+                                              toast({ title: "Dossier not approved", description: "You can only import from an APPROVED dossier.", variant: "destructive" });
+                                              return;
+                                            }
+                                            if (confirm("This will import approved wardrobes and performance defaults, replacing current settings. Continue?")) {
+                                              if (dossier.performanceNotes) {
+                                                form.setValue(`characters.${index}.behavior`, dossier.performanceNotes);
+                                              }
+                                              if (dossier.wardrobes?.length) {
+                                                const mappedWardrobes = dossier.wardrobes.map((w: any) => ({
+                                                  ...w,
+                                                  referenceAssetId: w.referenceAssetId ?? undefined
+                                                }));
+                                                form.setValue(`characters.${index}.wardrobes`, mappedWardrobes);
+                                              }
+                                              toast({ title: "Import successful" });
+                                            }
+                                          } else {
+                                            toast({ title: "Failed to fetch dossier", variant: "destructive" });
+                                          }
+                                        } catch (e: any) {
+                                          toast({ title: "Import failed", description: e.message, variant: "destructive" });
+                                        }
+                                      }}>
+                                        Import from Dossier
+                                      </Button>
+                                      <Button type="button" variant="secondary" size="sm" onClick={() => {
+                                        const w = form.getValues(`characters.${index}.wardrobes`);
+                                        form.setValue(`characters.${index}.wardrobes`, [...w, { id: crypto.randomUUID(), name: "New Outfit", description: "" }]);
+                                      }}>
+                                        <Plus className="w-3 h-3 mr-1" /> Add
+                                      </Button>
+                                    </div>
                                   </div>
                                   
                                   <div className="space-y-3">

@@ -39,6 +39,7 @@ export function isTransientComfyUIRequestError(error: unknown): error is ComfyUI
 type ComfyWebSocket = {
   onmessage: ((event: { data: unknown }) => void) | null;
   onerror: ((event: unknown) => void) | null;
+  onclose?: ((event: unknown) => void) | null;
   close: () => void;
 };
 
@@ -143,8 +144,10 @@ export class ComfyUIClient {
     return this.request<{ queue_running?: unknown[]; queue_pending?: unknown[] }>("/queue");
   }
 
-  async getHistory(promptId: string): Promise<Record<string, unknown>> {
-    const pathname = `/history/${encodeURIComponent(promptId)}`;
+  async getHistory(promptId?: string): Promise<Record<string, unknown>> {
+    const pathname = promptId
+      ? `/history/${encodeURIComponent(promptId)}`
+      : "/history";
     const history = await this.request<unknown>(pathname);
     if (!history || typeof history !== "object" || Array.isArray(history)) {
       throw new ComfyUIRequestError(`ComfyUI ${pathname} returned an invalid history object`, "invalid-response");
@@ -231,7 +234,11 @@ export class ComfyUIClient {
     });
   }
 
-  connectProgress(clientId: string, onMessage: (message: Record<string, unknown>) => void): () => void {
+  connectProgress(
+    clientId: string,
+    onMessage: (message: Record<string, unknown>) => void,
+    onDisconnect?: () => void,
+  ): () => void {
     const WebSocketConstructor = (globalThis as unknown as { WebSocket?: ComfyWebSocketConstructor }).WebSocket;
     if (!WebSocketConstructor) {
       throw new Error("This server runtime does not support ComfyUI progress WebSockets");
@@ -239,6 +246,34 @@ export class ComfyUIClient {
     const target = new URL(this.server.websocketUrl);
     target.searchParams.set("clientId", clientId);
     const socket = new WebSocketConstructor(target.toString());
+    let closed = false;
+    let socketClosed = false;
+    const closeSocket = () => {
+      if (socketClosed) return;
+      socketClosed = true;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      try {
+        socket.close();
+      } catch {
+        // A WebSocket that failed during construction may reject close().
+      }
+    };
+    const notifyDisconnect = () => {
+      if (closed) return;
+      closed = true;
+      // Detach callbacks before notifying the observer. The observer closes
+      // the disposer, which must never synchronously recurse through onclose.
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      try {
+        onDisconnect?.();
+      } finally {
+        closeSocket();
+      }
+    };
     socket.onmessage = (event) => {
       if (typeof event.data !== "string") return;
       try {
@@ -252,11 +287,14 @@ export class ComfyUIClient {
     };
     socket.onerror = () => {
       // The normal HTTP monitor continues if a worker's WebSocket is unavailable.
+      notifyDisconnect();
+    };
+    socket.onclose = () => {
+      notifyDisconnect();
     };
     return () => {
-      socket.onmessage = null;
-      socket.onerror = null;
-      socket.close();
+      closed = true;
+      closeSocket();
     };
   }
 

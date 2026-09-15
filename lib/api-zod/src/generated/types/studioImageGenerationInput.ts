@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StudioImageGenerationInputReferenceLabel } from './studioImageGenerationInputReferenceLabel';
 
 export interface StudioImageGenerationInput {
   /**
@@ -17,4 +18,7 @@ export interface StudioImageGenerationInput {
      * @maximum 2147483647
      */
   seed?: number;
+  referenceLabel?: StudioImageGenerationInputReferenceLabel;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
+  requestKey?: string;
 }

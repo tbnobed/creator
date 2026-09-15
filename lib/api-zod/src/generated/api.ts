@@ -425,6 +425,11 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List characters
  */
+export const listCharactersResponseDossierRevisionMin = 0;
+export const listCharactersResponseDossierRevisionMultipleOf = 1;
+
+
+
 export const ListCharactersResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -437,6 +442,7 @@ export const ListCharactersResponseItem = zod.object({
   "hasVoiceSample": zod.boolean(),
   "voiceSampleUrl": zod.string().nullable(),
   "voiceConsentAt": zod.string().nullable(),
+  "dossierRevision": zod.number().min(listCharactersResponseDossierRevisionMin).multipleOf(listCharactersResponseDossierRevisionMultipleOf),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -458,6 +464,11 @@ export const CreateCharacterBody = zod.object({
   "voiceProfile": zod.string().nullish()
 })
 
+export const createCharacterResponseDossierRevisionMin = 0;
+export const createCharacterResponseDossierRevisionMultipleOf = 1;
+
+
+
 export const CreateCharacterResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -470,6 +481,7 @@ export const CreateCharacterResponse = zod.object({
   "hasVoiceSample": zod.boolean(),
   "voiceSampleUrl": zod.string().nullable(),
   "voiceConsentAt": zod.string().nullable(),
+  "dossierRevision": zod.number().min(createCharacterResponseDossierRevisionMin).multipleOf(createCharacterResponseDossierRevisionMultipleOf),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -483,6 +495,9 @@ export const UpdateCharacterParams = zod.object({
 })
 
 
+export const updateCharacterBodyExpectedDossierRevisionMin = 0;
+export const updateCharacterBodyExpectedDossierRevisionMultipleOf = 1;
+
 
 
 export const UpdateCharacterBody = zod.object({
@@ -491,8 +506,14 @@ export const UpdateCharacterBody = zod.object({
   "promptDescription": zod.string(),
   "thumbnail": zod.string().nullish(),
   "tags": zod.array(zod.string()).optional(),
-  "voiceProfile": zod.string().nullish()
+  "voiceProfile": zod.string().nullish(),
+  "expectedDossierRevision": zod.number().min(updateCharacterBodyExpectedDossierRevisionMin).multipleOf(updateCharacterBodyExpectedDossierRevisionMultipleOf).optional()
 })
+
+export const updateCharacterResponseDossierRevisionMin = 0;
+export const updateCharacterResponseDossierRevisionMultipleOf = 1;
+
+
 
 export const UpdateCharacterResponse = zod.object({
   "id": zod.string(),
@@ -506,6 +527,7 @@ export const UpdateCharacterResponse = zod.object({
   "hasVoiceSample": zod.boolean(),
   "voiceSampleUrl": zod.string().nullable(),
   "voiceConsentAt": zod.string().nullable(),
+  "dossierRevision": zod.number().min(updateCharacterResponseDossierRevisionMin).multipleOf(updateCharacterResponseDossierRevisionMultipleOf),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -528,24 +550,431 @@ export const GenerateCharacterImageParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const generateCharacterImageBodyModelIdDefault = `local-flux2-klein-4b`;
 export const generateCharacterImageBodyPromptMax = 4000;
 
 export const generateCharacterImageBodySeedMin = 0;
 export const generateCharacterImageBodySeedMax = 2147483647;
 
+export const generateCharacterImageBodyDenoiseStrengthMin = 0.05;
+export const generateCharacterImageBodyDenoiseStrengthMax = 1;
+
+export const generateCharacterImageBodyRequestKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
 
 
 export const GenerateCharacterImageBody = zod.object({
+  "modelId": zod.enum(['local-flux2-klein-4b', 'cloud-nano-banana-pro']).default(generateCharacterImageBodyModelIdDefault).describe('Selects the local FLUX.2 klein default or explicitly paid Cloud Nano Banana Pro path.'),
+  "cloudConfirmed": zod.boolean().optional().describe('Required when modelId is cloud-nano-banana-pro.'),
   "prompt": zod.string().min(1).max(generateCharacterImageBodyPromptMax).optional(),
-  "seed": zod.number().min(generateCharacterImageBodySeedMin).max(generateCharacterImageBodySeedMax).optional()
+  "seed": zod.number().min(generateCharacterImageBodySeedMin).max(generateCharacterImageBodySeedMax).optional(),
+  "referenceLabel": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']).optional(),
+  "referenceAssetId": zod.string().optional(),
+  "denoiseStrength": zod.number().min(generateCharacterImageBodyDenoiseStrengthMin).max(generateCharacterImageBodyDenoiseStrengthMax).optional().describe('Defaults to 0.65 when a reference is used.'),
+  "allowNewIdentity": zod.boolean().optional().describe('Enables text-only identity generation when no reference exists.'),
+  "requestKey": zod.string().regex(generateCharacterImageBodyRequestKeyRegExp).optional()
 })
 
+export const generateCharacterImageResponseProgressMin = 0;
+export const generateCharacterImageResponseProgressMax = 1;
+
+export const generateCharacterImageResponseProgressStepMin = 0;
+
+export const generateCharacterImageResponseProgressTotalStepsMin = 0;
+
+
+
 export const GenerateCharacterImageResponse = zod.object({
-  "ok": zod.boolean(),
+  "id": zod.string(),
+  "modelId": zod.enum(['local-flux2-klein-4b', 'cloud-nano-banana-pro']),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "prompt": zod.string(),
+  "referenceLabel": zod.union([zod.literal('headshot'),zod.literal('profile'),zod.literal('three-quarter'),zod.literal('full-body'),zod.literal('expression'),zod.literal('wardrobe'),zod.literal('other'),zod.literal(null)]).nullable(),
+  "referenceAssetId": zod.string().nullable(),
+  "referenceUsed": zod.boolean(),
+  "sourceReference": zod.union([zod.object({
   "assetId": zod.string(),
   "mediaUrl": zod.string(),
-  "serverName": zod.string(),
-  "seed": zod.number()
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other'])
+}),zod.null()]),
+  "seed": zod.number().nullable(),
+  "serverName": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "assetId": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "progress": zod.number().min(generateCharacterImageResponseProgressMin).max(generateCharacterImageResponseProgressMax).nullable(),
+  "progressStage": zod.enum(['preparing', 'rendering', 'saving']),
+  "progressStep": zod.number().min(generateCharacterImageResponseProgressStepMin).nullable(),
+  "progressTotalSteps": zod.number().min(generateCharacterImageResponseProgressTotalStepsMin).nullable(),
+  "progressUpdatedAt": zod.coerce.date().nullable(),
+  "startedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Read the persisted character dossier and references
+ */
+export const GetCharacterDossierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const getCharacterDossierResponseRevisionMin = 0;
+export const getCharacterDossierResponseRevisionMultipleOf = 1;
+
+export const getCharacterDossierResponseImageGenerationOneProgressMin = 0;
+export const getCharacterDossierResponseImageGenerationOneProgressMax = 1;
+
+export const getCharacterDossierResponseImageGenerationOneProgressStepMin = 0;
+
+export const getCharacterDossierResponseImageGenerationOneProgressTotalStepsMin = 0;
+
+
+
+export const GetCharacterDossierResponse = zod.object({
+  "role": zod.string(),
+  "performanceNotes": zod.string(),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "description": zod.string(),
+  "referenceAssetId": zod.string().nullish()
+})),
+  "status": zod.enum(['DRAFT', 'APPROVED']),
+  "revision": zod.number().min(getCharacterDossierResponseRevisionMin).multipleOf(getCharacterDossierResponseRevisionMultipleOf),
+  "approvedAt": zod.coerce.date().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']),
+  "description": zod.string(),
+  "isPrimary": zod.boolean().optional()
+})),
+  "imageGeneration": zod.union([zod.object({
+  "id": zod.string(),
+  "modelId": zod.enum(['local-flux2-klein-4b', 'cloud-nano-banana-pro']),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "prompt": zod.string(),
+  "referenceLabel": zod.union([zod.literal('headshot'),zod.literal('profile'),zod.literal('three-quarter'),zod.literal('full-body'),zod.literal('expression'),zod.literal('wardrobe'),zod.literal('other'),zod.literal(null)]).nullable(),
+  "referenceAssetId": zod.string().nullable(),
+  "referenceUsed": zod.boolean(),
+  "sourceReference": zod.union([zod.object({
+  "assetId": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other'])
+}),zod.null()]),
+  "seed": zod.number().nullable(),
+  "serverName": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "assetId": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "progress": zod.number().min(getCharacterDossierResponseImageGenerationOneProgressMin).max(getCharacterDossierResponseImageGenerationOneProgressMax).nullable(),
+  "progressStage": zod.enum(['preparing', 'rendering', 'saving']),
+  "progressStep": zod.number().min(getCharacterDossierResponseImageGenerationOneProgressStepMin).nullable(),
+  "progressTotalSteps": zod.number().min(getCharacterDossierResponseImageGenerationOneProgressTotalStepsMin).nullable(),
+  "progressUpdatedAt": zod.coerce.date().nullable(),
+  "startedAt": zod.coerce.date().nullable()
+}),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Replace the character dossier
+ */
+export const UpdateCharacterDossierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateCharacterDossierBodyRevisionMin = 0;
+export const updateCharacterDossierBodyRevisionMultipleOf = 1;
+
+
+
+
+export const UpdateCharacterDossierBody = zod.object({
+  "role": zod.string().optional(),
+  "performanceNotes": zod.string().optional(),
+  "revision": zod.number().min(updateCharacterDossierBodyRevisionMin).multipleOf(updateCharacterDossierBodyRevisionMultipleOf),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "description": zod.string(),
+  "referenceAssetId": zod.string().nullish()
+})).optional()
+})
+
+
+export const updateCharacterDossierResponseRevisionMin = 0;
+export const updateCharacterDossierResponseRevisionMultipleOf = 1;
+
+export const updateCharacterDossierResponseImageGenerationOneProgressMin = 0;
+export const updateCharacterDossierResponseImageGenerationOneProgressMax = 1;
+
+export const updateCharacterDossierResponseImageGenerationOneProgressStepMin = 0;
+
+export const updateCharacterDossierResponseImageGenerationOneProgressTotalStepsMin = 0;
+
+
+
+export const UpdateCharacterDossierResponse = zod.object({
+  "role": zod.string(),
+  "performanceNotes": zod.string(),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "description": zod.string(),
+  "referenceAssetId": zod.string().nullish()
+})),
+  "status": zod.enum(['DRAFT', 'APPROVED']),
+  "revision": zod.number().min(updateCharacterDossierResponseRevisionMin).multipleOf(updateCharacterDossierResponseRevisionMultipleOf),
+  "approvedAt": zod.coerce.date().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']),
+  "description": zod.string(),
+  "isPrimary": zod.boolean().optional()
+})),
+  "imageGeneration": zod.union([zod.object({
+  "id": zod.string(),
+  "modelId": zod.enum(['local-flux2-klein-4b', 'cloud-nano-banana-pro']),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "prompt": zod.string(),
+  "referenceLabel": zod.union([zod.literal('headshot'),zod.literal('profile'),zod.literal('three-quarter'),zod.literal('full-body'),zod.literal('expression'),zod.literal('wardrobe'),zod.literal('other'),zod.literal(null)]).nullable(),
+  "referenceAssetId": zod.string().nullable(),
+  "referenceUsed": zod.boolean(),
+  "sourceReference": zod.union([zod.object({
+  "assetId": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other'])
+}),zod.null()]),
+  "seed": zod.number().nullable(),
+  "serverName": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "assetId": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "progress": zod.number().min(updateCharacterDossierResponseImageGenerationOneProgressMin).max(updateCharacterDossierResponseImageGenerationOneProgressMax).nullable(),
+  "progressStage": zod.enum(['preparing', 'rendering', 'saving']),
+  "progressStep": zod.number().min(updateCharacterDossierResponseImageGenerationOneProgressStepMin).nullable(),
+  "progressTotalSteps": zod.number().min(updateCharacterDossierResponseImageGenerationOneProgressTotalStepsMin).nullable(),
+  "progressUpdatedAt": zod.coerce.date().nullable(),
+  "startedAt": zod.coerce.date().nullable()
+}),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Approve a character dossier revision
+ */
+export const ApproveCharacterDossierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const approveCharacterDossierBodyRevisionMin = 0;
+export const approveCharacterDossierBodyRevisionMultipleOf = 1;
+
+
+
+export const ApproveCharacterDossierBody = zod.object({
+  "revision": zod.number().min(approveCharacterDossierBodyRevisionMin).multipleOf(approveCharacterDossierBodyRevisionMultipleOf)
+})
+
+
+export const approveCharacterDossierResponseRevisionMin = 0;
+export const approveCharacterDossierResponseRevisionMultipleOf = 1;
+
+export const approveCharacterDossierResponseImageGenerationOneProgressMin = 0;
+export const approveCharacterDossierResponseImageGenerationOneProgressMax = 1;
+
+export const approveCharacterDossierResponseImageGenerationOneProgressStepMin = 0;
+
+export const approveCharacterDossierResponseImageGenerationOneProgressTotalStepsMin = 0;
+
+
+
+export const ApproveCharacterDossierResponse = zod.object({
+  "role": zod.string(),
+  "performanceNotes": zod.string(),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "description": zod.string(),
+  "referenceAssetId": zod.string().nullish()
+})),
+  "status": zod.enum(['DRAFT', 'APPROVED']),
+  "revision": zod.number().min(approveCharacterDossierResponseRevisionMin).multipleOf(approveCharacterDossierResponseRevisionMultipleOf),
+  "approvedAt": zod.coerce.date().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']),
+  "description": zod.string(),
+  "isPrimary": zod.boolean().optional()
+})),
+  "imageGeneration": zod.union([zod.object({
+  "id": zod.string(),
+  "modelId": zod.enum(['local-flux2-klein-4b', 'cloud-nano-banana-pro']),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "prompt": zod.string(),
+  "referenceLabel": zod.union([zod.literal('headshot'),zod.literal('profile'),zod.literal('three-quarter'),zod.literal('full-body'),zod.literal('expression'),zod.literal('wardrobe'),zod.literal('other'),zod.literal(null)]).nullable(),
+  "referenceAssetId": zod.string().nullable(),
+  "referenceUsed": zod.boolean(),
+  "sourceReference": zod.union([zod.object({
+  "assetId": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other'])
+}),zod.null()]),
+  "seed": zod.number().nullable(),
+  "serverName": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "assetId": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "progress": zod.number().min(approveCharacterDossierResponseImageGenerationOneProgressMin).max(approveCharacterDossierResponseImageGenerationOneProgressMax).nullable(),
+  "progressStage": zod.enum(['preparing', 'rendering', 'saving']),
+  "progressStep": zod.number().min(approveCharacterDossierResponseImageGenerationOneProgressStepMin).nullable(),
+  "progressTotalSteps": zod.number().min(approveCharacterDossierResponseImageGenerationOneProgressTotalStepsMin).nullable(),
+  "progressUpdatedAt": zod.coerce.date().nullable(),
+  "startedAt": zod.coerce.date().nullable()
+}),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Update character reference metadata
+ */
+export const UpdateCharacterAssetParams = zod.object({
+  "id": zod.coerce.string(),
+  "assetId": zod.coerce.string()
+})
+
+export const updateCharacterAssetBodyDescriptionMax = 500;
+
+
+
+export const UpdateCharacterAssetBody = zod.object({
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']).optional(),
+  "description": zod.string().max(updateCharacterAssetBodyDescriptionMax).optional(),
+  "makePrimary": zod.boolean().optional()
+})
+
+
+export const updateCharacterAssetResponseOneRevisionMin = 0;
+export const updateCharacterAssetResponseOneRevisionMultipleOf = 1;
+
+export const updateCharacterAssetResponseOneImageGenerationOneProgressMin = 0;
+export const updateCharacterAssetResponseOneImageGenerationOneProgressMax = 1;
+
+export const updateCharacterAssetResponseOneImageGenerationOneProgressStepMin = 0;
+
+export const updateCharacterAssetResponseOneImageGenerationOneProgressTotalStepsMin = 0;
+
+
+
+export const UpdateCharacterAssetResponse = zod.object({
+  "role": zod.string(),
+  "performanceNotes": zod.string(),
+  "wardrobes": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "description": zod.string(),
+  "referenceAssetId": zod.string().nullish()
+})),
+  "status": zod.enum(['DRAFT', 'APPROVED']),
+  "revision": zod.number().min(updateCharacterAssetResponseOneRevisionMin).multipleOf(updateCharacterAssetResponseOneRevisionMultipleOf),
+  "approvedAt": zod.coerce.date().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']),
+  "description": zod.string(),
+  "isPrimary": zod.boolean().optional()
+})),
+  "imageGeneration": zod.union([zod.object({
+  "id": zod.string(),
+  "modelId": zod.enum(['local-flux2-klein-4b', 'cloud-nano-banana-pro']),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "prompt": zod.string(),
+  "referenceLabel": zod.union([zod.literal('headshot'),zod.literal('profile'),zod.literal('three-quarter'),zod.literal('full-body'),zod.literal('expression'),zod.literal('wardrobe'),zod.literal('other'),zod.literal(null)]).nullable(),
+  "referenceAssetId": zod.string().nullable(),
+  "referenceUsed": zod.boolean(),
+  "sourceReference": zod.union([zod.object({
+  "assetId": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other'])
+}),zod.null()]),
+  "seed": zod.number().nullable(),
+  "serverName": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "assetId": zod.string().nullable(),
+  "errorMessage": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "progress": zod.number().min(updateCharacterAssetResponseOneImageGenerationOneProgressMin).max(updateCharacterAssetResponseOneImageGenerationOneProgressMax).nullable(),
+  "progressStage": zod.enum(['preparing', 'rendering', 'saving']),
+  "progressStep": zod.number().min(updateCharacterAssetResponseOneImageGenerationOneProgressStepMin).nullable(),
+  "progressTotalSteps": zod.number().min(updateCharacterAssetResponseOneImageGenerationOneProgressTotalStepsMin).nullable(),
+  "progressUpdatedAt": zod.coerce.date().nullable(),
+  "startedAt": zod.coerce.date().nullable()
+}),zod.null()]).optional()
+}).and(zod.object({
+  "id": zod.string(),
+  "mediaUrl": zod.string(),
+  "label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']),
+  "description": zod.string(),
+  "isPrimary": zod.boolean().optional()
+}))
+
+
+/**
+ * @summary Remove a character reference
+ */
+export const DeleteCharacterAssetParams = zod.object({
+  "id": zod.coerce.string(),
+  "assetId": zod.coerce.string()
+})
+
+export const DeleteCharacterAssetResponse = zod.void()
+
+
+/**
+ * Send image bytes directly. Optional x-asset-label and x-asset-description headers annotate the reference.
+ * @summary Upload a character reference image
+ */
+export const UploadCharacterAssetParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const uploadCharacterAssetHeaderXAssetDescriptionMax = 500;
+
+
+
+export const UploadCharacterAssetHeader = zod.object({
+  "x-file-name": zod.string().optional(),
+  "x-asset-label": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']).optional(),
+  "x-asset-description": zod.string().max(uploadCharacterAssetHeaderXAssetDescriptionMax).optional()
+})
+
+export const UploadCharacterAssetResponse = zod.object({
+  "ok": zod.boolean(),
+  "assetId": zod.string(),
+  "mediaUrl": zod.string()
 })
 
 
@@ -670,11 +1099,14 @@ export const generateSettingImageBodyPromptMax = 4000;
 export const generateSettingImageBodySeedMin = 0;
 export const generateSettingImageBodySeedMax = 2147483647;
 
+export const generateSettingImageBodyRequestKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
 
 
 export const GenerateSettingImageBody = zod.object({
   "prompt": zod.string().min(1).max(generateSettingImageBodyPromptMax).optional(),
-  "seed": zod.number().min(generateSettingImageBodySeedMin).max(generateSettingImageBodySeedMax).optional()
+  "seed": zod.number().min(generateSettingImageBodySeedMin).max(generateSettingImageBodySeedMax).optional(),
+  "referenceLabel": zod.enum(['headshot', 'profile', 'three-quarter', 'full-body', 'expression', 'wardrobe', 'other']).optional(),
+  "requestKey": zod.string().regex(generateSettingImageBodyRequestKeyRegExp).optional()
 })
 
 export const GenerateSettingImageResponse = zod.object({

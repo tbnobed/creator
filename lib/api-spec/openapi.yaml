@@ -372,7 +372,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CharacterInput"
+              $ref: "#/components/schemas/CharacterUpdateInput"
       responses:
         "200":
           description: Updated character
@@ -380,6 +380,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Character"
+        "404":
+          description: Character not found
+        "409":
+          description: Dossier revision changed before the identity update
     delete:
       operationId: deleteCharacter
       tags: [characters]
@@ -389,6 +393,10 @@ paths:
       responses:
         "204":
           description: Deleted
+        "404":
+          description: Character not found
+        "409":
+          description: Character has an active background image generation
   /characters/{id}/generate-image:
     post:
       operationId: generateCharacterImage
@@ -401,14 +409,170 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/StudioImageGenerationInput"
+              $ref: "#/components/schemas/CharacterImageGenerationInput"
       responses:
-        "201":
-          description: Generated character reference image
+        "202":
+          description: Character reference image task accepted for background generation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StudioImageGenerationResult"
+                $ref: "#/components/schemas/CharacterImageGeneration"
+        "409":
+          description: Another character image task is already active
+  /characters/{id}/dossier:
+    get:
+      operationId: getCharacterDossier
+      tags: [characters]
+      summary: Read the persisted character dossier and references
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Character dossier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterDossier"
+        "404":
+          description: Character not found
+    put:
+      operationId: updateCharacterDossier
+      tags: [characters]
+      summary: Replace the character dossier
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterDossierInput"
+      responses:
+        "200":
+          description: Updated character dossier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterDossier"
+        "400":
+          description: Invalid dossier or wardrobe reference
+        "409":
+          description: Stale dossier revision
+        "404":
+          description: Character not found
+  /characters/{id}/dossier/approve:
+    post:
+      operationId: approveCharacterDossier
+      tags: [characters]
+      summary: Approve a character dossier revision
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterDossierApprovalInput"
+      responses:
+        "200":
+          description: Approved character dossier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterDossier"
+        "400":
+          description: Missing required appearance or headshot reference
+        "404":
+          description: Character not found
+        "409":
+          description: Dossier revision is stale
+  /characters/{id}/assets/{assetId}:
+    patch:
+      operationId: updateCharacterAsset
+      tags: [characters]
+      summary: Update character reference metadata
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - in: path
+          name: assetId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterAssetUpdate"
+      responses:
+        "200":
+          description: Updated character reference and refreshed dossier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterAssetMutationResponse"
+        "400":
+          description: Invalid metadata
+        "404":
+          description: Character or asset not found
+    delete:
+      operationId: deleteCharacterAsset
+      tags: [characters]
+      summary: Remove a character reference
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - in: path
+          name: assetId
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Character reference removed
+        "404":
+          description: Character or asset not found
+        "409":
+          description: Character reference is still needed by a queued or running image job
+  /characters/{id}/assets:
+    post:
+      operationId: uploadCharacterAsset
+      tags: [characters]
+      summary: Upload a character reference image
+      description: Send image bytes directly. Optional x-asset-label and x-asset-description headers annotate the reference.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - in: header
+          name: x-file-name
+          required: false
+          schema: { type: string }
+        - in: header
+          name: x-asset-label
+          required: false
+          schema:
+            type: string
+            enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+        - in: header
+          name: x-asset-description
+          required: false
+          schema: { type: string, maxLength: 500 }
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+          image/webp:
+            schema: { type: string, format: binary }
+      responses:
+        "201":
+          description: Uploaded character reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterAssetUploadResult"
+        "400":
+          description: Invalid upload
+        "404":
+          description: Character not found
   /characters/{id}/voice-sample:
     post:
       operationId: uploadCharacterVoiceSample
@@ -1317,7 +1481,7 @@ paths:
         "404":
           description: Image asset not found
         "409":
-          description: Image asset is still referenced by a job
+          description: Image asset is still referenced by a job, continuity record, or character wardrobe
 components:
   parameters:
     Id:
@@ -1678,7 +1842,7 @@ components:
         - status
     Character:
       type: object
-      required: [id, name, description, promptDescription, thumbnail, tags, assetCount, voiceProfile, hasVoiceSample, voiceSampleUrl, voiceConsentAt, createdAt, updatedAt]
+      required: [id, name, description, promptDescription, thumbnail, tags, assetCount, voiceProfile, hasVoiceSample, voiceSampleUrl, voiceConsentAt, dossierRevision, createdAt, updatedAt]
       properties:
         id: { type: string }
         name: { type: string }
@@ -1691,6 +1855,7 @@ components:
         hasVoiceSample: { type: boolean }
         voiceSampleUrl: { type: ["string", "null"] }
         voiceConsentAt: { type: ["string", "null"] }
+        dossierRevision: { type: number, minimum: 0, multipleOf: 1 }
         createdAt: { type: string }
         updatedAt: { type: string }
     CharacterInput:
@@ -1703,6 +1868,17 @@ components:
         thumbnail: { type: ["string", "null"] }
         tags: { type: array, items: { type: string } }
         voiceProfile: { type: ["string", "null"] }
+    CharacterUpdateInput:
+      type: object
+      required: [name, description, promptDescription]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        promptDescription: { type: string }
+        thumbnail: { type: ["string", "null"] }
+        tags: { type: array, items: { type: string } }
+        voiceProfile: { type: ["string", "null"] }
+        expectedDossierRevision: { type: number, minimum: 0, multipleOf: 1 }
     CharacterVoiceSampleResult:
       type: object
       required: [ok, voiceSampleUrl, voiceConsentAt]
@@ -1710,6 +1886,89 @@ components:
         ok: { type: boolean }
         voiceSampleUrl: { type: string }
         voiceConsentAt: { type: string }
+    CharacterDossierAsset:
+      type: object
+      required: [id, mediaUrl, label, description]
+      properties:
+        id: { type: string }
+        mediaUrl: { type: string }
+        label:
+          type: string
+          enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+        description: { type: string }
+        isPrimary: { type: boolean }
+    CharacterWardrobe:
+      type: object
+      required: [id, name, description]
+      properties:
+        id: { type: string, minLength: 1 }
+        name: { type: string }
+        description: { type: string }
+        referenceAssetId: { type: ["string", "null"] }
+    CharacterDossier:
+      type: object
+      required: [role, performanceNotes, wardrobes, status, revision, approvedAt, assets]
+      properties:
+        role: { type: string }
+        performanceNotes: { type: string }
+        wardrobes:
+          type: array
+          items: { $ref: "#/components/schemas/CharacterWardrobe" }
+        status: { type: string, enum: [DRAFT, APPROVED] }
+        revision: { type: number, minimum: 0, multipleOf: 1 }
+        approvedAt: { type: ["string", "null"], format: date-time }
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/CharacterDossierAsset" }
+        imageGeneration:
+          oneOf:
+            - $ref: "#/components/schemas/CharacterImageGeneration"
+            - type: "null"
+    CharacterDossierInput:
+      type: object
+      required: [revision]
+      properties:
+        role: { type: string }
+        performanceNotes: { type: string }
+        revision: { type: number, minimum: 0, multipleOf: 1 }
+        wardrobes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CharacterWardrobe"
+    CharacterDossierApprovalInput:
+      type: object
+      required: [revision]
+      properties:
+        revision: { type: number, minimum: 0, multipleOf: 1 }
+    CharacterAssetUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        label:
+          type: string
+          enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+        description: { type: string, maxLength: 500 }
+        makePrimary: { type: boolean }
+    CharacterAssetMutationResponse:
+      allOf:
+        - $ref: "#/components/schemas/CharacterDossier"
+        - type: object
+          required: [id, mediaUrl, label, description]
+          properties:
+            id: { type: string }
+            mediaUrl: { type: string }
+            label:
+              type: string
+              enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+            description: { type: string }
+            isPrimary: { type: boolean }
+    CharacterAssetUploadResult:
+      type: object
+      required: [ok, assetId, mediaUrl]
+      properties:
+        ok: { type: boolean }
+        assetId: { type: string }
+        mediaUrl: { type: string }
     Setting:
       type: object
       required: [id, name, description, promptDescription, thumbnail, tags, assetCount, createdAt, updatedAt]
@@ -1737,6 +1996,79 @@ components:
       properties:
         prompt: { type: string, minLength: 1, maxLength: 4000 }
         seed: { type: number, minimum: 0, maximum: 2147483647 }
+        referenceLabel:
+          type: string
+          enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+        requestKey:
+          type: string
+          pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    CharacterImageGenerationInput:
+      type: object
+      properties:
+        modelId:
+          type: string
+          enum: [local-flux2-klein-4b, cloud-nano-banana-pro]
+          default: local-flux2-klein-4b
+          description: Selects the local FLUX.2 klein default or explicitly paid Cloud Nano Banana Pro path.
+        cloudConfirmed:
+          type: boolean
+          description: Required when modelId is cloud-nano-banana-pro.
+        prompt: { type: string, minLength: 1, maxLength: 4000 }
+        seed: { type: number, minimum: 0, maximum: 2147483647 }
+        referenceLabel:
+          type: string
+          enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+        referenceAssetId: { type: string }
+        denoiseStrength:
+          type: number
+          minimum: 0.05
+          maximum: 1
+          description: Defaults to 0.65 when a reference is used.
+        allowNewIdentity:
+          type: boolean
+          description: Enables text-only identity generation when no reference exists.
+        requestKey:
+          type: string
+          pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    CharacterImageGeneration:
+      type: object
+      required: [id, modelId, modelName, provider, status, prompt, referenceLabel, referenceAssetId, referenceUsed, sourceReference, seed, serverName, mediaUrl, assetId, errorMessage, createdAt, completedAt, progress, progressStage, progressStep, progressTotalSteps, progressUpdatedAt, startedAt]
+      properties:
+        id: { type: string }
+        modelId: { type: string, enum: [local-flux2-klein-4b, cloud-nano-banana-pro] }
+        modelName: { type: string }
+        provider: { type: string, enum: [LOCAL, CLOUD] }
+        status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED] }
+        prompt: { type: string }
+        referenceLabel:
+          type: ["string", "null"]
+          enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other, null]
+        referenceAssetId: { type: ["string", "null"] }
+        referenceUsed: { type: boolean }
+        sourceReference:
+          oneOf:
+            - type: object
+              required: [assetId, mediaUrl, label]
+              properties:
+                assetId: { type: string }
+                mediaUrl: { type: string }
+                label:
+                  type: string
+                  enum: [headshot, profile, three-quarter, full-body, expression, wardrobe, other]
+            - type: "null"
+        seed: { type: ["number", "null"] }
+        serverName: { type: ["string", "null"] }
+        mediaUrl: { type: ["string", "null"] }
+        assetId: { type: ["string", "null"] }
+        errorMessage: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        progress: { type: ["number", "null"], minimum: 0, maximum: 1 }
+        progressStage: { type: string, enum: [preparing, rendering, saving] }
+        progressStep: { type: ["number", "null"], minimum: 0 }
+        progressTotalSteps: { type: ["number", "null"], minimum: 0 }
+        progressUpdatedAt: { type: ["string", "null"], format: date-time }
+        startedAt: { type: ["string", "null"], format: date-time }
     StudioImageGenerationResult:
       type: object
       required: [ok, assetId, mediaUrl, serverName, seed]

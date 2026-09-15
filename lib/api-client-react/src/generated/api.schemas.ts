@@ -513,6 +513,8 @@ export interface Character {
   voiceSampleUrl: string | null;
   /** @nullable */
   voiceConsentAt: string | null;
+  /** @minimum 0 */
+  dossierRevision: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -529,10 +531,255 @@ export interface CharacterInput {
   voiceProfile?: string | null;
 }
 
+export interface CharacterUpdateInput {
+  /** @minLength 1 */
+  name: string;
+  description: string;
+  promptDescription: string;
+  /** @nullable */
+  thumbnail?: string | null;
+  tags?: string[];
+  /** @nullable */
+  voiceProfile?: string | null;
+  /** @minimum 0 */
+  expectedDossierRevision?: number;
+}
+
 export interface CharacterVoiceSampleResult {
   ok: boolean;
   voiceSampleUrl: string;
   voiceConsentAt: string;
+}
+
+export type CharacterDossierAssetLabel = typeof CharacterDossierAssetLabel[keyof typeof CharacterDossierAssetLabel];
+
+
+export const CharacterDossierAssetLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
+export interface CharacterDossierAsset {
+  id: string;
+  mediaUrl: string;
+  label: CharacterDossierAssetLabel;
+  description: string;
+  isPrimary?: boolean;
+}
+
+export interface CharacterWardrobe {
+  /** @minLength 1 */
+  id: string;
+  name: string;
+  description: string;
+  /** @nullable */
+  referenceAssetId?: string | null;
+}
+
+export type CharacterDossierStatus = typeof CharacterDossierStatus[keyof typeof CharacterDossierStatus];
+
+
+export const CharacterDossierStatus = {
+  DRAFT: 'DRAFT',
+  APPROVED: 'APPROVED',
+} as const;
+
+export type CharacterImageGenerationModelId = typeof CharacterImageGenerationModelId[keyof typeof CharacterImageGenerationModelId];
+
+
+export const CharacterImageGenerationModelId = {
+  'local-flux2-klein-4b': 'local-flux2-klein-4b',
+  'cloud-nano-banana-pro': 'cloud-nano-banana-pro',
+} as const;
+
+export type CharacterImageGenerationProvider = typeof CharacterImageGenerationProvider[keyof typeof CharacterImageGenerationProvider];
+
+
+export const CharacterImageGenerationProvider = {
+  LOCAL: 'LOCAL',
+  CLOUD: 'CLOUD',
+} as const;
+
+export type CharacterImageGenerationStatus = typeof CharacterImageGenerationStatus[keyof typeof CharacterImageGenerationStatus];
+
+
+export const CharacterImageGenerationStatus = {
+  QUEUED: 'QUEUED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type CharacterImageGenerationReferenceLabel = typeof CharacterImageGenerationReferenceLabel[keyof typeof CharacterImageGenerationReferenceLabel] | null;
+
+
+export const CharacterImageGenerationReferenceLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
+export type CharacterImageGenerationSourceReferenceLabel = typeof CharacterImageGenerationSourceReferenceLabel[keyof typeof CharacterImageGenerationSourceReferenceLabel];
+
+
+export const CharacterImageGenerationSourceReferenceLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
+export type CharacterImageGenerationProgressStage = typeof CharacterImageGenerationProgressStage[keyof typeof CharacterImageGenerationProgressStage];
+
+
+export const CharacterImageGenerationProgressStage = {
+  preparing: 'preparing',
+  rendering: 'rendering',
+  saving: 'saving',
+} as const;
+
+export type CharacterImageGenerationSourceReference = {
+  assetId: string;
+  mediaUrl: string;
+  label: CharacterImageGenerationSourceReferenceLabel;
+} | null;
+
+export interface CharacterImageGeneration {
+  id: string;
+  modelId: CharacterImageGenerationModelId;
+  modelName: string;
+  provider: CharacterImageGenerationProvider;
+  status: CharacterImageGenerationStatus;
+  prompt: string;
+  /** @nullable */
+  referenceLabel: CharacterImageGenerationReferenceLabel;
+  /** @nullable */
+  referenceAssetId: string | null;
+  referenceUsed: boolean;
+  sourceReference: CharacterImageGenerationSourceReference;
+  /** @nullable */
+  seed: number | null;
+  /** @nullable */
+  serverName: string | null;
+  /** @nullable */
+  mediaUrl: string | null;
+  /** @nullable */
+  assetId: string | null;
+  /** @nullable */
+  errorMessage: string | null;
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  progress: number | null;
+  progressStage: CharacterImageGenerationProgressStage;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  progressStep: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  progressTotalSteps: number | null;
+  /** @nullable */
+  progressUpdatedAt: string | null;
+  /** @nullable */
+  startedAt: string | null;
+}
+
+export interface CharacterDossier {
+  role: string;
+  performanceNotes: string;
+  wardrobes: CharacterWardrobe[];
+  status: CharacterDossierStatus;
+  /** @minimum 0 */
+  revision: number;
+  /** @nullable */
+  approvedAt: string | null;
+  assets: CharacterDossierAsset[];
+  imageGeneration?: CharacterImageGeneration | null;
+}
+
+export interface CharacterDossierInput {
+  role?: string;
+  performanceNotes?: string;
+  /** @minimum 0 */
+  revision: number;
+  wardrobes?: CharacterWardrobe[];
+}
+
+export interface CharacterDossierApprovalInput {
+  /** @minimum 0 */
+  revision: number;
+}
+
+export type CharacterAssetUpdateLabel = typeof CharacterAssetUpdateLabel[keyof typeof CharacterAssetUpdateLabel];
+
+
+export const CharacterAssetUpdateLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
+export interface CharacterAssetUpdate {
+  label?: CharacterAssetUpdateLabel;
+  /** @maxLength 500 */
+  description?: string;
+  makePrimary?: boolean;
+}
+
+export type CharacterAssetMutationResponseLabel = typeof CharacterAssetMutationResponseLabel[keyof typeof CharacterAssetMutationResponseLabel];
+
+
+export const CharacterAssetMutationResponseLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
+export type CharacterAssetMutationResponse = CharacterDossier & {
+  id: string;
+  mediaUrl: string;
+  label: CharacterAssetMutationResponseLabel;
+  description: string;
+  isPrimary?: boolean;
+};
+
+export interface CharacterAssetUploadResult {
+  ok: boolean;
+  assetId: string;
+  mediaUrl: string;
 }
 
 export interface Setting {
@@ -558,6 +805,19 @@ export interface SettingInput {
   tags?: string[];
 }
 
+export type StudioImageGenerationInputReferenceLabel = typeof StudioImageGenerationInputReferenceLabel[keyof typeof StudioImageGenerationInputReferenceLabel];
+
+
+export const StudioImageGenerationInputReferenceLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
 export interface StudioImageGenerationInput {
   /**
      * @minLength 1
@@ -569,6 +829,62 @@ export interface StudioImageGenerationInput {
      * @maximum 2147483647
      */
   seed?: number;
+  referenceLabel?: StudioImageGenerationInputReferenceLabel;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
+  requestKey?: string;
+}
+
+/**
+ * Selects the local FLUX.2 klein default or explicitly paid Cloud Nano Banana Pro path.
+ */
+export type CharacterImageGenerationInputModelId = typeof CharacterImageGenerationInputModelId[keyof typeof CharacterImageGenerationInputModelId];
+
+
+export const CharacterImageGenerationInputModelId = {
+  'local-flux2-klein-4b': 'local-flux2-klein-4b',
+  'cloud-nano-banana-pro': 'cloud-nano-banana-pro',
+} as const;
+
+export type CharacterImageGenerationInputReferenceLabel = typeof CharacterImageGenerationInputReferenceLabel[keyof typeof CharacterImageGenerationInputReferenceLabel];
+
+
+export const CharacterImageGenerationInputReferenceLabel = {
+  headshot: 'headshot',
+  profile: 'profile',
+  'three-quarter': 'three-quarter',
+  'full-body': 'full-body',
+  expression: 'expression',
+  wardrobe: 'wardrobe',
+  other: 'other',
+} as const;
+
+export interface CharacterImageGenerationInput {
+  /** Selects the local FLUX.2 klein default or explicitly paid Cloud Nano Banana Pro path. */
+  modelId?: CharacterImageGenerationInputModelId;
+  /** Required when modelId is cloud-nano-banana-pro. */
+  cloudConfirmed?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  prompt?: string;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  seed?: number;
+  referenceLabel?: CharacterImageGenerationInputReferenceLabel;
+  referenceAssetId?: string;
+  /**
+     * Defaults to 0.65 when a reference is used.
+     * @minimum 0.05
+     * @maximum 1
+     */
+  denoiseStrength?: number;
+  /** Enables text-only identity generation when no reference exists. */
+  allowNewIdentity?: boolean;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
+  requestKey?: string;
 }
 
 export interface StudioImageGenerationResult {

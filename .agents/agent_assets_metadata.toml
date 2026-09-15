@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "zVbIGBa5f6JKNF9JVRKKa"
+uri = "file://artifacts/api-server/data/obtv-media/tenants/90b26d9c-35a6-44b9-b19d-a210890f8273/characters/80d74690-b874-4392-99a0-ce71c4bcb76d.png"
+type = "image"
+title = "Maya — profile verification result"
+description = "Single native-reference test render. Not approved for continuity: requested strict profile was not achieved, and hair, clothing, and scene details changed."
+logical_id = "9efeb5fe-8d0f-4acd-8405-49a7934f76e6"
+content_hash = "sha256:191dbd195bcbc70b08b24d5b0fa71bb7a1bb640ba0194baa48c0704cff80237d"
+size = 1107674
+mtime_ms = 1789415157698
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/9efeb5fe-8d0f-4acd-8405-49a7934f76e6/e1957be4-150e-4f8b-92e3-6f3cb43773d4"
+storage_version_token = "1789415193508430"
+content_type = "image/png"
