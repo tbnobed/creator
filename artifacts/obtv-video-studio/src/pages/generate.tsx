@@ -190,6 +190,11 @@ export default function GeneratePage() {
   const workflowRequiresStudioSetting = eligibleCapabilities.length > 0 && eligibleCapabilities.every(
     (cap) => cap.requiresSettingReference
   );
+  const promptOnlyH3AssetsOptional = eligibleCapabilities.some(
+    (cap) => cap.modelFamily.toLowerCase().includes("h3")
+      && !cap.requiresCharacterReferences
+      && !cap.requiresSettingReference,
+  );
   const isLtx25Mode = capabilitiesForMode.some((cap) => cap.modelFamily === "LTX 2.5");
   const resolutionOptions = isLtx25Mode ? LTX25_RESOLUTION_OPTIONS : DEFAULT_RESOLUTION_OPTIONS;
   const isCloudProvider = provider === "FAL";
@@ -437,9 +442,15 @@ export default function GeneratePage() {
                 <div className="flex justify-between items-center">
                   <Label className="text-base font-semibold flex items-center gap-2">
                     <Users className="size-4 text-primary" /> Cast
-                    {hasReferenceVideo && <span className="text-xs font-normal text-muted-foreground">(optional with video reference)</span>}
+                    {(hasReferenceVideo || isCloudProvider || promptOnlyH3AssetsOptional) && (
+                      <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                    )}
                   </Label>
-                  <span className="text-xs text-muted-foreground">{hasReferenceVideo && selectedChars.length === 0 ? "Not needed" : `${selectedChars.length}/9 selected`}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {(hasReferenceVideo || isCloudProvider || promptOnlyH3AssetsOptional) && selectedChars.length === 0
+                      ? "Not needed"
+                      : `${selectedChars.length}/9 selected`}
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {characters?.map(char => {
@@ -481,9 +492,15 @@ export default function GeneratePage() {
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2 text-base font-semibold">
                     <Map className="size-4 text-primary" /> Environment
-                    {hasReferenceVideo && <span className="text-xs font-normal text-muted-foreground">(optional with video reference)</span>}
+                    {(hasReferenceVideo || isCloudProvider || promptOnlyH3AssetsOptional) && (
+                      <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                    )}
                   </Label>
-                  <span className="text-xs text-muted-foreground">{hasReferenceVideo && !selectedSetting ? "Not needed" : selectedSetting ? "1/1 selected" : "0/1 selected"}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {(hasReferenceVideo || isCloudProvider || promptOnlyH3AssetsOptional) && !selectedSetting
+                      ? "Not needed"
+                      : selectedSetting ? "1/1 selected" : "0/1 selected"}
+                  </span>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {settings?.map(setting => {

@@ -2236,7 +2236,7 @@ components:
           enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0]
         voiceCloningEnabled: { type: boolean, default: false }
         characterIds: { type: array, items: { type: string }, minItems: 0, maxItems: 9 }
-        settingId: { type: string }
+        settingId: { type: ["string", "null"] }
         prompt: { type: string, minLength: 1, maxLength: 10000 }
         negativePrompt: { type: string, maxLength: 5000 }
         cameraInstructions: { type: string, maxLength: 5000 }
@@ -2384,7 +2384,7 @@ components:
             $ref: "#/components/schemas/GenerationJob"
     LongFormProjectInput:
       type: object
-      required: [title, script, targetDurationSeconds, characterIds, settingId, generationMode, width, height, fps, qualityPreset]
+      required: [title, script, targetDurationSeconds, generationMode, width, height, fps, qualityPreset]
       properties:
         title: { type: string, minLength: 1, maxLength: 180 }
         script: { type: string, minLength: 1, maxLength: 100000 }
@@ -2392,7 +2392,7 @@ components:
         targetDurationSeconds: { type: number, minimum: 1, maximum: 600 }
         shotDurationSeconds: { type: number, minimum: 2, maximum: 30, default: 8 }
         characterIds: { type: array, items: { type: string }, minItems: 0, maxItems: 9 }
-        settingId: { type: string }
+        settingId: { type: ["string", "null"] }
         generationMode: { type: string }
         negativePrompt: { type: string, maxLength: 5000 }
         width: { type: number, minimum: 64, maximum: 4096 }

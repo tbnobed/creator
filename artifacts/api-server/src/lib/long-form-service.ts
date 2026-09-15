@@ -27,7 +27,7 @@ import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { mediaStorage } from "./storage-service";
-import { ResourceNotFoundError } from "./resource-errors";
+import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
 import {
   activeShotsForProject,
   defaultContinuity,
@@ -53,8 +53,8 @@ export type LongFormProjectInput = {
   storyline?: string;
   targetDurationSeconds: number;
   shotDurationSeconds: number;
-  characterIds: string[];
-  settingId: string;
+  characterIds?: string[];
+  settingId?: string | null;
   generationMode: string;
   negativePrompt?: string;
   width: number;
@@ -458,25 +458,34 @@ export async function presentLongFormProject(project: LongFormProject, includeSh
 }
 
 export async function createLongFormProject(input: OwnedLongFormProjectInput) {
+  const characterIds = input.characterIds ?? [];
+  const settingId = input.settingId ?? undefined;
   const [characters, setting] = await Promise.all([
-    db.select({ id: charactersTable.id }).from(charactersTable).where(and(
-      inArray(charactersTable.id, input.characterIds),
-      eq(charactersTable.tenantId, input.tenantId),
-    )),
-    db.select({ id: settingsTable.id }).from(settingsTable).where(and(
-      eq(settingsTable.id, input.settingId),
-      eq(settingsTable.tenantId, input.tenantId),
-    )),
+    characterIds.length
+      ? db.select({ id: charactersTable.id }).from(charactersTable).where(and(
+        inArray(charactersTable.id, characterIds),
+        eq(charactersTable.tenantId, input.tenantId),
+      ))
+      : Promise.resolve([]),
+    settingId
+      ? db.select({ id: settingsTable.id }).from(settingsTable).where(and(
+        eq(settingsTable.id, settingId),
+        eq(settingsTable.tenantId, input.tenantId),
+      ))
+      : Promise.resolve([]),
   ]);
-  if (characters.length !== input.characterIds.length || !setting[0]) {
-    throw new ResourceNotFoundError("One or more selected studio assets were not found");
-  }
+  assertOwnedAssetSelections({
+    characterIds,
+    foundCharacterIds: characters.map((character) => character.id),
+    settingId,
+    settingFound: Boolean(setting[0]),
+  });
   if (input.targetDurationSeconds > 600) throw new Error("Long-form projects are limited to 10 minutes.");
   const shots = planShots(input);
   const continuity = await validateContinuitySettings(
     input.tenantId,
     input.continuity ?? defaultContinuity(),
-    input.characterIds,
+    characterIds,
   );
   const authoredSceneNumbers = new Set(shots.map((shot) => shot.sceneNumber));
   if (continuity.scenes.some((scene) => !authoredSceneNumbers.has(scene.sceneNumber))) {
@@ -502,8 +511,8 @@ export async function createLongFormProject(input: OwnedLongFormProjectInput) {
       height: input.height,
       fps: input.fps,
       qualityPreset: input.qualityPreset,
-      characterIds: input.characterIds,
-      settingId: input.settingId,
+      characterIds,
+      settingId: settingId ?? null,
       timelineClips: [],
        continuity,
       totalShots: shots.length,
@@ -513,8 +522,8 @@ export async function createLongFormProject(input: OwnedLongFormProjectInput) {
       shots.map((shot) => ({
         ...shot,
         projectId: created.id,
-        characterIds: input.characterIds,
-        settingId: input.settingId,
+        characterIds,
+        settingId: settingId ?? null,
         status: "PLANNED",
         continuity: defaultShotContinuity(),
       })),

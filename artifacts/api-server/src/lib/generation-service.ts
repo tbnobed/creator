@@ -23,7 +23,7 @@ import { getWorkflowReferenceRequirements } from "./comfy/workflow-references";
 import { mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
 import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
-import { ResourceNotFoundError } from "./resource-errors";
+import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
 import {
   falModels,
   FalHttpError,
@@ -234,7 +234,7 @@ export type GenerationRequest = {
   /** Required continuity references (still plus assigned wardrobes); cast refs may be capped. */
   mandatoryReferenceImageCount?: number;
   continuityContext?: string;
-  settingId?: string;
+  settingId?: string | null;
   prompt: string;
   negativePrompt?: string;
   cameraInstructions?: string;
@@ -731,7 +731,7 @@ async function uploadMappedReferences(
   client: ComfyUIClient,
   mappings: ParameterMappings,
   characterIds: string[] = [],
-  settingId?: string,
+  settingId?: string | null,
   referenceImageKeys: string[] = [],
   mandatoryReferenceImageCount?: number,
 ): Promise<Record<string, string>> {
@@ -1002,12 +1002,13 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     .map((id) => charactersById.get(id))
     .filter((character): character is typeof foundCharacters[number] => Boolean(character));
   const wantsReferenceVideo = Boolean(input.referenceVideoKey);
-  if (
-    characters.length !== (input.characterIds?.length ?? 0) ||
-    (input.settingId !== undefined && !setting[0])
-  ) {
-    throw new ResourceNotFoundError("One or more selected studio assets no longer exist");
-  }
+  assertOwnedAssetSelections({
+    characterIds: input.characterIds ?? [],
+    foundCharacterIds: foundCharacters.map((character) => character.id),
+    settingId: input.settingId,
+    settingFound: Boolean(setting[0]),
+    message: "One or more selected studio assets no longer exist",
+  });
   if (input.voiceCloningEnabled) {
     if (!input.dialogue?.trim()) {
       throw new Error("Voice cloning requires dialogue");

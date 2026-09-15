@@ -36,8 +36,9 @@ export interface LongFormProjectInput {
      * @minItems 0
      * @maxItems 9
      */
-  characterIds: string[];
-  settingId: string;
+  characterIds?: string[];
+  /** @nullable */
+  settingId?: string | null;
   generationMode: string;
   /** @maxLength 5000 */
   negativePrompt?: string;

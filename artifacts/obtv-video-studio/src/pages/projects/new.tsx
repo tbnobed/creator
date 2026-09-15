@@ -40,7 +40,7 @@ const formSchema = z.object({
   targetDurationSeconds: z.coerce.number().min(1).max(600),
   shotDurationSeconds: z.coerce.number().min(2).max(30).optional(),
   characterIds: z.array(z.string()).max(9),
-  settingId: z.string().min(1, "Setting is required"),
+  settingId: z.string().optional(),
   generationMode: z.string().min(1, "Workflow/generation mode is required"),
   negativePrompt: z.string().max(5000).optional(),
   width: z.coerce.number().min(64).max(4096),
@@ -109,8 +109,9 @@ export default function NewProjectPage() {
   }, [form, selectedCharacterIds.length]);
 
   const onSubmit = (values: FormValues) => {
+    const { settingId, ...projectValues } = values;
     createProject.mutate(
-      { data: values },
+      { data: { ...projectValues, settingId: settingId || undefined } },
       {
         onSuccess: (project) => {
           toast({
@@ -223,14 +224,21 @@ export default function NewProjectPage() {
                     name="settingId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Primary Setting</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormLabel>Primary Setting (Optional)</FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Leave empty for prompt-only H3 environment shots.
+                        </p>
+                        <Select
+                          onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}
+                          value={field.value || "__none__"}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a setting" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="__none__">No setting — use prompt only</SelectItem>
                             {settings.map(s => (
                               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                             ))}

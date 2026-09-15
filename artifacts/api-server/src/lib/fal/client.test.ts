@@ -73,6 +73,10 @@ test("CreateGenerationBody accepts an explicit empty characterIds array", () => 
   assert.equal(CreateGenerationBody.safeParse({ ...generationInput, characterIds: [] }).success, true);
 });
 
+test("CreateGenerationBody accepts an explicit null settingId", () => {
+  assert.equal(CreateGenerationBody.safeParse({ ...generationInput, settingId: null }).success, true);
+});
+
 test("CreateGenerationBody rejects more than nine characterIds", () => {
   const characterIds = Array.from({ length: 10 }, (_, index) => `character-${index}`);
   assert.equal(CreateGenerationBody.safeParse({ ...generationInput, characterIds }).success, false);

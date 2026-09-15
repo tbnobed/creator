@@ -1116,7 +1116,8 @@ export interface GenerationInput {
      * @maxItems 9
      */
   characterIds?: string[];
-  settingId?: string;
+  /** @nullable */
+  settingId?: string | null;
   /**
      * @minLength 1
      * @maxLength 10000
@@ -1448,8 +1449,9 @@ export interface LongFormProjectInput {
      * @minItems 0
      * @maxItems 9
      */
-  characterIds: string[];
-  settingId: string;
+  characterIds?: string[];
+  /** @nullable */
+  settingId?: string | null;
   generationMode: string;
   /** @maxLength 5000 */
   negativePrompt?: string;

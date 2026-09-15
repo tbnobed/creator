@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CreateLongFormProjectBody } from "@workspace/api-zod";
+import { CreateGenerationBody, CreateLongFormProjectBody } from "@workspace/api-zod";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import {
   completionVoiceCharacterId,
@@ -12,6 +12,7 @@ import {
   invalidatedStillValues,
   missingApprovedContinuityShot,
 } from "./continuity-service";
+import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
 
 test("mocked render injects approved still first and never overwrites setting slots", () => {
   const mappings: ParameterMappings = {
@@ -103,18 +104,63 @@ test("H3 receives exact dialogue early and concise shot-only continuity context"
 });
 
 test("anonymous H3 long-form dispatch preserves an empty cast", () => {
-  assert.equal(CreateLongFormProjectBody.safeParse({
+  const projectInput = {
     title: "Anonymous B-roll",
     script: "B-ROLL 1: Empty broadcast facility",
     targetDurationSeconds: 5,
-    characterIds: [],
-    settingId: "broadcast-facility",
     generationMode: "H3",
     width: 1280,
     height: 720,
     fps: 24,
     qualityPreset: "DRAFT",
+  };
+  assert.equal(CreateLongFormProjectBody.safeParse(projectInput).success, true);
+  assert.equal(CreateLongFormProjectBody.safeParse({
+    ...projectInput,
+    characterIds: [],
+    settingId: null,
   }).success, true);
+  const suppliedAssets = CreateLongFormProjectBody.parse({
+    ...projectInput,
+    characterIds: ["owned-character"],
+    settingId: "owned-setting",
+  });
+  assert.deepEqual(suppliedAssets.characterIds, ["owned-character"]);
+  assert.equal(suppliedAssets.settingId, "owned-setting");
+
+  const generationInput = {
+    prompt: "A wide broadcast facility stage.",
+    generationMode: "H3",
+    durationSeconds: 5,
+    fps: 24,
+    width: 1280,
+    height: 720,
+    qualityPreset: "DRAFT",
+    seedMode: "RANDOM",
+  };
+  assert.equal(CreateGenerationBody.safeParse(generationInput).success, true);
+  assert.equal(CreateGenerationBody.safeParse({
+    ...generationInput,
+    characterIds: [],
+    settingId: null,
+  }).success, true);
+  assert.doesNotThrow(() => assertOwnedAssetSelections({
+    characterIds: ["owned-character"],
+    foundCharacterIds: ["owned-character"],
+    settingId: "owned-setting",
+    settingFound: true,
+  }));
+  assert.throws(() => assertOwnedAssetSelections({
+    characterIds: ["foreign-character"],
+    foundCharacterIds: [],
+    settingFound: true,
+  }), ResourceNotFoundError);
+  assert.throws(() => assertOwnedAssetSelections({
+    characterIds: [],
+    foundCharacterIds: [],
+    settingId: "foreign-setting",
+    settingFound: false,
+  }), ResourceNotFoundError);
 
   const characterIds = characterIdsForLongFormShot([], {
     characterIds: [],
