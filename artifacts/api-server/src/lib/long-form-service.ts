@@ -106,6 +106,8 @@ type StructuredBeat = {
   number: number;
   label: string;
   body: string;
+  source: "ORIGINAL" | "NORMALIZED";
+  durationSeconds?: number;
 };
 
 function normalizeBlock(value: string): string {
@@ -118,38 +120,195 @@ function normalizeBlock(value: string): string {
     .trim();
 }
 
+type ParsedHeader = {
+  index: number;
+  kind: StructuredBeat["kind"];
+  number: number;
+  label: string;
+  source: StructuredBeat["source"];
+  durationSeconds?: number;
+};
+
+const shotLikeHeaderPattern = /^\s*(?:#{1,6}\s*)?(?:SHOT|B[\s-]*ROLL)\b/i;
+const originalShotHeaderPattern = /^\s*#{1,6}\s*(SHOT|B[\s-]*ROLL)\s+(\d+)\s*[·•]\s*[^·•]+\s*[·•]\s*(\d+(?:\.\d+)?)\s*s\s*$/i;
+const normalizedShotHeaderPattern = /^\s*(?:#{1,6}\s*)?(SHOT|B[\s-]*ROLL)\s+(\d+)(?:\s*(?::|[—–-])\s*(.*))?\s*$/i;
+
+function structuredKind(value: string): StructuredBeat["kind"] {
+  return value.toUpperCase().replace(/[\s-]/g, "") === "BROLL" ? "B-ROLL" : "SHOT";
+}
+
 function parseStructuredBeats(script: string): StructuredBeat[] | null {
   const lines = script.replaceAll("\r\n", "\n").split("\n");
-  const headerPattern = /^\s*(SHOT|B-ROLL)\s+(\d+)(?:\s*(?::|[—–-])\s*(.*))?\s*$/i;
-  const headers = lines
-    .map((line, index) => {
-      const match = line.match(headerPattern);
-      if (!match) return null;
-      return {
+  const originalHeaders: ParsedHeader[] = [];
+  const normalizedHeaders: ParsedHeader[] = [];
+  for (const [index, line] of lines.entries()) {
+    const original = line.match(originalShotHeaderPattern);
+    if (original) {
+      originalHeaders.push({
         index,
-        kind: match[1].toUpperCase() as StructuredBeat["kind"],
-        number: Number(match[2]),
-        label: match[3]?.trim() ?? "",
-      };
-    })
-    .filter((header): header is NonNullable<typeof header> => header !== null);
-  if (headers.length === 0) return null;
+        kind: structuredKind(original[1]),
+        number: Number(original[2]),
+        label: line.replace(/^\s*#{1,6}\s*/, "").trim(),
+        source: "ORIGINAL",
+        durationSeconds: Number(original[3]),
+      });
+      continue;
+    }
+    const normalized = line.match(normalizedShotHeaderPattern);
+    if (normalized) {
+      normalizedHeaders.push({
+        index,
+        kind: structuredKind(normalized[1]),
+        number: Number(normalized[2]),
+        label: normalized[3]?.trim() ?? "",
+        source: "NORMALIZED",
+      });
+    }
+  }
+  const headers = originalHeaders.length > 0 ? originalHeaders : normalizedHeaders;
+  const hasMalformedShotHeader = lines.some((line) => shotLikeHeaderPattern.test(line)
+    && !originalShotHeaderPattern.test(line)
+    && !normalizedShotHeaderPattern.test(line));
+  if (hasMalformedShotHeader) {
+    throw new Error("The script contains a malformed SHOT/B-ROLL heading; use SHOT N: or ### Shot N · time · Ns.");
+  }
+  if (originalHeaders.length > 0 && normalizedHeaders.length > 0) {
+    throw new Error("The script mixes original and normalized shot heading formats; use one format consistently.");
+  }
+  if (headers.length === 0) {
+    if (/^\s*#{1,6}\s*style\s*prefix\b/im.test(script)) {
+      throw new Error("The authored script contains a style prefix but no complete SHOT/B-ROLL blocks.");
+    }
+    return null;
+  }
+  const seenNumbers = new Set<string>();
+  for (const header of headers) {
+    const key = `${header.kind}:${header.number}`;
+    if (seenNumbers.has(key)) {
+      throw new Error(`The script repeats ${header.kind} ${header.number}; each authored shot must be unique.`);
+    }
+    seenNumbers.add(key);
+  }
 
   const beats = headers.map((header, index) => {
     const followingBody = normalizeBlock(lines.slice(header.index + 1, headers[index + 1]?.index ?? lines.length).join("\n"));
+    const body = followingBody || (header.source === "NORMALIZED" ? header.label : "");
+    if (!body) {
+      throw new Error(`${header.kind} ${header.number} is missing a body.`);
+    }
     return {
       kind: header.kind,
       number: header.number,
-      label: followingBody ? header.label : "",
-      body: followingBody || header.label,
+      label: header.label,
+      source: header.source,
+      durationSeconds: header.durationSeconds,
+      body,
     };
   });
-  const validBeats = beats.filter((beat) => beat.body.length > 0);
-  return validBeats.length > 0 ? validBeats : null;
+  return beats;
 }
 
 const dialogueLabelPattern = /^\s*[^:\n]*\b(?:voice[-\s]?over|narration|dialogue|spoken\s+dialogue|says|speaks?)\b[^:\n]*:\s*(.*)$/iu;
 const quotedLinePattern = /^\s*[“"]([^”"]+)[”"]\s*$/;
+const promptLabelPattern = /^\s*(?:[*_`>#-]+\s*)?(?:visual\s+)?prompt\s*:\s*(.*)$/i;
+const postProductionLabelPattern = /^\s*(?:[*_`>#-]+\s*)?(?:VO|voice[-\s]?over|narration|text(?:\s*\([^)]*\))?|music|audio|dialogue|spoken\s+dialogue|post[-\s]?production|transition|transitions|colour|color|notes?|running\s+time|deliverable|aspect)\s*(?:\([^)]*\))?\s*:/i;
+const postProductionHeadingPattern = /^\s*#{1,6}\s*(?:post[-\s]?production|topic\s+coverage|notes?)\b/i;
+const actHeadingPattern = /^\s*#{1,6}\s*ACT\b/i;
+
+function isPostProductionLine(line: string): boolean {
+  return postProductionLabelPattern.test(line)
+    || postProductionHeadingPattern.test(line)
+    || actHeadingPattern.test(line)
+    || /^\s*[-*_]{3,}\s*$/.test(line)
+    || /^\s*\|/.test(line);
+}
+
+function extractVisualPrompt(body: string): { prompt: string; hasPostProduction: boolean } {
+  const lines = body.replaceAll("\r\n", "\n").split("\n");
+  const promptIndex = lines.findIndex((line) => promptLabelPattern.test(line));
+  if (promptIndex >= 0) {
+    const promptLine = (lines[promptIndex].match(promptLabelPattern)?.[1] ?? "")
+      .replace(/^\s*[*_`]+\s*/, "");
+    const promptLines = [promptLine];
+    for (const line of lines.slice(promptIndex + 1)) {
+      if (isPostProductionLine(line)) break;
+      promptLines.push(line);
+    }
+    return {
+      prompt: normalizeBlock(promptLines.join("\n")),
+      hasPostProduction: lines.some((line) => postProductionLabelPattern.test(line)),
+    };
+  }
+
+  const visualLines: string[] = [];
+  let skipPostProductionValue = false;
+  for (const line of lines) {
+    if (isPostProductionLine(line)) {
+      skipPostProductionValue = true;
+      continue;
+    }
+    if (skipPostProductionValue) {
+      if (!line.trim() || quotedLinePattern.test(line)) {
+        if (!line.trim()) skipPostProductionValue = false;
+        continue;
+      }
+      skipPostProductionValue = false;
+    }
+    visualLines.push(line);
+  }
+  return {
+    prompt: normalizeBlock(visualLines.join("\n")),
+    hasPostProduction: lines.some((line) => postProductionLabelPattern.test(line)),
+  };
+}
+
+function extractStylePrefix(script: string): string | undefined {
+  const lines = script.replaceAll("\r\n", "\n").split("\n");
+  const headingIndex = lines.findIndex((line) => /^\s*#{1,6}\s*style\s*prefix\b/i.test(line));
+  if (headingIndex < 0) return undefined;
+  const prefixLines: string[] = [];
+  let started = false;
+  for (const line of lines.slice(headingIndex + 1)) {
+    const quote = line.match(/^\s*>\s?(.*)$/);
+    if (quote) {
+      started = true;
+      prefixLines.push(quote[1]);
+      continue;
+    }
+    if (started) break;
+    if (line.trim()) break;
+  }
+  const prefix = normalizeBlock(prefixLines.join("\n"));
+  return prefix || undefined;
+}
+
+function resolvePromptPrefix(prompt: string, stylePrefix: string | undefined, storyline: string | undefined): {
+  prompt: string;
+  usedStorylineAsPrefix: boolean;
+} {
+  if (!/\[prefix\]/i.test(prompt)) {
+    return { prompt, usedStorylineAsPrefix: false };
+  }
+  const normalizedStoryline = normalizeBlock(storyline ?? "");
+  const replacement = stylePrefix || (
+    normalizedStoryline
+    && !/\[prefix\]/i.test(normalizedStoryline)
+    && !/^(?:none|n\/a)$/i.test(normalizedStoryline)
+      ? normalizedStoryline
+      : undefined
+  );
+  if (!replacement) {
+    throw new Error("The authored prompt contains unresolved [prefix]; add a Style prefix block or a valid Visual Storyline.");
+  }
+  const resolved = prompt.replace(/\[prefix\]/gi, replacement).trim();
+  if (/\[prefix\]/i.test(resolved)) {
+    throw new Error("The authored prompt contains unresolved [prefix].");
+  }
+  return {
+    prompt: resolved,
+    usedStorylineAsPrefix: !stylePrefix,
+  };
+}
 
 function getDialogueLabelValue(line: string): string | null {
   const match = line.match(dialogueLabelPattern);
@@ -294,35 +453,83 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
   const structuredBeats = parseStructuredBeats(input.script);
   const chunks = structuredBeats ?? chunkSentences(normalizeScript(input.script), desiredCount);
   const shotCount = structuredBeats?.length ?? desiredCount;
+  const stylePrefix = structuredBeats ? extractStylePrefix(input.script) : undefined;
+  const storyline = normalizeBlock(input.storyline ?? "");
   const shotInputs = Array.from({ length: shotCount }, (_, index) => {
     const structuredBeat = structuredBeats?.[index];
     const shotBody = structuredBeat ? structuredBeat.body : chunks[index % chunks.length] as string;
-    const dialogue = structuredBeat?.kind === "SHOT" ? extractDialogue(shotBody) : "";
+    const extractedVisual = structuredBeat
+      ? extractVisualPrompt(shotBody)
+      : { prompt: shotBody, hasPostProduction: false };
+    const dialogue = structuredBeat?.source !== "ORIGINAL"
+      && !extractedVisual.hasPostProduction
+      && (structuredBeat?.kind === "SHOT" || !structuredBeat)
+      ? extractDialogue(shotBody)
+      : "";
+    const resolvedPrefix = resolvePromptPrefix(extractedVisual.prompt, stylePrefix, storyline);
+    const visualPrompt = dialogue || extractedVisual.hasPostProduction
+      ? removeDialogueFromPrompt(resolvedPrefix.prompt)
+      : resolvedPrefix.prompt;
+    if (!visualPrompt) {
+      throw new Error(`${structuredBeat?.kind ?? "Script"} ${structuredBeat?.number ?? index + 1} is missing a visual prompt/body.`);
+    }
     return {
       structuredBeat,
       dialogue,
-      prompt: dialogue ? removeDialogueFromPrompt(shotBody) : shotBody,
+      prompt: visualPrompt,
+      usedStorylineAsPrefix: resolvedPrefix.usedStorylineAsPrefix,
     };
   });
-  const durations = allocateShotDurations(
-    shotInputs.map(({ dialogue }) => minimumShotDuration(dialogue)),
-    input.targetDurationSeconds,
-  );
+  const authoredDurations = structuredBeats?.map(({ durationSeconds }) => durationSeconds);
+  let durations: number[];
+  if (authoredDurations?.some((duration) => duration !== undefined)) {
+    if (authoredDurations.some((duration) => duration === undefined)) {
+      throw new Error("Every authored SHOT/B-ROLL block must include a duration when one block specifies one.");
+    }
+    const exactDurations = authoredDurations as number[];
+    exactDurations.forEach((duration, index) => {
+      if (!Number.isFinite(duration) || duration < 2 || duration > MAX_SHOT_DURATION_SECONDS) {
+        throw new Error(`Authored shot ${index + 1} duration must be between 2 and ${MAX_SHOT_DURATION_SECONDS} seconds.`);
+      }
+      const minimum = minimumShotDuration(shotInputs[index].dialogue);
+      if (duration < minimum) {
+        throw new Error(`Authored shot ${index + 1} duration is too short for its spoken dialogue.`);
+      }
+    });
+    const authoredTotal = exactDurations.reduce((sum, duration) => sum + duration, 0);
+    if (authoredTotal > 600) {
+      throw new Error("Authored shot durations cannot exceed 10 minutes.");
+    }
+    if (Math.abs(authoredTotal - input.targetDurationSeconds) > 0.01) {
+      throw new Error(`Authored shot durations total ${authoredTotal} seconds, but the project target is ${input.targetDurationSeconds} seconds.`);
+    }
+    durations = exactDurations;
+  } else {
+    durations = allocateShotDurations(
+      shotInputs.map(({ dialogue }) => minimumShotDuration(dialogue)),
+      input.targetDurationSeconds,
+    );
+  }
   const shots: PlannedShot[] = [];
   let sceneNumber = 1;
   let shotNumber = 1;
 
   for (let index = 0; index < shotCount; index += 1) {
-    const { structuredBeat, dialogue, prompt } = shotInputs[index];
+    const { structuredBeat, dialogue, prompt, usedStorylineAsPrefix } = shotInputs[index];
     const previousPrompt = shots.at(-1)?.prompt;
-    const label = structuredBeat
-      ? `${structuredBeat.kind === "B-ROLL" ? "B-Roll" : "Shot"} ${structuredBeat.number}${structuredBeat.label ? ` · ${structuredBeat.label}` : ""}`
-      : `Scene ${sceneNumber} · Shot ${shotNumber}`;
+    const label = structuredBeat?.source === "ORIGINAL"
+      ? structuredBeat.label
+      : structuredBeat
+        ? `${structuredBeat.kind === "B-ROLL" ? "B-Roll" : "Shot"} ${structuredBeat.number}${structuredBeat.label ? ` · ${structuredBeat.label}` : ""}`
+        : `Scene ${sceneNumber} · Shot ${shotNumber}`;
+    const projectDirection = storyline && !usedStorylineAsPrefix
+      ? `\n\nPROJECT VISUAL DIRECTION\n${storyline}`
+      : "";
     shots.push({
       sceneNumber,
       shotNumber,
       title: label,
-      prompt: input.storyline ? `${prompt}\n\nPROJECT VISUAL DIRECTION\n${input.storyline.trim()}` : prompt,
+      prompt: `${prompt}${projectDirection}`,
       dialogue,
       cameraInstructions: structuredBeat
         ? ""
@@ -332,7 +539,9 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
             ? "Controlled medium shot with subtle tracking."
             : "Intimate detail shot with natural movement.",
       motionInstructions: structuredBeat ? "" : "Natural, physically believable movement with consistent character and environment details.",
-      continuityNote: previousPrompt
+      continuityNote: structuredBeat
+        ? ""
+        : previousPrompt
         ? `Continue visual identity, wardrobe, lighting, and narrative action from the previous shot. Previous beat: ${previousPrompt.slice(0, 220)}`
         : "Establish the visual identity, setting, lighting, and character continuity for the sequence.",
       transition: index === 0 ? "CUT" : index % 6 === 0 ? "DISSOLVE" : "CUT",
@@ -345,6 +554,10 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
     }
   }
   return shots;
+}
+
+export function planLongFormShotsForTest(input: LongFormProjectInput): PlannedShot[] {
+  return planShots(input);
 }
 
 async function withAdvisoryLock<T>(key: string, work: () => Promise<T>): Promise<T | null> {

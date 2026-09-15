@@ -824,6 +824,13 @@ function ShotMetadata({
   const characterIds = shot.characterIds?.length ? shot.characterIds : fallbackCharacterIds;
   const shotCharacters = characterIds.map((id: string) => characterById.get(id)).filter(Boolean);
   const setting = settingById.get(shot.settingId ?? fallbackSettingId);
+  const hasRequestedCast = characterIds.length > 0;
+  const hasRequestedSetting = Boolean(shot.settingId ?? fallbackSettingId);
+  const castStatus = shotCharacters.length
+    ? shotCharacters.map((character: any) => character.name).join(", ")
+    : hasRequestedCast ? "Cast loading" : "No cast — prompt only";
+  const settingStatus = setting?.name
+    || (hasRequestedSetting ? "Environment loading" : "Prompt-defined environment");
   const details = [
     { icon: Camera, label: "Camera & framing", value: shot.cameraInstructions },
     { icon: Move3d, label: "Subject motion", value: shot.motionInstructions },
@@ -843,16 +850,24 @@ function ShotMetadata({
                 <p className="text-[11px] leading-relaxed text-muted-foreground">{character.description || character.promptDescription || "No character description provided."}</p>
               </div>
             </div>
-          )) : <p className="text-xs text-muted-foreground">Character details are not available yet.</p>}
+          )) : <p className="text-xs text-muted-foreground">
+            {hasRequestedCast ? "Character details are not available yet." : "No cast — prompt only."}
+          </p>}
         </div>
       </div>
       <div className="sm:col-span-2 rounded-lg border border-border/50 bg-background/30 p-2.5">
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Setting / environment</p>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Setting / environment (optional)</p>
         <div className="flex items-start gap-2">
           <AssetThumbnail src={setting?.thumbnail} alt={setting?.name || "Setting"} fallback={<MapPin className="w-3 h-3 text-muted-foreground" />} />
           <div className="min-w-0">
-            <p className="text-xs font-semibold">{setting?.name || "Environment details unavailable"}</p>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">{setting?.description || setting?.promptDescription || "No environment description provided."}</p>
+            <p className="text-xs font-semibold">{settingStatus}</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {setting?.description || setting?.promptDescription || (
+                hasRequestedSetting
+                  ? "No environment description provided."
+                  : "The shot uses its prompt-defined environment."
+              )}
+            </p>
           </div>
         </div>
       </div>
@@ -870,11 +885,11 @@ function ShotMetadata({
       <div className="flex flex-wrap gap-1.5">
         <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] text-foreground/80">
           <UserRound className="w-3 h-3 text-primary" />
-          {shotCharacters.length ? shotCharacters.map((character: any) => character.name).join(", ") : "Cast loading"}
+          {castStatus}
         </span>
         <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/40 px-2 py-1 text-[10px] text-foreground/80">
           <MapPin className="w-3 h-3 text-primary" />
-          {setting?.name || (shot.settingId || fallbackSettingId ? "Environment loading" : "No setting")}
+          {settingStatus}
         </span>
         <span className="rounded-full border border-border/70 bg-background/40 px-2 py-1 text-[10px] text-muted-foreground">
           {shot.transition || "CUT"} transition
