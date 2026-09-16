@@ -129,9 +129,28 @@ type ParsedHeader = {
   durationSeconds?: number;
 };
 
-const shotLikeHeaderPattern = /^\s*(?:#{1,6}\s*)?(?:SHOT|B[\s-]*ROLL)\b/i;
-const originalShotHeaderPattern = /^\s*#{1,6}\s*(SHOT|B[\s-]*ROLL)\s+(\d+)\s*[·•]\s*[^·•]+\s*[·•]\s*(\d+(?:\.\d+)?)\s*s\s*$/i;
-const normalizedShotHeaderPattern = /^\s*(?:#{1,6}\s*)?(SHOT|B[\s-]*ROLL)\s+(\d+)(?:\s*(?::|[—–-])\s*(.*))?\s*$/i;
+const originalShotHeaderPattern = /^(SHOT|B[\s-]*ROLL)\s+(\d+)\s*[·•]\s*[^·•]+\s*[·•]\s*(\d+(?:\.\d+)?)\s*s\s*$/i;
+const normalizedShotHeaderPattern = /^(SHOT|B[\s-]*ROLL)\s+(\d+)(?:\s*(?::|[—–-])\s*(.*))?\s*$/i;
+const shotLikeHeaderPattern = /^(SHOT|B[\s-]*ROLL)\s+\d+(?=\s*(?:$|[:—–-]|[·•]))/i;
+
+function cleanStructuredHeaderLine(line: string): string {
+  let cleaned = line.replace(/^\uFEFF/, "").trim();
+  for (let iteration = 0; iteration < 3; iteration += 1) {
+    const next = cleaned
+      .replace(/^\*{1,3}\s*/u, "")
+      .replace(/^(?:(?:[-+*•]\s+)|(?:#{1,6}\s*))+/u, "")
+      .replace(/^\*{1,3}\s*/u, "")
+      .replace(/\s*\*{1,3}\s*$/u, "")
+      .trim();
+    if (next === cleaned) break;
+    cleaned = next;
+  }
+  return cleaned;
+}
+
+function isScriptCodeFence(line: string): boolean {
+  return /^\s*(?:```|~~~)(?:[a-z0-9_-]+)?\s*$/i.test(line);
+}
 
 function structuredKind(value: string): StructuredBeat["kind"] {
   return value.toUpperCase().replace(/[\s-]/g, "") === "BROLL" ? "B-ROLL" : "SHOT";
@@ -142,19 +161,20 @@ function parseStructuredBeats(script: string): StructuredBeat[] | null {
   const originalHeaders: ParsedHeader[] = [];
   const normalizedHeaders: ParsedHeader[] = [];
   for (const [index, line] of lines.entries()) {
-    const original = line.match(originalShotHeaderPattern);
+    const headerLine = cleanStructuredHeaderLine(line);
+    const original = headerLine.match(originalShotHeaderPattern);
     if (original) {
       originalHeaders.push({
         index,
         kind: structuredKind(original[1]),
         number: Number(original[2]),
-        label: line.replace(/^\s*#{1,6}\s*/, "").trim(),
+        label: headerLine,
         source: "ORIGINAL",
         durationSeconds: Number(original[3]),
       });
       continue;
     }
-    const normalized = line.match(normalizedShotHeaderPattern);
+    const normalized = headerLine.match(normalizedShotHeaderPattern);
     if (normalized) {
       normalizedHeaders.push({
         index,
@@ -166,11 +186,16 @@ function parseStructuredBeats(script: string): StructuredBeat[] | null {
     }
   }
   const headers = originalHeaders.length > 0 ? originalHeaders : normalizedHeaders;
-  const hasMalformedShotHeader = lines.some((line) => shotLikeHeaderPattern.test(line)
-    && !originalShotHeaderPattern.test(line)
-    && !normalizedShotHeaderPattern.test(line));
-  if (hasMalformedShotHeader) {
-    throw new Error("The script contains a malformed SHOT/B-ROLL heading; use SHOT N: or ### Shot N · time · Ns.");
+  const malformedHeader = lines
+    .map((line, index) => ({ index, line }))
+    .find(({ line }) => {
+      const headerLine = cleanStructuredHeaderLine(line);
+      return shotLikeHeaderPattern.test(headerLine)
+        && !originalShotHeaderPattern.test(headerLine)
+        && !normalizedShotHeaderPattern.test(headerLine);
+    });
+  if (malformedHeader) {
+    throw new Error(`The script contains a malformed SHOT/B-ROLL heading at line ${malformedHeader.index + 1}: "${malformedHeader.line.trim().slice(0, 180)}". Use SHOT N: or ### Shot N · time · Ns.`);
   }
   if (originalHeaders.length > 0 && normalizedHeaders.length > 0) {
     throw new Error("The script mixes original and normalized shot heading formats; use one format consistently.");
@@ -191,7 +216,12 @@ function parseStructuredBeats(script: string): StructuredBeat[] | null {
   }
 
   const beats = headers.map((header, index) => {
-    const followingBody = normalizeBlock(lines.slice(header.index + 1, headers[index + 1]?.index ?? lines.length).join("\n"));
+    const followingBody = normalizeBlock(
+      lines
+        .slice(header.index + 1, headers[index + 1]?.index ?? lines.length)
+        .filter((line) => !isScriptCodeFence(line))
+        .join("\n"),
+    );
     const body = followingBody || (header.source === "NORMALIZED" ? header.label : "");
     if (!body) {
       throw new Error(`${header.kind} ${header.number} is missing a body.`);
@@ -213,11 +243,13 @@ const quotedLinePattern = /^\s*[“"]([^”"]+)[”"]\s*$/;
 const promptLabelPattern = /^\s*(?:[*_`>#-]+\s*)?(?:visual\s+)?prompt\s*:\s*(.*)$/i;
 const postProductionLabelPattern = /^\s*(?:[*_`>#-]+\s*)?(?:VO|voice[-\s]?over|narration|text(?:\s*\([^)]*\))?|music|audio|dialogue|spoken\s+dialogue|post[-\s]?production|transition|transitions|colour|color|notes?|running\s+time|deliverable|aspect)\s*(?:\([^)]*\))?\s*:/i;
 const postProductionHeadingPattern = /^\s*#{1,6}\s*(?:post[-\s]?production|topic\s+coverage|notes?)\b/i;
+const postProductionShotNotePattern = /^\s*(?:shot|b[\s-]*roll)\s+\d+\s+(?:to|through|[-–—])\s*\d+\b.*\b(?:should|must|cut|transition)\b/i;
 const actHeadingPattern = /^\s*#{1,6}\s*ACT\b/i;
 
 function isPostProductionLine(line: string): boolean {
   return postProductionLabelPattern.test(line)
     || postProductionHeadingPattern.test(line)
+    || postProductionShotNotePattern.test(line)
     || actHeadingPattern.test(line)
     || /^\s*[-*_]{3,}\s*$/.test(line)
     || /^\s*\|/.test(line);
@@ -444,7 +476,25 @@ function allocateShotDurations(minimums: number[], targetDurationSeconds: number
     if (added <= 0.001) break;
     remaining -= added;
   }
-  return durations.map((duration) => Number(duration.toFixed(2)));
+  const rounded = durations.map((duration) => Number(duration.toFixed(2)));
+  const roundedTotal = rounded.reduce((sum, duration) => sum + duration, 0);
+  const correction = Number((plannedTotal - roundedTotal).toFixed(2));
+  if (correction !== 0) {
+    let index = -1;
+    for (let shotIndex = rounded.length - 1; shotIndex >= 0; shotIndex -= 1) {
+      if (
+        rounded[shotIndex] + correction >= minimums[shotIndex]
+        && rounded[shotIndex] + correction <= MAX_SHOT_DURATION_SECONDS
+      ) {
+        index = shotIndex;
+        break;
+      }
+    }
+    if (index >= 0) {
+      rounded[index] = Number((rounded[index] + correction).toFixed(2));
+    }
+  }
+  return rounded;
 }
 
 function planShots(input: LongFormProjectInput): PlannedShot[] {

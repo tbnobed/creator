@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { CreateLongFormProjectBody } from "@workspace/api-zod";
 import { planLongFormShotsForTest } from "./long-form-service";
 
 const originalScript = readFileSync(
   new URL("../../../../attached_assets/symposium-intro-video-script_1789486065822.md", import.meta.url),
+  "utf8",
+);
+const normalizedScript = readFileSync(
+  new URL("../../../../outputs/tbn-symposium-h3-paste-script.txt", import.meta.url),
   "utf8",
 );
 
@@ -22,7 +27,9 @@ const projectInput = (script: string, overrides: Record<string, unknown> = {}) =
 });
 
 test("original symposium script stays 30 authored shots with exact durations and clean prompts", () => {
-  const shots = planLongFormShotsForTest(projectInput(originalScript));
+  const input = projectInput(originalScript);
+  assert.equal(CreateLongFormProjectBody.safeParse(input).success, true);
+  const shots = planLongFormShotsForTest(input);
   const durations = [6, 6, 8, 6, 6, 7, 6, 6, 6, 6, 7, 6, 7, 7, 6, 6, 7, 7, 6, 7, 6, 6, 7, 6, 5, 6, 6, 6, 6, 7];
 
   assert.equal(shots.length, 30);
@@ -38,6 +45,63 @@ test("original symposium script stays 30 authored shots with exact durations and
   assert.ok(shots.every((shot) => shot.continuityNote === ""));
   assert.ok(shots.every((shot) => !shot.prompt.includes("PROJECT VISUAL DIRECTION")));
   assert.ok(shots.every((shot) => shot.dialogue === ""));
+});
+
+test("provided normalized symposium paste stays 30 authored shots with exact target allocation", () => {
+  const input = projectInput(normalizedScript);
+  assert.equal(CreateLongFormProjectBody.safeParse(input).success, true);
+  const shots = planLongFormShotsForTest(input);
+
+  assert.equal(shots.length, 30);
+  assert.ok(Math.abs(shots.reduce((sum, shot) => sum + shot.durationSeconds, 0) - 190) < 0.001);
+  assert.equal(shots[0].title, "Shot 1");
+  assert.equal(shots[29].title, "Shot 30");
+  assert.equal(shots[0].durationSeconds, 6.33);
+  assert.equal(shots[29].durationSeconds, 6.43);
+  assert.match(shots[0].prompt, /^Cinematic broadcast facility, ultra-realistic/);
+  assert.match(shots[29].prompt, /same fibre connector from the first shot/);
+});
+
+test("metadata and production prose containing Shot references are not malformed headings", () => {
+  const prose = [
+    "**Shots:** 34 generated clips, 5–7 seconds each, assembled in post",
+    "The production team reviewed Shot 17 to 18 should be a hard cut on the LED going red.",
+    "SHOT 1",
+    "A dark control room with teal status lights.",
+    "Shot 17 to 18 should be a hard cut on the LED going red.",
+    "SHOT 2",
+    "A quiet rack of servers.",
+  ].join("\n");
+  const shots = planLongFormShotsForTest(projectInput(prose, {
+    targetDurationSeconds: 4,
+  }));
+
+  assert.equal(shots.length, 2);
+  assert.equal(shots.reduce((sum, shot) => sum + shot.durationSeconds, 0), 4);
+  assert.doesNotMatch(shots[0].prompt, /Shot 17 to 18 should be a hard cut/i);
+
+  const unformattedPostProductionLine = originalScript.replace(
+    "**Transitions:** cuts throughout, no dissolves except the final fade. Shot 17 to 18 should be a hard cut on the LED going red.",
+    "Shot 17 to 18 should be a hard cut on the LED going red.",
+  );
+  const originalPaste = planLongFormShotsForTest(projectInput(unformattedPostProductionLine));
+  assert.equal(originalPaste.length, 30);
+  assert.equal(originalPaste.reduce((sum, shot) => sum + shot.durationSeconds, 0), 190);
+});
+
+test("authored headings tolerate CRLF, BOM, bold markdown, unicode dashes, bullets, and code fences", () => {
+  const wrapped = [
+    "\uFEFF```markdown",
+    normalizedScript.replace(/^SHOT (\d+)$/gm, "- **SHOT $1 —**"),
+    "```",
+  ].join("\r\n");
+  const shots = planLongFormShotsForTest(projectInput(wrapped));
+
+  assert.equal(shots.length, 30);
+  assert.ok(Math.abs(shots.reduce((sum, shot) => sum + shot.durationSeconds, 0) - 190) < 0.001);
+  assert.equal(shots[0].title, "Shot 1");
+  assert.equal(shots[29].title, "Shot 30");
+  assert.ok(shots.every((shot) => !shot.prompt.includes("```")));
 });
 
 test("prompt-only authored blocks resolve prefix from storyline and reject unresolved tokens", () => {
@@ -58,7 +122,7 @@ test("prompt-only authored blocks resolve prefix from storyline and reject unres
 test("malformed or bodyless authored headings fail instead of falling back to prose", () => {
   assert.throws(
     () => planLongFormShotsForTest(projectInput("### Shot 1 · 0:00\n**Prompt:** A rack.")),
-    /malformed SHOT\/B-ROLL heading/i,
+    /malformed SHOT\/B-ROLL heading at line 1/i,
   );
   assert.throws(
     () => planLongFormShotsForTest(projectInput("SHOT 1:\n")),
