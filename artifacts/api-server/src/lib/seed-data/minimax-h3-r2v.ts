@@ -3,7 +3,10 @@ type ApiWorkflow = Record<string, {
   inputs: Record<string, unknown>;
 }>;
 
+const a100TextEncoder = "qwen3vl_32b_minimax_h3_int8_convrot.safetensors";
 const blackwellTextEncoder = "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors";
+const a100Unet = "minimax_h3_ref2va_pruned_int8_convrot.safetensors";
+const blackwellUnet = "minimax_h3_ref2va_pruned_nvfp4.safetensors";
 
 const baseWorkflow: ApiWorkflow = {
   "92": {
@@ -60,13 +63,13 @@ const baseWorkflow: ApiWorkflow = {
   "127": {
     class_type: "UNETLoader",
     inputs: {
-      unet_name: "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      unet_name: a100Unet,
       weight_dtype: "default",
     },
   },
   "128": {
     class_type: "CLIPLoader",
-    inputs: { clip_name: blackwellTextEncoder, type: "minimax", device: "default" },
+    inputs: { clip_name: a100TextEncoder, type: "minimax", device: "default" },
   },
   "129": {
     class_type: "RandomNoise",
@@ -137,14 +140,21 @@ export const r2vVideoMappings = {
   referenceVideo: { nodeId: "152", input: "file" },
 };
 
-export function createMiniMaxH3R2vWorkflow(clipName: string): ApiWorkflow {
+export function createMiniMaxH3R2vWorkflow(
+  clipName: string,
+  unetName = a100Unet,
+): ApiWorkflow {
   const workflow = structuredClone(baseWorkflow);
+  workflow["127"].inputs.unet_name = unetName;
   workflow["128"].inputs["clip_name"] = clipName;
   return workflow;
 }
 
-export function createMiniMaxH3R2vVideoWorkflow(clipName: string): ApiWorkflow {
-  const workflow = createMiniMaxH3R2vWorkflow(clipName);
+export function createMiniMaxH3R2vVideoWorkflow(
+  clipName: string,
+  unetName = a100Unet,
+): ApiWorkflow {
+  const workflow = createMiniMaxH3R2vWorkflow(clipName, unetName);
   workflow["92"].inputs["video-preview"] = "";
   workflow["115"].inputs.megapixels = 1;
   workflow["132"].inputs.value = 16;
@@ -172,12 +182,14 @@ export const miniMaxH3R2vSeed = {
     description: "MiniMax H3 reference-image video generation for NVIDIA A100 workers using the INT8 ConvRot text encoder.",
     tags: ["minimax-h3", "a100"],
     clipName: "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+    unetName: a100Unet,
   },
   blackwell: {
     name: "MiniMax H3 REF2VA",
     description: "MiniMax H3 reference-image video generation for Blackwell workers using the NVFP4 AWQ text encoder.",
     tags: ["minimax-h3", "blackwell"],
     clipName: blackwellTextEncoder,
+    unetName: blackwellUnet,
   },
 } as const;
 
@@ -187,11 +199,13 @@ export const miniMaxH3R2vVideoSeed = {
     description: "MiniMax H3 presenter-video reference generation for NVIDIA A100 workers. The uploaded video supplies lip-sync conditioning; original audio is preserved unless exact replacement dialogue is provided.",
     tags: ["minimax-h3", "a100"],
     clipName: "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+    unetName: a100Unet,
   },
   blackwell: {
     name: "MiniMax H3 REF2VA Video (Blackwell)",
     description: "MiniMax H3 presenter-video reference generation for Blackwell workers. The uploaded video supplies lip-sync conditioning; original audio is preserved unless exact replacement dialogue is provided.",
     tags: ["minimax-h3", "blackwell"],
     clipName: blackwellTextEncoder,
+    unetName: blackwellUnet,
   },
 } as const;

@@ -43,6 +43,8 @@ type WorkerSeed = {
   maxConcurrentJobs: number | null;
 };
 
+const hardwareTags = new Set(["a100", "blackwell"]);
+
 function readOptional(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value || undefined;
@@ -143,7 +145,12 @@ async function seedConfiguredWorkers(): Promise<void> {
     const canonicalTags = new Set(worker.tags.map((tag) => tag.toLowerCase()));
     const mergedTags = [
       ...worker.tags,
-      ...current.tags.filter((tag) => !canonicalTags.has(tag.toLowerCase())),
+      // Hardware is part of the seeded worker identity. Replace a stale
+      // hardware tag instead of preserving it as a conflicting extra tag.
+      ...current.tags.filter((tag) => {
+        const normalizedTag = tag.toLowerCase();
+        return !canonicalTags.has(normalizedTag) && !hardwareTags.has(normalizedTag);
+      }),
     ];
     if (mergedTags.join("\u0000") === current.tags.join("\u0000")) return [];
     return [
@@ -152,6 +159,21 @@ async function seedConfiguredWorkers(): Promise<void> {
         .where(eq(comfyServersTable.id, current.id)),
     ];
   }));
+}
+
+function equalJson(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((value, index) => equalJson(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord).sort();
+  const rightKeys = Object.keys(rightRecord).sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) => key === rightKeys[index] && equalJson(leftRecord[key], rightRecord[key]));
 }
 
 async function seedWorkflowDefinitions(): Promise<void> {
@@ -199,7 +221,7 @@ async function seedWorkflowDefinitions(): Promise<void> {
       description: blackwellVariant.description,
       generationMode: "r2v",
       modelFamily: "MiniMax H3",
-      apiWorkflow: createMiniMaxH3R2vWorkflow(blackwellVariant.clipName),
+      apiWorkflow: createMiniMaxH3R2vWorkflow(blackwellVariant.clipName, blackwellVariant.unetName),
       compatibleServerTags: [...blackwellVariant.tags],
       active: true,
       mappings: r2vMappings,
@@ -214,7 +236,7 @@ async function seedWorkflowDefinitions(): Promise<void> {
       description: variant.description,
       generationMode: "r2v",
       modelFamily: "MiniMax H3",
-      apiWorkflow: variant.createWorkflow(variant.clipName),
+      apiWorkflow: variant.createWorkflow(variant.clipName, variant.unetName),
       compatibleServerTags: [...variant.tags],
       active: true,
       mappings: variant.mappings,
@@ -288,7 +310,7 @@ async function seedWorkflowDefinitions(): Promise<void> {
   await Promise.all(staleVideoWorkflowRecords.map(({ workflow, variant }) => (
     db.update(workflowTemplatesTable).set({
       description: variant.description,
-      apiWorkflow: variant.createWorkflow(variant.clipName),
+      apiWorkflow: variant.createWorkflow(variant.clipName, variant.unetName),
       mappings: variant.mappings,
       expectedInputs: Object.keys(variant.mappings),
       version: workflow.version + 1,
@@ -296,8 +318,32 @@ async function seedWorkflowDefinitions(): Promise<void> {
   )));
 
   const upgradedVideoWorkflowIds = new Set(staleVideoWorkflowRecords.map(({ workflow }) => workflow.id));
+  // Upgrade only the exact app-managed graph emitted by the previous seed.
+  // A creator-imported/customized workflow is intentionally left untouched.
+  const staleH3ModelPairRecords = existing.flatMap((workflow) => {
+    if (upgradedVideoWorkflowIds.has(workflow.id)) return [];
+    const variant = variants.find((candidate) => candidate.name === workflow.name);
+    if (!variant || !workflow.apiWorkflow) return [];
+    const previousSeed = variant.createWorkflow(variant.clipName);
+    const expectedSeed = variant.createWorkflow(variant.clipName, variant.unetName);
+    const isWrongSeedPair = !equalJson(previousSeed, expectedSeed)
+      && equalJson(workflow.apiWorkflow, previousSeed);
+    return isWrongSeedPair ? [{ workflow, variant }] : [];
+  });
+  await Promise.all(staleH3ModelPairRecords.map(({ workflow, variant }) => (
+    db.update(workflowTemplatesTable).set({
+      description: variant.description,
+      apiWorkflow: variant.createWorkflow(variant.clipName, variant.unetName),
+      compatibleServerTags: [...variant.tags],
+      mappings: variant.mappings,
+      expectedInputs: Object.keys(variant.mappings),
+      version: workflow.version + 1,
+    }).where(eq(workflowTemplatesTable.id, workflow.id))
+  )));
+
+  const upgradedH3ModelPairIds = new Set(staleH3ModelPairRecords.map(({ workflow }) => workflow.id));
   const staleTurboWorkflowRecords = existing.filter((workflow) => {
-    if (upgradedVideoWorkflowIds.has(workflow.id)) return false;
+    if (upgradedVideoWorkflowIds.has(workflow.id) || upgradedH3ModelPairIds.has(workflow.id)) return false;
     const apiWorkflow = workflow.apiWorkflow as Record<string, { class_type?: unknown; inputs?: Record<string, unknown> }> | null;
     const node124 = apiWorkflow?.["124"];
     const node126 = apiWorkflow?.["126"];
