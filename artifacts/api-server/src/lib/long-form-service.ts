@@ -1857,6 +1857,16 @@ export async function updateLongFormContinuity(
   return presentLongFormProject(result, true);
 }
 
+export function retryLongFormShotError(shotStatus: string, projectStatus: string): string | undefined {
+  if (projectStatus === "ASSEMBLING") {
+    return "Retry the shot after final video assembly finishes";
+  }
+  if (["FAILED", "CANCELLED"].includes(shotStatus)) {
+    return undefined;
+  }
+  return "Only failed or cancelled shots can be retried. With continuity enabled, use Prepare revision for a completed shot.";
+}
+
 export async function retryLongFormShot(projectId: string, shotId: string) {
   const result = await withProjectLock(projectId, async () => {
     const [project] = await db.select({
@@ -1879,8 +1889,9 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
     if (preparingCompletedRevision && (["RUNNING", "ASSEMBLING"].includes(project.status) || (await activeShotsForProject(projectId)).length > 0)) {
       throw new Error("Pause production and wait for active renders to finish before preparing a completed-shot revision.");
     }
-    if (!preparingCompletedRevision && !["FAILED", "CANCELLED"].includes(existingShot.status)) {
-      throw new Error("Only failed or cancelled shots can be retried. With continuity enabled, use Prepare revision for a completed shot.");
+    if (!preparingCompletedRevision) {
+      const retryError = retryLongFormShotError(existingShot.status, project.status);
+      if (retryError) throw new Error(retryError);
     }
     const [updated] = await db.update(longFormShotsTable).set({
       status: "PLANNED",

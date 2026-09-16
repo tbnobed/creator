@@ -682,8 +682,25 @@ export default function ProjectDetailPage() {
                             )}
                           </h4>
                           
-                          <div className="flex items-center gap-1 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0 -mr-1 md:mr-0 -mt-1 md:mt-0">
-                            {(shot.status === 'FAILED' || shot.status === 'CANCELLED' || (project.continuity?.enabled && shot.status === 'COMPLETED' && !isRunning && project.status !== "ASSEMBLING")) && (
+                          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0 -mr-1 md:mr-0 -mt-1 md:mt-0">
+                            {(shot.status === 'FAILED' || shot.status === 'CANCELLED') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 shrink-0 border-amber-500/40 px-2 text-amber-500 hover:text-amber-400"
+                                onClick={() => handleRetryShot(shot.id)}
+                                disabled={retryShot.isPending || project.status === "ASSEMBLING"}
+                                aria-label={`Retry ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                                title={project.status === "ASSEMBLING" ? "Retry is available after final video assembly finishes" : "Retry shot"}
+                              >
+                                {retryShot.isPending
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <RefreshCw className="w-3.5 h-3.5" />}
+                                Retry shot
+                              </Button>
+                            )}
+                            <div className="flex items-center gap-1 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                            {project.continuity?.enabled && shot.status === 'COMPLETED' && !isRunning && project.status !== "ASSEMBLING" && (
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -715,6 +732,7 @@ export default function ProjectDetailPage() {
                             <Button size="icon" variant="ghost" className="w-7 h-7 md:w-7 md:h-7" onClick={() => setEditingShot(shot)}>
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
+                            </div>
                           </div>
                         </div>
                         

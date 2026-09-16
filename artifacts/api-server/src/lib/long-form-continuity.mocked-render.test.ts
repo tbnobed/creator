@@ -7,7 +7,7 @@ import {
   compileLongFormPromptForTest,
   planContinuityReferenceSlots,
 } from "./generation-service";
-import { characterIdsForLongFormShot } from "./long-form-service";
+import { characterIdsForLongFormShot, retryLongFormShotError } from "./long-form-service";
 import {
   invalidatedStillValues,
   missingApprovedContinuityShot,
@@ -184,4 +184,15 @@ test("anonymous H3 long-form dispatch preserves an empty cast", () => {
   });
   assert.match(prompt, /No supplied reference subject is required/);
   assert.doesNotMatch(prompt, /<Subject 1>|CHARACTERS|first-character/i);
+});
+
+test("long-form retry eligibility keeps failed and cancelled shots available without bypassing active states", () => {
+  for (const shotStatus of ["FAILED", "CANCELLED"]) {
+    assert.equal(retryLongFormShotError(shotStatus, "FAILED"), undefined);
+    assert.equal(retryLongFormShotError(shotStatus, "RUNNING"), undefined);
+    assert.equal(retryLongFormShotError(shotStatus, "CANCELLED"), undefined);
+    assert.match(retryLongFormShotError(shotStatus, "ASSEMBLING") ?? "", /assembly finishes/i);
+  }
+  assert.match(retryLongFormShotError("RENDERING", "RUNNING") ?? "", /Only failed or cancelled/i);
+  assert.match(retryLongFormShotError("COMPLETED", "EDITING") ?? "", /Only failed or cancelled/i);
 });
