@@ -52,6 +52,22 @@ test("every Cloud video model accepts the text-only signature without an optiona
   }
 });
 
+test("Seedance sends native audio for dialogue unless the creator explicitly requests silence", () => {
+  for (const model of ["seedance-2.0-mini", "seedance-2.0"] as const) {
+    const spoken = normalizeFalRequest(model, { ...request, dialogue: "Love is necessary." });
+    assert.equal(spoken.input.generate_audio, true);
+    assert.match(String(spoken.input.prompt), /quiet landscape/);
+    assert.equal(normalizeFalRequest(model, {
+      ...request, dialogue: "Love is necessary.", nativeAudioEnabled: false,
+    }).input.generate_audio, false);
+    assert.equal(normalizeFalRequest(model, { ...request, dialogue: "   " }).input.generate_audio, false);
+    assert.equal(normalizeFalRequest(model, { ...request, nativeAudioEnabled: true }).input.generate_audio, true);
+  }
+  for (const model of ["veo-3.1-fast", "kling-v3-standard"] as const) {
+    assert.equal(normalizeFalRequest(model, { ...request, dialogue: "Love is necessary." }).input.generate_audio, false);
+  }
+});
+
 const generationInput = {
   provider: "FAL",
   model: "veo-3.1-fast",
@@ -85,4 +101,14 @@ test("CreateGenerationBody rejects more than nine characterIds", () => {
 test("CreateGenerationBody requires prompt", () => {
   const { prompt: _prompt, ...inputWithoutPrompt } = generationInput;
   assert.equal(CreateGenerationBody.safeParse(inputWithoutPrompt).success, false);
+});
+
+test("CreateGenerationBody accepts explicit Seedance audio on and off", () => {
+  for (const nativeAudioEnabled of [true, false]) {
+    const parsed = CreateGenerationBody.safeParse({
+      ...generationInput, model: "seedance-2.0-mini", dialogue: "Love is necessary.", nativeAudioEnabled,
+    });
+    assert.equal(parsed.success, true);
+    if (parsed.success) assert.equal(parsed.data.nativeAudioEnabled, nativeAudioEnabled);
+  }
 });

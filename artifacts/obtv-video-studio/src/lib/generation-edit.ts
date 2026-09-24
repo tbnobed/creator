@@ -46,6 +46,7 @@ export type ComposerRestoreSource = {
   provider: "COMFYUI" | "FAL";
   providerModelId: string | null;
   voiceCloningEnabled: boolean;
+  providerTaskMetadata?: Record<string, unknown>;
   characterIds: string[];
   settingId: string | null;
   referenceVideoKey: string | null;
@@ -72,6 +73,9 @@ export function restoreComposerFields(
     provider: source.provider,
     model: source.providerModelId ? falModelByProviderId[source.providerModelId] : undefined,
     voiceCloningEnabled: source.voiceCloningEnabled,
+    nativeAudioEnabled: source.providerModelId?.includes("seedance-2.0")
+      ? source.providerTaskMetadata?.nativeAudioEnabled === true
+      : null,
     selectedChars: [...source.characterIds],
     selectedSetting: source.settingId ?? "",
     referenceVideoKey: source.referenceVideoKey,

@@ -1550,6 +1550,7 @@ export const CreateGenerationBody = zod.object({
   "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
   "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0']).optional(),
   "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
+  "nativeAudioEnabled": zod.boolean().optional().describe('Seedance only. When omitted, dialogue enables native audio; without dialogue the video is silent. Explicit false keeps a dialogue request silent.'),
   "characterIds": zod.array(zod.string()).min(createGenerationBodyCharacterIdsMin).max(createGenerationBodyCharacterIdsMax).optional(),
   "settingId": zod.string().nullish(),
   "prompt": zod.string().min(1).max(createGenerationBodyPromptMax),

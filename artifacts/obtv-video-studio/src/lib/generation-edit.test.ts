@@ -85,6 +85,7 @@ test("source restoration replaces stale draft fields and preserves requested geo
       provider: "COMFYUI",
       model: undefined,
       voiceCloningEnabled: true,
+      nativeAudioEnabled: null,
       selectedChars: ["character-1"],
       selectedSetting: "setting-1",
       referenceVideoKey: "tenants/tenant-1/reference.mp4",
@@ -131,4 +132,20 @@ test("source restoration keeps the original Cloud model instead of a draft model
   assert.equal(restored.model, "veo-3.1-fast");
   assert.equal(restored.seedMode, "FIXED");
   assert.equal(restored.seed, 42);
+  assert.equal(restored.nativeAudioEnabled, null);
+});
+
+test("Seedance edit preserves explicit native sound choice including silence", () => {
+  for (const enabled of [true, false]) {
+    const restored = restoreComposerFields({
+      provider: "FAL", providerModelId: "bytedance/seedance-2.0/enterprise/mini/reference-to-video",
+      providerTaskMetadata: { nativeAudioEnabled: enabled },
+      voiceCloningEnabled: false, characterIds: [], settingId: null, referenceVideoKey: null,
+      prompt: "Maya speaks.", dialogue: "Love is necessary.", negativePrompt: null,
+      cameraInstructions: "", motionInstructions: "", generationMode: "txt2vid",
+      durationSeconds: 5, fps: 24, requestedWidth: 1280, requestedHeight: 720,
+      requestedDurationSeconds: 5, qualityPreset: "STANDARD",
+    }, { "bytedance/seedance-2.0/enterprise/mini/reference-to-video": "seedance-2.0-mini" });
+    assert.equal(restored.nativeAudioEnabled, enabled);
+  }
 });

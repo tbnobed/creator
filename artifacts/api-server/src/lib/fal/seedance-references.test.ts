@@ -43,6 +43,18 @@ test("Seedance reference endpoints remain recoverable and priced without changin
       fps: 24, qualityPreset: "STANDARD",
     });
     assert.equal("image_urls" in normalized.input, false);
+    assert.equal(normalized.input.generate_audio, false);
+    const spoken = normalizeFalRequest(model, {
+      prompt: seedanceReferencePrompt("DIALOGUE\nLove is necessary.\n\nACTION\nMaya speaks.", [
+        { storageKey: "primary.png", mimeType: "image/png", subject: "Maya", kind: "character" },
+      ]),
+      dialogue: "Love is necessary.", width: 1280, height: 720, durationSeconds: 5,
+      fps: 24, qualityPreset: "STANDARD",
+    });
+    spoken.input.image_urls = ["data:image/png;base64,cGl4ZWw="];
+    assert.equal(spoken.input.generate_audio, true);
+    assert.match(String(spoken.input.prompt), /DIALOGUE\nLove is necessary/);
+    assert.deepEqual(spoken.input.image_urls, ["data:image/png;base64,cGl4ZWw="]);
     const textQuote = await quoteVideoSpend(falModels[model], {
       duration: normalized.durationSeconds, resolution: String(normalized.input.resolution),
     });
@@ -50,5 +62,8 @@ test("Seedance reference endpoints remain recoverable and priced without changin
       duration: normalized.durationSeconds, resolution: String(normalized.input.resolution),
     });
     assert.equal(referenceQuote.estimatedUsd, textQuote.estimatedUsd);
+    assert.equal((await quoteVideoSpend(falSeedanceReferenceModels[model], {
+      duration: normalized.durationSeconds, resolution: String(normalized.input.resolution), generateAudio: true,
+    })).estimatedUsd, referenceQuote.estimatedUsd);
   }
 });

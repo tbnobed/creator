@@ -138,6 +138,8 @@ export function normalizeFalRequest(
     fps: number;
     qualityPreset: string;
     seed?: number | null;
+    nativeAudioEnabled?: boolean;
+    dialogue?: string;
   },
 ): NormalizedFalRequest {
   const aspect = aspectRatio(request.width, request.height);
@@ -181,7 +183,7 @@ export function normalizeFalRequest(
       ...common,
       duration: String(durationSeconds),
       resolution,
-      generate_audio: false,
+      generate_audio: request.nativeAudioEnabled ?? Boolean(request.dialogue?.trim()),
     };
   }
   const effective = dimensions(aspect, resolution);

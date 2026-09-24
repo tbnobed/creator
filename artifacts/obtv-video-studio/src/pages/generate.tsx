@@ -103,6 +103,7 @@ type ComposerDraft = {
   provider?: GenerationProvider;
   model?: FalModel;
   voiceCloningEnabled?: boolean;
+  nativeAudioEnabled?: boolean | null;
   selectedChars?: string[];
   selectedSetting?: string;
   prompt?: string;
@@ -198,6 +199,7 @@ export default function GeneratePage() {
   const [provider, setProvider] = useState<GenerationProvider>(() => draft.provider ?? "COMFYUI");
   const [model, setModel] = useState<FalModel>(() => draft.model ?? "veo-3.1-fast");
   const [voiceCloningEnabled, setVoiceCloningEnabled] = useState(() => draft.voiceCloningEnabled ?? false);
+  const [nativeAudioEnabled, setNativeAudioEnabled] = useState<boolean | null>(() => draft.nativeAudioEnabled ?? null);
   
   const [prompt, setPrompt] = useState(() => draft.prompt ?? "");
   const [dialogue, setDialogue] = useState(() => draft.dialogue ?? "");
@@ -247,6 +249,8 @@ export default function GeneratePage() {
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
   const resolvedDialogueForVoice = dialogue.trim() || inferredDialogue?.dialogue || "";
+  const seedanceSelected = isCloudProvider && model.startsWith("seedance");
+  const effectiveNativeAudio = nativeAudioEnabled ?? Boolean(resolvedDialogueForVoice);
   const firstSelectedCharacter = characters?.find((character) => character.id === selectedChars[0]);
   const hasConsentedSelectedVoice = Boolean(firstSelectedCharacter?.hasVoiceSample && firstSelectedCharacter.voiceConsentAt);
   const canEnableVoiceCloning = hasConsentedSelectedVoice && Boolean(resolvedDialogueForVoice);
@@ -266,6 +270,7 @@ export default function GeneratePage() {
       provider,
       model,
       voiceCloningEnabled,
+      nativeAudioEnabled,
       selectedChars,
       selectedSetting,
       prompt,
@@ -284,7 +289,7 @@ export default function GeneratePage() {
     } satisfies ComposerDraft));
   }, [
     cloneJobId, sourceLoadState,
-    provider, model, voiceCloningEnabled, selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
+    provider, model, voiceCloningEnabled, nativeAudioEnabled, selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
     motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed,
   ]);
 
@@ -309,6 +314,7 @@ export default function GeneratePage() {
       window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
     }
     setVoiceCloningEnabled(restored.voiceCloningEnabled);
+    setNativeAudioEnabled(restored.nativeAudioEnabled);
     setDialogue(restored.dialogue);
     setNegativePrompt(restored.negativePrompt);
     setCameraInstructions(restored.cameraInstructions);
@@ -391,6 +397,7 @@ export default function GeneratePage() {
           provider,
           model: provider === "FAL" ? model : undefined,
           voiceCloningEnabled,
+          nativeAudioEnabled: seedanceSelected ? effectiveNativeAudio : undefined,
           characterIds: selectedChars.length ? selectedChars : undefined,
           settingId: selectedSetting || undefined,
           prompt: resolvedPrompt,
@@ -413,6 +420,7 @@ export default function GeneratePage() {
       setAcceptedJobId(res.id);
       setPrompt("");
       setDialogue("");
+      setNativeAudioEnabled(null);
       setSetupOpen(false);
       setAssetsOpen(false);
       setComposerExpanded(false);
@@ -854,7 +862,7 @@ export default function GeneratePage() {
               />
               </div>
               </div>}
-              <p className="mt-2 hidden px-1 text-[10px] text-[#747a70] sm:block">Quoted speech becomes exact dialogue on supported local workflows. Draft saved automatically.{isCloudProvider ? ` Estimated cloud cost: $${estimatedFalCost.toFixed(2)}.` : ""}</p>
+              <p className="mt-2 px-1 text-[10px] text-[#a7a09f]">Draft saved automatically.{seedanceSelected ? ` Seedance native audio: ${effectiveNativeAudio ? "on" : "off"}${resolvedDialogueForVoice && !effectiveNativeAudio ? " — dialogue will not be audible" : ""}.` : " Quoted speech becomes exact dialogue on supported local workflows."}{isCloudProvider ? ` Estimated cloud cost: $${estimatedFalCost.toFixed(2)}.` : ""}</p>
             </div>
             </div>
         </div>
@@ -953,6 +961,24 @@ export default function GeneratePage() {
                       ? "Seedance receives the primary image for each selected character and one selected environment image. Without selections, it uses text only."
                       : "This model uses character and environment descriptions as text; it does not receive their reference images."}
                   </p>
+                  {seedanceSelected && (
+                    <div className="rounded-md border border-border/50 bg-black/20 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="seedance-native-audio" className="text-xs">Generate native Seedance audio</Label>
+                        <Switch id="seedance-native-audio" checked={effectiveNativeAudio} onCheckedChange={setNativeAudioEnabled} data-testid="switch-seedance-native-audio" />
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {resolvedDialogueForVoice
+                          ? effectiveNativeAudio
+                            ? "Seedance will attempt spoken dialogue with ambient sound. The words, voice, and lip sync are not guaranteed."
+                            : "Dialogue remains in the prompt, but the delivered Seedance video will have no native sound."
+                          : effectiveNativeAudio
+                            ? "Seedance will generate scene audio; add dialogue in Shot direction if you want speech."
+                            : "This Seedance video will be silent. Add dialogue to enable audio automatically, or turn it on for scene sound."}
+                        {voiceCloningEnabled && effectiveNativeAudio ? " Cloned dialogue is added afterward and may replace native sound." : ""}
+                      </p>
+                    </div>
+                  )}
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 mt-2" data-testid="text-fal-cost-estimate">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-xs text-muted-foreground">Approximate cloud cost</span>
@@ -960,6 +986,7 @@ export default function GeneratePage() {
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       {pricedFalDuration}s effective duration × ${pricedFalRate.toFixed(4)}/sec.
+                      {seedanceSelected ? " Seedance audio on/off uses the same estimated rate." : ""}
                     </p>
                   </div>
                 </div>

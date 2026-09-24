@@ -2235,6 +2235,9 @@ components:
           type: string
           enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0]
         voiceCloningEnabled: { type: boolean, default: false }
+        nativeAudioEnabled:
+          type: boolean
+          description: "Seedance only. When omitted, dialogue enables native audio; without dialogue the video is silent. Explicit false keeps a dialogue request silent."
         characterIds: { type: array, items: { type: string }, minItems: 0, maxItems: 9 }
         settingId: { type: ["string", "null"] }
         prompt: { type: string, minLength: 1, maxLength: 10000 }

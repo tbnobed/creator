@@ -15,6 +15,8 @@ export interface GenerationInput {
   provider?: GenerationInputProvider;
   model?: GenerationInputModel;
   voiceCloningEnabled?: boolean;
+  /** Seedance only. When omitted, dialogue enables native audio; without dialogue the video is silent. Explicit false keeps a dialogue request silent. */
+  nativeAudioEnabled?: boolean;
   /**
      * @minItems 0
      * @maxItems 9

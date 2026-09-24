@@ -247,6 +247,7 @@ export type GenerationRequest = {
   provider?: "COMFYUI" | "FAL";
   model?: FalModel;
   voiceCloningEnabled?: boolean;
+  nativeAudioEnabled?: boolean;
   /** Deliberately selected consented voice identity; never inferred from text. */
   speakerCharacterId?: string;
   characterIds?: string[];
@@ -1408,6 +1409,9 @@ async function createAndSubmitFalGeneration(
     throw new FalHttpError("FAL_KEY is not configured", null, false);
   }
   const model = input.model;
+  if (input.nativeAudioEnabled !== undefined && !model.startsWith("seedance")) {
+    throw new Error("Native audio selection is available for Seedance only");
+  }
   const seedanceWithSelections = model in falSeedanceReferenceModels && (characters.length > 0 || Boolean(setting));
   const referenceAssets = seedanceWithSelections
     ? planSeedanceReferences(
@@ -1441,8 +1445,11 @@ async function createAndSubmitFalGeneration(
     fps: input.fps,
     qualityPreset: input.qualityPreset,
     seed: input.seedMode === "FIXED" ? input.seed : null,
+    nativeAudioEnabled: input.nativeAudioEnabled,
+    dialogue: input.dialogue,
   });
   if (imageUrls.length) normalized.input.image_urls = imageUrls;
+  const audioMetadata = { nativeAudioEnabled: normalized.input.generate_audio };
   const [job] = await db.insert(generationJobsTable).values({
     tenantId: input.tenantId,
     createdByUserId: input.createdByUserId,
@@ -1454,6 +1461,7 @@ async function createAndSubmitFalGeneration(
     providerModelId: modelId,
     providerTaskMetadata: {
       ...composerRestoreMetadata(input),
+      ...audioMetadata,
       model,
       spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
       submissionIntent: false,
@@ -1506,6 +1514,7 @@ async function createAndSubmitFalGeneration(
     const submissionIntentAt = new Date().toISOString();
     const [intentReady] = await db.update(generationJobsTable).set({
       providerTaskMetadata: {
+        ...audioMetadata,
         model,
         spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
         submissionIntent: true,
@@ -1523,6 +1532,7 @@ async function createAndSubmitFalGeneration(
     submissionAttempted = true;
     const submitted = await client.submit(normalized.input, modelId);
     const taskMetadata = {
+      ...audioMetadata,
       model,
       spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
       submissionIntent: true,
@@ -1562,6 +1572,7 @@ async function createAndSubmitFalGeneration(
     if (definitivelyUnbilled) {
       await db.update(generationJobsTable).set({
         providerTaskMetadata: {
+          ...audioMetadata,
           model,
           spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
           submissionIntent: submissionAttempted,
@@ -1578,6 +1589,7 @@ async function createAndSubmitFalGeneration(
       failedAt: new Date(),
       ...(reserved ? {
         providerTaskMetadata: {
+          ...audioMetadata,
           model,
           spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
           submissionIntent: submissionAttempted,
