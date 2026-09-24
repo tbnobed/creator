@@ -250,7 +250,9 @@ function formatProviderModel(providerModelId: string | null) {
     case "fal-ai/veo3.1/fast": return "Veo 3.1 Fast";
     case "fal-ai/kling-video/v3/standard/text-to-video": return "Kling v3 Standard";
     case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "Seedance 2.0 Mini";
+    case "bytedance/seedance-2.0/enterprise/mini/reference-to-video": return "Seedance 2.0 Mini · References";
     case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "Seedance 2.0 quality";
+    case "bytedance/seedance-2.0/enterprise/v2/reference-to-video": return "Seedance 2.0 quality · References";
     default: return "Cloud model";
   }
 }

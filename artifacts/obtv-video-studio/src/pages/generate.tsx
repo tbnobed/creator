@@ -580,7 +580,7 @@ export default function GeneratePage() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                    {isCloudProvider
-                     ? "Cloud models currently support text-to-video only. Switch to Local to use a reference video."
+                     ? "Cloud reference videos are unavailable. Seedance can use selected character and environment images; switch to Local to use a reference video."
                      : hasReferenceVideo
                     ? "Your video supplies the presenter, movement, timing, and audio. Character and environment selections are optional."
                     : "Attach presenter footage if the video should supply the subject, movement, timing, and audio. No character or environment selection is required when it is attached."}
@@ -948,6 +948,11 @@ export default function GeneratePage() {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    {model.startsWith("seedance")
+                      ? "Seedance receives the primary image for each selected character and one selected environment image. Without selections, it uses text only."
+                      : "This model uses character and environment descriptions as text; it does not receive their reference images."}
+                  </p>
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 mt-2" data-testid="text-fal-cost-estimate">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-xs text-muted-foreground">Approximate cloud cost</span>

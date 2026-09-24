@@ -6,6 +6,15 @@ export const falModels = {
 } as const;
 
 export type FalModel = keyof typeof falModels;
+export const falSeedanceReferenceModels = {
+  "seedance-2.0-mini": "bytedance/seedance-2.0/enterprise/mini/reference-to-video",
+  "seedance-2.0": "bytedance/seedance-2.0/enterprise/v2/reference-to-video",
+} as const;
+
+export function falModelFromEndpoint(endpoint: string): FalModel | undefined {
+  return ([...Object.entries(falModels), ...Object.entries(falSeedanceReferenceModels)]
+    .find(([, value]) => value === endpoint)?.[0]) as FalModel | undefined;
+}
 export type FalQueueEndpoints = { statusUrl: string; responseUrl: string; cancelUrl: string };
 export type FalQueueStatus = {
   status?: string;
@@ -193,12 +202,15 @@ export class FalQueueClient {
     this.model = model;
   }
 
-  async submit(input: Record<string, unknown>): Promise<{
+  async submit(input: Record<string, unknown>, endpoint: string = falModels[this.model]): Promise<{
     requestId: string;
     endpoints: FalQueueEndpoints;
     metadata: Record<string, unknown>;
   }> {
-    const body = await falRequest(`https://queue.fal.run/${falModels[this.model]}`, {
+    if (endpoint !== falModels[this.model] && endpoint !== falSeedanceReferenceModels[this.model as keyof typeof falSeedanceReferenceModels]) {
+      throw new FalHttpError("Unsupported Cloud model endpoint", null, false);
+    }
+    const body = await falRequest(`https://queue.fal.run/${endpoint}`, {
       method: "POST",
       body: JSON.stringify(input),
     });

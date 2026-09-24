@@ -27,6 +27,8 @@ import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
 import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
 import {
   falModels,
+  falModelFromEndpoint,
+  falSeedanceReferenceModels,
   FalHttpError,
   FalQueueClient,
   getFalVideoUrl,
@@ -385,6 +387,70 @@ function compileGenericPrompt(
     input.audioInstructions ? `AUDIO\n${input.audioInstructions}` : "",
   ];
   return sections.filter(Boolean).join("\n\n");
+}
+
+type SeedanceAsset = {
+  storageKey: string;
+  mimeType: string;
+  label?: string | null;
+  angle?: string | null;
+  characterId?: string;
+  isPrimary?: boolean;
+};
+
+/** Resolve one primary reference per selected subject, without silent text-only fallback. */
+export function planSeedanceReferences(
+  characters: Array<{ id: string; name: string }>,
+  characterAssets: SeedanceAsset[],
+  setting: { name: string } | undefined,
+  settingAssets: SeedanceAsset[],
+): Array<SeedanceAsset & { subject: string; kind: "character" | "setting" }> {
+  const references: Array<SeedanceAsset & { subject: string; kind: "character" | "setting" }> = characters.map((character) => {
+    const asset = characterAssets
+      .filter((item) => item.characterId === character.id && item.label !== "wardrobe" && item.angle !== "wardrobe")
+      .sort((a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary)))[0];
+    if (!asset) throw new Error(`${character.name} has no character reference image. Add one before using Seedance.`);
+    return { ...asset, subject: character.name, kind: "character" as const };
+  });
+  if (setting) {
+    if (!settingAssets[0]) throw new Error(`${setting.name} has no environment reference image. Add one before using Seedance.`);
+    references.push({ ...settingAssets[0], subject: setting.name, kind: "setting" as const });
+  }
+  if (references.length > 9) {
+    throw new Error("Seedance accepts at most 9 reference images. Select fewer characters or remove the environment.");
+  }
+  return references;
+}
+
+export function seedanceReferencePrompt(
+  prompt: string,
+  references: ReturnType<typeof planSeedanceReferences>,
+): string {
+  if (!references.length) return prompt;
+  return [
+    "REFERENCE IMAGES",
+    ...references.map((reference, index) => reference.kind === "character"
+      ? `@Image${index + 1} is ${reference.subject}'s appearance reference. Keep their face, hair, skin tone, and clothing consistent with this image.`
+      : `@Image${index + 1} is the visual reference for ${reference.subject}. Match the studio layout, decor, and lighting to this image.`),
+    prompt,
+  ].join("\n");
+}
+
+async function seedanceReferenceInput(references: ReturnType<typeof planSeedanceReferences>): Promise<string[]> {
+  let totalBytes = 0;
+  const imageUrls: string[] = [];
+  for (const reference of references) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(reference.mimeType)) {
+      throw new Error(`${reference.subject}'s reference must be a JPEG, PNG, or WebP image for Seedance.`);
+    }
+    const bytes = await mediaStorage.readBuffer(reference.storageKey);
+    totalBytes += bytes.length;
+    if (totalBytes > 25 * 1024 * 1024) {
+      throw new Error("Selected Seedance reference images exceed 25 MB combined. Use smaller images.");
+    }
+    imageUrls.push(`data:${reference.mimeType};base64,${bytes.toString("base64")}`);
+  }
+  return imageUrls;
 }
 
 function compactPromptText(value: string): string {
@@ -945,7 +1011,7 @@ export async function resumeActiveGenerations(): Promise<void> {
     .where(inArray(generationJobsTable.status, ["QUEUED", "RUNNING", "DOWNLOADING"]));
   for (const job of jobs) {
     if (job.provider === "FAL" && job.providerModelId && job.providerRequestId) {
-      const model = (Object.entries(falModels).find(([, id]) => id === job.providerModelId)?.[0]) as FalModel | undefined;
+      const model = falModelFromEndpoint(job.providerModelId);
       if (model) {
         try {
           const endpoints = falEndpointsFromMetadata(job.providerTaskMetadata);
@@ -1342,7 +1408,30 @@ async function createAndSubmitFalGeneration(
     throw new FalHttpError("FAL_KEY is not configured", null, false);
   }
   const model = input.model;
-  const compiledPrompt = compileGenericPrompt(characters, setting, input);
+  const seedanceWithSelections = model in falSeedanceReferenceModels && (characters.length > 0 || Boolean(setting));
+  const referenceAssets = seedanceWithSelections
+    ? planSeedanceReferences(
+      characters,
+      characters.length
+        ? await db.select().from(characterAssetsTable)
+          .where(inArray(characterAssetsTable.characterId, characters.map((character) => character.id)))
+          .orderBy(asc(characterAssetsTable.sortOrder))
+        : [],
+      setting,
+      setting
+        ? await db.select().from(settingAssetsTable)
+          .where(eq(settingAssetsTable.settingId, setting.id))
+          .orderBy(asc(settingAssetsTable.sortOrder))
+        : [],
+    )
+    : [];
+  // Data URIs let the provider fetch private character images without making
+  // tenant media publicly accessible. Never persist these data URIs to the job.
+  const imageUrls = await seedanceReferenceInput(referenceAssets);
+  const modelId = referenceAssets.length
+    ? falSeedanceReferenceModels[model as keyof typeof falSeedanceReferenceModels]
+    : falModels[model];
+  const compiledPrompt = seedanceReferencePrompt(compileGenericPrompt(characters, setting, input), referenceAssets);
   const normalized = normalizeFalRequest(model, {
     prompt: compiledPrompt,
     negativePrompt: input.negativePrompt,
@@ -1353,6 +1442,7 @@ async function createAndSubmitFalGeneration(
     qualityPreset: input.qualityPreset,
     seed: input.seedMode === "FIXED" ? input.seed : null,
   });
+  if (imageUrls.length) normalized.input.image_urls = imageUrls;
   const [job] = await db.insert(generationJobsTable).values({
     tenantId: input.tenantId,
     createdByUserId: input.createdByUserId,
@@ -1361,7 +1451,7 @@ async function createAndSubmitFalGeneration(
       : characters[0]?.name ?? setting?.name ?? model,
     status: "UPLOADING",
     provider: "FAL",
-    providerModelId: falModels[model],
+    providerModelId: modelId,
     providerTaskMetadata: {
       ...composerRestoreMetadata(input),
       model,
@@ -1371,7 +1461,7 @@ async function createAndSubmitFalGeneration(
     },
     voiceCloningEnabled: input.voiceCloningEnabled ?? false,
     voiceCharacterId: input.speakerCharacterId ?? null,
-    referenceImageKeys: input.referenceImageKeys ?? [],
+    referenceImageKeys: referenceAssets.map((asset) => asset.storageKey),
     longFormShotId: input.longFormShotId ?? null,
     prompt: input.prompt,
     compiledPrompt,
@@ -1402,7 +1492,6 @@ async function createAndSubmitFalGeneration(
   let reserved = false;
   let submissionAttempted = false;
   try {
-    const modelId = falModels[model];
     const quote = await quoteVideoSpend(modelId, falSpendQuoteInput(normalized));
     await reserveSpend({
       tenantId: input.tenantId,
@@ -1432,7 +1521,7 @@ async function createAndSubmitFalGeneration(
     }
     const client = new FalQueueClient(model);
     submissionAttempted = true;
-    const submitted = await client.submit(normalized.input);
+    const submitted = await client.submit(normalized.input, modelId);
     const taskMetadata = {
       model,
       spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
@@ -1747,7 +1836,7 @@ export async function cancelGeneration(jobId: string) {
 
   let cancellationNote = "Cancelled by user.";
   if (job.provider === "FAL" && job.providerModelId && job.providerRequestId) {
-    const model = (Object.entries(falModels).find(([, id]) => id === job.providerModelId)?.[0]) as FalModel | undefined;
+    const model = falModelFromEndpoint(job.providerModelId);
     if (model) {
       try {
         await new FalQueueClient(model).cancel(falEndpointsFromMetadata(job.providerTaskMetadata));
@@ -1923,7 +2012,7 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
     job.providerModelId &&
     job.providerRequestId
   ) {
-    const model = (Object.entries(falModels).find(([, id]) => id === job.providerModelId)?.[0]) as FalModel | undefined;
+    const model = falModelFromEndpoint(job.providerModelId);
     if (!model) return false;
     try {
       const client = new FalQueueClient(model);

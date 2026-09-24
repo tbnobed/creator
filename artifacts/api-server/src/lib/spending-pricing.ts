@@ -79,6 +79,8 @@ const videoCatalog = {
   "fal-ai/kling-video/v3/standard/text-to-video": { units: ["seconds"] },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/enterprise/mini/reference-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/enterprise/v2/reference-to-video": { units: ["1000 tokens"] },
 } as const;
 
 const localRateCard: Readonly<Record<string, Price>> = {
@@ -99,6 +101,8 @@ const localRateCard: Readonly<Record<string, Price>> = {
   "fal-ai/kling-video/v3/standard/text-to-video": { unitPrice: 0.14, unit: "seconds" },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/enterprise/mini/reference-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/enterprise/v2/reference-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
 };
 
 function unavailable(message: string): SpendingPricingError {
