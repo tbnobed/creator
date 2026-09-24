@@ -86,7 +86,7 @@ export function ImageWorkspace() {
 
   return (
     <div className="flex min-h-full w-full flex-col bg-[#0a0a0a] md:h-full md:flex-row md:overflow-hidden">
-      <div className="relative z-10 flex h-[560px] w-full flex-shrink-0 flex-col border-b border-border bg-card/50 md:h-full md:w-80 md:border-b-0 md:border-r">
+      <div className="relative z-10 order-2 flex h-[560px] w-full flex-shrink-0 flex-col border-t border-border bg-card/50 md:h-full md:w-[360px] md:border-l md:border-t-0">
         <GenerationPanel 
           activeAsset={activeAsset} 
           referenceAssets={referenceAssets}
@@ -103,8 +103,8 @@ export function ImageWorkspace() {
       </div>
 
       {/* Main Area: Preview & Gallery */}
-      <div className="relative flex min-w-0 flex-none flex-col overflow-hidden md:flex-1">
-        <div className="flex h-[420px] flex-none flex-col overflow-hidden p-2 md:h-auto md:min-h-0 md:flex-1 md:p-4">
+      <div className="relative order-1 flex min-w-0 flex-none flex-col overflow-hidden md:min-h-0 md:flex-1">
+        <div className="flex h-[420px] flex-none flex-col overflow-hidden p-2 md:h-auto md:min-h-0 md:flex-1 md:p-5">
           <ActiveImagePreview 
             asset={activeAsset} 
             onClear={clearAsset}

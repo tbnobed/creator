@@ -4994,7 +4994,7 @@ export const getUpdateLongFormShotUrl = (id: string,
 }
 
 /**
- * @summary Edit a planned long-form shot
+ * @summary Edit a long-form shot
  */
 export const updateLongFormShot = async (id: string,
     shotId: string,
@@ -5045,7 +5045,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateLongFormShotMutationError = ErrorType<unknown>
 
     /**
- * @summary Edit a planned long-form shot
+ * @summary Edit a long-form shot
  */
 export const useUpdateLongFormShot = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLongFormShot>>, TError,{id: string;shotId: string;data: BodyType<LongFormShotUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -5068,7 +5068,7 @@ export const getRetryLongFormShotUrl = (id: string,
 }
 
 /**
- * @summary Retry a failed long-form shot
+ * @summary Retry or regenerate a long-form shot
  */
 export const retryLongFormShot = async (id: string,
     shotId: string, options?: Parameters<typeof customFetch>[1]): Promise<LongFormShot> => {
@@ -5118,7 +5118,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RetryLongFormShotMutationError = ErrorType<unknown>
 
     /**
- * @summary Retry a failed long-form shot
+ * @summary Retry or regenerate a long-form shot
  */
 export const useRetryLongFormShot = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryLongFormShot>>, TError,{id: string;shotId: string}, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -22,6 +22,7 @@ import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder"
 import { getWorkflowReferenceRequirements } from "./comfy/workflow-references";
 import { mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
+import { miniMaxH3R2vSeed } from "./seed-data/minimax-h3-r2v";
 import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
 import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
 import {
@@ -189,6 +190,24 @@ function validateMiniMaxH3WorkflowCapabilities(
   }
 }
 
+export function validateMiniMaxH3WorkerModelPair(
+  apiWorkflow: Record<string, unknown>,
+  serverTags: string[],
+): void {
+  const tags = new Set(serverTags.map((tag) => tag.trim().toLowerCase()));
+  const expected = tags.has("blackwell") ? miniMaxH3R2vSeed.blackwell
+    : tags.has("a100") ? miniMaxH3R2vSeed.a100 : null;
+  if (!expected) return;
+  const unet = workflowNodeForGeometry(apiWorkflow, "127")?.inputs?.unet_name;
+  const clip = workflowNodeForGeometry(apiWorkflow, "128")?.inputs?.clip_name;
+  const knownUnets: string[] = [miniMaxH3R2vSeed.a100.unetName, miniMaxH3R2vSeed.blackwell.unetName];
+  const knownClips: string[] = [miniMaxH3R2vSeed.a100.clipName, miniMaxH3R2vSeed.blackwell.clipName];
+  if ((typeof unet === "string" && knownUnets.includes(unet) && unet !== expected.unetName)
+    || (typeof clip === "string" && knownClips.includes(clip) && clip !== expected.clipName)) {
+    throw new Error("MiniMax H3 workflow model files do not match the selected GPU worker. Check its UNET and CLIP configuration.");
+  }
+}
+
 function cloudProviderErrorDetail(value: unknown): string {
   return String(value)
     .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
@@ -254,6 +273,21 @@ export type GenerationRequest = {
   longFormShotId?: string;
   onJobCreated?: (job: GenerationJob) => Promise<void>;
 };
+
+function composerRestoreMetadata(input: GenerationRequest): Record<string, unknown> {
+  return {
+    composerRequest: {
+      characterIds: input.characterIds ?? [],
+      settingId: input.settingId ?? null,
+      referenceVideoKey: input.referenceVideoKey ?? null,
+      cameraInstructions: input.cameraInstructions ?? "",
+      motionInstructions: input.motionInstructions ?? "",
+      requestedWidth: input.width,
+      requestedHeight: input.height,
+      requestedDurationSeconds: input.durationSeconds,
+    },
+  };
+}
 
 function falEndpointsFromMetadata(metadata: Record<string, unknown>): FalQueueEndpoints {
   const submission = metadata.submission && typeof metadata.submission === "object"
@@ -413,12 +447,18 @@ function compileMiniMaxH3StandardPrompt(
   const settingSubjectNumber = setting ? characters.length + 1 : null;
   const dialogue = input.dialogue?.trim();
   const shotPrompt = shotPromptOnly(input.prompt);
-  const referencedCharacters = characters.filter((character) => (
-    escapedWordPattern(character.name).test(shotPrompt) ||
-    /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
-  ));
+  // A single-video creator deliberately selected these assets. Long-form
+  // projects may select a cast/set for the whole project while individual
+  // shots (such as B-roll) omit them.
+  const referencedCharacters = input.longFormShotId
+    ? characters.filter((character) => (
+      escapedWordPattern(character.name).test(shotPrompt) ||
+      /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
+    ))
+    : characters;
   const usesSettingReference = Boolean(
     setting && (
+      !input.longFormShotId ||
       escapedWordPattern(setting.name).test(shotPrompt) ||
       /\b(?:TBN|studio|control room|broadcast facility|broadcast studio|production room)\b/i.test(shotPrompt)
     ),
@@ -518,12 +558,15 @@ function compileMiniMaxH3ReferenceVideoPrompt(
       .replace(/\s+/g, " ")
       .trim()
     : shotPrompt;
-  const referencedCharacters = characters.filter((character) => (
-    escapedWordPattern(character.name).test(shotPrompt) ||
-    /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
-  ));
+  const referencedCharacters = input.longFormShotId
+    ? characters.filter((character) => (
+      escapedWordPattern(character.name).test(shotPrompt) ||
+      /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
+    ))
+    : characters;
   const usesSettingReference = Boolean(
     setting && (
+      !input.longFormShotId ||
       escapedWordPattern(setting.name).test(shotPrompt) ||
       /\b(?:TBN|studio|control room|broadcast facility|broadcast studio|production room)\b/i.test(shotPrompt)
     ),
@@ -686,6 +729,15 @@ function compilePrompt(
   return input.referenceVideoKey
     ? compileMiniMaxH3ReferenceVideoPrompt(characters, setting, input)
     : compileMiniMaxH3StandardPrompt(characters, setting, input);
+}
+
+/** Pure prompt compiler entry point for selected-reference regression tests. */
+export function compileMiniMaxH3PromptForTest(
+  characters: { id: string; name: string; promptDescription: string }[],
+  setting: { name: string; promptDescription: string } | undefined,
+  input: GenerationRequest,
+): string {
+  return compilePrompt("MiniMax H3", characters, setting, input);
 }
 
 /** Pure, mockable contract for continuity reference ordering. */
@@ -1135,6 +1187,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     }
     throw new Error("No healthy, compatible ComfyUI server is available. Configure and test a server first.");
   }
+  if (isMiniMaxH3Workflow) {
+    validateMiniMaxH3WorkerModelPair(apiWorkflow, server.tags);
+  }
   try {
     return await withServerSlotLock(server.id, async () => {
     const [activeJobs, activeImageJobs] = await Promise.all([
@@ -1177,6 +1232,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       generationMode: input.generationMode,
       qualityPreset: input.qualityPreset,
       provider: "COMFYUI",
+      providerTaskMetadata: composerRestoreMetadata(input),
       voiceCloningEnabled: input.voiceCloningEnabled ?? false,
       voiceCharacterId: input.speakerCharacterId ?? null,
       referenceImageKeys: input.referenceImageKeys ?? [],
@@ -1307,6 +1363,7 @@ async function createAndSubmitFalGeneration(
     provider: "FAL",
     providerModelId: falModels[model],
     providerTaskMetadata: {
+      ...composerRestoreMetadata(input),
       model,
       spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
       submissionIntent: false,

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
+import { generationEditDestination } from "@/lib/generation-edit";
 
 export default function GenerationDetailPage() {
   const params = useParams();
@@ -46,6 +47,7 @@ export default function GenerationDetailPage() {
   const isRunning = ["RUNNING", "QUEUED", "UPLOADING", "DOWNLOADING"].includes(job.status);
   const isFailed = job.status === "FAILED";
   const isCompleted = job.status === "COMPLETED";
+  const editDestination = generationEditDestination(job);
 
   return (
     <Page>
@@ -60,17 +62,23 @@ export default function GenerationDetailPage() {
           </h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">ID: {job.id}</p>
         </div>
-        {!isRunning && (
+        {!isRunning && editDestination.kind !== "invalid" && (
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => setLocation(`/?cloneJob=${encodeURIComponent(job.id)}`)}
+            onClick={() => setLocation(editDestination.path)}
+            data-testid={editDestination.kind === "long-form" ? "button-edit-long-form-shot" : "button-edit-generation"}
           >
             <Pencil className="size-4" />
-            Edit & Regenerate
+            {editDestination.kind === "long-form" ? "Edit shot" : "Edit & Regenerate"}
           </Button>
         )}
       </div>
+      {editDestination.kind === "invalid" && (
+        <div className="mb-6 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert" data-testid="alert-generation-edit-link">
+          {editDestination.reason} Editing is unavailable until the parent shot can be resolved.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

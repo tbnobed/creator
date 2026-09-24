@@ -94,8 +94,18 @@ function ServerCard({ server }: { server: any }) {
 
   const handleDelete = async () => {
     if (confirm("Remove this compute node? Running jobs may fail.")) {
-      await deleteMutation.mutateAsync({ id: server.id });
-      queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+      setActionError(null);
+      try {
+        await deleteMutation.mutateAsync({ id: server.id });
+        queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+      } catch (error) {
+        const apiError = error && typeof error === "object"
+          ? error as { status?: number; data?: { error?: string } }
+          : null;
+        const conflictMessage = apiError?.status === 409 && typeof apiError.data?.error === "string"
+          ? apiError.data.error : null;
+        setActionError(conflictMessage ?? "Could not remove this worker. Try again, or disable it instead.");
+      }
     }
   };
 
@@ -190,7 +200,7 @@ function ServerCard({ server }: { server: any }) {
                 <ServerForm initialData={server} onSuccess={() => setIsEditing(false)} />
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="icon" className="size-8 h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/10" onClick={handleDelete}>
+            <Button variant="outline" size="icon" className="size-8 h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/10" onClick={handleDelete} disabled={deleteMutation.isPending} aria-label={`Remove ${server.displayName}`}>
               <Trash2 className="size-4" />
             </Button>
           </div>

@@ -1748,7 +1748,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
   const result = await withProjectLock(projectId, async () => {
     const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
     if (!project) throw new Error("Long-form project not found");
-    if (!["READY", "PAUSED", "FAILED", "EDITING", "COMPLETED", "RUNNING"].includes(project.status)) {
+    if (project.status === "ASSEMBLING") {
       throw new Error("A shot cannot be edited while the final video is being assembled");
     }
 
@@ -1759,6 +1759,13 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
     if (!existingShot) throw new Error("Long-form shot not found");
     if (activeShotStatuses.includes(existingShot.status)) {
       throw new Error("This shot is currently rendering and cannot be edited");
+    }
+    if (
+      existingShot.status === "COMPLETED"
+      && project.continuity?.enabled
+      && (project.status === "RUNNING" || project.status === "ASSEMBLING" || (await activeShotsForProject(projectId)).length > 0)
+    ) {
+      throw new Error("Pause production and wait for active renders to finish before preparing a continuity revision.");
     }
     const continuity = input.continuity
       ? await validateShotContinuity(project.tenantId, project.characterIds, input.continuity)
@@ -1778,6 +1785,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
       (update as Partial<LongFormShot>).shotNumber = (lastInScene?.shotNumber ?? 0) + 1;
     }
     const regenerate = existingShot.status === "COMPLETED";
+    const continuityRevision = regenerate && project.continuity?.enabled === true;
     const [shot] = await db.update(longFormShotsTable)
       .set(regenerate
         ? {
@@ -1799,7 +1807,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
     if (regenerate) {
       await db.update(longFormProjectsTable)
         .set({
-          status: "RUNNING",
+          status: continuityRevision ? "PAUSED" : "RUNNING",
           completedShots: Math.max(0, project.completedShots - 1),
           progress: Math.min(99, project.progress),
           finalOutputStorageKey: null,
@@ -1812,6 +1820,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
     return {
       shot,
       regenerate,
+      scheduleRegeneration: regenerate && !continuityRevision,
       previousFinalOutputKey: regenerate ? project.finalOutputStorageKey : null,
     };
   });
@@ -1821,7 +1830,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
       logger.warn({ err: error, projectId }, "Could not remove stale long-form final output");
     });
   }
-  if (result.regenerate) scheduleLongFormOrchestration(projectId, "edit-completed-shot");
+  if (result.scheduleRegeneration) scheduleLongFormOrchestration(projectId, "edit-completed-shot");
   return presentShot(result.shot);
 }
 
@@ -1857,14 +1866,25 @@ export async function updateLongFormContinuity(
   return presentLongFormProject(result, true);
 }
 
-export function retryLongFormShotError(shotStatus: string, projectStatus: string): string | undefined {
+export function retryLongFormShotError(
+  shotStatus: string,
+  projectStatus: string,
+  continuityEnabled = false,
+  activeShotCount = 0,
+): string | undefined {
   if (projectStatus === "ASSEMBLING") {
     return "Retry the shot after final video assembly finishes";
+  }
+  if (shotStatus === "COMPLETED") {
+    if (continuityEnabled && (projectStatus === "RUNNING" || activeShotCount > 0)) {
+      return "Pause production and wait for active renders to finish before preparing a continuity revision.";
+    }
+    return undefined;
   }
   if (["FAILED", "CANCELLED"].includes(shotStatus)) {
     return undefined;
   }
-  return "Only failed or cancelled shots can be retried. With continuity enabled, use Prepare revision for a completed shot.";
+  return "Only failed, cancelled, or completed shots can be retried.";
 }
 
 export async function retryLongFormShot(projectId: string, shotId: string) {
@@ -1872,6 +1892,9 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
     const [project] = await db.select({
       continuity: longFormProjectsTable.continuity,
       status: longFormProjectsTable.status,
+      completedShots: longFormProjectsTable.completedShots,
+      progress: longFormProjectsTable.progress,
+      finalOutputStorageKey: longFormProjectsTable.finalOutputStorageKey,
     }).from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
     if (!project) throw new ResourceNotFoundError("Long-form project not found");
     const [existingShot] = await db
@@ -1886,13 +1909,14 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
       .where(and(eq(longFormShotsTable.id, shotId), eq(longFormShotsTable.projectId, projectId)));
     if (!existingShot) throw new Error("Long-form shot not found");
     const preparingCompletedRevision = existingShot.status === "COMPLETED" && project.continuity?.enabled;
-    if (preparingCompletedRevision && (["RUNNING", "ASSEMBLING"].includes(project.status) || (await activeShotsForProject(projectId)).length > 0)) {
-      throw new Error("Pause production and wait for active renders to finish before preparing a completed-shot revision.");
-    }
-    if (!preparingCompletedRevision) {
-      const retryError = retryLongFormShotError(existingShot.status, project.status);
-      if (retryError) throw new Error(retryError);
-    }
+    const activeShotCount = preparingCompletedRevision ? (await activeShotsForProject(projectId)).length : 0;
+    const retryError = retryLongFormShotError(
+      existingShot.status,
+      project.status,
+      Boolean(preparingCompletedRevision),
+      activeShotCount,
+    );
+    if (retryError) throw new Error(retryError);
     const [updated] = await db.update(longFormShotsTable).set({
       status: "PLANNED",
       generationJobId: null,
@@ -1912,17 +1936,32 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
     if (!updated) throw new Error("The shot changed before the retry could be prepared");
     await db.update(longFormProjectsTable).set({
       status: preparingCompletedRevision ? "PAUSED" : "RUNNING",
+      ...(existingShot.status === "COMPLETED"
+        ? {
+            completedShots: Math.max(0, project.completedShots - 1),
+            progress: Math.min(99, project.progress),
+            finalOutputStorageKey: null,
+            finalOutputMimeType: null,
+            completedAt: null,
+          }
+        : {}),
       errorMessage: null,
     })
       .where(eq(longFormProjectsTable.id, projectId));
     return {
       shot: updated,
       outputStorageKey: preparingCompletedRevision ? existingShot.outputStorageKey : null,
+      previousFinalOutputKey: existingShot.status === "COMPLETED" ? project.finalOutputStorageKey : null,
       shouldSchedule: !preparingCompletedRevision,
     };
   });
   if (result === null) throw new Error("Project is currently being updated; try again.");
   if (result.outputStorageKey) await mediaStorage.deleteOutput(result.outputStorageKey);
+  if (result.previousFinalOutputKey) {
+    await mediaStorage.deleteOutput(result.previousFinalOutputKey).catch((error) => {
+      logger.warn({ err: error, projectId }, "Could not remove stale long-form final output");
+    });
+  }
   if (result.shouldSchedule) scheduleLongFormOrchestration(projectId, "retry-shot");
   return presentShot(result.shot);
 }

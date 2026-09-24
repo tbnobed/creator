@@ -97,6 +97,16 @@ export function presentGeneration(
     sceneNumber: number;
     shotNumber: number;
   } | null = null,
+  restoreContext: {
+    characterIds: string[];
+    settingId: string | null;
+    referenceVideoKey: string | null;
+    cameraInstructions: string;
+    motionInstructions: string;
+    requestedWidth: number;
+    requestedHeight: number;
+    requestedDurationSeconds: number;
+  } | null = null,
 ) {
   const sanitizeProviderMessage = (message: string | null) => message
     ?.replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
@@ -111,11 +121,21 @@ export function presentGeneration(
     providerTaskMetadata: job.providerTaskMetadata,
     voiceCloningEnabled: job.voiceCloningEnabled,
     prompt: job.prompt,
+    dialogue: job.dialogue,
+    negativePrompt: job.negativePrompt,
+    cameraInstructions: restoreContext?.cameraInstructions ?? "",
+    motionInstructions: restoreContext?.motionInstructions ?? "",
+    characterIds: restoreContext?.characterIds ?? [],
+    settingId: restoreContext?.settingId ?? null,
+    referenceVideoKey: restoreContext?.referenceVideoKey ?? null,
     compiledPrompt: job.compiledPrompt,
     generationMode: job.generationMode,
     qualityPreset: job.qualityPreset,
     width: job.width,
     height: job.height,
+    requestedWidth: restoreContext?.requestedWidth ?? job.width,
+    requestedHeight: restoreContext?.requestedHeight ?? job.height,
+    requestedDurationSeconds: restoreContext?.requestedDurationSeconds ?? job.durationSeconds,
     fps: job.fps,
     durationSeconds: job.durationSeconds,
     seed: job.seed,
@@ -124,6 +144,7 @@ export function presentGeneration(
     serverName,
     workflowName,
     longFormProjectId: longFormContext?.projectId ?? null,
+    longFormShotId: job.longFormShotId,
     longFormProjectTitle: longFormContext?.projectTitle ?? null,
     longFormSceneNumber: longFormContext?.sceneNumber ?? null,
     longFormShotNumber: longFormContext?.shotNumber ?? null,

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
+import { VideoGenerationViewer } from "@/components/video-studio/VideoGenerationViewer";
 
 const PAGE_SIZES = ["24", "48", "96"];
 const ACTIVE_STATUSES = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
@@ -22,11 +23,18 @@ const ACTIVE_STATUSES = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 export default function GenerationsPage() {
   const [page, setPage] = useStateFromUrl("page", 1);
   const [pageSize, setPageSize] = useStateFromUrl("pageSize", 24);
+  const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
   const listQueryKey = getListGenerationsQueryKey({ page, pageSize });
   const { data, isLoading, isFetching, isPlaceholderData } = useListGenerations(
     { page, pageSize },
-    { query: { queryKey: listQueryKey, placeholderData: keepPreviousData } },
+    { query: {
+      queryKey: listQueryKey,
+      placeholderData: keepPreviousData,
+      refetchInterval: (query) => query.state.data?.items.some(
+        (job) => ACTIVE_STATUSES.includes(job.status),
+      ) ? 5_000 : 30_000,
+    } },
   );
   const cancelJob = useCancelGeneration({
     mutation: {
@@ -63,17 +71,16 @@ export default function GenerationsPage() {
   }, [data?.page, isPlaceholderData, page]);
 
   return (
-    <Page>
-      <PageHeader
-        title="Production Queue"
-        description="Monitor active rendering jobs and historical output."
-        actions={
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {isFetching && <Loader2 className="size-3.5 animate-spin text-primary" />}
-            <span>{data?.totalItems ?? 0} total generations</span>
-          </div>
-        }
-      />
+    <Page className="max-w-7xl mx-auto p-4 md:p-8 bg-background min-h-[100dvh]">
+      <div className="flex items-center gap-3 border-b border-border/50 pb-4 mb-6">
+        <div className="size-10 bg-primary/20 rounded-md flex items-center justify-center">
+          <Activity className="size-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Production Queue</h1>
+          <p className="text-muted-foreground text-xs font-medium">Monitor active rendering jobs and historical output.</p>
+        </div>
+      </div>
 
       {isLoading ? (
         <LoadingGrid />
@@ -88,6 +95,7 @@ export default function GenerationsPage() {
               icon={<Activity className="size-4 text-primary" />}
               description={`${activeJobs.length} active on this page`}
               jobs={activeJobs}
+              onOpen={setSelectedJobId}
               emptyLabel="No active jobs on this page"
               onCancel={requestCancellation}
               onDelete={requestDeletion}
@@ -99,6 +107,7 @@ export default function GenerationsPage() {
               icon={<Film className="size-4 text-muted-foreground" />}
               description={`${historyJobs.length} completed or archived on this page`}
               jobs={historyJobs}
+              onOpen={setSelectedJobId}
               emptyLabel="No history on this page"
               onCancel={requestCancellation}
               onDelete={requestDeletion}
@@ -121,6 +130,12 @@ export default function GenerationsPage() {
           />
         </>
       )}
+      <VideoGenerationViewer
+        jobs={jobs}
+        selectedJobId={selectedJobId}
+        onSelectJob={setSelectedJobId}
+        onClose={() => setSelectedJobId(null)}
+      />
     </Page>
   );
 }
@@ -173,47 +188,47 @@ function Metric({ label, value, accent = false }: { label: string; value: number
   return <div className="rounded-lg border border-border/60 bg-background/30 p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p><p className={`mt-1 text-xl font-semibold ${accent ? "text-primary" : ""}`}>{value}</p></div>;
 }
 
-function JobSection({ title, icon, description, jobs, emptyLabel, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
+function JobSection({ title, icon, description, jobs, emptyLabel, onOpen, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onOpen: (id: string) => void; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
   return (
     <section className="min-w-0">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div><h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2><p className="mt-0.5 text-xs text-muted-foreground">{description}</p></div>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {jobs.length === 0 ? <Card className="flex min-h-36 items-center justify-center border-dashed bg-card/20 p-5 text-center text-xs text-muted-foreground">{emptyLabel}</Card> : jobs.map((job) => <GenerationCard key={job.id} job={job} onCancel={onCancel} onDelete={onDelete} cancelPending={cancelPending} deletePending={deletePending} />)}
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {jobs.length === 0 ? <Card className="flex min-h-36 col-span-full items-center justify-center border-dashed bg-card/20 p-5 text-center text-xs text-muted-foreground">{emptyLabel}</Card> : jobs.map((job) => <GenerationCard key={job.id} job={job} onOpen={onOpen} onCancel={onCancel} onDelete={onDelete} cancelPending={cancelPending} deletePending={deletePending} />)}
       </div>
     </section>
   );
 }
 
-function HistorySection({ title, icon, description, jobs, emptyLabel, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
+function HistorySection({ title, icon, description, jobs, emptyLabel, onOpen, onCancel, onDelete, cancelPending, deletePending }: { title: string; icon: React.ReactNode; description: string; jobs: GenerationJob[]; emptyLabel: string; onOpen: (id: string) => void; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean }) {
   const groups = groupHistoryJobs(jobs);
   return (
     <section className="min-w-0">
-      <div className="mb-3">
+      <div className="mb-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       </div>
       {groups.length === 0 ? (
         <Card className="flex min-h-36 items-center justify-center border-dashed bg-card/20 p-5 text-center text-xs text-muted-foreground">{emptyLabel}</Card>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-8">
           {groups.map((group) => (
-            <div key={group.key} className="space-y-2">
+            <div key={group.key} className="space-y-4">
               <div className="flex min-w-0 items-center gap-2 border-b border-border/50 pb-2">
-                <Film className="size-3.5 shrink-0 text-primary" />
+                <Film className="size-4 shrink-0 text-primary" />
                 {group.projectId ? (
-                  <Link href={`/projects/${group.projectId}`} className="truncate text-xs font-semibold text-foreground hover:text-primary">
+                  <Link href={`/projects/${group.projectId}`} className="truncate text-sm font-semibold text-foreground hover:text-primary transition-colors">
                     {group.label}
                   </Link>
                 ) : (
-                  <span className="truncate text-xs font-semibold text-muted-foreground">{group.label}</span>
+                  <span className="truncate text-sm font-semibold text-foreground">{group.label}</span>
                 )}
-                <Badge variant="outline" className="ml-auto h-5 shrink-0 px-1.5 text-[9px]">{group.jobs.length}</Badge>
+                <Badge variant="outline" className="ml-auto h-5 shrink-0 px-2 text-[10px] font-mono">{group.jobs.length}</Badge>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {group.jobs.map((job) => (
-                  <GenerationCard key={job.id} job={job} onCancel={onCancel} onDelete={onDelete} cancelPending={cancelPending} deletePending={deletePending} compact />
+                  <GenerationCard key={job.id} job={job} onOpen={onOpen} onCancel={onCancel} onDelete={onDelete} cancelPending={cancelPending} deletePending={deletePending} compact />
                 ))}
               </div>
             </div>
@@ -243,39 +258,68 @@ function groupHistoryJobs(jobs: GenerationJob[]) {
   return Array.from(groups.values());
 }
 
-function GenerationCard({ job, onCancel, onDelete, cancelPending, deletePending, compact = false }: { job: GenerationJob; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean; compact?: boolean }) {
+function GenerationCard({ job, onOpen, onCancel, onDelete, cancelPending, deletePending, compact = false }: { job: GenerationJob; onOpen: (id: string) => void; onCancel: (id: string) => void; onDelete: (id: string) => void; cancelPending: boolean; deletePending: boolean; compact?: boolean }) {
   const isCancellable = ACTIVE_STATUSES.includes(job.status);
   const executionLabel = job.provider === "FAL"
     ? formatProviderModel(job.providerModelId)
     : "Local GPU / Comfy";
+  const poster = job.status === "COMPLETED" && job.outputUrl ? job.outputUrl : null;
+
   return (
-    <Card className={`group relative flex min-w-0 flex-col border-border/60 bg-card/40 transition-colors hover:border-primary/45 ${compact ? "gap-2 p-3" : "gap-3 p-4"}`}>
-      <Link href={`/generations/${job.id}`} className="min-w-0">
-        <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary/60">{job.status === "COMPLETED" && job.outputUrl ? <Video className="size-5 text-primary" /> : job.status === "RUNNING" ? <Loader2 className="size-5 animate-spin text-primary" /> : job.status === "FAILED" ? <XCircle className="size-5 text-destructive" /> : job.status === "QUEUED" ? <Clock className="size-5 text-muted-foreground" /> : <Play className="size-5 text-muted-foreground" />}</div>
-          <div className="min-w-0 flex-1">
-            <div className="mb-1.5 flex flex-wrap items-center gap-2"><h3 className="truncate text-sm font-semibold group-hover:text-primary">{job.title || "Untitled Job"}</h3><StatusBadge status={job.status} /></div>
-            <p className={`${compact ? "line-clamp-1" : "line-clamp-2"} text-xs leading-relaxed text-muted-foreground`}>{job.prompt}</p>
-            {job.longFormProjectId && (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Badge variant="outline" className="h-5 max-w-full truncate px-1.5 text-[9px]">{job.longFormProjectTitle}</Badge>
-                <span>Scene {job.longFormSceneNumber} · Shot {job.longFormShotNumber}</span>
-              </div>
-            )}
-          </div>
+    <div className="relative overflow-hidden rounded-xl border border-border/60 bg-secondary/30 aspect-[4/3] group transition-all hover:border-primary/50 hover:shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+      {poster ? (
+        <video
+          src={poster}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          muted loop playsInline
+          onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}); }}
+          onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+        />
+      ) : (
+        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-secondary/10">
+          {job.status === "RUNNING" ? <Loader2 className="size-8 animate-spin text-primary mb-2" /> : job.status === "FAILED" ? <XCircle className="size-8 text-destructive mb-2" /> : job.status === "QUEUED" ? <Clock className="size-8 mb-2" /> : <Film className="size-8 mb-2 opacity-50" />}
+          <StatusBadge status={job.status} />
         </div>
-      </Link>
-      <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-3 text-[10px] text-muted-foreground">
-        <span>{formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}</span>
-        <Badge variant="outline" className="max-w-[55%] truncate bg-background/50 text-[9px] font-mono" data-testid={`text-provider-${job.id}`}>
-          {executionLabel}
-        </Badge>
+      )}
+
+      {/* Dark gradient overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/10 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity" />
+
+      {/* Top right actions */}
+      <div className="absolute top-2 right-2 flex items-center gap-1 z-10 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 [@media(hover:none)]:!opacity-100">
+        {isCancellable ? (
+          <Button variant="secondary" size="icon" className="size-7 h-7 shrink-0 text-destructive bg-black/50 hover:bg-destructive/20 border border-destructive/30" onClick={(e) => { e.preventDefault(); onCancel(job.id); }} disabled={cancelPending} title="Cancel" aria-label={`Cancel ${job.title || "generation"}`}>
+            <Square className="size-3 fill-current" />
+          </Button>
+        ) : (
+          <Button variant="secondary" size="icon" className="size-7 h-7 shrink-0 text-muted-foreground bg-black/50 hover:bg-destructive/20 hover:text-destructive border border-border/50 hover:border-destructive/30" onClick={(e) => { e.preventDefault(); onDelete(job.id); }} disabled={deletePending} title="Delete" aria-label={`Delete ${job.title || "generation"}`}>
+            <Trash2 className="size-3.5" />
+          </Button>
+        )}
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[10px] text-muted-foreground">{job.generationMode} · {job.width}×{job.height}</span>
-        {isCancellable ? <Button variant="outline" size="sm" className="h-7 shrink-0 border-destructive/40 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancel(job.id)} disabled={cancelPending}><Square className="mr-1 size-3 fill-current" />Cancel</Button> : <Button variant="ghost" size="icon" className="size-7 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => onDelete(job.id)} disabled={deletePending} title="Delete from queue history" aria-label="Delete from queue history"><Trash2 className="size-3.5" /></Button>}
+
+      <button
+        type="button"
+        className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+        onClick={() => onOpen(job.id)}
+        aria-label={`Open video viewer for ${job.title || "Untitled Job"}`}
+        data-testid={`button-open-generation-${job.id}`}
+      />
+
+      <div className="absolute bottom-0 left-0 right-0 p-3 z-10 pointer-events-none">
+        <p className="text-xs font-medium text-white line-clamp-2 leading-snug mb-1 drop-shadow-md">
+          {job.prompt || "No prompt provided"}
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-[9px] text-white/70">
+          <span className="flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded border border-white/10 backdrop-blur-sm">
+            <Server className="size-2.5" /> {executionLabel}
+          </span>
+          <span className="bg-black/40 px-1.5 py-0.5 rounded border border-white/10 backdrop-blur-sm">
+            {formatDistanceToNow(new Date(job.createdAt))} ago
+          </span>
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -304,7 +348,13 @@ function Pagination({ page, totalPages, pageSize, start, end, totalItems, onPage
 }
 
 function LoadingGrid() {
-  return <div className="grid gap-4 xl:grid-cols-3">{[1, 2, 3].map((column) => <div key={column} className="space-y-3">{[1, 2, 3].map((item) => <Card key={item} className="h-36 animate-pulse border-border/50 bg-card/50" />)}</div>)}</div>;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
+        <Card key={item} className="aspect-[4/3] animate-pulse border-border/50 bg-secondary/20 rounded-xl" />
+      ))}
+    </div>
+  );
 }
 
 function EmptyState() {

@@ -63,7 +63,7 @@ export function ActiveImagePreview({
   if (!asset) {
     return (
       <div className="relative m-2 flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-white/5 bg-black/20 md:m-4">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,31,98,0.05),transparent_50%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,31,98,0.04),transparent_50%)]" />
         <Focus className="mb-4 h-12 w-12 text-muted-foreground/30" />
         <p className="text-sm font-medium text-muted-foreground">Start with your own image</p>
         <p className="mt-1 px-3 text-center text-xs text-muted-foreground/60">Upload a reference, edit or upscale — or select an image from the gallery.</p>

@@ -15,8 +15,8 @@ Preserve the empirically working standard/image-reference speech grammar even wh
 
 **How to apply:** Keep reference-video prompt experiments physically isolated. For standard jobs, do not force the first selected cast member into an off-screen narrator subject, reorder speech conditioning, or rewrite the established `says clearly at a natural speaking rate` / voiceover event without an audible A/B render.
 
-Authored `Camera:` and `Motion:` lines in structured long-form blocks take precedence over planner defaults. Only describe a selected character or setting as appearing in the H3 shot when the shot text actually calls for that reference.
+Authored `Camera:` and `Motion:` lines in structured long-form blocks take precedence over planner defaults. For long-form shots, only describe a project-selected character or setting as appearing when the shot text calls for that reference. For a standalone single-video generation, explicitly selected cast and environment are intended for that shot even if its short prompt does not name them.
 
-**Why:** Appending generic framing after authored direction creates contradictory H3 prompts, while forcing every project reference into every shot makes B-roll and alternate environments reproduce the wrong subject or set.
+**Why:** Appending generic framing after authored direction creates contradictory H3 prompts, while forcing every project reference into every long-form shot makes B-roll and alternate environments reproduce the wrong subject or set. Conversely, filtering standalone selections by name caused a creator's selected cast and environment to disappear from the compiled prompt despite being saved on the job.
 
-**How to apply:** Detect authored camera/motion labels before appending defaults, and determine shot-level reference retention from the shot body before the project-wide visual direction is added.
+**How to apply:** Detect authored camera/motion labels before appending defaults. Use shot-body reference retention for long-form shots; treat direct single-video asset selections as authoritative for that one shot. Keep this distinction for both standard and reference-video H3 prompt paths.

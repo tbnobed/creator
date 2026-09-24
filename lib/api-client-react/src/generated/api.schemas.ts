@@ -199,7 +199,7 @@ export interface AuthLoginInput {
   /** @maxLength 320 */
   email: string;
   /**
-     * @minLength 12
+     * @minLength 1
      * @maxLength 128
      */
   password: string;
@@ -1196,11 +1196,24 @@ export interface GenerationJob {
   providerTaskMetadata: GenerationJobProviderTaskMetadata;
   voiceCloningEnabled: boolean;
   prompt: string;
+  dialogue: string;
+  /** @nullable */
+  negativePrompt: string | null;
+  cameraInstructions: string;
+  motionInstructions: string;
+  characterIds: string[];
+  /** @nullable */
+  settingId: string | null;
+  /** @nullable */
+  referenceVideoKey: string | null;
   compiledPrompt: string;
   generationMode: string;
   qualityPreset: string;
   width: number;
   height: number;
+  requestedWidth: number;
+  requestedHeight: number;
+  requestedDurationSeconds: number;
   fps: number;
   durationSeconds: number;
   /** @nullable */
@@ -1215,6 +1228,8 @@ export interface GenerationJob {
   workflowName: string | null;
   /** @nullable */
   longFormProjectId: string | null;
+  /** @nullable */
+  longFormShotId: string | null;
   /** @nullable */
   longFormProjectTitle: string | null;
   /** @nullable */

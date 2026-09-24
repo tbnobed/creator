@@ -42,3 +42,17 @@ mtime_ms = 1789488610436
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/79e8ed46-f50a-4352-9bf7-5d4a2ff37919/58e2363c-4a16-46b0-b81b-7594449938f7"
 storage_version_token = "1789488611469629"
 content_type = "text/plain"
+
+[[outputs]]
+id = "ekZM44k7PAIMiPCwZkZnB"
+uri = "file://outputs/tbn-symposium-narrated-h3-script.txt"
+type = "text"
+title = "Corrected H3 script WITH narration"
+description = "Paste the entire file into Full Script. Includes all 30 shots and all 29 original narration lines, formatted for speech import rather than post-production notes."
+logical_id = "9504f7c2-4618-46a8-af0c-24bb86c5d4b8"
+content_hash = "sha256:42afc0137c74dab8b4a8a1c7936abe39b7a4b9c0f7a5bb3201ac086a00494436"
+size = 25540
+mtime_ms = 1789520793105
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/9504f7c2-4618-46a8-af0c-24bb86c5d4b8/82bdfd85-7d70-415c-8e1d-ffe45c97b811"
+storage_version_token = "1789520870252248"
+content_type = "text/plain"

@@ -14,6 +14,8 @@ import {
   comfyServersTable,
   db,
   generationJobsTable,
+  generationCharactersTable,
+  generationSettingsTable,
   longFormProjectsTable,
   longFormShotsTable,
   settingsTable,
@@ -26,8 +28,36 @@ import { ResourceNotFoundError } from "../lib/resource-errors";
 
 const router: IRouter = Router();
 
-async function present(job: typeof generationJobsTable.$inferSelect) {
-  const [server, workflow, longFormContext] = await Promise.all([
+function restoreContextFromMetadata(
+  job: typeof generationJobsTable.$inferSelect,
+  allowSharedReferenceVideo = false,
+) {
+  const raw = job.providerTaskMetadata.composerRequest;
+  const composer = raw && typeof raw === "object" && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
+  const stringValue = (value: unknown, fallback = "") => typeof value === "string" ? value : fallback;
+  const numberValue = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  const referenceVideoKey = stringValue(composer.referenceVideoKey, "");
+  return {
+    characterIds: Array.isArray(composer.characterIds)
+      ? composer.characterIds.filter((id): id is string => typeof id === "string")
+      : [],
+    settingId: typeof composer.settingId === "string" ? composer.settingId : null,
+    referenceVideoKey: referenceVideoKey.startsWith(`tenants/${job.tenantId}/`)
+      || (allowSharedReferenceVideo && referenceVideoKey.startsWith("reference-videos/"))
+      ? referenceVideoKey
+      : null,
+    cameraInstructions: stringValue(composer.cameraInstructions),
+    motionInstructions: stringValue(composer.motionInstructions),
+    requestedWidth: numberValue(composer.requestedWidth, job.width),
+    requestedHeight: numberValue(composer.requestedHeight, job.height),
+    requestedDurationSeconds: numberValue(composer.requestedDurationSeconds, job.durationSeconds),
+  };
+}
+
+async function present(job: typeof generationJobsTable.$inferSelect, allowSharedReferenceVideo = false) {
+  const [server, workflow, longFormContext, characterRows, settingRows] = await Promise.all([
     job.comfyServerId ? db.select({ displayName: comfyServersTable.displayName }).from(comfyServersTable).where(eq(comfyServersTable.id, job.comfyServerId)) : [],
     job.workflowTemplateId ? db.select({ name: workflowTemplatesTable.name }).from(workflowTemplatesTable).where(eq(workflowTemplatesTable.id, job.workflowTemplateId)) : [],
     job.longFormShotId
@@ -40,18 +70,43 @@ async function present(job: typeof generationJobsTable.$inferSelect) {
         })
         .from(longFormShotsTable)
         .innerJoin(longFormProjectsTable, eq(longFormProjectsTable.id, longFormShotsTable.projectId))
-        .where(eq(longFormShotsTable.id, job.longFormShotId))
+        .where(and(
+          eq(longFormShotsTable.id, job.longFormShotId),
+          eq(longFormProjectsTable.tenantId, job.tenantId),
+        ))
         .limit(1)
       : [],
+    db.select({ characterId: generationCharactersTable.characterId })
+      .from(generationCharactersTable)
+      .where(eq(generationCharactersTable.generationJobId, job.id))
+      .orderBy(generationCharactersTable.sortOrder),
+    db.select({ settingId: generationSettingsTable.settingId })
+      .from(generationSettingsTable)
+      .where(eq(generationSettingsTable.generationJobId, job.id))
+      .limit(1),
   ]);
-  return presentGeneration(job, server[0]?.displayName ?? null, workflow[0]?.name ?? null, longFormContext[0] ?? null);
+  const metadata = restoreContextFromMetadata(job, allowSharedReferenceVideo);
+  return presentGeneration(
+    job,
+    server[0]?.displayName ?? null,
+    workflow[0]?.name ?? null,
+    longFormContext[0] ?? null,
+    {
+      ...metadata,
+      characterIds: characterRows.length ? characterRows.map(({ characterId }) => characterId) : metadata.characterIds,
+      settingId: settingRows[0]?.settingId ?? metadata.settingId,
+    },
+  );
 }
 
-async function presentMany(jobs: Array<typeof generationJobsTable.$inferSelect>) {
+async function presentMany(
+  jobs: Array<typeof generationJobsTable.$inferSelect>,
+  allowSharedReferenceVideo = false,
+) {
   const serverIds = [...new Set(jobs.map((job) => job.comfyServerId).filter((id): id is string => Boolean(id)))];
   const workflowIds = [...new Set(jobs.map((job) => job.workflowTemplateId).filter((id): id is string => Boolean(id)))];
   const shotIds = [...new Set(jobs.map((job) => job.longFormShotId).filter((id): id is string => Boolean(id)))];
-  const [servers, workflows, longFormContexts] = await Promise.all([
+  const [servers, workflows, longFormContexts, characterRows, settingRows] = await Promise.all([
     serverIds.length
       ? db.select({ id: comfyServersTable.id, displayName: comfyServersTable.displayName }).from(comfyServersTable).where(inArray(comfyServersTable.id, serverIds))
       : [],
@@ -69,17 +124,51 @@ async function presentMany(jobs: Array<typeof generationJobsTable.$inferSelect>)
         })
         .from(longFormShotsTable)
         .innerJoin(longFormProjectsTable, eq(longFormProjectsTable.id, longFormShotsTable.projectId))
-        .where(inArray(longFormShotsTable.id, shotIds))
+        .where(and(
+          inArray(longFormShotsTable.id, shotIds),
+          eq(longFormProjectsTable.tenantId, jobs[0]?.tenantId ?? ""),
+        ))
+      : [],
+    jobs.length
+      ? db.select({
+        generationJobId: generationCharactersTable.generationJobId,
+        characterId: generationCharactersTable.characterId,
+        sortOrder: generationCharactersTable.sortOrder,
+      }).from(generationCharactersTable).where(inArray(
+        generationCharactersTable.generationJobId,
+        jobs.map((job) => job.id),
+      )).orderBy(generationCharactersTable.sortOrder)
+      : [],
+    jobs.length
+      ? db.select({
+        generationJobId: generationSettingsTable.generationJobId,
+        settingId: generationSettingsTable.settingId,
+      }).from(generationSettingsTable).where(inArray(
+        generationSettingsTable.generationJobId,
+        jobs.map((job) => job.id),
+      ))
       : [],
   ]);
   const serverNames = new Map(servers.map((server) => [server.id, server.displayName]));
   const workflowNames = new Map(workflows.map((workflow) => [workflow.id, workflow.name]));
   const contextsByShot = new Map(longFormContexts.map(({ shotId, ...context }) => [shotId, context]));
+  const charactersByJob = new Map<string, string[]>();
+  for (const row of characterRows) {
+    const ids = charactersByJob.get(row.generationJobId) ?? [];
+    ids.push(row.characterId);
+    charactersByJob.set(row.generationJobId, ids);
+  }
+  const settingByJob = new Map(settingRows.map((row) => [row.generationJobId, row.settingId]));
   return jobs.map((job) => presentGeneration(
     job,
     job.comfyServerId ? serverNames.get(job.comfyServerId) ?? null : null,
     job.workflowTemplateId ? workflowNames.get(job.workflowTemplateId) ?? null : null,
     job.longFormShotId ? contextsByShot.get(job.longFormShotId) ?? null : null,
+    {
+      ...restoreContextFromMetadata(job, allowSharedReferenceVideo),
+      characterIds: charactersByJob.get(job.id) ?? restoreContextFromMetadata(job, allowSharedReferenceVideo).characterIds,
+      settingId: settingByJob.get(job.id) ?? restoreContextFromMetadata(job, allowSharedReferenceVideo).settingId,
+    },
   ));
 }
 
@@ -103,7 +192,7 @@ router.get("/generations", async (req, res): Promise<void> => {
     .limit(pageSize)
     .offset((safePage - 1) * pageSize);
   res.json(ListGenerationsResponse.parse({
-    items: await presentMany(jobs),
+    items: await presentMany(jobs, req.context!.tenant!.isDefault),
     page: safePage,
     pageSize,
     totalItems,
@@ -123,7 +212,7 @@ router.post("/generations", async (req, res): Promise<void> => {
       tenantId: req.context!.tenant!.id,
       createdByUserId: req.context!.user.id,
     });
-    res.status(201).json(CreateGenerationResponse.parse(await present(job)));
+     res.status(201).json(CreateGenerationResponse.parse(await present(job, req.context!.tenant!.isDefault)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation could not be submitted";
     const status = error instanceof ResourceNotFoundError
@@ -157,7 +246,7 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
       eq(generationJobsTable.tenantId, req.context!.tenant!.id),
     ));
   }
-  res.json(GetGenerationResponse.parse(await present(job)));
+   res.json(GetGenerationResponse.parse(await present(job, req.context!.tenant!.isDefault)));
 });
 
 router.delete("/generations/:id", async (req, res): Promise<void> => {
@@ -220,7 +309,7 @@ router.post("/generations/:id/cancel", async (req, res): Promise<void> => {
       return;
     }
     const job = await cancelGeneration(params.data.id);
-    res.json(GetGenerationResponse.parse(await present(job)));
+     res.json(GetGenerationResponse.parse(await present(job, req.context!.tenant!.isDefault)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation could not be cancelled";
     const status = message === "Generation job not found" ? 404 : 409;
@@ -236,7 +325,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     db.select().from(comfyServersTable),
     db.select().from(generationJobsTable).where(eq(generationJobsTable.tenantId, tenantId)).orderBy(desc(generationJobsTable.createdAt)),
   ]);
-  const latestGenerations = await Promise.all(jobs.slice(0, 5).map(present));
+   const latestGenerations = await Promise.all(jobs.slice(0, 5).map((job) => present(job, req.context!.tenant!.isDefault)));
   res.json(GetDashboardSummaryResponse.parse({
     characterCount: characters.length,
     settingCount: settings.length,

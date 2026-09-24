@@ -7,7 +7,7 @@ import {
   r2vMappings,
 } from "./seed-data/minimax-h3-r2v";
 import { buildWorkflow } from "./comfy/workflow-builder";
-import { normalizeMiniMaxH3SubmissionGeometry } from "./generation-service";
+import { normalizeMiniMaxH3SubmissionGeometry, validateMiniMaxH3WorkerModelPair } from "./generation-service";
 
 test("MiniMax H3 rounds requested 1080p to its 32px model grid", () => {
   const geometry = normalizeMiniMaxH3SubmissionGeometry({
@@ -79,5 +79,22 @@ test("MiniMax H3 fails closed for non-24fps requests", () => {
       fps: 30,
     }),
     /require 24 fps/,
+  );
+});
+
+test("MiniMax H3 rejects a seeded A100 UNet paired with a Blackwell worker before submission", () => {
+  const graph = createMiniMaxH3R2vWorkflow(
+    miniMaxH3R2vSeed.blackwell.clipName,
+    miniMaxH3R2vSeed.a100.unetName,
+  );
+  assert.throws(
+    () => validateMiniMaxH3WorkerModelPair(graph, ["minimax-h3", "blackwell"]),
+    /model files do not match/,
+  );
+  graph["127"].inputs.unet_name = miniMaxH3R2vSeed.blackwell.unetName;
+  assert.doesNotThrow(() => validateMiniMaxH3WorkerModelPair(graph, ["minimax-h3", "blackwell"]));
+  assert.throws(
+    () => validateMiniMaxH3WorkerModelPair(graph, ["minimax-h3", "a100"]),
+    /model files do not match/,
   );
 });

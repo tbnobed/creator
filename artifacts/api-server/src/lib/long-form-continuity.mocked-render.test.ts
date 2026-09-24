@@ -193,6 +193,10 @@ test("long-form retry eligibility keeps failed and cancelled shots available wit
     assert.equal(retryLongFormShotError(shotStatus, "CANCELLED"), undefined);
     assert.match(retryLongFormShotError(shotStatus, "ASSEMBLING") ?? "", /assembly finishes/i);
   }
-  assert.match(retryLongFormShotError("RENDERING", "RUNNING") ?? "", /Only failed or cancelled/i);
-  assert.match(retryLongFormShotError("COMPLETED", "EDITING") ?? "", /Only failed or cancelled/i);
+  assert.match(retryLongFormShotError("RENDERING", "RUNNING") ?? "", /Only failed, cancelled, or completed/i);
+  assert.equal(retryLongFormShotError("COMPLETED", "EDITING"), undefined);
+  assert.equal(retryLongFormShotError("COMPLETED", "RUNNING", false, 2), undefined);
+  assert.match(retryLongFormShotError("COMPLETED", "RUNNING", true, 0) ?? "", /Pause production/i);
+  assert.match(retryLongFormShotError("COMPLETED", "PAUSED", true, 1) ?? "", /active renders/i);
+  assert.equal(retryLongFormShotError("COMPLETED", "PAUSED", true, 0), undefined);
 });

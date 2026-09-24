@@ -60,30 +60,32 @@ export function Shell({ children }: { children: ReactNode }) {
   ];
 
   const secondaryMobileLinks = allLinks.filter(link => !primaryMobileLinks.find(pl => pl.href === link.href));
+  const primaryDesktopLinks = allLinks.filter((link) => ["/studio", "/image-studio", "/generations"].includes(link.href));
+  const secondaryDesktopLinks = allLinks.filter((link) => !primaryDesktopLinks.some((primary) => primary.href === link.href));
 
   return (
-    <div className="flex h-[100dvh] w-full bg-background overflow-hidden selection:bg-primary/30 text-foreground dark">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 border-r border-border bg-sidebar text-sidebar-foreground flex-col">
-        <div className="h-20 flex items-center bg-black px-5 border-b border-black">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground selection:bg-primary/30 dark">
+      {/* Desktop studio bar: compact gallery scopes with secondary tools grouped away. */}
+      <header className="relative z-30 hidden h-[68px] shrink-0 items-center justify-between gap-5 border-b border-border/70 bg-background/90 px-5 backdrop-blur-xl md:flex lg:px-8">
+        <Link href="/studio" className="flex w-[176px] shrink-0 items-center">
           <img
             src={wordmarkSrc}
             alt="OBTV CreatorAi"
-            className="h-auto w-full max-w-[210px] object-contain"
+            className="h-auto w-full max-w-[150px] object-contain"
           />
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {allLinks.map((link) => {
+        </Link>
+        <nav aria-label="Studio sections" className="flex min-w-0 flex-1 items-center justify-center gap-1">
+          {primaryDesktopLinks.map((link) => {
             const isActive = location === link.href || (link.href !== "/studio" && location.startsWith(link.href));
             return (
-              <Link 
-                key={link.href} 
+              <Link
+                key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2 transition-all ${
-                  isActive 
-                    ? "border-l-primary bg-[linear-gradient(90deg,rgba(255,31,98,0.12),rgba(139,43,226,0.05))] pl-[9px] text-white font-semibold" 
-                    : "border-l-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                aria-current={isActive ? "page" : undefined}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors ${
+                  isActive
+                    ? "bg-secondary font-semibold text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
                 }`}
               >
                 <link.icon className={`size-4 ${isActive ? "text-primary" : ""}`} />
@@ -91,36 +93,49 @@ export function Shell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          <details className="group relative">
+            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <Menu className="size-4" /> More
+            </summary>
+            <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-border bg-card p-2 shadow-2xl">
+              {secondaryDesktopLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${location === link.href || location.startsWith(`${link.href}/`) ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"}`}
+                >
+                  <link.icon className="size-4" />{link.label}
+                </Link>
+              ))}
+              <div className="my-2 border-t border-border/70" />
+              <InstallAppPrompt compact />
+            </div>
+          </details>
         </nav>
-
-        <div className="p-4 border-t border-sidebar-border/50 text-xs text-sidebar-foreground/50 space-y-3">
-          <Link 
+        <div className="flex w-[220px] shrink-0 items-center justify-end gap-4">
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span className={`size-2 rounded-full ${health?.status === "ok" ? "bg-emerald-500" : "bg-destructive animate-pulse"}`} />
+            {health?.status === "ok" ? "Connected" : "API offline"}
+          </span>
+          <Link
             href="/account"
-            className={`flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2 transition-all w-full text-base md:text-sm ${
+            className={`flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
               location.startsWith("/account")
-                ? "border-l-primary bg-[linear-gradient(90deg,rgba(255,31,98,0.12),rgba(139,43,226,0.05))] pl-[9px] text-white font-semibold" 
-                : "border-l-transparent text-sidebar-foreground hover:bg-sidebar-accent/50"
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
             }`}
           >
-            <UserCircle className={`size-5 md:size-4 ${location.startsWith("/account") ? "text-primary" : ""}`} />
-            <div className="flex flex-col flex-1 overflow-hidden">
-              <span className="truncate">{session?.user.displayName || "Account"}</span>
-              <span className="text-[10px] text-muted-foreground truncate">{session?.activeTenant?.name || "Workspace"}</span>
-            </div>
+            <UserCircle className={`size-[18px] shrink-0 ${location.startsWith("/account") ? "text-primary" : ""}`} />
+            <span className="max-w-32 truncate">{session?.user.displayName || "Account"}</span>
           </Link>
-          
-          <InstallAppPrompt compact />
-          <div className="flex items-center gap-2">
-            <div className={`size-2 rounded-full ${health?.status === "ok" ? "bg-emerald-500" : "bg-destructive animate-pulse"}`} />
-            API: {health?.status === "ok" ? "Connected" : "Disconnected"}
-          </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
-      <main className="mobile-shell-content flex-1 flex flex-col h-[100dvh] overflow-hidden relative z-0 bg-background">
+      <main className="mobile-shell-content relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Mobile Header (minimal) */}
-        <div className="md:hidden flex-none h-12 flex items-center justify-between px-4 bg-black border-b border-border z-10 sticky top-0">
+        <div className="md:hidden flex-none h-14 flex items-center justify-between px-4 bg-sidebar border-b border-border z-10 sticky top-0">
           <img
             src={wordmarkSrc}
             alt="OBTV"

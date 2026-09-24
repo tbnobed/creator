@@ -21,3 +21,7 @@
 - [Local cost tracking](local-cost-tracking.md) — Keep cost tracking in-app; provider billing sync, live pricing lookups, and billing keys require explicit authorization.
 - [Local image conditioning](local-image-conditioning.md) — Latent image-to-image is not instruction editing; reduced strength must retain valid sampling transitions.
 - [Long-form continuity contract](long-form-continuity-contract.md) — Required reference capacity must fail closed; completed-shot revisions need a paused approval stage.
+- [Workspace test runner resolution](workspace-test-runner-resolution.md) — Run frontend TypeScript tests with the artifact-local tsx binary; root pnpm and Node miss extensionless imports.
+- [OBTV logo palette](obtv-logo-palette.md) — Keep the gallery-first interaction while matching the pink-to-violet logo rather than lime accents.
+- [Elevated sheet menus](elevated-sheet-menus.md) — Portaled selectors inside custom-elevated sheets must stack above the sheet or controls appear unresponsive.
+- [Seeded workflow upgrades](seeded-workflow-upgrades.md) — Correct seed definitions do not repair existing database rows; reconcile recognizable stale seeds without overwriting custom graphs.

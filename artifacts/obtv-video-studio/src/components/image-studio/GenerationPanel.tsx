@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "wouter";
 import {
   ImageAsset,
   ImageJob,
@@ -21,6 +22,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import {
   AlertCircle,
@@ -36,7 +50,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { UploadIntent } from "./UploadImageDialog";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, ChevronsUpDown, Check } from "lucide-react";
 
 interface GenerationPanelProps {
   activeAsset: ImageAsset | null;
@@ -126,6 +140,8 @@ export function GenerationPanel({
   const paidRequest = useRef<{ key: string; signature: string } | undefined>(undefined);
   const handledUpload = useRef<string | undefined>(undefined);
   const modelSelectionCleared = useRef(false);
+
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
 
   const availableModels = useMemo(
     () => models.filter((model) => model.operations.includes(mode) && model.available),
@@ -360,10 +376,16 @@ export function GenerationPanel({
   return (
     <div className="flex h-full flex-col overflow-y-auto custom-scrollbar">
       <div className="sticky top-0 z-10 border-b border-border/50 bg-card/95 p-4 backdrop-blur">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
-          <ImageIcon className="h-5 w-5 text-primary" />
-          Image Studio
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <ImageIcon className="h-5 w-5 text-primary" />
+            Image Studio
+          </h2>
+          <div className="flex bg-secondary/30 p-1 rounded-lg">
+            <Link href="/studio" className="px-3 py-1 text-muted-foreground hover:text-foreground text-xs font-medium transition-all">Video</Link>
+            <div className="px-3 py-1 rounded-md bg-primary/20 text-primary text-xs font-semibold shadow-[0_0_10px_rgba(255,31,98,0.15)] transition-all">Image</div>
+          </div>
+        </div>
         <Button type="button" variant="outline" className="mb-3 w-full" onClick={onUpload}>
           <UploadCloud className="mr-2 h-4 w-4" />Upload image
         </Button>
@@ -387,27 +409,68 @@ export function GenerationPanel({
       <form onSubmit={(event) => void handleSubmit(event)} className="flex-1 space-y-5 p-4">
         <div className="space-y-2">
           <Label>Model engine</Label>
-          <Select value={modelId} onValueChange={handleModelChange} disabled={modelsLoading}>
-            <SelectTrigger className="h-11 w-full bg-black/40"><SelectValue placeholder="Select a model" /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Your GPUs</SelectLabel>
-                {supportedModels.filter((model) => model.provider === "LOCAL").map((model) => (
-                  <SelectItem key={model.id} value={model.id} disabled={!model.available} title={model.unavailableReason}>
-                    {model.name}{!model.available ? " · unavailable" : ""}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-              <SelectGroup>
-                <SelectLabel>Cloud · cost applies</SelectLabel>
-                {supportedModels.filter((model) => model.provider === "CLOUD").map((model) => (
-                  <SelectItem key={model.id} value={model.id} disabled={!model.available} title={model.unavailableReason}>
-                    {model.name}{!model.available ? " · unavailable" : ""}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <Popover open={modelPickerOpen} onOpenChange={setModelPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={modelPickerOpen}
+                disabled={modelsLoading}
+                className="w-full justify-between h-11 bg-black/40 font-normal hover:bg-black/60 border-border/50 text-left"
+              >
+                <span className="truncate">
+                  {activeModel ? activeModel.name : "Select a model..."}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search models..." />
+                <CommandList>
+                  <CommandEmpty>No models found.</CommandEmpty>
+                  <CommandGroup heading="Your GPUs">
+                    {supportedModels.filter((model) => model.provider === "LOCAL").map((model) => (
+                      <CommandItem
+                        key={model.id}
+                        value={model.name}
+                        disabled={!model.available}
+                        onSelect={() => {
+                          if (model.available) {
+                            handleModelChange(model.id);
+                            setModelPickerOpen(false);
+                          }
+                        }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${modelId === model.id ? "opacity-100" : "opacity-0"}`} />
+                        <span className="truncate">{model.name}</span>
+                        {!model.available && <span className="ml-2 text-xs text-muted-foreground">(unavailable)</span>}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                  <CommandGroup heading="Cloud · cost applies">
+                    {supportedModels.filter((model) => model.provider === "CLOUD").map((model) => (
+                      <CommandItem
+                        key={model.id}
+                        value={model.name}
+                        disabled={!model.available}
+                        onSelect={() => {
+                          if (model.available) {
+                            handleModelChange(model.id);
+                            setModelPickerOpen(false);
+                          }
+                        }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${modelId === model.id ? "opacity-100" : "opacity-0"}`} />
+                        <span className="truncate">{model.name}</span>
+                        {!model.available && <span className="ml-2 text-xs text-muted-foreground">(unavailable)</span>}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           {activeModel && (
             <p className="flex gap-2 rounded border border-white/5 bg-black/20 p-2 text-xs text-muted-foreground">
               <Info className="h-4 w-4 shrink-0 text-blue-400" />{activeModel.description}

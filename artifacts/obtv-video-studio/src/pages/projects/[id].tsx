@@ -56,6 +56,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 import { NLEEditor, type Clip as EditorClip } from "@/components/nle-editor";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
+import { longFormShotActionState } from "@/lib/long-form-shot-actions";
 import { ContinuityEditor } from "@/components/long-form/ContinuityEditor";
 import { ShotStillReview } from "@/components/long-form/ShotStillReview";
 
@@ -121,6 +122,8 @@ export default function ProjectDetailPage() {
   const [isContinuityEditorOpen, setIsContinuityEditorOpen] = useState(false);
   const [timelineDirty, setTimelineDirty] = useState(false);
   const [isDownloadingPackage, setIsDownloadingPackage] = useState(false);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+  const requestedShotId = new URLSearchParams(window.location.search).get("shot");
 
   // Queries
   const { data: project, isLoading, error } = useGetLongFormProject(id as string, {
@@ -137,6 +140,30 @@ export default function ProjectDetailPage() {
   });
   const { data: characters = [] } = useListCharacters();
   const { data: settings = [] } = useListSettings();
+
+  useEffect(() => {
+    if (!project || !requestedShotId || !id) return;
+    const requestedShot = project.shots.find((shot) => shot.id === requestedShotId);
+    if (!requestedShot) {
+      setDeepLinkError("The requested shot does not belong to this project or is no longer available.");
+      setLocation(`/projects/${encodeURIComponent(id)}`);
+      return;
+    }
+    const actionState = longFormShotActionState({
+      shotStatus: requestedShot.status,
+      projectStatus: project.status,
+      continuityEnabled: Boolean(project.continuity?.enabled),
+      activeShotCount: project.shots.filter((shot) => ["QUEUED", "RENDERING"].includes(shot.status)).length,
+    });
+    if (!actionState.edit.enabled) {
+      setDeepLinkError(actionState.disabledReason ?? "This shot is not available for editing right now.");
+      setLocation(`/projects/${encodeURIComponent(id)}`);
+      return;
+    }
+    setDeepLinkError(null);
+    setEditingShot(requestedShot);
+    setLocation(`/projects/${encodeURIComponent(id)}`);
+  }, [project, requestedShotId, id, setLocation]);
 
   // Mutations
   const startProject = useStartLongFormProject();
@@ -215,16 +242,26 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const handleRetryShot = (shotId: string) => {
-    const preparingRevision = project?.continuity?.enabled && project.shots.find((shot) => shot.id === shotId)?.status === "COMPLETED";
+  const submitShotRegeneration = (shotId: string, preparingRevision: boolean) => {
     if (preparingRevision && !window.confirm("Prepare a revision of this shot? Its current clip will be removed from the active timeline, and production will pause for still approval. Other shots are preserved.")) return;
     retryShot.mutate({ id: id as string, shotId }, {
       onSuccess: () => {
-        toast({ title: preparingRevision ? "Shot ready for revision" : "Shot queued for retry", description: preparingRevision ? "Update continuity or replace the still, approve it, then resume production." : undefined });
+        toast({
+          title: preparingRevision ? "Shot ready for revision" : "Shot queued for regeneration",
+          description: preparingRevision ? "Update continuity or replace the still, approve it, then resume production." : undefined,
+        });
         invalidateProject();
       },
       onError: (err: any) => toast({ title: "Failed to retry shot", description: err.message, variant: "destructive" })
     });
+  };
+
+  const handleRetryShot = (shotId: string) => {
+    submitShotRegeneration(shotId, false);
+  };
+
+  const handleRegenerateShot = (shotId: string) => {
+    submitShotRegeneration(shotId, Boolean(project?.continuity?.enabled));
   };
 
   const handleTimelineChange = (clips: EditorClip[]) => {
@@ -351,6 +388,11 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-background">
+      {deepLinkError && (
+        <div className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:mx-8" role="alert" data-testid="alert-project-shot-link">
+          {deepLinkError}
+        </div>
+      )}
       {/* HEADER */}
       <header className="flex-none border-b border-border/50 bg-card/30 backdrop-blur px-4 py-4 md:px-8 md:py-6">
         <Link href="/projects" className="inline-flex items-center text-xs md:text-sm text-muted-foreground hover:text-foreground mb-3 md:mb-4 transition-colors">
@@ -517,7 +559,7 @@ export default function ProjectDetailPage() {
                   <video src={project.finalOutputUrl} poster={videoPosterUrl(project.finalOutputUrl)} controls className="w-full" playsInline preload="metadata" />
                 </div>
               ) : project.status === 'ASSEMBLING' ? (
-                <div className="w-full aspect-video rounded-lg border border-primary/30 bg-primary/5 flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(255,31,98,0.2)] text-primary">
+                <div className="w-full aspect-video rounded-lg border border-primary/30 bg-primary/5 flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(255,31,98,0.1)] text-primary">
                   <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mb-2 md:mb-3" />
                   <p className="font-medium tracking-wide text-xs md:text-sm">Assembling Final Cut...</p>
                 </div>
@@ -631,6 +673,14 @@ export default function ProjectDetailPage() {
                 </h3>
                 <div className="grid gap-2.5 md:gap-3">
                   {scenes[sceneNum].sort((a: any, b: any) => a.shotNumber - b.shotNumber).map((shot: any) => (
+                    (() => {
+                      const actionState = longFormShotActionState({
+                        shotStatus: shot.status,
+                        projectStatus: project.status,
+                        continuityEnabled: Boolean(project.continuity?.enabled),
+                        activeShotCount: project.shots.filter((candidate: any) => ["QUEUED", "RENDERING"].includes(candidate.status)).length,
+                      });
+                      return (
                       <div
                         key={shot.id}
                         className={`group flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl border transition-all ${
@@ -682,16 +732,17 @@ export default function ProjectDetailPage() {
                             )}
                           </h4>
                           
-                          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0 -mr-1 md:mr-0 -mt-1 md:mt-0">
+                          <div className="flex flex-col items-end gap-1.5 flex-shrink-0 -mr-1 md:mr-0 -mt-1 md:mt-0">
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
                             {(shot.status === 'FAILED' || shot.status === 'CANCELLED') && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-8 shrink-0 border-amber-500/40 px-2 text-amber-500 hover:text-amber-400"
                                 onClick={() => handleRetryShot(shot.id)}
-                                disabled={retryShot.isPending || project.status === "ASSEMBLING"}
+                                disabled={retryShot.isPending || !actionState.retry.enabled}
                                 aria-label={`Retry ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
-                                title={project.status === "ASSEMBLING" ? "Retry is available after final video assembly finishes" : "Retry shot"}
+                                data-testid={`button-retry-shot-${shot.id}`}
                               >
                                 {retryShot.isPending
                                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -699,17 +750,20 @@ export default function ProjectDetailPage() {
                                 Retry shot
                               </Button>
                             )}
-                            <div className="flex items-center gap-1 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                            {project.continuity?.enabled && shot.status === 'COMPLETED' && !isRunning && project.status !== "ASSEMBLING" && (
+                            {actionState.regenerate.visible && (
                               <Button
-                                size="icon"
-                                variant="ghost"
-                                className="w-7 h-7 md:w-7 md:h-7 text-amber-500"
-                                onClick={() => handleRetryShot(shot.id)}
-                                aria-label={`${shot.status === "COMPLETED" ? "Prepare revision for" : "Retry"} ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
-                                title={shot.status === "COMPLETED" ? "Prepare revision (pauses for still approval)" : "Retry shot"}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 shrink-0 border-amber-500/40 px-2 text-amber-500 hover:text-amber-400"
+                                onClick={() => handleRegenerateShot(shot.id)}
+                                disabled={retryShot.isPending || !actionState.regenerate.enabled}
+                                aria-label={`Regenerate ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                                data-testid={`button-regenerate-shot-${shot.id}`}
                               >
-                                <RefreshCw className="w-3.5 h-3.5" />
+                                {retryShot.isPending
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <RefreshCw className="w-3.5 h-3.5" />}
+                                Regenerate
                               </Button>
                             )}
                             {project.continuity?.enabled && (
@@ -723,16 +777,29 @@ export default function ProjectDetailPage() {
                                 }`} 
                                 onClick={() => setReviewingShot(shot)}
                                 disabled={isRunning || project.status === "ASSEMBLING" || isDone}
-                                title="Review Still Frame"
                                 data-testid={`button-review-still-${shot.id}`}
                               >
                                 <Camera className="w-3.5 h-3.5" />
+                                <span className="sr-only">Review still</span>
                               </Button>
                             )}
-                            <Button size="icon" variant="ghost" className="w-7 h-7 md:w-7 md:h-7" onClick={() => setEditingShot(shot)}>
-                              <Pencil className="w-3.5 h-3.5" />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 shrink-0 px-2"
+                              onClick={() => setEditingShot(shot)}
+                              disabled={!actionState.edit.enabled}
+                              aria-label={`Edit ${shot.title || `Shot ${shot.sceneNumber}.${shot.shotNumber}`}`}
+                              data-testid={`button-edit-shot-${shot.id}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
                             </Button>
                             </div>
+                            {actionState.disabledReason && (
+                              <p className="max-w-[18rem] text-right text-[10px] leading-tight text-amber-400" data-testid={`status-shot-action-${shot.id}`}>
+                                {actionState.disabledReason}
+                              </p>
+                            )}
                           </div>
                         </div>
                         
@@ -754,7 +821,9 @@ export default function ProjectDetailPage() {
                           </div>
                         )}
                       </div>
-                    </div>
+                      </div>
+                      );
+                    })()
                   ))}
                 </div>
               </div>
@@ -772,6 +841,7 @@ export default function ProjectDetailPage() {
           projectId={project.id}
           generationMode={project.generationMode}
           characters={projectCharacters}
+           continuityEnabled={Boolean(project.continuity?.enabled)}
         />
       )}
 
@@ -1000,11 +1070,12 @@ const shotFormSchema = z.object({
   }).optional(),
 });
 
-function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode, characters }: { shot: any, open: boolean, onOpenChange: (o: boolean) => void, projectId: string, generationMode: string, characters: any[] }) {
+function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode, characters, continuityEnabled }: { shot: any, open: boolean, onOpenChange: (o: boolean) => void, projectId: string, generationMode: string, characters: any[], continuityEnabled: boolean }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateShot = useUpdateLongFormShot();
   const willRegenerate = shot.status === "COMPLETED";
+  const willPrepareContinuityRevision = willRegenerate && continuityEnabled;
 
   const form = useForm<z.infer<typeof shotFormSchema>>({
     resolver: zodResolver(shotFormSchema),
@@ -1038,8 +1109,16 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode, c
     updateShot.mutate({ id: projectId, shotId: shot.id, data }, {
       onSuccess: () => {
         toast({
-          title: willRegenerate ? "Shot queued for regeneration" : "Shot updated",
-          description: willRegenerate ? "Only this shot will render again. The other completed clips are preserved." : undefined,
+          title: willPrepareContinuityRevision
+            ? "Shot ready for continuity revision"
+            : willRegenerate
+              ? "Shot queued for regeneration"
+              : "Shot updated",
+          description: willPrepareContinuityRevision
+            ? "Approve the refreshed still, then resume production. Other completed clips are preserved."
+            : willRegenerate
+              ? "Only this shot will render again. The other completed clips are preserved."
+              : undefined,
         });
         queryClient.invalidateQueries({ queryKey: getGetLongFormProjectQueryKey(projectId) });
         onOpenChange(false);
@@ -1311,7 +1390,11 @@ function EditShotDialog({ shot, open, onOpenChange, projectId, generationMode, c
               <Button type="button" variant="outline" size="sm" className="md:h-10 md:px-4" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={updateShot.isPending} size="sm" className="md:h-10 md:px-4 brand-glow">
                 {updateShot.isPending && <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 animate-spin" />}
-                {willRegenerate ? "Save & Regenerate Shot" : "Save Changes"}
+                {willPrepareContinuityRevision
+                  ? "Save & Prepare Revision"
+                  : willRegenerate
+                    ? "Save & Regenerate Shot"
+                    : "Save Changes"}
               </Button>
             </div>
           </form>

@@ -230,7 +230,7 @@ function WorkspaceManager({ activeTenantId }: { activeTenantId?: string }) {
                   key={tenant.id} 
                   className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
                     isActive 
-                      ? "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(255,31,98,0.1)]" 
+                      ? "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(255,31,98,0.1)]"
                       : "border-border bg-card hover:border-primary/30 hover:bg-secondary/30"
                   }`}
                 >

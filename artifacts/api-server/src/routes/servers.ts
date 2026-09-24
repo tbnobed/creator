@@ -15,7 +15,14 @@ import {
   UpdateServerParams,
   UpdateServerResponse,
 } from "@workspace/api-zod";
-import { comfyServersTable, db, workflowTemplatesTable } from "@workspace/db";
+import {
+  comfyServersTable,
+  db,
+  generationJobsTable,
+  imageStudioJobsTable,
+  longFormShotsTable,
+  workflowTemplatesTable,
+} from "@workspace/db";
 import { assertTrustedComfyUrl, ComfyUIClient } from "../lib/comfy/client";
 import { presentServer } from "../lib/studio-presenters";
 import { requireSiteAdmin } from "../middlewares/auth";
@@ -150,12 +157,36 @@ router.delete("/servers/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [server] = await db.delete(comfyServersTable).where(eq(comfyServersTable.id, params.data.id)).returning();
-  if (!server) {
-    res.status(404).json({ error: "Server not found" });
+  const serverId = params.data.id;
+  const [generation, imageJob, shot] = await Promise.all([
+    db.select({ id: generationJobsTable.id }).from(generationJobsTable)
+      .where(eq(generationJobsTable.comfyServerId, serverId)).limit(1),
+    db.select({ id: imageStudioJobsTable.id }).from(imageStudioJobsTable)
+      .where(eq(imageStudioJobsTable.comfyServerId, serverId)).limit(1),
+    db.select({ id: longFormShotsTable.id }).from(longFormShotsTable)
+      .where(eq(longFormShotsTable.assignedServerId, serverId)).limit(1),
+  ]);
+  const linkedWorkerMessage = "This worker is linked to existing jobs or shots. Disable it instead to preserve their history.";
+  if (generation.length || imageJob.length || shot.length) {
+    res.status(409).json({ error: linkedWorkerMessage });
     return;
   }
-  res.sendStatus(204);
+  try {
+    const [server] = await db.delete(comfyServersTable).where(eq(comfyServersTable.id, serverId)).returning();
+    if (!server) {
+      res.status(404).json({ error: "Server not found" });
+      return;
+    }
+    res.sendStatus(204);
+  } catch (error) {
+    // A job may have claimed this worker after the preflight check.
+    const pgError = error as { code?: string; cause?: { code?: string } };
+    if (pgError.code === "23503" || pgError.cause?.code === "23503") {
+      res.status(409).json({ error: linkedWorkerMessage });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.post("/servers/:id/test", async (req, res): Promise<void> => {

@@ -10,7 +10,7 @@ export interface AuthLoginInput {
   /** @maxLength 320 */
   email: string;
   /**
-     * @minLength 12
+     * @minLength 1
      * @maxLength 128
      */
   password: string;

@@ -247,6 +247,32 @@ async function seedWorkflowDefinitions(): Promise<void> {
     await db.insert(workflowTemplatesTable).values(missingVariants);
   }
 
+  // Older app-managed H3 image-reference seeds wrote a frame count directly
+  // onto the model length, bypassing the graph's 24fps frame-grid expression.
+  // Repair only that exact mapping on recognizable seeded geometry graphs.
+  const legacyR2vMappings: Record<string, { nodeId: string; input: string }> = { ...r2vMappings };
+  delete legacyR2vMappings.durationSeconds;
+  legacyR2vMappings.frames = { nodeId: "136", input: "length" };
+  const staleR2vMappings = existing.filter((workflow) => {
+    const variant = variants.find((candidate) => candidate.name === workflow.name && candidate.mappings === r2vMappings);
+    if (!variant || workflow.modelFamily !== "MiniMax H3" || workflow.generationMode !== "r2v"
+      || !equalJson(workflow.mappings, legacyR2vMappings) || !workflow.apiWorkflow) return false;
+    const graph = workflow.apiWorkflow as Record<string, { class_type?: string; inputs?: Record<string, unknown> }>;
+    const seedGraph = variant.createWorkflow(variant.clipName, variant.unetName);
+    return graph["136"]?.class_type === "MiniMaxH3ReferenceToVideo"
+      && graph["132"]?.class_type === "PrimitiveFloat"
+      && graph["130"]?.class_type === "CreateVideo"
+      && equalJson(graph["131"]?.inputs, seedGraph["131"].inputs)
+      && equalJson(graph["136"]?.inputs?.length, seedGraph["136"].inputs.length);
+  });
+  await Promise.all(staleR2vMappings.map((workflow) => (
+    db.update(workflowTemplatesTable).set({
+      mappings: r2vMappings,
+      expectedInputs: Object.keys(r2vMappings),
+      version: workflow.version + 1,
+    }).where(eq(workflowTemplatesTable.id, workflow.id))
+  )));
+
   const externalVariants = [
     {
       ...wan22Seeds.t2v,
@@ -342,6 +368,32 @@ async function seedWorkflowDefinitions(): Promise<void> {
   )));
 
   const upgradedH3ModelPairIds = new Set(staleH3ModelPairRecords.map(({ workflow }) => workflow.id));
+  // Some persisted Blackwell image-reference graphs had their CLIP corrected
+  // but retained the A100 UNet. Keep any unrelated graph edits intact.
+  const mixedBlackwellH3Records = existing.filter((workflow) => {
+    if (upgradedH3ModelPairIds.has(workflow.id)
+      || upgradedVideoWorkflowIds.has(workflow.id)
+      || workflow.name !== blackwellVariant.name
+      || workflow.modelFamily !== "MiniMax H3"
+      || workflow.generationMode !== "r2v"
+      || !equalJson(workflow.compatibleServerTags, [...blackwellVariant.tags])
+      || !workflow.apiWorkflow) return false;
+    const graph = workflow.apiWorkflow as Record<string, { class_type?: string; inputs?: Record<string, unknown> }>;
+    return graph["127"]?.class_type === "UNETLoader"
+      && graph["127"].inputs?.unet_name === miniMaxH3R2vSeed.a100.unetName
+      && graph["128"]?.class_type === "CLIPLoader"
+      && graph["128"].inputs?.clip_name === blackwellVariant.clipName
+      && graph["136"]?.class_type === "MiniMaxH3ReferenceToVideo";
+  });
+  await Promise.all(mixedBlackwellH3Records.map((workflow) => {
+    const repairedGraph = structuredClone(workflow.apiWorkflow) as Record<string, { inputs: Record<string, unknown> }>;
+    repairedGraph["127"].inputs.unet_name = blackwellVariant.unetName;
+    return db.update(workflowTemplatesTable).set({
+      apiWorkflow: repairedGraph,
+      version: workflow.version + 1,
+    }).where(eq(workflowTemplatesTable.id, workflow.id));
+  }));
+
   const staleTurboWorkflowRecords = existing.filter((workflow) => {
     if (upgradedVideoWorkflowIds.has(workflow.id) || upgradedH3ModelPairIds.has(workflow.id)) return false;
     const apiWorkflow = workflow.apiWorkflow as Record<string, { class_type?: unknown; inputs?: Record<string, unknown> }> | null;

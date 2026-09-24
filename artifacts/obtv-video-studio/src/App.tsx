@@ -39,7 +39,7 @@ function HomeRedirect() {
     },
   });
   if (isLoading) return <PageLoading />;
-  if (session) return <Redirect to="/studio" />;
+  if (session) return <Redirect to={`/studio${window.location.search}`} />;
   if ((error as { status?: number } | null)?.status === 401) return <LandingPage />;
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">

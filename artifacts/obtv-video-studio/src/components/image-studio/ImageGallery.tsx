@@ -124,7 +124,7 @@ export function ImageGallery({
                 <div
                   key={asset.id}
                   className={`group relative h-40 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
-                    activeAssetId === asset.id ? "border-primary shadow-[0_0_15px_rgba(255,31,98,0.4)]" : "border-transparent hover:border-white/20"
+                    activeAssetId === asset.id ? "border-primary shadow-[0_0_15px_rgba(255,31,98,0.2)]" : "border-transparent hover:border-white/20"
                   }`}
                   style={{ aspectRatio: `${asset.width}/${asset.height}` }}
                 >

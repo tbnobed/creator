@@ -417,7 +417,7 @@ export function NLEEditor({
                  onClick={() => onSelectedClipIdChange(clip.id)}
                  className={cn(
                     "h-full w-[160px] md:w-[200px] flex-none rounded-md border-2 transition-all cursor-pointer overflow-hidden relative flex flex-col bg-black",
-                   isSelected ? "border-primary shadow-[0_0_15px_rgba(255,31,98,0.3)] ring-1 ring-primary/50" : "border-border/50 hover:border-border",
+                   isSelected ? "border-primary shadow-[0_0_15px_rgba(255,31,98,0.15)] ring-1 ring-primary/50" : "border-border/50 hover:border-border",
                    clip.isRemoved && "opacity-40 grayscale"
                  )}
                >

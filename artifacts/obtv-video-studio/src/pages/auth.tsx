@@ -10,30 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { publishAuthChanged } from "@/lib/auth-events";
-
-const emailSchema = z.string()
-  .trim()
-  .toLowerCase()
-  .min(1, "Email is required")
-  .email("Enter a valid email address")
-  .max(320, "Email must be 320 characters or fewer");
-
-const loginSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(12, "Password must be at least 12 characters").max(128, "Password must be 128 characters or fewer"),
-});
-
-const registrationSchema = loginSchema.extend({
-  displayName: z.string().trim().min(1, "Display name is required").max(160, "Display name must be 160 characters or fewer"),
-  confirmPassword: z.string(),
-  bootstrapToken: z.string()
-    .max(256, "Setup token must be 256 characters or fewer")
-    .refine((value) => !value || value.length >= 32, "Setup token must be at least 32 characters")
-    .optional(),
-}).refine(({ password, confirmPassword }) => password === confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+import { loginSchema, registrationSchema } from "@/lib/auth-validation";
 
 type LoginValues = z.infer<typeof loginSchema>;
 type RegistrationValues = z.infer<typeof registrationSchema>;

@@ -1165,7 +1165,7 @@ paths:
     patch:
       operationId: updateLongFormShot
       tags: [long-form-projects]
-      summary: Edit a planned long-form shot
+      summary: Edit a long-form shot
       parameters:
         - $ref: "#/components/parameters/Id"
         - name: shotId
@@ -1189,7 +1189,7 @@ paths:
     post:
       operationId: retryLongFormShot
       tags: [long-form-projects]
-      summary: Retry a failed long-form shot
+      summary: Retry or regenerate a long-form shot
       parameters:
         - $ref: "#/components/parameters/Id"
         - name: shotId
@@ -1198,7 +1198,7 @@ paths:
           schema: { type: string }
       responses:
         "200":
-          description: Queued shot retry
+          description: Queued shot retry or regeneration
           content:
             application/json:
               schema:
@@ -1621,7 +1621,7 @@ components:
       required: [email, password]
       properties:
         email: { type: string, maxLength: 320 }
-        password: { type: string, minLength: 12, maxLength: 128 }
+        password: { type: string, minLength: 1, maxLength: 128 }
     AuthRegistrationInput:
       type: object
       required: [email, password, displayName]
@@ -2254,7 +2254,7 @@ components:
         seed: { type: ["number", "null"], minimum: 0 }
     GenerationJob:
       type: object
-      required: [id, title, status, provider, providerModelId, providerRequestId, providerTaskMetadata, voiceCloningEnabled, prompt, compiledPrompt, generationMode, qualityPreset, width, height, fps, durationSeconds, progress, currentNode, serverName, workflowName, longFormProjectId, longFormProjectTitle, longFormSceneNumber, longFormShotNumber, createdAt]
+      required: [id, title, status, provider, providerModelId, providerRequestId, providerTaskMetadata, voiceCloningEnabled, prompt, dialogue, negativePrompt, cameraInstructions, motionInstructions, characterIds, settingId, referenceVideoKey, compiledPrompt, generationMode, qualityPreset, width, height, requestedWidth, requestedHeight, requestedDurationSeconds, fps, durationSeconds, progress, currentNode, serverName, workflowName, longFormProjectId, longFormShotId, longFormProjectTitle, longFormSceneNumber, longFormShotNumber, createdAt]
       properties:
         id: { type: string }
         title: { type: string }
@@ -2267,11 +2267,21 @@ components:
           additionalProperties: true
         voiceCloningEnabled: { type: boolean }
         prompt: { type: string }
+        dialogue: { type: string }
+        negativePrompt: { type: ["string", "null"] }
+        cameraInstructions: { type: string }
+        motionInstructions: { type: string }
+        characterIds: { type: array, items: { type: string } }
+        settingId: { type: ["string", "null"] }
+        referenceVideoKey: { type: ["string", "null"] }
         compiledPrompt: { type: string }
         generationMode: { type: string }
         qualityPreset: { type: string }
         width: { type: number }
         height: { type: number }
+        requestedWidth: { type: number }
+        requestedHeight: { type: number }
+        requestedDurationSeconds: { type: number }
         fps: { type: number }
         durationSeconds: { type: number }
         seed: { type: ["number", "null"] }
@@ -2280,6 +2290,7 @@ components:
         serverName: { type: ["string", "null"] }
         workflowName: { type: ["string", "null"] }
         longFormProjectId: { type: ["string", "null"] }
+        longFormShotId: { type: ["string", "null"] }
         longFormProjectTitle: { type: ["string", "null"] }
         longFormSceneNumber: { type: ["number", "null"] }
         longFormShotNumber: { type: ["number", "null"] }

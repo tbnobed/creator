@@ -51,14 +51,13 @@ export const RegisterResponse = zod.void()
  */
 export const loginBodyEmailMax = 320;
 
-export const loginBodyPasswordMin = 12;
 export const loginBodyPasswordMax = 128;
 
 
 
 export const LoginBody = zod.object({
   "email": zod.string().max(loginBodyEmailMax),
-  "password": zod.string().min(loginBodyPasswordMin).max(loginBodyPasswordMax)
+  "password": zod.string().min(1).max(loginBodyPasswordMax)
 })
 
 export const LoginResponse = zod.void()
@@ -1474,11 +1473,21 @@ export const ListGenerationsResponse = zod.object({
   "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
   "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "negativePrompt": zod.string().nullable(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "referenceVideoKey": zod.string().nullable(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
   "width": zod.number(),
   "height": zod.number(),
+  "requestedWidth": zod.number(),
+  "requestedHeight": zod.number(),
+  "requestedDurationSeconds": zod.number(),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1487,6 +1496,7 @@ export const ListGenerationsResponse = zod.object({
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
   "longFormProjectId": zod.string().nullable(),
+  "longFormShotId": zod.string().nullable(),
   "longFormProjectTitle": zod.string().nullable(),
   "longFormSceneNumber": zod.number().nullable(),
   "longFormShotNumber": zod.number().nullable(),
@@ -1569,11 +1579,21 @@ export const CreateGenerationResponse = zod.object({
   "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
   "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "negativePrompt": zod.string().nullable(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "referenceVideoKey": zod.string().nullable(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
   "width": zod.number(),
   "height": zod.number(),
+  "requestedWidth": zod.number(),
+  "requestedHeight": zod.number(),
+  "requestedDurationSeconds": zod.number(),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1582,6 +1602,7 @@ export const CreateGenerationResponse = zod.object({
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
   "longFormProjectId": zod.string().nullable(),
+  "longFormShotId": zod.string().nullable(),
   "longFormProjectTitle": zod.string().nullable(),
   "longFormSceneNumber": zod.number().nullable(),
   "longFormShotNumber": zod.number().nullable(),
@@ -1611,11 +1632,21 @@ export const GetGenerationResponse = zod.object({
   "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
   "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "negativePrompt": zod.string().nullable(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "referenceVideoKey": zod.string().nullable(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
   "width": zod.number(),
   "height": zod.number(),
+  "requestedWidth": zod.number(),
+  "requestedHeight": zod.number(),
+  "requestedDurationSeconds": zod.number(),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1624,6 +1655,7 @@ export const GetGenerationResponse = zod.object({
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
   "longFormProjectId": zod.string().nullable(),
+  "longFormShotId": zod.string().nullable(),
   "longFormProjectTitle": zod.string().nullable(),
   "longFormSceneNumber": zod.number().nullable(),
   "longFormShotNumber": zod.number().nullable(),
@@ -1663,11 +1695,21 @@ export const CancelGenerationResponse = zod.object({
   "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
   "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "negativePrompt": zod.string().nullable(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "referenceVideoKey": zod.string().nullable(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
   "width": zod.number(),
   "height": zod.number(),
+  "requestedWidth": zod.number(),
+  "requestedHeight": zod.number(),
+  "requestedDurationSeconds": zod.number(),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1676,6 +1718,7 @@ export const CancelGenerationResponse = zod.object({
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
   "longFormProjectId": zod.string().nullable(),
+  "longFormShotId": zod.string().nullable(),
   "longFormProjectTitle": zod.string().nullable(),
   "longFormSceneNumber": zod.number().nullable(),
   "longFormShotNumber": zod.number().nullable(),
@@ -1828,11 +1871,21 @@ export const GetDashboardSummaryResponse = zod.object({
   "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
   "voiceCloningEnabled": zod.boolean(),
   "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "negativePrompt": zod.string().nullable(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "referenceVideoKey": zod.string().nullable(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
   "width": zod.number(),
   "height": zod.number(),
+  "requestedWidth": zod.number(),
+  "requestedHeight": zod.number(),
+  "requestedDurationSeconds": zod.number(),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1841,6 +1894,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "serverName": zod.string().nullable(),
   "workflowName": zod.string().nullable(),
   "longFormProjectId": zod.string().nullable(),
+  "longFormShotId": zod.string().nullable(),
   "longFormProjectTitle": zod.string().nullable(),
   "longFormSceneNumber": zod.number().nullable(),
   "longFormShotNumber": zod.number().nullable(),
@@ -3103,7 +3157,7 @@ export const CancelLongFormProjectResponse = zod.object({
 
 
 /**
- * @summary Edit a planned long-form shot
+ * @summary Edit a long-form shot
  */
 export const UpdateLongFormShotParams = zod.object({
   "id": zod.coerce.string(),
@@ -3202,7 +3256,7 @@ export const UpdateLongFormShotResponse = zod.object({
 
 
 /**
- * @summary Retry a failed long-form shot
+ * @summary Retry or regenerate a long-form shot
  */
 export const RetryLongFormShotParams = zod.object({
   "id": zod.coerce.string(),
