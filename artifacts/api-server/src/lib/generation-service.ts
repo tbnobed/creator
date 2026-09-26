@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { spawn } from "node:child_process";
 import {
   characterAssetsTable,
   charactersTable,
@@ -20,7 +21,7 @@ import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
 import { getWorkflowReferenceRequirements } from "./comfy/workflow-references";
-import { mediaStorage } from "./storage-service";
+import { isTenantGenerationReferenceKey, mediaStorage } from "./storage-service";
 import { normalizeLtx25OutputDimension } from "./seed-data/ltx-25";
 import { miniMaxH3R2vSeed } from "./seed-data/minimax-h3-r2v";
 import { generateClonedSpeech, muxClonedSpeech } from "./voice-cloning-service";
@@ -28,15 +29,21 @@ import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-er
 import {
   falModels,
   falModelFromEndpoint,
+  applyFalSeedanceTask,
   falSeedanceReferenceModels,
   FalHttpError,
   FalQueueClient,
   getFalVideoUrl,
   normalizeFalRequest,
+  selectFalGenerationEndpoint,
+  validateFalReferenceMediaLimits,
   validateFalQueueUrl,
   type FalModel,
   type FalQueueEndpoints,
 } from "./fal/client";
+import { uploadFalStorageFile } from "./fal/storage";
+import { FAL_MOV_FINALIZATION_ERROR, isRecoverableFalOutputFailure, remuxMp4ToMov } from "./fal/remux";
+import { measuredVideoJobMetrics, probeVideoMediaProperties } from "./video-media-probe";
 import { quoteVideoSpend } from "./spending-pricing";
 import { reserveSpend, settleSpend } from "./spending-service";
 
@@ -212,7 +219,7 @@ export function validateMiniMaxH3WorkerModelPair(
 
 function cloudProviderErrorDetail(value: unknown): string {
   return String(value)
-    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
+    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run|media)[^\s"'<>]*/gi, "Cloud")
     .replace(/\bfal(?:\.ai)?\b/gi, "Cloud");
 }
 
@@ -253,6 +260,14 @@ export type GenerationRequest = {
   characterIds?: string[];
   /** Ordered image storage keys. Long-form continuity puts its approved still first. */
   referenceImageKeys?: string[];
+  seedanceTask?: "reference" | "editing" | "extension";
+  aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9";
+  outputResolution?: "480p" | "720p" | "1080p" | "4k";
+  outputFormat?: "mp4" | "mov";
+  startFrameKey?: string;
+  endFrameKey?: string;
+  referenceVideoKeys?: string[];
+  referenceAudioKeys?: string[];
   /** Required continuity references (still plus assigned wardrobes); cast refs may be capped. */
   mandatoryReferenceImageCount?: number;
   continuityContext?: string;
@@ -283,11 +298,31 @@ function composerRestoreMetadata(input: GenerationRequest): Record<string, unkno
       characterIds: input.characterIds ?? [],
       settingId: input.settingId ?? null,
       referenceVideoKey: input.referenceVideoKey ?? null,
+      seedanceTask: input.seedanceTask ?? null,
+      aspectRatio: input.aspectRatio ?? null,
+      outputResolution: input.outputResolution ?? null,
+      outputFormat: input.outputFormat ?? null,
+      startFrameKey: input.startFrameKey ?? null,
+      endFrameKey: input.endFrameKey ?? null,
+      referenceImageKeys: input.referenceImageKeys ?? [],
+      referenceVideoKeys: input.referenceVideoKeys ?? [],
+      referenceAudioKeys: input.referenceAudioKeys ?? [],
       cameraInstructions: input.cameraInstructions ?? "",
       motionInstructions: input.motionInstructions ?? "",
       requestedWidth: input.width,
       requestedHeight: input.height,
-      requestedDurationSeconds: input.durationSeconds,
+      requestedDurationSeconds: input.seedanceTask === "editing" ? null : input.durationSeconds,
+    },
+  };
+}
+
+function falOutputDurationMetadata(model: FalModel, task?: GenerationRequest["seedanceTask"]): Record<string, unknown> {
+  if (model !== "seedance-2.5" || task !== "editing") return {};
+  return {
+    outputDuration: {
+      mode: "provider-auto",
+      status: "awaiting-output-probe",
+      maximumSeconds: 30,
     },
   };
 }
@@ -310,10 +345,18 @@ function mergeFalMetadata(
   return { ...metadata, ...update };
 }
 
-function falSpendQuoteInput(normalized: ReturnType<typeof normalizeFalRequest>): {
+export function falSpendQuoteInput(
+  normalized: ReturnType<typeof normalizeFalRequest>,
+  references: { referenceVideoDuration?: number; referenceAudioDuration?: number; referenceImageCount?: number } = {},
+): {
   duration: number;
   resolution?: string;
+  width: number;
+  height: number;
   generateAudio?: boolean;
+  referenceVideoDuration?: number;
+  referenceAudioDuration?: number;
+  referenceImageCount?: number;
 } {
   const submittedDuration = normalized.input.duration;
   const parsedDuration = typeof submittedDuration === "number"
@@ -325,9 +368,53 @@ function falSpendQuoteInput(normalized: ReturnType<typeof normalizeFalRequest>):
   const generateAudio = normalized.input.generate_audio;
   return {
     duration: Number.isFinite(parsedDuration) ? parsedDuration : normalized.durationSeconds,
+    width: normalized.width,
+    height: normalized.height,
     ...(typeof resolution === "string" ? { resolution } : {}),
     ...(typeof generateAudio === "boolean" ? { generateAudio } : {}),
+    ...references,
   };
+}
+
+function probeMediaDuration(bytes: Buffer): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const process = spawn("ffprobe", [
+      "-v", "error",
+      "-show_entries", "format=duration",
+      "-of", "default=noprint_wrappers=1:nokey=1",
+      "-i", "pipe:0",
+    ]);
+    let output = "";
+    let errorOutput = "";
+    let finished = false;
+    const timeout = setTimeout(() => {
+      process.kill("SIGKILL");
+      finish(new Error("Reference media duration probe timed out"));
+    }, 15_000);
+    const finish = (error?: Error) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      if (error) reject(error);
+      else {
+        const seconds = Number(output.trim());
+        if (!Number.isFinite(seconds) || seconds <= 0) reject(new Error("Reference media duration could not be determined"));
+        else resolve(seconds);
+      }
+    };
+    process.stdout.on("data", (chunk) => {
+      if (output.length < 256) output += String(chunk).slice(0, 256 - output.length);
+    });
+    process.stderr.on("data", (chunk) => {
+      if (errorOutput.length < 1024) errorOutput += String(chunk).slice(0, 1024 - errorOutput.length);
+    });
+    process.on("error", () => finish(new Error("Reference media duration could not be determined")));
+    process.on("close", (code) => finish(code === 0
+      ? undefined
+      : new Error(errorOutput.trim() || "Reference media duration could not be determined")));
+    process.stdin.on("error", () => finish(new Error("Reference media could not be inspected")));
+    process.stdin.end(bytes);
+  });
 }
 
 function falSubmissionDefinitelyRejected(error: unknown): boolean {
@@ -398,6 +485,7 @@ type SeedanceAsset = {
   characterId?: string;
   isPrimary?: boolean;
 };
+type SeedanceReferenceModel = keyof typeof falSeedanceReferenceModels;
 
 /** Resolve one primary reference per selected subject, without silent text-only fallback. */
 export function planSeedanceReferences(
@@ -405,6 +493,8 @@ export function planSeedanceReferences(
   characterAssets: SeedanceAsset[],
   setting: { name: string } | undefined,
   settingAssets: SeedanceAsset[],
+  model: SeedanceReferenceModel,
+  additionalImageCount = 0,
 ): Array<SeedanceAsset & { subject: string; kind: "character" | "setting" }> {
   const references: Array<SeedanceAsset & { subject: string; kind: "character" | "setting" }> = characters.map((character) => {
     const asset = characterAssets
@@ -417,8 +507,9 @@ export function planSeedanceReferences(
     if (!settingAssets[0]) throw new Error(`${setting.name} has no environment reference image. Add one before using Seedance.`);
     references.push({ ...settingAssets[0], subject: setting.name, kind: "setting" as const });
   }
-  if (references.length > 9) {
-    throw new Error("Seedance accepts at most 9 reference images. Select fewer characters or remove the environment.");
+  const maximumImages = model === "seedance-2.5" ? 30 : 9;
+  if (references.length + additionalImageCount > maximumImages) {
+    throw new Error(`Seedance ${model} accepts at most ${maximumImages} image references including primary and extra images.`);
   }
   return references;
 }
@@ -1102,6 +1193,50 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   if (input.referenceImageKeys?.some((key) => !key.startsWith(`tenants/${input.tenantId}/`))) {
     throw new ResourceNotFoundError("Continuity reference image not found");
   }
+  const ownedReferenceMediaKeys = [
+    ...(input.referenceVideoKeys ?? []),
+    ...(input.referenceAudioKeys ?? []),
+    ...(input.startFrameKey ? [input.startFrameKey] : []),
+    ...(input.endFrameKey ? [input.endFrameKey] : []),
+  ];
+  if (ownedReferenceMediaKeys.some((key) => !isTenantGenerationReferenceKey(key, input.tenantId))) {
+    throw new ResourceNotFoundError("Reference media not found");
+  }
+  if (new Set(ownedReferenceMediaKeys).size !== ownedReferenceMediaKeys.length) {
+    throw new Error("A reference media file cannot be selected more than once");
+  }
+  if (
+    (input.referenceImageKeys?.length ?? 0) > 30
+    || (input.referenceVideoKeys?.length ?? 0) > 10
+    || (input.referenceAudioKeys?.length ?? 0) > 10
+  ) {
+    throw new Error("Seedance accepts at most 30 image, 10 video, and 10 audio references");
+  }
+  for (const key of ownedReferenceMediaKeys) {
+    try {
+      const file = await mediaStorage.readGenerationReferenceMedia(key);
+      const expectedGroup = input.referenceVideoKeys?.includes(key) ? "video/"
+        : input.referenceAudioKeys?.includes(key) ? "audio/" : "image/";
+      if (!file.mimeType.startsWith(expectedGroup)) throw new Error("Reference media has the wrong media type");
+    } catch {
+      throw new ResourceNotFoundError("Reference media not found");
+    }
+  }
+  for (const key of input.referenceImageKeys ?? []) {
+    try {
+      if (key.includes("/generation-references/")) {
+        if (!isTenantGenerationReferenceKey(key, input.tenantId)) {
+          throw new Error("Reference image not owned by tenant");
+        }
+        const file = await mediaStorage.readGenerationReferenceMedia(key);
+        if (!file.mimeType.startsWith("image/")) throw new Error("Reference media has the wrong media type");
+      } else {
+        await mediaStorage.readBuffer(key);
+      }
+    } catch {
+      throw new ResourceNotFoundError("Reference image not found");
+    }
+  }
   const [foundCharacters, setting] = await Promise.all([
     input.characterIds?.length
       ? db.select().from(charactersTable).where(and(
@@ -1141,6 +1276,15 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   if ((input.provider ?? "COMFYUI") === "FAL") {
     return createAndSubmitFalGeneration(input, characters, setting[0]);
+  }
+  if (
+    input.seedanceTask
+    || input.startFrameKey
+    || input.endFrameKey
+    || input.referenceVideoKeys?.length
+    || input.referenceAudioKeys?.length
+  ) {
+    throw new Error("These reference modes are supported only by Seedance Cloud generations");
   }
   const workflows = await db
     .select()
@@ -1394,6 +1538,12 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
 }
 
+async function referenceImageDataUri(key: string): Promise<string> {
+  const { mimeType, bytes } = await mediaStorage.readGenerationReferenceMedia(key);
+  if (!mimeType.startsWith("image/")) throw new Error("Seedance frame guidance requires an image file");
+  return `data:${mimeType};base64,${bytes.toString("base64")}`;
+}
+
 async function createAndSubmitFalGeneration(
   input: GenerationRequest,
   characters: Array<typeof charactersTable.$inferSelect>,
@@ -1403,17 +1553,29 @@ async function createAndSubmitFalGeneration(
     throw new Error("A supported Cloud model is required");
   }
   if (input.referenceVideoKey) {
-    throw new Error("Cloud models support text-to-video requests only; remove the reference video");
+    throw new Error("Legacy referenceVideoKey is not accepted for Cloud generations; upload and select it as Seedance reference media");
   }
   if (!process.env.FAL_KEY?.trim()) {
     throw new FalHttpError("FAL_KEY is not configured", null, false);
   }
   const model = input.model;
+  if (input.outputFormat && !model.startsWith("seedance")) {
+    throw new Error("Output format selection is available for Seedance only");
+  }
+  const outputDurationMetadata = falOutputDurationMetadata(model, input.seedanceTask);
   if (input.nativeAudioEnabled !== undefined && !model.startsWith("seedance")) {
     throw new Error("Native audio selection is available for Seedance only");
   }
-  const seedanceWithSelections = model in falSeedanceReferenceModels && (characters.length > 0 || Boolean(setting));
-  const referenceAssets = seedanceWithSelections
+  const explicitImages = (input.referenceImageKeys ?? []).filter((key) =>
+    key.includes("/generation-references/"),
+  );
+  const continuityImages = (input.referenceImageKeys ?? []).filter((key) =>
+    !key.includes("/generation-references/"),
+  );
+  const seedanceReferenceModel = model in falSeedanceReferenceModels
+    ? model as SeedanceReferenceModel
+    : null;
+  const referenceAssets = seedanceReferenceModel
     ? planSeedanceReferences(
       characters,
       characters.length
@@ -1427,14 +1589,80 @@ async function createAndSubmitFalGeneration(
           .where(eq(settingAssetsTable.settingId, setting.id))
           .orderBy(asc(settingAssetsTable.sortOrder))
         : [],
+      seedanceReferenceModel,
+      explicitImages.length + continuityImages.length,
     )
     : [];
+  const totalReferenceCount = explicitImages.length
+    + (input.referenceVideoKeys?.length ?? 0)
+    + (input.referenceAudioKeys?.length ?? 0)
+    + referenceAssets.length
+    + continuityImages.length
+    + Number(Boolean(input.startFrameKey))
+    + Number(Boolean(input.endFrameKey));
+  if (totalReferenceCount > 50) throw new Error("Seedance accepts at most 50 total image, video, and audio references");
+  if ((input.referenceAudioKeys?.length ?? 0) > 0 && explicitImages.length + continuityImages.length + referenceAssets.length + (input.referenceVideoKeys?.length ?? 0) === 0) {
+    throw new Error("Seedance audio references require at least one image or video reference");
+  }
   // Data URIs let the provider fetch private character images without making
   // tenant media publicly accessible. Never persist these data URIs to the job.
-  const imageUrls = await seedanceReferenceInput(referenceAssets);
-  const modelId = referenceAssets.length
-    ? falSeedanceReferenceModels[model as keyof typeof falSeedanceReferenceModels]
-    : falModels[model];
+  const imageUrls = [
+    ...(referenceAssets.length ? await seedanceReferenceInput(referenceAssets) : []),
+    ...await Promise.all([...continuityImages, ...explicitImages].map(async (key) => {
+      const isPrivateUpload = key.includes("/generation-references/");
+      const bytes = isPrivateUpload
+        ? (await mediaStorage.readGenerationReferenceMedia(key)).bytes
+        : await mediaStorage.readBuffer(key);
+      const extension = key.split(".").at(-1)?.toLowerCase();
+      const mimeType = extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
+      return `data:${mimeType};base64,${bytes.toString("base64")}`;
+    })),
+  ];
+  const imageReferenceKeysForLimits = [
+    ...referenceAssets.map((asset) => asset.storageKey),
+    ...(input.referenceImageKeys ?? []),
+    ...(input.startFrameKey ? [input.startFrameKey] : []),
+    ...(input.endFrameKey ? [input.endFrameKey] : []),
+  ];
+  const imageStats = await Promise.all(imageReferenceKeysForLimits.map(async (key) => ({
+    sizeBytes: key.includes("/generation-references/")
+      ? (await mediaStorage.readGenerationReferenceMedia(key)).bytes.length
+      : (await mediaStorage.readBuffer(key)).length,
+  })));
+  const videoStats = await Promise.all((input.referenceVideoKeys ?? []).map(async (key) => {
+    const { bytes } = await mediaStorage.readGenerationReferenceMedia(key);
+    return { sizeBytes: bytes.length, ...await probeVideoMediaProperties(bytes) };
+  }));
+  const audioStats = await Promise.all((input.referenceAudioKeys ?? []).map(async (key) => {
+    const { bytes } = await mediaStorage.readGenerationReferenceMedia(key);
+    return { sizeBytes: bytes.length, durationSeconds: await probeMediaDuration(bytes) };
+  }));
+  validateFalReferenceMediaLimits(model, {
+    images: imageStats,
+    videos: videoStats,
+    audios: audioStats,
+  });
+  const toFalMediaUrl = async (key: string) => {
+    const { mimeType, bytes } = await mediaStorage.readGenerationReferenceMedia(key);
+    if (!mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {
+      throw new Error("Only private video and audio references are uploaded to the Cloud media store");
+    }
+    const keyValue = process.env.FAL_KEY?.trim();
+    if (!keyValue) throw new FalHttpError("FAL_KEY is not configured", null, false);
+    return uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-media", keyValue);
+  };
+  const referenceVideoDuration = videoStats.reduce((total, video) => total + video.durationSeconds, 0);
+  const referenceAudioDuration = audioStats.reduce((total, audio) => total + audio.durationSeconds, 0);
+  const referenceVideoKeys = input.referenceVideoKeys ?? [];
+  const referenceAudioKeys = input.referenceAudioKeys ?? [];
+  const modelId = selectFalGenerationEndpoint(model, {
+    hasStartFrame: Boolean(input.startFrameKey),
+    hasEndFrame: Boolean(input.endFrameKey),
+    imageCount: imageUrls.length,
+    videoCount: referenceVideoKeys.length,
+    audioCount: referenceAudioKeys.length,
+    task: input.seedanceTask,
+  });
   const compiledPrompt = seedanceReferencePrompt(compileGenericPrompt(characters, setting, input), referenceAssets);
   const normalized = normalizeFalRequest(model, {
     prompt: compiledPrompt,
@@ -1444,11 +1672,21 @@ async function createAndSubmitFalGeneration(
     durationSeconds: input.durationSeconds,
     fps: input.fps,
     qualityPreset: input.qualityPreset,
+    aspectRatio: input.aspectRatio,
+    outputResolution: input.outputResolution,
     seed: input.seedMode === "FIXED" ? input.seed : null,
     nativeAudioEnabled: input.nativeAudioEnabled,
     dialogue: input.dialogue,
+    seedanceTask: input.seedanceTask,
+    ...(input.startFrameKey ? {
+      startFrameUrl: await referenceImageDataUri(input.startFrameKey),
+    } : {}),
+    ...(input.endFrameKey ? {
+      endFrameUrl: await referenceImageDataUri(input.endFrameKey),
+    } : {}),
   });
   if (imageUrls.length) normalized.input.image_urls = imageUrls;
+  applyFalSeedanceTask(normalized.input, model, modelId, input.seedanceTask);
   const audioMetadata = { nativeAudioEnabled: normalized.input.generate_audio };
   const [job] = await db.insert(generationJobsTable).values({
     tenantId: input.tenantId,
@@ -1461,6 +1699,7 @@ async function createAndSubmitFalGeneration(
     providerModelId: modelId,
     providerTaskMetadata: {
       ...composerRestoreMetadata(input),
+      ...outputDurationMetadata,
       ...audioMetadata,
       model,
       spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
@@ -1469,7 +1708,7 @@ async function createAndSubmitFalGeneration(
     },
     voiceCloningEnabled: input.voiceCloningEnabled ?? false,
     voiceCharacterId: input.speakerCharacterId ?? null,
-    referenceImageKeys: referenceAssets.map((asset) => asset.storageKey),
+    referenceImageKeys: [...referenceAssets.map((asset) => asset.storageKey), ...(input.referenceImageKeys ?? [])],
     longFormShotId: input.longFormShotId ?? null,
     prompt: input.prompt,
     compiledPrompt,
@@ -1500,7 +1739,22 @@ async function createAndSubmitFalGeneration(
   let reserved = false;
   let submissionAttempted = false;
   try {
-    const quote = await quoteVideoSpend(modelId, falSpendQuoteInput(normalized));
+    const quoteInput = falSpendQuoteInput(normalized, model.startsWith("seedance")
+      ? {
+        referenceVideoDuration,
+        referenceAudioDuration,
+        referenceImageCount: imageStats.length,
+      }
+      : {});
+    if (input.seedanceTask === "editing" || input.seedanceTask === "extension") {
+      // The provider ignores aspect_ratio for editing/extension and inherits its source.
+      // Quote the allowed 2.5:1 extreme instead of the creator's stale canvas.
+      const short = normalized.input.resolution === "1080p" ? 1080
+        : normalized.input.resolution === "480p" ? 480 : 720;
+      quoteInput.width = Math.round(short * 2.5);
+      quoteInput.height = short;
+    }
+    const quote = await quoteVideoSpend(modelId, quoteInput);
     await reserveSpend({
       tenantId: input.tenantId,
       userId: input.createdByUserId,
@@ -1511,9 +1765,15 @@ async function createAndSubmitFalGeneration(
       pricingNote: quote.pricingNote,
     });
     reserved = true;
+    const videoUrls = await Promise.all(referenceVideoKeys.map(toFalMediaUrl));
+    const audioUrls = await Promise.all(referenceAudioKeys.map(toFalMediaUrl));
+    if (videoUrls.length) normalized.input.video_urls = videoUrls;
+    if (audioUrls.length) normalized.input.audio_urls = audioUrls;
     const submissionIntentAt = new Date().toISOString();
     const [intentReady] = await db.update(generationJobsTable).set({
       providerTaskMetadata: {
+        ...composerRestoreMetadata(input),
+        ...outputDurationMetadata,
         ...audioMetadata,
         model,
         spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
@@ -1532,6 +1792,8 @@ async function createAndSubmitFalGeneration(
     submissionAttempted = true;
     const submitted = await client.submit(normalized.input, modelId);
     const taskMetadata = {
+      ...composerRestoreMetadata(input),
+        ...outputDurationMetadata,
       ...audioMetadata,
       model,
       spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
@@ -1572,6 +1834,8 @@ async function createAndSubmitFalGeneration(
     if (definitivelyUnbilled) {
       await db.update(generationJobsTable).set({
         providerTaskMetadata: {
+          ...composerRestoreMetadata(input),
+          ...outputDurationMetadata,
           ...audioMetadata,
           model,
           spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
@@ -1589,6 +1853,8 @@ async function createAndSubmitFalGeneration(
       failedAt: new Date(),
       ...(reserved ? {
         providerTaskMetadata: {
+          ...composerRestoreMetadata(input),
+          ...outputDurationMetadata,
           ...audioMetadata,
           model,
           spendLifecycleVersion: FAL_SPEND_LIFECYCLE_VERSION,
@@ -1643,7 +1909,7 @@ async function completeFalOutput(
   } catch {
     throw new FalHttpError("Cloud output download was interrupted", response.status, true);
   }
-  let mimeType: "video/mp4" | "video/webm" = response.headers.get("content-type")?.includes("webm")
+  let mimeType: "video/mp4" | "video/webm" | "video/quicktime" = response.headers.get("content-type")?.includes("webm")
     || /\.webm(?:\?|$)/i.test(videoUrl) ? "video/webm" : "video/mp4";
   let outputName = `fal-${requestId}.${mimeType === "video/webm" ? "webm" : "mp4"}`;
 
@@ -1653,9 +1919,19 @@ async function completeFalOutput(
     voiceCloningEnabled: generationJobsTable.voiceCloningEnabled,
     voiceCharacterId: generationJobsTable.voiceCharacterId,
     durationSeconds: generationJobsTable.durationSeconds,
+    fps: generationJobsTable.fps,
     seed: generationJobsTable.seed,
   }).from(generationJobsTable).where(eq(generationJobsTable.id, jobId));
   if (!job) return;
+  const probeOutput = async (outputBytes: Buffer) => {
+    try {
+      return await probeVideoMediaProperties(outputBytes);
+    } catch (error) {
+      logger.warn({ err: error, jobId }, "Could not measure completed Cloud video duration");
+      return undefined;
+    }
+  };
+  let outputProperties = await probeOutput(bytes);
   if (job.voiceCloningEnabled && job.dialogue.trim()) {
     const [speaker, [server]] = await Promise.all([
       selectedVoiceSpeaker(jobId, job.voiceCharacterId),
@@ -1680,17 +1956,56 @@ async function completeFalOutput(
       video: bytes,
       videoMimeType: mimeType,
       speech,
-      targetDurationSeconds: job.durationSeconds,
+      targetDurationSeconds: outputProperties?.durationSeconds ?? job.durationSeconds,
     });
+    outputProperties = await probeOutput(bytes) ?? outputProperties;
     mimeType = "video/mp4";
     outputName = `fal-${requestId}-voiced.mp4`;
   }
+  const composerRequest = metadata.composerRequest && typeof metadata.composerRequest === "object"
+    ? metadata.composerRequest as Record<string, unknown> : {};
+  if (composerRequest.outputFormat === "mov") {
+    try {
+      if (mimeType !== "video/mp4") throw new Error("Cloud did not return an MP4 for MOV conversion");
+      bytes = await remuxMp4ToMov(bytes);
+      // A remux failure must never store bytes with a misleading .mov extension.
+      outputProperties = await probeVideoMediaProperties(bytes);
+      mimeType = "video/quicktime";
+      outputName = `fal-${requestId}${job.voiceCloningEnabled && job.dialogue.trim() ? "-voiced" : ""}.mov`;
+    } catch (error) {
+      throw new Error(`${FAL_MOV_FINALIZATION_ERROR}: ${error instanceof Error ? error.message : "conversion could not complete"}`);
+    }
+  }
+  const measuredMetrics = outputProperties ? measuredVideoJobMetrics(outputProperties, job.fps) : undefined;
+  const outputFps = measuredMetrics?.fps ?? job.fps;
+  const durationMetadata = metadata.outputDuration
+    && typeof metadata.outputDuration === "object"
+    && (metadata.outputDuration as { mode?: unknown }).mode === "provider-auto"
+    ? {
+      outputDuration: {
+        mode: "provider-auto",
+        status: outputProperties ? "measured" : "unknown",
+        maximumSeconds: 30,
+        ...(measuredMetrics ? {
+          durationSeconds: measuredMetrics.durationSeconds,
+          fps: measuredMetrics.fps,
+          frameCount: measuredMetrics.frameCount,
+          fpsMeasured: outputProperties?.fps !== undefined,
+        } : {}),
+      },
+    }
+    : {};
   const storageKey = await mediaStorage.storeOutput(outputName, mimeType, bytes, job.tenantId);
   await db.update(generationJobsTable).set({
     status: "COMPLETED",
     outputStorageKey: storageKey,
     outputMimeType: mimeType,
-    providerTaskMetadata: mergeFalMetadata(metadata, { result }),
+    ...(outputProperties ? {
+      durationSeconds: measuredMetrics!.durationSeconds,
+      fps: measuredMetrics!.fps,
+      frameCount: measuredMetrics!.frameCount,
+    } : {}),
+    providerTaskMetadata: mergeFalMetadata(metadata, { result, ...durationMetadata }),
     progress: 1,
     currentNode: null,
     errorMessage: null,
@@ -2020,7 +2335,7 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
   if (
     job.provider === "FAL" &&
     job.errorMessage !== null &&
-    ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"].includes(job.errorMessage) &&
+    isRecoverableFalOutputFailure(job.errorMessage) &&
     job.providerModelId &&
     job.providerRequestId
   ) {
@@ -2056,7 +2371,10 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
       }).where(and(
         eq(generationJobsTable.id, jobId),
         eq(generationJobsTable.status, "FAILED"),
-        inArray(generationJobsTable.errorMessage, ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"]),
+        or(
+          inArray(generationJobsTable.errorMessage, ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"]),
+          like(generationJobsTable.errorMessage, `${FAL_MOV_FINALIZATION_ERROR}%`),
+        ),
       )).returning({ id: generationJobsTable.id });
       if (!claimed) return false;
       await completeFalOutput(

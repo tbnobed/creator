@@ -5,10 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GenerationInputAspectRatio } from './generationInputAspectRatio';
 import type { GenerationInputFps } from './generationInputFps';
 import type { GenerationInputModel } from './generationInputModel';
+import type { GenerationInputOutputFormat } from './generationInputOutputFormat';
+import type { GenerationInputOutputResolution } from './generationInputOutputResolution';
 import type { GenerationInputProvider } from './generationInputProvider';
 import type { GenerationInputQualityPreset } from './generationInputQualityPreset';
+import type { GenerationInputSeedanceTask } from './generationInputSeedanceTask';
 import type { GenerationInputSeedMode } from './generationInputSeedMode';
 
 export interface GenerationInput {
@@ -41,6 +45,34 @@ export interface GenerationInput {
   audioInstructions?: string;
   generationMode: string;
   referenceVideoKey?: string;
+  /** Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode. */
+  seedanceTask?: GenerationInputSeedanceTask;
+  /** Seedance output shape; Seedance 2.5 editing inherits the source shape instead. */
+  aspectRatio?: GenerationInputAspectRatio;
+  /** Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p. */
+  outputResolution?: GenerationInputOutputResolution;
+  /** Seedance returns MP4; requested MOV output is remuxed server-side without video/audio transcoding after generation, then served as video/quicktime. */
+  outputFormat?: GenerationInputOutputFormat;
+  startFrameKey?: string;
+  endFrameKey?: string;
+  /**
+     * Tenant-owned image storage keys; Seedance 2.0 allows at most 9, Seedance 2.5 at most 30.
+     * @maxItems 30
+     * @items.minLength 1
+     */
+  referenceImageKeys?: string[];
+  /**
+     * Tenant-owned video storage keys; provider-specific count, size, and duration limits are validated before spend reservation.
+     * @maxItems 10
+     * @items.minLength 1
+     */
+  referenceVideoKeys?: string[];
+  /**
+     * Tenant-owned audio storage keys; provider-specific count, size, and duration limits are validated before spend reservation.
+     * @maxItems 10
+     * @items.minLength 1
+     */
+  referenceAudioKeys?: string[];
   /**
      * @minimum 1
      * @maximum 120

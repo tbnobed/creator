@@ -92,6 +92,40 @@ test("all video models use duration, resolution, audio, and token formulas", asy
   })).estimatedUsd, 0.672525);
 });
 
+test("Seedance 2.5 uses official resolution rates and prices full input plus output video duration", async () => {
+  assert.equal((await quoteVideoSpend("bytedance/seedance-2.5/text-to-video", {
+    duration: 5, resolution: "720p",
+  })).estimatedUsd, 2.3112);
+  assert.equal((await quoteVideoSpend("bytedance/seedance-2.5/image-to-video", {
+    duration: 5, resolution: "1080p",
+  })).estimatedUsd, 5.6862);
+  const videoReference = await quoteVideoSpend("bytedance/seedance-2.5/reference-to-video", {
+    duration: 5, resolution: "720p", referenceVideoDuration: 5,
+  });
+  assert.equal(videoReference.estimatedUsd, 2.77344);
+  assert.match(videoReference.pricingNote, /5s of input video.*0\.6/);
+  const multimodal = await quoteVideoSpend("bytedance/seedance-2.5/reference-to-video", {
+    duration: 5, resolution: "720p", referenceVideoDuration: 5,
+    referenceAudioDuration: 2, referenceImageCount: 1,
+  });
+  assert.ok(multimodal.estimatedUsd > videoReference.estimatedUsd);
+});
+
+test("Seedance 2.0 quotes include input reference media rather than dropping its cost", async () => {
+  const outputOnly = await quoteVideoSpend("bytedance/seedance-2.0/enterprise/v2/reference-to-video", {
+    duration: 5, resolution: "720p",
+  });
+  const withReferences = await quoteVideoSpend("bytedance/seedance-2.0/enterprise/v2/reference-to-video", {
+    duration: 5,
+    resolution: "720p",
+    referenceVideoDuration: 5,
+    referenceAudioDuration: 3,
+    referenceImageCount: 2,
+  });
+  assert.ok(withReferences.estimatedUsd > outputOnly.estimatedUsd);
+  assert.match(withReferences.pricingNote, /input video.*frame-equivalent audio.*full-resolution image/);
+});
+
 test("quotes require neither network nor credentials", async () => {
   await quoteVideoSpend("fal-ai/veo3.1/fast", { duration: 4, resolution: "720p" });
   await quoteImageSpend("cloud-nano-banana-pro", {

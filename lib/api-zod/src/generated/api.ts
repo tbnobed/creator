@@ -8,6 +8,108 @@
 import * as zod from 'zod';
 
 
+export const ListVideoLibraryQueryParams = zod.object({
+  "favorite": zod.coerce.boolean().optional()
+})
+
+export const ListVideoLibraryResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "favorite": zod.boolean(),
+  "outputStorageKey": zod.string().nullable(),
+  "outputMimeType": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "previewUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const setVideoLibraryFavoritesBodyIdsMax = 100;
+
+
+
+export const SetVideoLibraryFavoritesBody = zod.object({
+  "ids": zod.array(zod.string()).min(1).max(setVideoLibraryFavoritesBodyIdsMax),
+  "favorite": zod.boolean()
+})
+
+export const setVideoLibraryFavoritesResponseIdsMax = 100;
+
+
+
+export const SetVideoLibraryFavoritesResponse = zod.object({
+  "ids": zod.array(zod.string()).min(1).max(setVideoLibraryFavoritesResponseIdsMax),
+  "favorite": zod.boolean()
+})
+
+
+export const bulkDeleteVideoLibraryBodyIdsMax = 100;
+
+
+
+export const BulkDeleteVideoLibraryBody = zod.object({
+  "ids": zod.array(zod.string()).min(1).max(bulkDeleteVideoLibraryBodyIdsMax)
+})
+
+export const bulkDeleteVideoLibraryResponseIdsMax = 100;
+
+
+
+export const BulkDeleteVideoLibraryResponse = zod.object({
+  "ids": zod.array(zod.string()).min(1).max(bulkDeleteVideoLibraryResponseIdsMax),
+  "undoToken": zod.string(),
+  "undoExpiresAt": zod.coerce.date()
+})
+
+
+export const UndoVideoLibraryDeleteBody = zod.object({
+  "undoToken": zod.string()
+})
+
+export const UndoVideoLibraryDeleteResponse = zod.object({
+  "ids": zod.array(zod.string())
+})
+
+
+export const ListReferenceLibraryQueryParams = zod.object({
+  "kind": zod.enum(['image', 'video', 'audio']).optional(),
+  "role": zod.enum(['referenceImage', 'firstFrame', 'lastFrame', 'referenceVideo', 'referenceAudio']).optional()
+})
+
+export const ListReferenceLibraryResponse = zod.object({
+  "items": zod.array(zod.object({
+  "sourceType": zod.enum(['upload', 'referenceVideo', 'generation', 'imageAsset', 'characterAsset', 'settingAsset']),
+  "sourceId": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['image', 'video', 'audio']),
+  "mimeType": zod.string(),
+  "mediaUrl": zod.string(),
+  "previewUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const importReferenceLibraryBodySourceIdMax = 255;
+
+
+
+export const ImportReferenceLibraryBody = zod.object({
+  "sourceType": zod.enum(['upload', 'referenceVideo', 'generation', 'imageAsset', 'characterAsset', 'settingAsset']),
+  "sourceId": zod.string().min(1).max(importReferenceLibraryBodySourceIdMax),
+  "role": zod.enum(['referenceImage', 'firstFrame', 'lastFrame', 'referenceVideo', 'referenceAudio']).optional()
+})
+
+export const ImportReferenceLibraryResponse = zod.object({
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "mimeType": zod.enum(['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'audio/mpeg', 'audio/wav'])
+})
+
+
 /**
  * @summary Get public authentication settings
  */
@@ -1480,6 +1582,15 @@ export const ListGenerationsResponse = zod.object({
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
   "referenceVideoKey": zod.string().nullable(),
+  "aspectRatio": zod.string().nullish(),
+  "outputResolution": zod.string().nullish(),
+  "outputFormat": zod.string().nullish(),
+  "seedanceTask": zod.string().nullish(),
+  "startFrameKey": zod.string().nullish(),
+  "endFrameKey": zod.string().nullish(),
+  "referenceImageKeys": zod.array(zod.string()).optional(),
+  "referenceVideoKeys": zod.array(zod.string()).optional(),
+  "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
@@ -1487,7 +1598,7 @@ export const ListGenerationsResponse = zod.object({
   "height": zod.number(),
   "requestedWidth": zod.number(),
   "requestedHeight": zod.number(),
-  "requestedDurationSeconds": zod.number(),
+  "requestedDurationSeconds": zod.number().nullable().describe('Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.'),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1502,6 +1613,7 @@ export const ListGenerationsResponse = zod.object({
   "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
+  "outputMimeType": zod.string().nullish().describe('Stored output MIME; video\/quicktime for MOV exports.'),
   "errorMessage": zod.string().nullish(),
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),
@@ -1534,6 +1646,15 @@ export const createGenerationBodyMotionInstructionsMax = 5000;
 
 export const createGenerationBodyAudioInstructionsMax = 5000;
 
+
+export const createGenerationBodyReferenceImageKeysMax = 30;
+
+
+export const createGenerationBodyReferenceVideoKeysMax = 10;
+
+
+export const createGenerationBodyReferenceAudioKeysMax = 10;
+
 export const createGenerationBodyDurationSecondsMax = 120;
 
 export const createGenerationBodyWidthMin = 64;
@@ -1548,7 +1669,7 @@ export const createGenerationBodySeedMin = 0;
 
 export const CreateGenerationBody = zod.object({
   "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
-  "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0']).optional(),
+  "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0', 'seedance-2.0-fast', 'seedance-2.5']).optional(),
   "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
   "nativeAudioEnabled": zod.boolean().optional().describe('Seedance only. When omitted, dialogue enables native audio; without dialogue the video is silent. Explicit false keeps a dialogue request silent.'),
   "characterIds": zod.array(zod.string()).min(createGenerationBodyCharacterIdsMin).max(createGenerationBodyCharacterIdsMax).optional(),
@@ -1561,6 +1682,15 @@ export const CreateGenerationBody = zod.object({
   "audioInstructions": zod.string().max(createGenerationBodyAudioInstructionsMax).optional(),
   "generationMode": zod.string(),
   "referenceVideoKey": zod.string().optional(),
+  "seedanceTask": zod.enum(['reference', 'editing', 'extension']).optional().describe('Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode.'),
+  "aspectRatio": zod.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9']).optional().describe('Seedance output shape; Seedance 2.5 editing inherits the source shape instead.'),
+  "outputResolution": zod.enum(['480p', '720p', '1080p', '4k']).optional().describe('Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p.'),
+  "outputFormat": zod.enum(['mp4', 'mov']).optional().describe('Seedance returns MP4; requested MOV output is remuxed server-side without video\/audio transcoding after generation, then served as video\/quicktime.'),
+  "startFrameKey": zod.string().optional(),
+  "endFrameKey": zod.string().optional(),
+  "referenceImageKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceImageKeysMax).optional().describe('Tenant-owned image storage keys; Seedance 2.0 allows at most 9, Seedance 2.5 at most 30.'),
+  "referenceVideoKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceVideoKeysMax).optional().describe('Tenant-owned video storage keys; provider-specific count, size, and duration limits are validated before spend reservation.'),
+  "referenceAudioKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceAudioKeysMax).optional().describe('Tenant-owned audio storage keys; provider-specific count, size, and duration limits are validated before spend reservation.'),
   "durationSeconds": zod.number().min(1).max(createGenerationBodyDurationSecondsMax),
   "fps": zod.union([zod.literal(24),zod.literal(25),zod.literal(30)]),
   "width": zod.number().min(createGenerationBodyWidthMin).max(createGenerationBodyWidthMax),
@@ -1587,6 +1717,15 @@ export const CreateGenerationResponse = zod.object({
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
   "referenceVideoKey": zod.string().nullable(),
+  "aspectRatio": zod.string().nullish(),
+  "outputResolution": zod.string().nullish(),
+  "outputFormat": zod.string().nullish(),
+  "seedanceTask": zod.string().nullish(),
+  "startFrameKey": zod.string().nullish(),
+  "endFrameKey": zod.string().nullish(),
+  "referenceImageKeys": zod.array(zod.string()).optional(),
+  "referenceVideoKeys": zod.array(zod.string()).optional(),
+  "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
@@ -1594,7 +1733,7 @@ export const CreateGenerationResponse = zod.object({
   "height": zod.number(),
   "requestedWidth": zod.number(),
   "requestedHeight": zod.number(),
-  "requestedDurationSeconds": zod.number(),
+  "requestedDurationSeconds": zod.number().nullable().describe('Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.'),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1609,6 +1748,7 @@ export const CreateGenerationResponse = zod.object({
   "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
+  "outputMimeType": zod.string().nullish().describe('Stored output MIME; video\/quicktime for MOV exports.'),
   "errorMessage": zod.string().nullish(),
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),
@@ -1640,6 +1780,15 @@ export const GetGenerationResponse = zod.object({
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
   "referenceVideoKey": zod.string().nullable(),
+  "aspectRatio": zod.string().nullish(),
+  "outputResolution": zod.string().nullish(),
+  "outputFormat": zod.string().nullish(),
+  "seedanceTask": zod.string().nullish(),
+  "startFrameKey": zod.string().nullish(),
+  "endFrameKey": zod.string().nullish(),
+  "referenceImageKeys": zod.array(zod.string()).optional(),
+  "referenceVideoKeys": zod.array(zod.string()).optional(),
+  "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
@@ -1647,7 +1796,7 @@ export const GetGenerationResponse = zod.object({
   "height": zod.number(),
   "requestedWidth": zod.number(),
   "requestedHeight": zod.number(),
-  "requestedDurationSeconds": zod.number(),
+  "requestedDurationSeconds": zod.number().nullable().describe('Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.'),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1662,6 +1811,7 @@ export const GetGenerationResponse = zod.object({
   "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
+  "outputMimeType": zod.string().nullish().describe('Stored output MIME; video\/quicktime for MOV exports.'),
   "errorMessage": zod.string().nullish(),
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),
@@ -1703,6 +1853,15 @@ export const CancelGenerationResponse = zod.object({
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
   "referenceVideoKey": zod.string().nullable(),
+  "aspectRatio": zod.string().nullish(),
+  "outputResolution": zod.string().nullish(),
+  "outputFormat": zod.string().nullish(),
+  "seedanceTask": zod.string().nullish(),
+  "startFrameKey": zod.string().nullish(),
+  "endFrameKey": zod.string().nullish(),
+  "referenceImageKeys": zod.array(zod.string()).optional(),
+  "referenceVideoKeys": zod.array(zod.string()).optional(),
+  "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
@@ -1710,7 +1869,7 @@ export const CancelGenerationResponse = zod.object({
   "height": zod.number(),
   "requestedWidth": zod.number(),
   "requestedHeight": zod.number(),
-  "requestedDurationSeconds": zod.number(),
+  "requestedDurationSeconds": zod.number().nullable().describe('Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.'),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1725,6 +1884,7 @@ export const CancelGenerationResponse = zod.object({
   "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
+  "outputMimeType": zod.string().nullish().describe('Stored output MIME; video\/quicktime for MOV exports.'),
   "errorMessage": zod.string().nullish(),
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),
@@ -1766,6 +1926,16 @@ export const DeleteReferenceVideoParams = zod.object({
 })
 
 export const DeleteReferenceVideoResponse = zod.void()
+
+
+/**
+ * @summary Upload private image, video, or audio reference media
+ */
+export const UploadGenerationReferenceMediaResponse = zod.object({
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "mimeType": zod.enum(['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'audio/mpeg', 'audio/wav'])
+})
 
 
 /**
@@ -1879,6 +2049,15 @@ export const GetDashboardSummaryResponse = zod.object({
   "characterIds": zod.array(zod.string()),
   "settingId": zod.string().nullable(),
   "referenceVideoKey": zod.string().nullable(),
+  "aspectRatio": zod.string().nullish(),
+  "outputResolution": zod.string().nullish(),
+  "outputFormat": zod.string().nullish(),
+  "seedanceTask": zod.string().nullish(),
+  "startFrameKey": zod.string().nullish(),
+  "endFrameKey": zod.string().nullish(),
+  "referenceImageKeys": zod.array(zod.string()).optional(),
+  "referenceVideoKeys": zod.array(zod.string()).optional(),
+  "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
   "generationMode": zod.string(),
   "qualityPreset": zod.string(),
@@ -1886,7 +2065,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "height": zod.number(),
   "requestedWidth": zod.number(),
   "requestedHeight": zod.number(),
-  "requestedDurationSeconds": zod.number(),
+  "requestedDurationSeconds": zod.number().nullable().describe('Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.'),
   "fps": zod.number(),
   "durationSeconds": zod.number(),
   "seed": zod.number().nullish(),
@@ -1901,6 +2080,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "longFormShotNumber": zod.number().nullable(),
   "comfyPromptId": zod.string().nullish(),
   "outputUrl": zod.string().nullish(),
+  "outputMimeType": zod.string().nullish().describe('Stored output MIME; video\/quicktime for MOV exports.'),
   "errorMessage": zod.string().nullish(),
   "createdAt": zod.string(),
   "queuedAt": zod.string().nullish(),

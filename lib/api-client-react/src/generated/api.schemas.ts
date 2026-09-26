@@ -1063,6 +1063,95 @@ export interface WorkflowUpdate {
   mappings?: WorkflowUpdateMappings;
 }
 
+/**
+ * @minItems 1
+ * @maxItems 100
+ */
+export type VideoLibraryIds = string[];
+
+export interface VideoLibraryFavoritesInput {
+  ids: VideoLibraryIds;
+  favorite: boolean;
+}
+
+export interface VideoLibraryDeleteInput {
+  ids: VideoLibraryIds;
+}
+
+export interface VideoLibraryUndoInput {
+  undoToken: string;
+}
+
+export interface VideoLibraryItem {
+  id: string;
+  title: string;
+  status: string;
+  favorite: boolean;
+  /** @nullable */
+  outputStorageKey: string | null;
+  /** @nullable */
+  outputMimeType: string | null;
+  /** @nullable */
+  mediaUrl: string | null;
+  /** @nullable */
+  previewUrl: string | null;
+  createdAt: string;
+}
+
+export type ReferenceLibraryRole = typeof ReferenceLibraryRole[keyof typeof ReferenceLibraryRole];
+
+
+export const ReferenceLibraryRole = {
+  referenceImage: 'referenceImage',
+  firstFrame: 'firstFrame',
+  lastFrame: 'lastFrame',
+  referenceVideo: 'referenceVideo',
+  referenceAudio: 'referenceAudio',
+} as const;
+
+export type ReferenceLibrarySourceType = typeof ReferenceLibrarySourceType[keyof typeof ReferenceLibrarySourceType];
+
+
+export const ReferenceLibrarySourceType = {
+  upload: 'upload',
+  referenceVideo: 'referenceVideo',
+  generation: 'generation',
+  imageAsset: 'imageAsset',
+  characterAsset: 'characterAsset',
+  settingAsset: 'settingAsset',
+} as const;
+
+export interface ReferenceLibraryImportInput {
+  sourceType: ReferenceLibrarySourceType;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  sourceId: string;
+  role?: ReferenceLibraryRole;
+}
+
+export type ReferenceLibraryItemKind = typeof ReferenceLibraryItemKind[keyof typeof ReferenceLibraryItemKind];
+
+
+export const ReferenceLibraryItemKind = {
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+} as const;
+
+export interface ReferenceLibraryItem {
+  sourceType: ReferenceLibrarySourceType;
+  sourceId: string;
+  name: string;
+  kind: ReferenceLibraryItemKind;
+  mimeType: string;
+  mediaUrl: string;
+  /** @nullable */
+  previewUrl: string | null;
+  createdAt: string;
+}
+
 export type GenerationInputProvider = typeof GenerationInputProvider[keyof typeof GenerationInputProvider];
 
 
@@ -1079,6 +1168,59 @@ export const GenerationInputModel = {
   'kling-v3-standard': 'kling-v3-standard',
   'seedance-20-mini': 'seedance-2.0-mini',
   'seedance-20': 'seedance-2.0',
+  'seedance-20-fast': 'seedance-2.0-fast',
+  'seedance-25': 'seedance-2.5',
+} as const;
+
+/**
+ * Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode.
+ */
+export type GenerationInputSeedanceTask = typeof GenerationInputSeedanceTask[keyof typeof GenerationInputSeedanceTask];
+
+
+export const GenerationInputSeedanceTask = {
+  reference: 'reference',
+  editing: 'editing',
+  extension: 'extension',
+} as const;
+
+/**
+ * Seedance output shape; Seedance 2.5 editing inherits the source shape instead.
+ */
+export type GenerationInputAspectRatio = typeof GenerationInputAspectRatio[keyof typeof GenerationInputAspectRatio];
+
+
+export const GenerationInputAspectRatio = {
+  '16:9': '16:9',
+  '4:3': '4:3',
+  '1:1': '1:1',
+  '3:4': '3:4',
+  '9:16': '9:16',
+  '21:9': '21:9',
+} as const;
+
+/**
+ * Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p.
+ */
+export type GenerationInputOutputResolution = typeof GenerationInputOutputResolution[keyof typeof GenerationInputOutputResolution];
+
+
+export const GenerationInputOutputResolution = {
+  '480p': '480p',
+  '720p': '720p',
+  '1080p': '1080p',
+  '4k': '4k',
+} as const;
+
+/**
+ * Seedance returns MP4; requested MOV output is remuxed server-side without video/audio transcoding after generation, then served as video/quicktime.
+ */
+export type GenerationInputOutputFormat = typeof GenerationInputOutputFormat[keyof typeof GenerationInputOutputFormat];
+
+
+export const GenerationInputOutputFormat = {
+  mp4: 'mp4',
+  mov: 'mov',
 } as const;
 
 export type GenerationInputFps = typeof GenerationInputFps[keyof typeof GenerationInputFps];
@@ -1137,6 +1279,34 @@ export interface GenerationInput {
   audioInstructions?: string;
   generationMode: string;
   referenceVideoKey?: string;
+  /** Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode. */
+  seedanceTask?: GenerationInputSeedanceTask;
+  /** Seedance output shape; Seedance 2.5 editing inherits the source shape instead. */
+  aspectRatio?: GenerationInputAspectRatio;
+  /** Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p. */
+  outputResolution?: GenerationInputOutputResolution;
+  /** Seedance returns MP4; requested MOV output is remuxed server-side without video/audio transcoding after generation, then served as video/quicktime. */
+  outputFormat?: GenerationInputOutputFormat;
+  startFrameKey?: string;
+  endFrameKey?: string;
+  /**
+     * Tenant-owned image storage keys; Seedance 2.0 allows at most 9, Seedance 2.5 at most 30.
+     * @maxItems 30
+     * @items.minLength 1
+     */
+  referenceImageKeys?: string[];
+  /**
+     * Tenant-owned video storage keys; provider-specific count, size, and duration limits are validated before spend reservation.
+     * @maxItems 10
+     * @items.minLength 1
+     */
+  referenceVideoKeys?: string[];
+  /**
+     * Tenant-owned audio storage keys; provider-specific count, size, and duration limits are validated before spend reservation.
+     * @maxItems 10
+     * @items.minLength 1
+     */
+  referenceAudioKeys?: string[];
   /**
      * @minimum 1
      * @maximum 120
@@ -1208,6 +1378,21 @@ export interface GenerationJob {
   settingId: string | null;
   /** @nullable */
   referenceVideoKey: string | null;
+  /** @nullable */
+  aspectRatio?: string | null;
+  /** @nullable */
+  outputResolution?: string | null;
+  /** @nullable */
+  outputFormat?: string | null;
+  /** @nullable */
+  seedanceTask?: string | null;
+  /** @nullable */
+  startFrameKey?: string | null;
+  /** @nullable */
+  endFrameKey?: string | null;
+  referenceImageKeys?: string[];
+  referenceVideoKeys?: string[];
+  referenceAudioKeys?: string[];
   compiledPrompt: string;
   generationMode: string;
   qualityPreset: string;
@@ -1215,7 +1400,11 @@ export interface GenerationJob {
   height: number;
   requestedWidth: number;
   requestedHeight: number;
-  requestedDurationSeconds: number;
+  /**
+     * Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.
+     * @nullable
+     */
+  requestedDurationSeconds: number | null;
   fps: number;
   durationSeconds: number;
   /** @nullable */
@@ -1242,6 +1431,11 @@ export interface GenerationJob {
   comfyPromptId?: string | null;
   /** @nullable */
   outputUrl?: string | null;
+  /**
+     * Stored output MIME; video/quicktime for MOV exports.
+     * @nullable
+     */
+  outputMimeType?: string | null;
   /** @nullable */
   errorMessage?: string | null;
   createdAt: string;
@@ -1271,6 +1465,25 @@ export interface ReferenceVideoUpload {
   storageKey: string;
   mediaUrl: string;
   mimeType: ReferenceVideoUploadMimeType;
+}
+
+export type GenerationReferenceMediaUploadMimeType = typeof GenerationReferenceMediaUploadMimeType[keyof typeof GenerationReferenceMediaUploadMimeType];
+
+
+export const GenerationReferenceMediaUploadMimeType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+  'video/mp4': 'video/mp4',
+  'video/quicktime': 'video/quicktime',
+  'audio/mpeg': 'audio/mpeg',
+  'audio/wav': 'audio/wav',
+} as const;
+
+export interface GenerationReferenceMediaUpload {
+  storageKey: string;
+  mediaUrl: string;
+  mimeType: GenerationReferenceMediaUploadMimeType;
 }
 
 export type ReferenceVideoMimeType = typeof ReferenceVideoMimeType[keyof typeof ReferenceVideoMimeType];
@@ -1700,6 +1913,47 @@ export interface LongFormTimelineInput {
 
 export type LongFormProjectDetail = LongFormProject & {
   shots: LongFormShot[];
+};
+
+export type ListVideoLibraryParams = {
+favorite?: boolean;
+};
+
+export type ListVideoLibrary200 = {
+  items: VideoLibraryItem[];
+};
+
+export type SetVideoLibraryFavorites200 = {
+  ids: VideoLibraryIds;
+  favorite: boolean;
+};
+
+export type BulkDeleteVideoLibrary200 = {
+  ids: VideoLibraryIds;
+  undoToken: string;
+  undoExpiresAt: string;
+};
+
+export type UndoVideoLibraryDelete200 = {
+  ids: string[];
+};
+
+export type ListReferenceLibraryParams = {
+kind?: ListReferenceLibraryKind;
+role?: ReferenceLibraryRole;
+};
+
+export type ListReferenceLibraryKind = typeof ListReferenceLibraryKind[keyof typeof ListReferenceLibraryKind];
+
+
+export const ListReferenceLibraryKind = {
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+} as const;
+
+export type ListReferenceLibrary200 = {
+  items: ReferenceLibraryItem[];
 };
 
 export type GetSpendingReportParams = {

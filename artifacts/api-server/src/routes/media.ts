@@ -5,7 +5,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { mediaStorage } from "../lib/storage-service";
 
 const router: IRouter = Router();
-const canonicalMediaKey = /^(?:tenants\/[0-9a-f-]{36}\/)?(?:(?:characters|settings|image-studio|long-form-continuity)\/[a-z0-9_-]+\.(?:jpe?g|png|webp)|voices\/[a-z0-9_-]+\.wav|(?:reference-videos|generations)\/[a-z0-9_-]+\.(?:mp4|webm))$/i;
+const canonicalMediaKey = /^(?:tenants\/[0-9a-f-]{36}\/)?(?:(?:characters|settings|image-studio|long-form-continuity)\/[a-z0-9_-]+\.(?:jpe?g|png|webp)|generation-references\/[a-z0-9_-]+\.(?:jpe?g|png|webp|mp4|mov|mp3|wav)|voices\/[a-z0-9_-]+\.wav|(?:reference-videos|generations)\/[a-z0-9_-]+\.(?:mp4|mov|webm))$/i;
 
 function authorizedMediaKey(req: Request, raw: string): boolean {
   if (!canonicalMediaKey.test(raw) || raw.includes("\\")) return false;
@@ -30,6 +30,10 @@ function contentType(key: string): string {
       return "video/webm";
     case ".wav":
       return "audio/wav";
+    case ".mp3":
+      return "audio/mpeg";
+    case ".mov":
+      return "video/quicktime";
     default:
       return "application/octet-stream";
   }

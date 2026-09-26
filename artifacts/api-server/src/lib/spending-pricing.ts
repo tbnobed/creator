@@ -9,7 +9,16 @@ type QuoteInput = {
   operation: string;
   referenceCount?: number;
 };
-type VideoQuoteInput = { duration: number; resolution?: string; generateAudio?: boolean };
+type VideoQuoteInput = {
+  duration: number;
+  resolution?: string;
+  width?: number;
+  height?: number;
+  generateAudio?: boolean;
+  referenceVideoDuration?: number;
+  referenceAudioDuration?: number;
+  referenceImageCount?: number;
+};
 type Price = {
   unitPrice: number;
   unit: string;
@@ -79,8 +88,16 @@ const videoCatalog = {
   "fal-ai/kling-video/v3/standard/text-to-video": { units: ["seconds"] },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/enterprise/v2/fast/text-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/mini/reference-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/v2/reference-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/enterprise/v2/fast/reference-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/image-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/enterprise/v2/fast/image-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.0/mini/image-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.5/text-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.5/image-to-video": { units: ["1000 tokens"] },
+  "bytedance/seedance-2.5/reference-to-video": { units: ["1000 tokens"] },
 } as const;
 
 const localRateCard: Readonly<Record<string, Price>> = {
@@ -101,8 +118,16 @@ const localRateCard: Readonly<Record<string, Price>> = {
   "fal-ai/kling-video/v3/standard/text-to-video": { unitPrice: 0.14, unit: "seconds" },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/enterprise/v2/fast/text-to-video": { unitPrice: 0.0112, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/mini/reference-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/v2/reference-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/enterprise/v2/fast/reference-to-video": { unitPrice: 0.0112, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/image-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/enterprise/v2/fast/image-to-video": { unitPrice: 0.0112, unit: "1000 tokens" },
+  "bytedance/seedance-2.0/mini/image-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
+  "bytedance/seedance-2.5/text-to-video": { unitPrice: 0.0214, unit: "1000 tokens" },
+  "bytedance/seedance-2.5/image-to-video": { unitPrice: 0.0214, unit: "1000 tokens" },
+  "bytedance/seedance-2.5/reference-to-video": { unitPrice: 0.0214, unit: "1000 tokens" },
 };
 
 function unavailable(message: string): SpendingPricingError {
@@ -229,15 +254,57 @@ export async function quoteVideoSpend(modelId: string, input: VideoQuoteInput): 
   if (!model) throw unavailable("unknown video model");
   const price = localPrice(modelId, model.units);
   const dimensions = videoDimensions(input.resolution);
+  if (input.width !== undefined || input.height !== undefined) {
+    if (input.width === undefined || input.height === undefined) throw new TypeError("Both video width and height are required.");
+    positive(input.width, "width");
+    positive(input.height, "height");
+    if (!Number.isSafeInteger(input.width) || !Number.isSafeInteger(input.height)) throw new TypeError("Video dimensions must be integers.");
+    dimensions.width = input.width;
+    dimensions.height = input.height;
+  }
   const audio = input.generateAudio === true;
 
   let raw: number;
   let detail: string;
-  if (modelId.includes("seedance-2.0")) {
-    const tokens = dimensions.width * dimensions.height * input.duration * 24 / 1024;
+  if (modelId.includes("seedance-2.5")) {
+    const referenceVideoDuration = input.referenceVideoDuration ?? 0;
+    if (referenceVideoDuration > 0) positive(referenceVideoDuration, "referenceVideoDuration");
+    const referenceAudioDuration = input.referenceAudioDuration ?? 0;
+    if (referenceAudioDuration > 0) positive(referenceAudioDuration, "referenceAudioDuration");
+    const referenceImageCount = input.referenceImageCount ?? 0;
+    nonNegativeInteger(referenceImageCount, "referenceImageCount");
+    const outputAndVideoTokens = dimensions.width * dimensions.height
+      * (input.duration + referenceVideoDuration) * 24 / 1024;
+    // Reference images are conservatively charged as a full-resolution frame;
+    // audio duration uses the same frame-equivalent token ceiling until fal's
+    // modality-specific tokenizer is observable in a checked-in contract.
+    const imageAndAudioTokens = dimensions.width * dimensions.height / 1024
+      * (referenceImageCount + referenceAudioDuration * 24);
+    const tokens = outputAndVideoTokens + imageAndAudioTokens;
+    const pricePerThousand = dimensions.label === "1080p" ? 0.0234 : 0.0214;
+    const referenceMultiplier = referenceVideoDuration > 0 ? 0.6 : 1;
+    raw = pricePerThousand / 1000
+      * (outputAndVideoTokens * referenceMultiplier + imageAndAudioTokens);
+    detail = `${input.duration}s output${referenceVideoDuration > 0 ? ` plus ${referenceVideoDuration}s of input video` : ""}`
+      + `${referenceImageCount ? ` plus ${referenceImageCount} full-resolution image reference(s)` : ""}`
+      + `${referenceAudioDuration ? ` plus ${referenceAudioDuration}s of frame-equivalent audio references` : ""}`
+      + ` at ${dimensions.label}, 24fps token estimate (${Math.ceil(tokens)} estimated tokens);`
+      + ` documented video-reference multiplier ${referenceMultiplier}.`;
+  } else if (modelId.includes("seedance-2.0")) {
+    const referenceVideoDuration = input.referenceVideoDuration ?? 0;
+    const referenceAudioDuration = input.referenceAudioDuration ?? 0;
+    const referenceImageCount = input.referenceImageCount ?? 0;
+    if (referenceVideoDuration > 0) positive(referenceVideoDuration, "referenceVideoDuration");
+    if (referenceAudioDuration > 0) positive(referenceAudioDuration, "referenceAudioDuration");
+    nonNegativeInteger(referenceImageCount, "referenceImageCount");
+    const tokens = dimensions.width * dimensions.height / 1024
+      * ((input.duration + referenceVideoDuration + referenceAudioDuration) * 24 + referenceImageCount);
     raw = price.unitPrice * tokens / 1000;
     detail = `${input.duration}s at ${dimensions.label}, 24fps token formula`
-      + ` (${Math.ceil(tokens)} estimated tokens); audio does not change the documented token rate.`;
+      + `${referenceVideoDuration ? ` plus ${referenceVideoDuration}s input video` : ""}`
+      + `${referenceAudioDuration ? ` plus ${referenceAudioDuration}s frame-equivalent audio` : ""}`
+      + `${referenceImageCount ? ` plus ${referenceImageCount} full-resolution image reference(s)` : ""}`
+      + ` (${Math.ceil(tokens)} estimated tokens); checked-in 2.0 rate is applied conservatively to references.`;
   } else if (modelId === "fal-ai/veo3.1/fast" && dimensions.label === "4k") {
     // The local rate is the 720p/1080p audio rate. Documented 4K rates are
     // $0.35 with audio and $0.30 without it, represented as relative factors.

@@ -24,6 +24,7 @@ import type {
   AuthConfig,
   AuthLoginInput,
   AuthRegistrationInput,
+  BulkDeleteVideoLibrary200,
   Character,
   CharacterAssetMutationResponse,
   CharacterAssetUpdate,
@@ -42,6 +43,7 @@ import type {
   GenerationCapability,
   GenerationInput,
   GenerationJob,
+  GenerationReferenceMediaUpload,
   GetSpendingReportParams,
   HealthStatus,
   ImageAssetList,
@@ -54,7 +56,11 @@ import type {
   ListGenerationsParams,
   ListImageStudioAssetsParams,
   ListImageStudioJobsParams,
+  ListReferenceLibrary200,
+  ListReferenceLibraryParams,
   ListSpendingEntriesParams,
+  ListVideoLibrary200,
+  ListVideoLibraryParams,
   LongFormContinuitySettings,
   LongFormProject,
   LongFormProjectDetail,
@@ -69,12 +75,14 @@ import type {
   PromptPolishInput,
   PromptPolishResult,
   QueueSnapshot,
+  ReferenceLibraryImportInput,
   ReferenceVideoList,
   ReferenceVideoUpload,
   ServerConnectionConfiguration,
   ServerCreateInput,
   ServerUpdateInput,
   Session,
+  SetVideoLibraryFavorites200,
   Setting,
   SettingInput,
   SpendingEntryPage,
@@ -89,6 +97,10 @@ import type {
   TenantMember,
   TenantMemberInput,
   TenantSummary,
+  UndoVideoLibraryDelete200,
+  VideoLibraryDeleteInput,
+  VideoLibraryFavoritesInput,
+  VideoLibraryUndoInput,
   WorkflowInput,
   WorkflowTemplate,
   WorkflowUpdate
@@ -120,6 +132,422 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListVideoLibraryUrl = (params?: ListVideoLibraryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/video-library?${stringifiedParams}` : `/api/video-library`
+}
+
+export const listVideoLibrary = async (params?: ListVideoLibraryParams, options?: Parameters<typeof customFetch>[1]): Promise<ListVideoLibrary200> => {
+
+  return customFetch<ListVideoLibrary200>(getListVideoLibraryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVideoLibraryQueryKey = (params?: ListVideoLibraryParams,) => {
+    return [
+    `/api/video-library`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListVideoLibraryQueryOptions = <TData = Awaited<ReturnType<typeof listVideoLibrary>>, TError = ErrorType<unknown>>(params?: ListVideoLibraryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVideoLibrary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVideoLibraryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVideoLibrary>>> = ({ signal }) => listVideoLibrary(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVideoLibrary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVideoLibraryQueryResult = NonNullable<Awaited<ReturnType<typeof listVideoLibrary>>>
+export type ListVideoLibraryQueryError = ErrorType<unknown>
+
+
+
+export function useListVideoLibrary<TData = Awaited<ReturnType<typeof listVideoLibrary>>, TError = ErrorType<unknown>>(
+ params?: ListVideoLibraryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVideoLibrary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVideoLibraryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetVideoLibraryFavoritesUrl = () => {
+
+
+
+
+  return `/api/video-library/favorites`
+}
+
+export const setVideoLibraryFavorites = async (videoLibraryFavoritesInput: VideoLibraryFavoritesInput, options?: Parameters<typeof customFetch>[1]): Promise<SetVideoLibraryFavorites200> => {
+
+  return customFetch<SetVideoLibraryFavorites200>(getSetVideoLibraryFavoritesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoLibraryFavoritesInput)
+  }
+);}
+
+
+
+
+
+export const getSetVideoLibraryFavoritesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setVideoLibraryFavorites>>, TError,{data: BodyType<VideoLibraryFavoritesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setVideoLibraryFavorites>>, TError,{data: BodyType<VideoLibraryFavoritesInput>}, TContext> => {
+
+const mutationKey = ['setVideoLibraryFavorites'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setVideoLibraryFavorites>>, {data: BodyType<VideoLibraryFavoritesInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setVideoLibraryFavorites(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetVideoLibraryFavoritesMutationResult = NonNullable<Awaited<ReturnType<typeof setVideoLibraryFavorites>>>
+    export type SetVideoLibraryFavoritesMutationBody = BodyType<VideoLibraryFavoritesInput>
+    export type SetVideoLibraryFavoritesMutationError = ErrorType<unknown>
+
+    export const useSetVideoLibraryFavorites = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setVideoLibraryFavorites>>, TError,{data: BodyType<VideoLibraryFavoritesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setVideoLibraryFavorites>>,
+        TError,
+        {data: BodyType<VideoLibraryFavoritesInput>},
+        TContext
+      > => {
+      return useMutation(getSetVideoLibraryFavoritesMutationOptions(options));
+    }
+
+export const getBulkDeleteVideoLibraryUrl = () => {
+
+
+
+
+  return `/api/video-library/bulk-delete`
+}
+
+export const bulkDeleteVideoLibrary = async (videoLibraryDeleteInput: VideoLibraryDeleteInput, options?: Parameters<typeof customFetch>[1]): Promise<BulkDeleteVideoLibrary200> => {
+
+  return customFetch<BulkDeleteVideoLibrary200>(getBulkDeleteVideoLibraryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoLibraryDeleteInput)
+  }
+);}
+
+
+
+
+
+export const getBulkDeleteVideoLibraryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteVideoLibrary>>, TError,{data: BodyType<VideoLibraryDeleteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteVideoLibrary>>, TError,{data: BodyType<VideoLibraryDeleteInput>}, TContext> => {
+
+const mutationKey = ['bulkDeleteVideoLibrary'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkDeleteVideoLibrary>>, {data: BodyType<VideoLibraryDeleteInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkDeleteVideoLibrary(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkDeleteVideoLibraryMutationResult = NonNullable<Awaited<ReturnType<typeof bulkDeleteVideoLibrary>>>
+    export type BulkDeleteVideoLibraryMutationBody = BodyType<VideoLibraryDeleteInput>
+    export type BulkDeleteVideoLibraryMutationError = ErrorType<unknown>
+
+    export const useBulkDeleteVideoLibrary = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteVideoLibrary>>, TError,{data: BodyType<VideoLibraryDeleteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkDeleteVideoLibrary>>,
+        TError,
+        {data: BodyType<VideoLibraryDeleteInput>},
+        TContext
+      > => {
+      return useMutation(getBulkDeleteVideoLibraryMutationOptions(options));
+    }
+
+export const getUndoVideoLibraryDeleteUrl = () => {
+
+
+
+
+  return `/api/video-library/undo`
+}
+
+export const undoVideoLibraryDelete = async (videoLibraryUndoInput: VideoLibraryUndoInput, options?: Parameters<typeof customFetch>[1]): Promise<UndoVideoLibraryDelete200> => {
+
+  return customFetch<UndoVideoLibraryDelete200>(getUndoVideoLibraryDeleteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoLibraryUndoInput)
+  }
+);}
+
+
+
+
+
+export const getUndoVideoLibraryDeleteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoVideoLibraryDelete>>, TError,{data: BodyType<VideoLibraryUndoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoVideoLibraryDelete>>, TError,{data: BodyType<VideoLibraryUndoInput>}, TContext> => {
+
+const mutationKey = ['undoVideoLibraryDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoVideoLibraryDelete>>, {data: BodyType<VideoLibraryUndoInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  undoVideoLibraryDelete(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoVideoLibraryDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof undoVideoLibraryDelete>>>
+    export type UndoVideoLibraryDeleteMutationBody = BodyType<VideoLibraryUndoInput>
+    export type UndoVideoLibraryDeleteMutationError = ErrorType<void>
+
+    export const useUndoVideoLibraryDelete = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoVideoLibraryDelete>>, TError,{data: BodyType<VideoLibraryUndoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof undoVideoLibraryDelete>>,
+        TError,
+        {data: BodyType<VideoLibraryUndoInput>},
+        TContext
+      > => {
+      return useMutation(getUndoVideoLibraryDeleteMutationOptions(options));
+    }
+
+export const getListReferenceLibraryUrl = (params?: ListReferenceLibraryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reference-library?${stringifiedParams}` : `/api/reference-library`
+}
+
+export const listReferenceLibrary = async (params?: ListReferenceLibraryParams, options?: Parameters<typeof customFetch>[1]): Promise<ListReferenceLibrary200> => {
+
+  return customFetch<ListReferenceLibrary200>(getListReferenceLibraryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReferenceLibraryQueryKey = (params?: ListReferenceLibraryParams,) => {
+    return [
+    `/api/reference-library`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListReferenceLibraryQueryOptions = <TData = Awaited<ReturnType<typeof listReferenceLibrary>>, TError = ErrorType<unknown>>(params?: ListReferenceLibraryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReferenceLibrary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReferenceLibraryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReferenceLibrary>>> = ({ signal }) => listReferenceLibrary(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReferenceLibrary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReferenceLibraryQueryResult = NonNullable<Awaited<ReturnType<typeof listReferenceLibrary>>>
+export type ListReferenceLibraryQueryError = ErrorType<unknown>
+
+
+
+export function useListReferenceLibrary<TData = Awaited<ReturnType<typeof listReferenceLibrary>>, TError = ErrorType<unknown>>(
+ params?: ListReferenceLibraryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReferenceLibrary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReferenceLibraryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportReferenceLibraryUrl = () => {
+
+
+
+
+  return `/api/reference-library/import`
+}
+
+export const importReferenceLibrary = async (referenceLibraryImportInput: ReferenceLibraryImportInput, options?: Parameters<typeof customFetch>[1]): Promise<GenerationReferenceMediaUpload> => {
+
+  return customFetch<GenerationReferenceMediaUpload>(getImportReferenceLibraryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(referenceLibraryImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportReferenceLibraryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importReferenceLibrary>>, TError,{data: BodyType<ReferenceLibraryImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importReferenceLibrary>>, TError,{data: BodyType<ReferenceLibraryImportInput>}, TContext> => {
+
+const mutationKey = ['importReferenceLibrary'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importReferenceLibrary>>, {data: BodyType<ReferenceLibraryImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importReferenceLibrary(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportReferenceLibraryMutationResult = NonNullable<Awaited<ReturnType<typeof importReferenceLibrary>>>
+    export type ImportReferenceLibraryMutationBody = BodyType<ReferenceLibraryImportInput>
+    export type ImportReferenceLibraryMutationError = ErrorType<void>
+
+    export const useImportReferenceLibrary = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importReferenceLibrary>>, TError,{data: BodyType<ReferenceLibraryImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importReferenceLibrary>>,
+        TError,
+        {data: BodyType<ReferenceLibraryImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportReferenceLibraryMutationOptions(options));
+    }
 
 export const getGetAuthConfigUrl = () => {
 
@@ -4111,6 +4539,77 @@ export const useDeleteReferenceVideo = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteReferenceVideoMutationOptions(options));
+    }
+
+export const getUploadGenerationReferenceMediaUrl = () => {
+
+
+
+
+  return `/api/generations/reference-media`
+}
+
+/**
+ * @summary Upload private image, video, or audio reference media
+ */
+export const uploadGenerationReferenceMedia = async (uploadGenerationReferenceMediaBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<GenerationReferenceMediaUpload> => {
+
+  return customFetch<GenerationReferenceMediaUpload>(getUploadGenerationReferenceMediaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg', ...options?.headers },
+    body: uploadGenerationReferenceMediaBody
+  }
+);}
+
+
+
+
+
+export const getUploadGenerationReferenceMediaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadGenerationReferenceMedia>>, TError,{data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadGenerationReferenceMedia>>, TError,{data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadGenerationReferenceMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadGenerationReferenceMedia>>, {data: BodyType<Blob>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadGenerationReferenceMedia(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadGenerationReferenceMediaMutationResult = NonNullable<Awaited<ReturnType<typeof uploadGenerationReferenceMedia>>>
+    export type UploadGenerationReferenceMediaMutationBody = BodyType<Blob>
+    export type UploadGenerationReferenceMediaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload private image, video, or audio reference media
+ */
+export const useUploadGenerationReferenceMedia = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadGenerationReferenceMedia>>, TError,{data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadGenerationReferenceMedia>>,
+        TError,
+        {data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadGenerationReferenceMediaMutationOptions(options));
     }
 
 export const getPolishPromptUrl = () => {

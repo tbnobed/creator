@@ -8,8 +8,15 @@ const root = path.resolve(process.env.OBTV_MEDIA_ROOT ?? "data/obtv-media");
 
 const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+const MAX_GENERATION_REFERENCE_IMAGE_BYTES = 30 * 1024 * 1024;
+const MAX_GENERATION_REFERENCE_VIDEO_BYTES = 200 * 1024 * 1024;
+const MAX_GENERATION_REFERENCE_AUDIO_BYTES = 15 * 1024 * 1024;
 const VIDEO_MIME_TYPES = new Set(["video/mp4", "video/webm"]);
 const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
+const REFERENCE_MEDIA_MIME_TYPES = new Set([
+  "image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime", "audio/mpeg", "audio/wav",
+]);
+const MAX_REFERENCE_AUDIO_BYTES = 30 * 1024 * 1024;
 const VOICE_MIME_TYPES = new Set([
   "audio/wav",
   "audio/x-wav",
@@ -32,6 +39,11 @@ let activePreviewJobs = 0;
 function tenantKey(tenantId: string, key: string): string {
   if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new Error("Invalid tenant");
   return `tenants/${tenantId}/${key}`;
+}
+
+export function isTenantGenerationReferenceKey(key: string, tenantId: string): boolean {
+  const match = /^tenants\/([0-9a-f-]{36})\/generation-references\/[0-9a-f-]{36}\.(?:jpg|png|webp|mp4|mov|mp3|wav)$/i.exec(key);
+  return Boolean(match && match[1]?.toLowerCase() === tenantId.toLowerCase());
 }
 
 async function acquirePreviewSlot(): Promise<void> {
@@ -58,6 +70,19 @@ function safeVideoExtension(originalName: string, mimeType: string): string {
   const supplied = path.extname(originalName).toLowerCase();
   if ([".mp4", ".webm"].includes(supplied)) return supplied;
   return mimeType === "video/webm" ? ".webm" : ".mp4";
+}
+
+function referenceMediaExtension(mimeType: string): string {
+  switch (mimeType) {
+    case "image/jpeg": return ".jpg";
+    case "image/png": return ".png";
+    case "image/webp": return ".webp";
+    case "video/mp4": return ".mp4";
+    case "video/quicktime": return ".mov";
+    case "audio/mpeg": return ".mp3";
+    case "audio/wav": return ".wav";
+    default: throw new Error("Unsupported reference media MIME type");
+  }
 }
 
 function safeVoiceExtension(originalName: string, mimeType: string): string {
@@ -106,7 +131,7 @@ async function runMediaCommand(command: string, args: string[], timeoutMs = 60_0
 }
 
 function resolveKey(key: string): string {
-  if (key.includes("\\") || !/^[a-z0-9/_-]+\.(jpg|jpeg|png|webp|mp4|webm|wav)$/i.test(key)) {
+  if (key.includes("\\") || !/^[a-z0-9/_-]+\.(jpg|jpeg|png|webp|mp4|webm|mov|mp3|wav)$/i.test(key)) {
     throw new Error("Invalid media storage key");
   }
   const resolved = path.resolve(root, key);
@@ -115,6 +140,46 @@ function resolveKey(key: string): string {
 }
 
 export class LocalMediaStorage {
+  async storeGenerationReferenceMedia(
+    mimeType: string,
+    bytes: Buffer,
+    tenantId: string,
+  ): Promise<string> {
+    if (!REFERENCE_MEDIA_MIME_TYPES.has(mimeType)) {
+      throw new Error("Reference media must be JPEG, PNG, WebP, MP4, QuickTime, MPEG audio, or WAV");
+    }
+    const maxBytes = mimeType.startsWith("image/")
+      ? MAX_GENERATION_REFERENCE_IMAGE_BYTES
+      : mimeType.startsWith("video/") ? MAX_GENERATION_REFERENCE_VIDEO_BYTES : MAX_GENERATION_REFERENCE_AUDIO_BYTES;
+    if (bytes.length === 0 || bytes.length > maxBytes) {
+      throw new Error(`Reference ${mimeType.startsWith("image/") ? "image" : mimeType.startsWith("video/") ? "video" : "audio"} must be between 1 byte and ${Math.floor(maxBytes / (1024 * 1024))} MB`);
+    }
+    assertReferenceMediaSignature(mimeType, bytes);
+    const key = tenantKey(tenantId, `generation-references/${randomUUID()}${referenceMediaExtension(mimeType)}`);
+    const destination = resolveKey(key);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx" });
+    return key;
+  }
+
+  async readGenerationReferenceMedia(key: string): Promise<{ mimeType: string; bytes: Buffer }> {
+    if (!/^tenants\/[0-9a-f-]{36}\/generation-references\/[0-9a-f-]{36}\.(?:jpg|png|webp|mp4|mov|mp3|wav)$/i.test(key)) {
+      throw new Error("Invalid generation reference media");
+    }
+    const extension = path.extname(key).toLowerCase();
+    const mimeType = extension === ".jpg" || extension === ".jpeg" ? "image/jpeg"
+      : extension === ".png" ? "image/png"
+        : extension === ".webp" ? "image/webp"
+          : extension === ".mp4" ? "video/mp4"
+            : extension === ".mov" ? "video/quicktime"
+              : extension === ".mp3" ? "audio/mpeg"
+                : extension === ".wav" ? "audio/wav" : null;
+    if (!mimeType) throw new Error("Invalid generation reference media");
+    const bytes = await readFile(resolveKey(key));
+    if (bytes.length === 0) throw new Error("Generation reference media is empty");
+    return { mimeType, bytes };
+  }
+
   async storeImage(
     originalName: string,
     mimeType: string,
@@ -310,11 +375,11 @@ export class LocalMediaStorage {
 
   async storeOutput(
     originalName: string,
-    mimeType: "video/mp4" | "video/webm",
+    mimeType: "video/mp4" | "video/webm" | "video/quicktime",
     bytes: Buffer,
     tenantId: string,
   ): Promise<string> {
-    const extension = mimeType === "video/webm" ? ".webm" : ".mp4";
+    const extension = mimeType === "video/webm" ? ".webm" : mimeType === "video/quicktime" ? ".mov" : ".mp4";
     if (bytes.length === 0) throw new Error("Generated output is empty");
     const key = tenantKey(tenantId, `generations/${randomUUID()}${extension}`);
     const destination = resolveKey(key);
@@ -328,7 +393,7 @@ export class LocalMediaStorage {
   }
 
   async videoPreviewPath(key: string, tenantId: string): Promise<string> {
-    if (key.includes("\\") || !/^(?:tenants\/[0-9a-f-]{36}\/)?(generations|reference-videos)\/[a-z0-9/_-]+\.(mp4|webm)$/i.test(key)) {
+    if (key.includes("\\") || !/^(?:tenants\/[0-9a-f-]{36}\/)?(generations|reference-videos)\/[a-z0-9/_-]+\.(mp4|mov|webm)$/i.test(key)) {
       throw new Error("Invalid video preview key");
     }
     const source = resolveKey(key);
@@ -422,6 +487,25 @@ export class LocalMediaStorage {
   stream(key: string) {
     return createReadStream(resolveKey(key));
   }
+}
+
+function assertReferenceMediaSignature(mimeType: string, bytes: Buffer): void {
+  const isPng = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isWebp = bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
+  const isIsoVideo = bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp";
+  const isWav = bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WAVE";
+  const isMpegAudio = bytes.length >= 3 && (
+    bytes.toString("ascii", 0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)
+  );
+  const valid = mimeType === "image/jpeg" ? isJpeg
+    : mimeType === "image/png" ? isPng
+      : mimeType === "image/webp" ? isWebp
+        : mimeType === "video/mp4" ? isIsoVideo && bytes.toString("ascii", 8, 12) !== "qt  "
+          : mimeType === "video/quicktime" ? isIsoVideo && bytes.toString("ascii", 8, 12) === "qt  "
+            : mimeType === "audio/wav" ? isWav
+              : mimeType === "audio/mpeg" ? isMpegAudio : false;
+  if (!valid) throw new Error(`Uploaded bytes do not match declared MIME type ${mimeType}`);
 }
 
 export const mediaStorage = new LocalMediaStorage();

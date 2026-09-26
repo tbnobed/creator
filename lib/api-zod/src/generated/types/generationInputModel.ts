@@ -14,4 +14,6 @@ export const GenerationInputModel = {
   'kling-v3-standard': 'kling-v3-standard',
   'seedance-20-mini': 'seedance-2.0-mini',
   'seedance-20': 'seedance-2.0',
+  'seedance-20-fast': 'seedance-2.0-fast',
+  'seedance-25': 'seedance-2.5',
 } as const;

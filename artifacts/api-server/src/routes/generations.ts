@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, notExists } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateGenerationBody,
@@ -19,14 +19,29 @@ import {
   longFormProjectsTable,
   longFormShotsTable,
   settingsTable,
+  videoLibraryStatesTable,
   workflowTemplatesTable,
 } from "@workspace/db";
 import { cancelGeneration, createAndSubmitGeneration, recoverTimedOutGeneration } from "../lib/generation-service";
+import { isRecoverableFalOutputFailure } from "../lib/fal/remux";
 import { presentGeneration } from "../lib/studio-presenters";
 import { mediaStorage } from "../lib/storage-service";
 import { ResourceNotFoundError } from "../lib/resource-errors";
 
 const router: IRouter = Router();
+
+function visibleToTenant(tenantId: string) {
+  return and(
+    eq(generationJobsTable.tenantId, tenantId),
+    notExists(db.select({ id: videoLibraryStatesTable.id })
+      .from(videoLibraryStatesTable)
+      .where(and(
+        eq(videoLibraryStatesTable.generationJobId, generationJobsTable.id),
+        eq(videoLibraryStatesTable.tenantId, tenantId),
+        isNotNull(videoLibraryStatesTable.deletedAt),
+      ))),
+  );
+}
 
 function restoreContextFromMetadata(
   job: typeof generationJobsTable.$inferSelect,
@@ -39,6 +54,10 @@ function restoreContextFromMetadata(
   const stringValue = (value: unknown, fallback = "") => typeof value === "string" ? value : fallback;
   const numberValue = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
   const referenceVideoKey = stringValue(composer.referenceVideoKey, "");
+  const outputDuration = job.providerTaskMetadata.outputDuration;
+  const providerDurationIsAuto = outputDuration
+    && typeof outputDuration === "object"
+    && (outputDuration as { mode?: unknown }).mode === "provider-auto";
   return {
     characterIds: Array.isArray(composer.characterIds)
       ? composer.characterIds.filter((id): id is string => typeof id === "string")
@@ -52,7 +71,18 @@ function restoreContextFromMetadata(
     motionInstructions: stringValue(composer.motionInstructions),
     requestedWidth: numberValue(composer.requestedWidth, job.width),
     requestedHeight: numberValue(composer.requestedHeight, job.height),
-    requestedDurationSeconds: numberValue(composer.requestedDurationSeconds, job.durationSeconds),
+    requestedDurationSeconds: providerDurationIsAuto
+      ? null
+      : numberValue(composer.requestedDurationSeconds, job.durationSeconds),
+    aspectRatio: typeof composer.aspectRatio === "string" ? composer.aspectRatio : null,
+    outputResolution: typeof composer.outputResolution === "string" ? composer.outputResolution : null,
+    outputFormat: typeof composer.outputFormat === "string" ? composer.outputFormat : null,
+    seedanceTask: typeof composer.seedanceTask === "string" ? composer.seedanceTask : null,
+    startFrameKey: typeof composer.startFrameKey === "string" && composer.startFrameKey.startsWith(`tenants/${job.tenantId}/generation-references/`) ? composer.startFrameKey : null,
+    endFrameKey: typeof composer.endFrameKey === "string" && composer.endFrameKey.startsWith(`tenants/${job.tenantId}/generation-references/`) ? composer.endFrameKey : null,
+    referenceImageKeys: Array.isArray(composer.referenceImageKeys) ? composer.referenceImageKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/`)) : [],
+    referenceVideoKeys: Array.isArray(composer.referenceVideoKeys) ? composer.referenceVideoKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/generation-references/`)) : [],
+    referenceAudioKeys: Array.isArray(composer.referenceAudioKeys) ? composer.referenceAudioKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/generation-references/`)) : [],
   };
 }
 
@@ -181,13 +211,13 @@ router.get("/generations", async (req, res): Promise<void> => {
   const page = Math.max(1, parsed.data.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, parsed.data.pageSize ?? 24));
   const [{ total }] = await db.select({ total: count() }).from(generationJobsTable)
-    .where(eq(generationJobsTable.tenantId, req.context!.tenant!.id));
+    .where(visibleToTenant(req.context!.tenant!.id));
   const totalItems = Number(total);
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(page, totalPages);
   const jobs = await db.select()
     .from(generationJobsTable)
-    .where(eq(generationJobsTable.tenantId, req.context!.tenant!.id))
+    .where(visibleToTenant(req.context!.tenant!.id))
     .orderBy(desc(generationJobsTable.createdAt), desc(generationJobsTable.id))
     .limit(pageSize)
     .offset((safePage - 1) * pageSize);
@@ -201,7 +231,7 @@ router.get("/generations", async (req, res): Promise<void> => {
 });
 
 router.post("/generations", async (req, res): Promise<void> => {
-  const input = CreateGenerationBody.safeParse(req.body);
+  const input = CreateGenerationBody.strict().safeParse(req.body);
   if (!input.success) {
     res.status(400).json({ error: input.error.message });
     return;
@@ -230,7 +260,7 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
   }
   let [job] = await db.select().from(generationJobsTable).where(and(
     eq(generationJobsTable.id, params.data.id),
-    eq(generationJobsTable.tenantId, req.context!.tenant!.id),
+    visibleToTenant(req.context!.tenant!.id),
   ));
   if (!job) {
     res.status(404).json({ error: "Generation not found" });
@@ -238,12 +268,12 @@ router.get("/generations/:id", async (req, res): Promise<void> => {
   }
   if (
     job.status === "FAILED" &&
-    ["Timed out while waiting for ComfyUI", "Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"].includes(job.errorMessage ?? "")
+    (job.errorMessage === "Timed out while waiting for ComfyUI" || isRecoverableFalOutputFailure(job.errorMessage))
   ) {
     await recoverTimedOutGeneration(job.id);
     [job] = await db.select().from(generationJobsTable).where(and(
       eq(generationJobsTable.id, params.data.id),
-      eq(generationJobsTable.tenantId, req.context!.tenant!.id),
+      visibleToTenant(req.context!.tenant!.id),
     ));
   }
    res.json(GetGenerationResponse.parse(await present(job, req.context!.tenant!.isDefault)));
@@ -323,7 +353,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     db.select().from(charactersTable).where(eq(charactersTable.tenantId, tenantId)),
     db.select().from(settingsTable).where(eq(settingsTable.tenantId, tenantId)),
     db.select().from(comfyServersTable),
-    db.select().from(generationJobsTable).where(eq(generationJobsTable.tenantId, tenantId)).orderBy(desc(generationJobsTable.createdAt)),
+    db.select().from(generationJobsTable).where(visibleToTenant(tenantId)).orderBy(desc(generationJobsTable.createdAt)),
   ]);
    const latestGenerations = await Promise.all(jobs.slice(0, 5).map((job) => present(job, req.context!.tenant!.isDefault)));
   res.json(GetDashboardSummaryResponse.parse({

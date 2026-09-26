@@ -2,7 +2,6 @@ import * as React from "react";
 import {
   getListGenerationsQueryKey,
   useCancelGeneration,
-  useDeleteGeneration,
   useListGenerations,
   type GenerationJob,
 } from "@workspace/api-client-react";
@@ -14,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDistanceToNow } from "date-fns";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useUndoableVideoDelete } from "@/components/video-studio/UndoableDelete";
+import { VideoLibraryPanel } from "@/components/video-studio/VideoLibraryPanel";
 import { VideoGenerationViewer } from "@/components/video-studio/VideoGenerationViewer";
 
 const PAGE_SIZES = ["24", "48", "96"];
@@ -25,6 +26,15 @@ export default function GenerationsPage() {
   const [pageSize, setPageSize] = useStateFromUrl("pageSize", 24);
   const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
+  const [view, setView] = React.useState<"queue" | "library">(() => new URLSearchParams(window.location.search).get("view") === "library" ? "library" : "queue");
+  const changeView = (next: "queue" | "library") => {
+    setView(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next === "library") params.set("view", "library"); else params.delete("view");
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  };
   const listQueryKey = getListGenerationsQueryKey({ page, pageSize });
   const { data, isLoading, isFetching, isPlaceholderData } = useListGenerations(
     { page, pageSize },
@@ -41,14 +51,7 @@ export default function GenerationsPage() {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getListGenerationsQueryKey() }),
     },
   });
-  const deleteJob = useDeleteGeneration({
-    mutation: {
-      onSuccess: () => {
-        if (page > 1 && data && data.items.length === 1) setPage(page - 1);
-        void queryClient.invalidateQueries({ queryKey: getListGenerationsQueryKey() });
-      },
-    },
-  });
+  const undoableDelete = useUndoableVideoDelete();
 
   const jobs = data?.items ?? [];
   const activeJobs = jobs.filter((job) => ACTIVE_STATUSES.includes(job.status));
@@ -59,9 +62,10 @@ export default function GenerationsPage() {
     }
   };
   const requestDeletion = (jobId: string) => {
-    if (window.confirm("Delete this generation from queue history? Active generations must be cancelled first.")) {
-      deleteJob.mutate({ id: jobId });
-    }
+    // Soft delete with a six-second undo; active jobs are rejected by the server.
+    void undoableDelete.deleteVideos([jobId]).then((deleted) => {
+      if (deleted && page > 1 && data && data.items.length === 1) setPage(page - 1);
+    });
   };
   const totalPages = data?.totalPages ?? 1;
   const start = data && data.totalItems > 0 ? (data.page - 1) * data.pageSize + 1 : 0;
@@ -80,9 +84,16 @@ export default function GenerationsPage() {
           <h1 className="text-xl font-bold tracking-tight text-foreground">Production Queue</h1>
           <p className="text-muted-foreground text-xs font-medium">Monitor active rendering jobs and historical output.</p>
         </div>
+        <div role="tablist" aria-label="View" className="ml-auto flex rounded-md border border-border/60 p-0.5">
+          {(["queue", "library"] as const).map((value) => (
+            <button key={value} type="button" role="tab" aria-selected={view === value} onClick={() => changeView(value)} className={`rounded px-3 py-1 text-xs capitalize ${view === value ? "bg-primary/20 text-foreground" : "text-muted-foreground"}`} data-testid={`tab-view-${value}`}>{value}</button>
+          ))}
+        </div>
       </div>
 
-      {isLoading ? (
+      {view === "library" ? (
+        <VideoLibraryPanel onOpen={(id) => navigate(`/generations/${id}`)} />
+      ) : isLoading ? (
         <LoadingGrid />
       ) : data?.totalItems === 0 ? (
         <EmptyState />
@@ -100,7 +111,7 @@ export default function GenerationsPage() {
               onCancel={requestCancellation}
               onDelete={requestDeletion}
               cancelPending={cancelJob.isPending}
-              deletePending={deleteJob.isPending}
+              deletePending={undoableDelete.pending}
             />
             <HistorySection
               title="History"
@@ -112,7 +123,7 @@ export default function GenerationsPage() {
               onCancel={requestCancellation}
               onDelete={requestDeletion}
               cancelPending={cancelJob.isPending}
-              deletePending={deleteJob.isPending}
+              deletePending={undoableDelete.pending}
             />
           </div>
           <Pagination
@@ -130,6 +141,8 @@ export default function GenerationsPage() {
           />
         </>
       )}
+      {undoableDelete.error && <p role="alert" className="mt-4 text-xs text-destructive" data-testid="status-queue-delete-error">{undoableDelete.error}</p>}
+      {undoableDelete.toast}
       <VideoGenerationViewer
         jobs={jobs}
         selectedJobId={selectedJobId}

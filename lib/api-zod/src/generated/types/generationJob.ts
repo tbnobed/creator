@@ -31,6 +31,21 @@ export interface GenerationJob {
   settingId: string | null;
   /** @nullable */
   referenceVideoKey: string | null;
+  /** @nullable */
+  aspectRatio?: string | null;
+  /** @nullable */
+  outputResolution?: string | null;
+  /** @nullable */
+  outputFormat?: string | null;
+  /** @nullable */
+  seedanceTask?: string | null;
+  /** @nullable */
+  startFrameKey?: string | null;
+  /** @nullable */
+  endFrameKey?: string | null;
+  referenceImageKeys?: string[];
+  referenceVideoKeys?: string[];
+  referenceAudioKeys?: string[];
   compiledPrompt: string;
   generationMode: string;
   qualityPreset: string;
@@ -38,7 +53,11 @@ export interface GenerationJob {
   height: number;
   requestedWidth: number;
   requestedHeight: number;
-  requestedDurationSeconds: number;
+  /**
+     * Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.
+     * @nullable
+     */
+  requestedDurationSeconds: number | null;
   fps: number;
   durationSeconds: number;
   /** @nullable */
@@ -65,6 +84,11 @@ export interface GenerationJob {
   comfyPromptId?: string | null;
   /** @nullable */
   outputUrl?: string | null;
+  /**
+     * Stored output MIME; video/quicktime for MOV exports.
+     * @nullable
+     */
+  outputMimeType?: string | null;
   /** @nullable */
   errorMessage?: string | null;
   createdAt: string;

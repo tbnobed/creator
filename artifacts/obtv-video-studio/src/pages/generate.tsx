@@ -11,7 +11,12 @@ import {
   getListGenerationsQueryKey,
 } from "@workspace/api-client-react";
 import { Page } from "@/components/layout/page";
+import { BatchCountPicker, BatchReceipts, type BatchReceipt } from "@/components/video-studio/BatchReceipts";
 import { VideoGenerationViewer } from "@/components/video-studio/VideoGenerationViewer";
+import { SeedanceReferences, emptySeedanceMedia, type SeedanceMedia } from "@/components/video-studio/SeedanceReferences";
+import { safeStorageRemove, safeStorageSet } from "@/lib/media-file";
+import { VideoOutputControls } from "@/components/video-studio/VideoOutputControls";
+import { aspectRatioIsInherited, RESOLUTION_QUALITY, type AspectRatio, type OutputResolution, activeSeedanceRoles, effectiveModelDuration, seedanceReferenceBudget, VIDEO_MODEL_CAPABILITIES, type FalModel, type SeedanceTask } from "@/lib/video-model-capabilities";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,39 +69,41 @@ const LTX25_RESOLUTION_OPTIONS = [
 ] as const;
 
 type GenerationProvider = "COMFYUI" | "FAL";
-type FalModel = "veo-3.1-fast" | "kling-v3-standard" | "seedance-2.0-mini" | "seedance-2.0";
 
-const FAL_MODELS: Array<{ value: FalModel; label: string; rate: number }> = [
+const FAL_MODELS: Array<{ value: FalModel; label: string; rate?: number }> = [
   { value: "veo-3.1-fast", label: "Veo 3.1 Fast", rate: 0.10 },
   { value: "kling-v3-standard", label: "Kling v3 Standard", rate: 0.084 },
   { value: "seedance-2.0-mini", label: "Seedance 2.0 Mini", rate: 0.0721 },
+  { value: "seedance-2.0-fast", label: "Seedance 2.0 Fast" },
   { value: "seedance-2.0", label: "Seedance 2.0 quality", rate: 0.3034 },
+  { value: "seedance-2.5", label: "Seedance 2.5" },
 ];
 
 const FAL_MODEL_BY_PROVIDER_ID: Record<string, FalModel> = {
   "fal-ai/veo3.1/fast": "veo-3.1-fast",
   "fal-ai/kling-video/v3/standard/text-to-video": "kling-v3-standard",
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": "seedance-2.0-mini",
+  "bytedance/seedance-2.0/enterprise/mini/reference-to-video": "seedance-2.0-mini",
+  "bytedance/seedance-2.0/mini/image-to-video": "seedance-2.0-mini",
+  "bytedance/seedance-2.0/enterprise/v2/fast/text-to-video": "seedance-2.0-fast",
+  "bytedance/seedance-2.0/enterprise/v2/fast/reference-to-video": "seedance-2.0-fast",
+  "bytedance/seedance-2.0/enterprise/v2/fast/image-to-video": "seedance-2.0-fast",
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": "seedance-2.0",
+  "bytedance/seedance-2.0/enterprise/v2/reference-to-video": "seedance-2.0",
+  "bytedance/seedance-2.0/image-to-video": "seedance-2.0",
+  "bytedance/seedance-2.5/text-to-video": "seedance-2.5",
+  "bytedance/seedance-2.5/image-to-video": "seedance-2.5",
+  "bytedance/seedance-2.5/reference-to-video": "seedance-2.5",
 };
 
-function effectiveFalDuration(model: FalModel, duration: number): number {
-  if (model === "veo-3.1-fast") {
-    return [4, 6, 8].reduce((best, value) => (
-      Math.abs(value - duration) < Math.abs(best - duration) ? value : best
-    ), 8);
-  }
-  if (model === "kling-v3-standard") return duration <= 5 ? 5 : 10;
-  return Math.max(4, Math.min(15, Math.round(duration)));
-}
-
-function falRate(model: FalModel, quality: "DRAFT" | "STANDARD" | "HIGH"): number {
+function falRate(model: FalModel, quality: "DRAFT" | "STANDARD" | "HIGH"): number | null {
+  if (model === "seedance-2.5") return null; // Depends on provider task and input video/audio duration.
   if (model === "seedance-2.0-mini") return quality === "DRAFT" ? 0.0721 : 0.1547;
   if (model === "seedance-2.0") {
     const resolutionScale = quality === "DRAFT" ? (480 / 720) ** 2 : quality === "HIGH" ? (1080 / 720) ** 2 : 1;
     return 0.3034 * resolutionScale;
   }
-  return FAL_MODELS.find((option) => option.value === model)?.rate ?? 0;
+  return FAL_MODELS.find((option) => option.value === model)?.rate ?? null;
 }
 
 type ComposerDraft = {
@@ -119,6 +126,12 @@ type ComposerDraft = {
   qualityPreset?: "DRAFT" | "STANDARD" | "HIGH";
   seedMode?: "RANDOM" | "FIXED";
   seed?: number;
+  seedanceTask?: SeedanceTask;
+  seedanceMedia?: SeedanceMedia;
+  aspectRatio?: AspectRatio;
+  outputResolution?: OutputResolution;
+  outputFormat?: "mp4" | "mov";
+  referenceVideoKey?: string | null;
 };
 
 const SPEECH_REQUEST_PATTERN = /\b(narration|narrator|voice[- ]?over|dialogue|speaks?|talks?|says?|asks?|replies?|reads?|announces?)\b/i;
@@ -194,13 +207,18 @@ export default function GeneratePage() {
   const [selectedChars, setSelectedChars] = useState<string[]>(() => draft.selectedChars ?? []);
   const [selectedSetting, setSelectedSetting] = useState<string>(() => draft.selectedSetting ?? "");
   const [referenceVideoKey, setReferenceVideoKey] = useState<string | null>(
-    () => cloneJobId ? null : queryReferenceVideoKey ?? readReferenceVideoKey(),
+    () => cloneJobId ? null : queryReferenceVideoKey ?? draft.referenceVideoKey ?? readReferenceVideoKey(),
   );
   const [provider, setProvider] = useState<GenerationProvider>(() => draft.provider ?? "COMFYUI");
   const [model, setModel] = useState<FalModel>(() => draft.model ?? "veo-3.1-fast");
   const [voiceCloningEnabled, setVoiceCloningEnabled] = useState(() => draft.voiceCloningEnabled ?? false);
   const [nativeAudioEnabled, setNativeAudioEnabled] = useState<boolean | null>(() => draft.nativeAudioEnabled ?? null);
+  const [seedanceTask, setSeedanceTask] = useState<SeedanceTask>(() => draft.seedanceTask ?? "reference");
+  const [seedanceMedia, setSeedanceMedia] = useState<SeedanceMedia>(() => draft.seedanceMedia ?? emptySeedanceMedia());
   
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(() => draft.aspectRatio ?? "16:9");
+  const [outputFormat, setOutputFormat] = useState<"mp4" | "mov">(() => draft.outputFormat ?? "mp4");
+  const [outputResolution, setOutputResolution] = useState<OutputResolution>(() => draft.outputResolution ?? "720p");
   const [prompt, setPrompt] = useState(() => draft.prompt ?? "");
   const [dialogue, setDialogue] = useState(() => draft.dialogue ?? "");
   const [negativePrompt, setNegativePrompt] = useState(() => draft.negativePrompt ?? "ugly, distorted, blurry, low resolution, bad anatomy");
@@ -223,6 +241,9 @@ export default function GeneratePage() {
   const [setupOpen, setSetupOpen] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const submissionInFlight = useRef(false);
+  const [batchCount, setBatchCount] = useState(1);
+  const [batchReceipts, setBatchReceipts] = useState<BatchReceipt[]>([]);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
   const hasSelectedInitialMode = useRef(false);
   const hasPrefilledSourceJob = useRef(false);
   const capabilitiesForMode = capabilities?.filter((cap) => cap.generationMode === generationMode) || [];
@@ -250,14 +271,45 @@ export default function GeneratePage() {
   const inferredDialogue = extractQuotedDialogue(prompt);
   const resolvedDialogueForVoice = dialogue.trim() || inferredDialogue?.dialogue || "";
   const seedanceSelected = isCloudProvider && model.startsWith("seedance");
+  const modelCapabilities = VIDEO_MODEL_CAPABILITIES[model];
+  const seedance25 = seedanceSelected && modelCapabilities.roles.source;
+  const seedanceFull = seedanceSelected;
+  const seedanceReferenceMode = seedanceFull && (!seedance25 || seedanceTask === "reference");
+  const activeRoles = activeSeedanceRoles(model, seedanceTask);
+  const editingSourceOnly = seedanceSelected && activeRoles.source;
+  const extraCount = seedanceMedia.images.length + seedanceMedia.videos.length + seedanceMedia.audio.length;
+  const activeReferenceCount = editingSourceOnly ? Number(Boolean(seedanceMedia.source)) + seedanceMedia.images.length + seedanceMedia.audio.length : extraCount;
+  const aspectInherited = seedanceSelected && aspectRatioIsInherited(model, seedanceTask);
+  const mediaLimit = modelCapabilities.limits;
+  const referenceBudget = seedanceReferenceBudget(model, seedanceTask, {
+    characterCount: seedanceSelected ? selectedChars.length : 0,
+    hasSetting: seedanceSelected && Boolean(selectedSetting),
+    images: seedanceMedia.images.length,
+    videos: seedanceMedia.videos.length,
+    audio: seedanceMedia.audio.length,
+    frames: Number(Boolean(seedanceMedia.start)) + Number(Boolean(seedanceMedia.end)),
+    hasSource: Boolean(seedanceMedia.source),
+  });
+  const mediaError = seedanceFull ? (
+    editingSourceOnly && !seedanceMedia.source ? "Add a source video for Edit or Extend." :
+    editingSourceOnly && (seedanceMedia.images.length > mediaLimit.images || seedanceMedia.audio.length > mediaLimit.audio || referenceBudget.overTotalLimit) ? "Too many media references for this model." :
+    seedanceReferenceMode && seedanceMedia.end && !seedanceMedia.start ? "An end frame needs a start frame." :
+    referenceBudget.framesWithPrimary ? "Start/end frames cannot be combined with selected cast or environment images. Remove cast and environment to render with frames." :
+    seedanceReferenceMode && (seedanceMedia.start || seedanceMedia.end) && extraCount ? "Remove extra references or start/end frames; they cannot be combined." :
+    seedanceReferenceMode && referenceBudget.overImageLimit ? `This model accepts at most ${referenceBudget.imageLimit} images including selected cast and environment. Remove a primary image or an extra reference.` :
+    seedanceReferenceMode && (seedanceMedia.videos.length > mediaLimit.videos || seedanceMedia.audio.length > mediaLimit.audio || referenceBudget.overTotalLimit) ? "Too many media references for this model." :
+    seedanceReferenceMode && seedanceMedia.audio.length > 0 && !seedanceMedia.images.length && !seedanceMedia.videos.length && !seedanceMedia.start && !selectedChars.length && !selectedSetting ? "Audio cannot be the only reference. Add an image or video." : ""
+  ) : "";
+  const displayDuration = isCloudProvider ? effectiveModelDuration(model, duration) : duration;
+  const durationIsAutomatic = editingSourceOnly && modelCapabilities.autoDurationTasks.includes(seedanceTask);
   const effectiveNativeAudio = nativeAudioEnabled ?? Boolean(resolvedDialogueForVoice);
   const firstSelectedCharacter = characters?.find((character) => character.id === selectedChars[0]);
   const hasConsentedSelectedVoice = Boolean(firstSelectedCharacter?.hasVoiceSample && firstSelectedCharacter.voiceConsentAt);
   const canEnableVoiceCloning = hasConsentedSelectedVoice && Boolean(resolvedDialogueForVoice);
   const selectedFalModel = FAL_MODELS.find((option) => option.value === model) ?? FAL_MODELS[0];
-  const pricedFalDuration = effectiveFalDuration(model, duration);
+  const pricedFalDuration = effectiveModelDuration(model, duration);
   const pricedFalRate = falRate(model, qualityPreset);
-  const estimatedFalCost = pricedFalDuration * pricedFalRate;
+  const estimatedFalCost = pricedFalRate === null ? null : pricedFalDuration * pricedFalRate;
   const recentJobs = (recentGenerations?.items ?? []).filter((job) => {
     if (galleryFilter === "completed") return job.status === "COMPLETED";
     if (galleryFilter === "active") return ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status);
@@ -266,7 +318,7 @@ export default function GeneratePage() {
 
   useEffect(() => {
     if (cloneJobId && sourceLoadState !== "ready") return;
-    window.localStorage.setItem(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
+    safeStorageSet(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
       provider,
       model,
       voiceCloningEnabled,
@@ -286,11 +338,17 @@ export default function GeneratePage() {
       qualityPreset,
       seedMode,
       seed,
+      referenceVideoKey,
+      seedanceTask,
+      seedanceMedia,
+      aspectRatio,
+      outputResolution,
+      outputFormat,
     } satisfies ComposerDraft));
   }, [
     cloneJobId, sourceLoadState,
     provider, model, voiceCloningEnabled, nativeAudioEnabled, selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
-    motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed,
+    motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed, referenceVideoKey, seedanceTask, seedanceMedia, aspectRatio, outputResolution, outputFormat,
   ]);
 
   useEffect(() => {
@@ -309,9 +367,9 @@ export default function GeneratePage() {
     setSelectedSetting(restored.selectedSetting);
     setReferenceVideoKey(restored.referenceVideoKey);
     if (restored.referenceVideoKey) {
-      window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify({ storageKey: restored.referenceVideoKey }));
+      safeStorageSet(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify({ storageKey: restored.referenceVideoKey }));
     } else {
-      window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
+      safeStorageRemove(REFERENCE_VIDEO_STORAGE_KEY);
     }
     setVoiceCloningEnabled(restored.voiceCloningEnabled);
     setNativeAudioEnabled(restored.nativeAudioEnabled);
@@ -327,6 +385,27 @@ export default function GeneratePage() {
     setQualityPreset(restored.qualityPreset);
     setSeedMode(restored.seedMode);
     setSeed(restored.seed);
+    const providerMetadata = sourceJob.providerTaskMetadata as Record<string, unknown> | undefined;
+    const metadata = providerMetadata?.composerRequest && typeof providerMetadata.composerRequest === "object"
+      ? providerMetadata.composerRequest as Record<string, unknown>
+      : providerMetadata;
+    if (metadata?.seedanceTask === "editing" || metadata?.seedanceTask === "extension") setSeedanceTask(metadata.seedanceTask);
+    if (typeof metadata?.aspectRatio === "string" && ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"].includes(metadata.aspectRatio)) setAspectRatio(metadata.aspectRatio as AspectRatio);
+    if (typeof metadata?.outputResolution === "string" && ["480p", "720p", "1080p", "4k"].includes(metadata.outputResolution)) setOutputResolution(metadata.outputResolution as OutputResolution);
+    if (metadata?.outputFormat === "mp4" || metadata?.outputFormat === "mov") setOutputFormat(metadata.outputFormat);
+    const mediaFromMetadata = (key: string, kind: "image" | "video" | "audio") => {
+      const keys = metadata?.[key];
+      return Array.isArray(keys) ? keys.filter((item): item is string => typeof item === "string" && item.includes("/generation-references/")).map(storageKey => ({ storageKey, mediaUrl: "", mimeType: "", kind, name: storageKey.split("/").pop() || "Saved reference" })) : [];
+    };
+    setSeedanceMedia({
+      start: typeof metadata?.startFrameKey === "string" ? { storageKey: metadata.startFrameKey, mediaUrl: "", mimeType: "", kind: "image", name: "Saved start frame" } : null,
+      end: typeof metadata?.endFrameKey === "string" ? { storageKey: metadata.endFrameKey, mediaUrl: "", mimeType: "", kind: "image", name: "Saved end frame" } : null,
+      source: typeof metadata?.sourceVideoKey === "string" && metadata.sourceVideoKey.includes("/generation-references/") || ((metadata?.seedanceTask === "editing" || metadata?.seedanceTask === "extension") && Array.isArray(metadata?.referenceVideoKeys) && typeof metadata.referenceVideoKeys[0] === "string" && metadata.referenceVideoKeys[0].includes("/generation-references/"))
+        ? { storageKey: (typeof metadata?.sourceVideoKey === "string" ? metadata.sourceVideoKey : (metadata?.referenceVideoKeys as string[])[0]), mediaUrl: "", mimeType: "", kind: "video", name: "Saved source video" } : null,
+      images: mediaFromMetadata("referenceImageKeys", "image"),
+      videos: mediaFromMetadata("referenceVideoKeys", "video").slice(metadata?.seedanceTask === "editing" || metadata?.seedanceTask === "extension" ? 1 : 0),
+      audio: mediaFromMetadata("referenceAudioKeys", "audio"),
+    });
     hasSelectedInitialMode.current = true;
     hasPrefilledSourceJob.current = true;
   }, [sourceJob]);
@@ -351,6 +430,10 @@ export default function GeneratePage() {
     }
   }, [isLtx25Mode, width, height]);
 
+  useEffect(() => {
+    if (provider === "FAL" && !VIDEO_MODEL_CAPABILITIES[model].qualities.includes(qualityPreset) && VIDEO_MODEL_CAPABILITIES[model].qualities.length) setQualityPreset("STANDARD");
+  }, [provider, model, qualityPreset]);
+
   const toggleChar = (id: string) => {
     setSelectedChars(prev => 
       prev.includes(id) 
@@ -367,6 +450,7 @@ export default function GeneratePage() {
         : "The original generation could not be loaded. Return to Queue & History and open it again.");
     }
     if (!prompt) return alert("Shot prompt is required");
+    if (mediaError) return alert(mediaError);
     if (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) {
       return alert("Select at least one character with a reference image");
     }
@@ -376,7 +460,7 @@ export default function GeneratePage() {
     if (!isCloudProvider && workflowRequiresReferenceVideo && !referenceVideoKey) {
       return alert("The selected workflow requires a reference video.");
     }
-    if (voiceCloningEnabled && !canEnableVoiceCloning) {
+    if (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning) {
       return alert("Voice cloning requires dialogue and a selected Character with a consented voice sample.");
     }
     const resolvedDialogue = dialogue.trim() || inferredDialogue?.dialogue || "";
@@ -392,31 +476,58 @@ export default function GeneratePage() {
 
     submissionInFlight.current = true;
     try {
-      const res = await createJob.mutateAsync({
-        data: {
+      const payload = {
           provider,
           model: provider === "FAL" ? model : undefined,
-          voiceCloningEnabled,
+          voiceCloningEnabled: editingSourceOnly ? false : voiceCloningEnabled,
           nativeAudioEnabled: seedanceSelected ? effectiveNativeAudio : undefined,
-          characterIds: selectedChars.length ? selectedChars : undefined,
-          settingId: selectedSetting || undefined,
+          characterIds: !editingSourceOnly && selectedChars.length ? selectedChars : undefined,
+          settingId: editingSourceOnly ? undefined : selectedSetting || undefined,
           prompt: resolvedPrompt,
           dialogue: resolvedDialogue || undefined,
           negativePrompt,
           cameraInstructions,
           motionInstructions,
           generationMode,
-          durationSeconds: resolvedDuration,
-          fps: fps as 24 | 25 | 30,
+          durationSeconds: isCloudProvider ? durationIsAutomatic ? modelCapabilities.durationOptions.at(-1)! : effectiveModelDuration(model, resolvedDuration) : resolvedDuration,
+          fps: (isCloudProvider ? 24 : fps) as 24 | 25 | 30,
           width,
           height,
           qualityPreset,
           seedMode,
           seed: seedMode === "FIXED" ? seed : null,
           referenceVideoKey: provider === "COMFYUI" ? referenceVideoKey || undefined : undefined,
+          ...(seedanceFull ? {
+            aspectRatio: aspectInherited ? undefined : aspectRatio,
+            outputResolution: modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : undefined,
+            outputFormat,
+            seedanceTask: seedance25 && !seedanceMedia.start && (seedanceTask !== "reference" || activeReferenceCount > 0 || selectedChars.length > 0 || Boolean(selectedSetting)) ? seedanceTask : undefined,
+            startFrameKey: seedanceReferenceMode ? seedanceMedia.start?.storageKey : undefined,
+            endFrameKey: seedanceReferenceMode ? seedanceMedia.end?.storageKey : undefined,
+            referenceImageKeys: editingSourceOnly || (seedanceReferenceMode && !seedanceMedia.start) ? seedanceMedia.images.map(m => m.storageKey) : undefined,
+            referenceVideoKeys: editingSourceOnly ? [seedanceMedia.source!.storageKey] : seedanceReferenceMode ? seedanceMedia.videos.map(m => m.storageKey) : undefined,
+            referenceAudioKeys: editingSourceOnly || (seedanceReferenceMode && !seedanceMedia.start) ? seedanceMedia.audio.map(m => m.storageKey) : undefined,
+          } : {}),
+      };
+      // Each take is a distinct createGeneration call; failures are recorded, never retried.
+      const count = isCloudProvider ? batchCount : 1;
+      setBatchSubmitting(true);
+      setBatchReceipts(count > 1 ? Array.from({ length: count }, (_, index) => ({ index, state: "pending" as const })) : []);
+      let res: { id: string } | null = null;
+      let lastError: unknown = null;
+      for (let index = 0; index < count; index++) {
+        try {
+          const job = await createJob.mutateAsync({ data: payload });
+          res = res ?? job;
+          setBatchReceipts((prev) => prev.map((r) => r.index === index ? { index, state: "accepted", jobId: job.id } : r));
+        } catch (err: unknown) {
+          lastError = err;
+          const message = sanitizeProviderMessage(err instanceof Error ? err.message : null, "Unknown error");
+          setBatchReceipts((prev) => prev.map((r) => r.index === index ? { index, state: "failed", message } : r));
         }
-      });
-      window.localStorage.removeItem(COMPOSER_DRAFT_STORAGE_KEY);
+      }
+      if (!res) throw lastError;
+       // Keep the media draft after a successful render so uploaded references can be reused.
       setAcceptedJobId(res.id);
       setPrompt("");
       setDialogue("");
@@ -434,9 +545,10 @@ export default function GeneratePage() {
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : null;
-      alert("Failed to submit job: " + sanitizeProviderMessage(message, "Unknown error"));
+      if (!isCloudProvider || batchCount === 1) alert("Failed to submit job: " + sanitizeProviderMessage(message, "Unknown error"));
     } finally {
       submissionInFlight.current = false;
+      setBatchSubmitting(false);
     }
   };
 
@@ -577,7 +689,7 @@ export default function GeneratePage() {
               <button type="button" onClick={() => setAssetsOpen(false)} aria-label="Close scene assets" className="flex size-9 items-center justify-center rounded-lg border border-[#3c3d3d] hover:bg-[#303333]"><X className="size-4" /></button>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pb-8 sm:p-6">
-          <Card className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between ${isCloudProvider ? "border-border/60 bg-card/20" : "border-primary/25 bg-primary/5"}`}>
+          {!isCloudProvider && <Card className="flex flex-col gap-3 border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <div className="rounded-lg bg-primary/15 p-2">
                 <Video className="size-4 text-primary" />
@@ -603,7 +715,7 @@ export default function GeneratePage() {
                   size="sm"
                   onClick={() => {
                     setReferenceVideoKey(null);
-                    window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
+                    safeStorageRemove(REFERENCE_VIDEO_STORAGE_KEY);
                     setLocation("/studio");
                   }}
                 >
@@ -618,7 +730,10 @@ export default function GeneratePage() {
                 </Link>
               )}
             </div>
-          </Card>
+          </Card>}
+
+          {seedanceFull && <SeedanceReferences value={seedanceMedia} onChange={setSeedanceMedia} version={model} task={seedance25 ? seedanceTask : "reference"} primaryImageCount={referenceBudget.primaryImages} />}
+          {editingSourceOnly && <p className="rounded-lg border border-[#79506a] bg-[#3d2837] px-4 py-3 text-xs leading-relaxed text-[#f3d6e4]" data-testid="text-seedance-edit-limits">Edit and Extend send one source video plus any image and audio references. Cast, environment, frames and extra videos remain saved in this draft for Generate, but are not submitted with this task. Output keeps the source shape. Cloud chooses Edit output duration (up to 30s) and reserves the conservative maximum cost.</p>}
 
           {!isCloudProvider && hasReferenceVideo && (
              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">
@@ -626,7 +741,7 @@ export default function GeneratePage() {
             </div>
           )}
 
-            <details className="group rounded-xl border border-border/70 bg-card/35">
+            {!editingSourceOnly && <details className="group rounded-xl border border-border/70 bg-card/35">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-3">
                   <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground"><Users className="size-4" /></span>
@@ -687,9 +802,9 @@ export default function GeneratePage() {
               </div>
 
               </div>
-            </details>
+            </details>}
 
-            <details className="group rounded-xl border border-border/70 bg-card/35">
+            {!editingSourceOnly && <details className="group rounded-xl border border-border/70 bg-card/35">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-3">
                   <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground"><Map className="size-4" /></span>
@@ -746,7 +861,7 @@ export default function GeneratePage() {
                 </div>
               </div>
               </div>
-            </details>
+            </details>}
             </div>
             <div className="shrink-0 border-t border-[#353837] bg-[#1b1d1d] p-4 sm:px-6"><Button onClick={() => setAssetsOpen(false)} className="w-full">Apply to scene</Button></div>
           </SheetContent>
@@ -778,17 +893,18 @@ export default function GeneratePage() {
                 />
                 <div className="flex flex-wrap items-center gap-1.5 border-t border-[#3c4039] px-2 py-2 sm:px-3">
                   <button type="button" onClick={() => setAssetsOpen(true)} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#d4c8d3] hover:bg-[#3c303e] hover:text-white" data-testid="button-scene-assets">
-                    <Plus className="size-3.5 text-primary" /> Scene assets{selectedChars.length || selectedSetting || hasReferenceVideo ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{selectedChars.length + Number(Boolean(selectedSetting)) + Number(hasReferenceVideo)}</span> : null}
+                    <Plus className="size-3.5 text-primary" /> Scene assets{editingSourceOnly ? activeReferenceCount ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{activeReferenceCount}</span> : null : selectedChars.length || selectedSetting || hasReferenceVideo || (seedanceFull && (extraCount || seedanceMedia.start || seedanceMedia.end)) ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{selectedChars.length + Number(Boolean(selectedSetting)) + Number(!isCloudProvider && hasReferenceVideo) + (seedanceFull ? extraCount + Number(Boolean(seedanceMedia.start)) + Number(Boolean(seedanceMedia.end)) : 0)}</span> : null}
                   </button>
                   <span className="h-4 w-px bg-[#474b43]" />
                   <button type="button" onClick={() => setSetupOpen(true)} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#d4c8d3] hover:bg-[#3c303e] hover:text-white" data-testid="button-render-setup"><SlidersHorizontal className="size-3.5" /> {isCloudProvider ? selectedFalModel.label : "Local GPU"} <ChevronDown className="size-3" /></button>
                   <span className="hidden h-4 w-px bg-[#474b43] sm:block" />
-                  <button type="button" onClick={() => setSetupOpen(true)} className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-[#b8a8b8] hover:bg-[#3c303e] hover:text-white sm:inline-flex">{width} × {height} <span className="text-[#756678]">/</span> {duration}s</button>
+                  <button type="button" onClick={() => setSetupOpen(true)} className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-[#b8a8b8] hover:bg-[#3c303e] hover:text-white sm:inline-flex">{seedanceSelected ? `${aspectInherited ? "source" : aspectRatio} · ${modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : "720p"}` : isCloudProvider ? "Provider output" : `${width} × ${height}`} <span className="text-[#756678]">/</span> {durationIsAutomatic ? "Auto duration" : `${displayDuration}s`}</button>
                   <div className="ml-auto flex items-center gap-2">
                     <button type="button" onClick={() => setComposerExpanded((value) => !value)} aria-expanded={composerExpanded} className="flex size-8 items-center justify-center rounded-md text-[#c3b5c5] hover:bg-[#3c303e]" aria-label={composerExpanded ? "Hide shot controls" : "Show shot controls"} data-testid="button-shot-controls"><Layers3 className="size-4" /></button>
+                    {isCloudProvider && <BatchCountPicker value={batchCount} onChange={setBatchCount} disabled={batchSubmitting} />}
                     <Button
                       onClick={handleGenerate}
-                      disabled={createJob.isPending || sourceLoadState === "loading" || sourceLoadState === "error" || !prompt || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (voiceCloningEnabled && !canEnableVoiceCloning)}
+                      disabled={batchSubmitting || createJob.isPending || Boolean(mediaError) || sourceLoadState === "loading" || sourceLoadState === "error" || !prompt || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
                       className="h-8 rounded-md bg-[linear-gradient(90deg,#FF1F62,#8B2BE2)] px-3 text-[11px] font-semibold text-white hover:brightness-110 disabled:bg-none disabled:bg-[#514551] disabled:text-[#a8a0aa] sm:px-5"
                       data-testid="button-generate-video"
                     >
@@ -862,7 +978,9 @@ export default function GeneratePage() {
               />
               </div>
               </div>}
-              <p className="mt-2 px-1 text-[10px] text-[#a7a09f]">Draft saved automatically.{seedanceSelected ? ` Seedance native audio: ${effectiveNativeAudio ? "on" : "off"}${resolvedDialogueForVoice && !effectiveNativeAudio ? " — dialogue will not be audible" : ""}.` : " Quoted speech becomes exact dialogue on supported local workflows."}{isCloudProvider ? ` Estimated cloud cost: $${estimatedFalCost.toFixed(2)}.` : ""}</p>
+              <BatchReceipts receipts={batchReceipts} onDismiss={() => setBatchReceipts([])} />
+              {mediaError && <p role="alert" data-testid="status-seedance-media-validation" className="mt-2 px-1 text-xs text-rose-300">{mediaError}</p>}
+              <p className="mt-2 px-1 text-[10px] text-[#a7a09f]">Draft saved automatically.{seedanceSelected ? ` Seedance native audio: ${effectiveNativeAudio ? "on" : "off"}${resolvedDialogueForVoice && !effectiveNativeAudio ? " — dialogue will not be audible" : ""}.` : " Quoted speech becomes exact dialogue on supported local workflows."}{isCloudProvider ? estimatedFalCost === null ? durationIsAutomatic ? " Cloud chooses Edit duration (up to 30s); conservative max-cost reservation." : " Cloud cost estimate unavailable; billed usage depends on media inputs." : ` Estimated cloud cost: $${estimatedFalCost.toFixed(2)}.` : ""}</p>
             </div>
             </div>
         </div>
@@ -899,7 +1017,7 @@ export default function GeneratePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Pipeline</Label>
-                  <Select value={generationMode} onValueChange={setGenerationMode}>
+                  <Select value={generationMode} onValueChange={setGenerationMode} disabled={isCloudProvider}>
                     <SelectTrigger className="bg-secondary/20">
                       <SelectValue placeholder="Select mode" />
                     </SelectTrigger>
@@ -911,6 +1029,7 @@ export default function GeneratePage() {
                       )}
                     </SelectContent>
                   </Select>
+                  {isCloudProvider && <p className="text-[10px] text-muted-foreground">Cloud pipeline follows the selected model.</p>}
                 </div>
               </div>
 
@@ -958,10 +1077,17 @@ export default function GeneratePage() {
                   </Popover>
                   <p className="text-xs text-muted-foreground">
                     {model.startsWith("seedance")
-                      ? "Seedance receives the primary image for each selected character and one selected environment image. Without selections, it uses text only."
+                      ? "Selected character and environment images are included automatically. Add independent media in Scene assets; the extra-media counter excludes these primary assets."
                       : "This model uses character and environment descriptions as text; it does not receive their reference images."}
                   </p>
-                  {seedanceSelected && (
+                  {modelCapabilities.tasks.length > 1 && <div className="space-y-2 rounded-lg border border-[#604257] bg-[#2d222c] p-3" role="group" aria-label="Seedance 2.5 task">
+                    <Label>Task</Label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {modelCapabilities.tasks.map((task) => <button key={task} type="button" aria-pressed={seedanceTask === task} data-testid={`button-seedance-task-${task}`} onClick={() => setSeedanceTask(task)} className={`rounded-md border px-2 py-2 text-xs ${seedanceTask === task ? "border-[#ee87b4] bg-[#703753] text-white" : "border-[#574350] text-[#c9b9c7] hover:bg-[#42313e]"}`}>{task === "reference" ? "Generate" : task === "editing" ? "Edit" : "Extend"}</button>)}
+                    </div>
+                    <p className="text-[11px] text-[#bdaabc]">{seedanceTask === "reference" ? "Create a new clip from text and optional references." : seedanceTask === "editing" ? "Edit an existing clip. A source video is required in Scene assets." : "Continue an existing clip. A source video is required in Scene assets."} Switching tasks keeps uploaded media in your draft. Edit and Extend send the source video with image and audio references only.</p>
+                  </div>}
+                  {modelCapabilities.nativeAudio && isCloudProvider && (
                     <div className="rounded-md border border-border/50 bg-black/20 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <Label htmlFor="seedance-native-audio" className="text-xs">Generate native Seedance audio</Label>
@@ -979,22 +1105,34 @@ export default function GeneratePage() {
                       </p>
                     </div>
                   )}
-                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3 mt-2" data-testid="text-fal-cost-estimate">
+                  {!seedance25 && <div className="rounded-md border border-primary/20 bg-primary/5 p-3 mt-2" data-testid="text-fal-cost-estimate">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-xs text-muted-foreground">Approximate cloud cost</span>
-                      <span className="font-mono text-base font-semibold text-foreground">${estimatedFalCost.toFixed(2)}</span>
+                      <span className="font-mono text-base font-semibold text-foreground">{estimatedFalCost === null ? "Unavailable" : `$${estimatedFalCost.toFixed(2)}`}</span>
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                      {pricedFalDuration}s effective duration × ${pricedFalRate.toFixed(4)}/sec.
+                      {pricedFalDuration}s effective duration × ${pricedFalRate?.toFixed(4) ?? "unavailable"}/sec.
                       {seedanceSelected ? " Seedance audio on/off uses the same estimated rate." : ""}
                     </p>
-                  </div>
+                  </div>}
+                  {seedance25 && <p className="rounded-md border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground" data-testid="text-fal-cost-estimate">{durationIsAutomatic ? "Cloud chooses Edit output duration (up to 30s); a conservative maximum-cost reservation is made before submitting. " : "Cloud cost estimate unavailable. Seedance 2.5 billing depends on the selected task and uploaded media duration. "}Check job details for the final charge when available.</p>}
                 </div>
               )}
 
               <div className="space-y-4 border-t border-border/50 pt-4">
+                {seedanceSelected && <VideoOutputControls
+                  aspectRatios={modelCapabilities.aspectRatios ?? []}
+                  aspectRatio={aspectRatio}
+                  onAspectRatio={setAspectRatio}
+                  aspectLocked={aspectInherited}
+                  format={outputFormat}
+                  onFormat={setOutputFormat}
+                  resolutions={modelCapabilities.resolutions ?? []}
+                  resolution={modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : "720p"}
+                  onResolution={(value) => { setOutputResolution(value); setQualityPreset(RESOLUTION_QUALITY[value]); }}
+                />}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
+                  {!seedanceSelected && <div className="space-y-2">
                     <Label>Resolution</Label>
                     <Select value={`${width}x${height}`} onValueChange={(v) => {
                       const [w, h] = v.split("x").map(Number);
@@ -1014,25 +1152,27 @@ export default function GeneratePage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Quality Preset</Label>
+                  </div>}
+                  {(!isCloudProvider || (!seedanceSelected && modelCapabilities.qualities.length > 0)) && <div className="space-y-2">
+                    <Label>{seedanceSelected ? "Seedance output quality" : "Quality Preset"}</Label>
                     <Select value={qualityPreset} onValueChange={(v: any) => setQualityPreset(v)}>
                       <SelectTrigger className="bg-secondary/20">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="z-[70]">
-                        <SelectItem value="DRAFT">Draft</SelectItem>
-                        <SelectItem value="STANDARD">Standard</SelectItem>
-                        <SelectItem value="HIGH">High</SelectItem>
+                        {(isCloudProvider ? modelCapabilities.qualities : ["DRAFT", "STANDARD", "HIGH"] as const).map(option => <SelectItem key={option} value={option}>{seedanceSelected ? { DRAFT: "480p", STANDARD: "720p", HIGH: "1080p" }[option] : { DRAFT: "Draft", STANDARD: "Standard", HIGH: "High" }[option]}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
+                  {!durationIsAutomatic && <div className="space-y-2">
                     <Label>Duration (sec)</Label>
+                    {isCloudProvider ? <Select value={String(displayDuration)} onValueChange={v => setDuration(Number(v))}>
+                      <SelectTrigger aria-label="Video duration" data-testid="select-cloud-duration" className="bg-secondary/20"><SelectValue /></SelectTrigger>
+                      <SelectContent className="z-[70]">{modelCapabilities.durationOptions.map(value => <SelectItem key={value} value={String(value)}>{value} seconds</SelectItem>)}</SelectContent>
+                    </Select> :
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-4">{duration}s</span>
                       <Slider
@@ -1041,10 +1181,11 @@ export default function GeneratePage() {
                         min={1} max={30} step={1}
                         className="flex-1"
                       />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{isCloudProvider ? "Framerate (fixed)" : "Framerate"}</Label>
+                    </div>}
+                  </div>}
+                  {durationIsAutomatic && <p className="col-span-2 rounded-md border border-[#67445d] bg-[#30232f] p-3 text-xs text-[#ead0df]">Cloud chooses Edit output duration (up to 30s); conservative max-cost reservation. Duration cannot be set for this task.</p>}
+                  {!isCloudProvider && <div className="space-y-2">
+                    <Label>Framerate</Label>
                     <Select
                       value={(isCloudProvider ? 24 : fps).toString()}
                       onValueChange={v => setFps(parseInt(v))}
@@ -1059,11 +1200,11 @@ export default function GeneratePage() {
                         <SelectItem value="30">30 fps</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
+                  </div>}
                 </div>
               </div>
 
-              <div className="space-y-3 pt-4 border-t border-border/50">
+              {!isCloudProvider && <div className="space-y-3 pt-4 border-t border-border/50">
                 <div className="flex justify-between items-center">
                   <Label>Seed Behavior</Label>
                   <Select value={seedMode} onValueChange={(v: any) => setSeedMode(v)}>
@@ -1084,9 +1225,9 @@ export default function GeneratePage() {
                     className="bg-secondary/20 font-mono text-sm"
                   />
                 )}
-              </div>
+              </div>}
 
-              <div className="space-y-2 border-t border-border/50 pt-4">
+              {!editingSourceOnly && <div className="space-y-2 border-t border-border/50 pt-4">
                 <div className="flex items-center justify-between gap-3">
                   <Label htmlFor="voice-cloning" className="font-medium text-xs">Clone Character voice</Label>
                   <Switch
@@ -1106,7 +1247,7 @@ export default function GeneratePage() {
                     Requires dialogue and a selected Character with a consented voice sample.
                   </p>
                 )}
-              </div>
+              </div>}
 
               {/* Preflight Summary */}
               <div className="mt-6 pt-4 border-t border-border/50">
@@ -1115,39 +1256,46 @@ export default function GeneratePage() {
                      <span>Target:</span>
                      <span className="text-foreground">{isCloudProvider ? "Cloud" : "Local"}</span>
                    </div>
+                  <div className="flex justify-between">
+                    <span>Duration:</span>
+                    <span className="text-foreground" data-testid="text-preflight-duration">{durationIsAutomatic ? "Cloud auto · up to 30s" : `${displayDuration}s${seedance25 ? " · Seedance 2.5 (4–30s)" : ""}`}</span>
+                  </div>
                    <div className="flex justify-between">
                     <span>Cast:</span>
                     <span className={selectedChars.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "text-foreground" : "text-destructive"}>
-                      {selectedChars.length ? selectedChars.length : hasReferenceVideo || !workflowRequiresReferenceImage ? "Optional" : "Missing"}
+                      {editingSourceOnly ? "Not sent" : selectedChars.length ? selectedChars.length : hasReferenceVideo || !workflowRequiresReferenceImage ? "Optional" : "Missing"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Set:</span>
                     <span className={selectedSetting || hasReferenceVideo || !workflowRequiresStudioSetting ? "text-foreground" : "text-destructive"}>
-                      {selectedSetting ? "Ready" : hasReferenceVideo || !workflowRequiresStudioSetting ? "Optional" : "Missing"}
+                      {editingSourceOnly ? "Not sent" : selectedSetting ? "Ready" : hasReferenceVideo || !workflowRequiresStudioSetting ? "Optional" : "Missing"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Reference:</span>
-                    <span className={isCloudProvider ? "text-muted-foreground" : hasReferenceVideo ? "text-foreground" : workflowRequiresReferenceVideo ? "text-destructive" : "text-foreground"}>
-                      {isCloudProvider ? "Unsupported" : hasReferenceVideo ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}
+                    <span className={isCloudProvider && !seedanceFull ? "text-muted-foreground" : hasReferenceVideo || (seedanceFull && (extraCount || seedanceMedia.start || seedanceMedia.source)) ? "text-foreground" : workflowRequiresReferenceVideo || Boolean(mediaError) ? "text-destructive" : "text-foreground"}>
+                      {seedanceFull ? mediaError || (seedanceReferenceMode ? `${extraCount} extras${seedanceMedia.start ? " + frames" : ""}` : seedanceMedia.source ? `1 source video${activeReferenceCount > 1 ? ` + ${activeReferenceCount - 1} refs` : ""}` : "Source required") : isCloudProvider ? "Not available" : hasReferenceVideo ? "Ready" : workflowRequiresReferenceVideo ? "R2V workflow only" : "Optional"}
                     </span>
                   </div>
+                  {seedanceReferenceMode && <div className="flex justify-between" data-testid="text-preflight-reference-images"><span>Image budget:</span><span className={referenceBudget.overImageLimit ? "text-destructive" : "text-foreground"}>{referenceBudget.imageCount}/{referenceBudget.imageLimit} · {referenceBudget.primaryImages} from cast & set</span></div>}
                   <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
                 </div>
+                {mediaError && <p role="alert" data-testid="status-preflight-reference-error" className="mb-4 rounded-md border border-rose-400/40 bg-rose-400/10 p-2 text-xs text-rose-200">{mediaError}</p>}
 
                 <Button 
                   className="w-full h-12 text-sm font-semibold uppercase tracking-[0.05em]"
                   onClick={handleGenerate}
                   disabled={
                     createJob.isPending
+                    || Boolean(mediaError)
                     || sourceLoadState === "loading"
                     || sourceLoadState === "error"
                     || !prompt
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)
                     || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo)
-                    || (voiceCloningEnabled && !canEnableVoiceCloning)
+                    || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)
                   }
                 >
                   {createJob.isPending ? "Queuing Job..." : "SEND TO RENDER"}

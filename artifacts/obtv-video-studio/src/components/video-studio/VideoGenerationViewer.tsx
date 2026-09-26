@@ -1,6 +1,6 @@
 import * as React from "react";
-import { getListGenerationsQueryKey, useDeleteGeneration, type GenerationJob } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { type GenerationJob } from "@workspace/api-client-react";
+import { useUndoableVideoDelete } from "@/components/video-studio/UndoableDelete";
 import { generationEditDestination } from "@/lib/generation-edit";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,7 @@ export function VideoGenerationViewer({
   onClose,
 }: VideoGenerationViewerProps) {
   const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
-  const deleteGeneration = useDeleteGeneration();
+  const undoableDelete = useUndoableVideoDelete();
   const selectedIndex = jobs.findIndex((job) => job.id === selectedJobId);
   const job = selectedIndex >= 0 ? jobs[selectedIndex] : null;
   const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
@@ -91,19 +90,14 @@ export function VideoGenerationViewer({
   };
 
   const deleteCurrentGeneration = async () => {
-    if (!job || isActive || deleteGeneration.isPending) return;
-    if (!window.confirm("Permanently delete this generation and its unreferenced output? This cannot be undone.")) return;
+    // Active jobs stay guarded here and server-side (409); finished jobs soft-delete with undo.
+    if (!job || isActive || undoableDelete.pending) return;
     setDeleteError(null);
-    try {
-      await deleteGeneration.mutateAsync({ id: job.id });
-      onClose();
-      await queryClient.invalidateQueries({ queryKey: getListGenerationsQueryKey() });
-    } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : "Could not delete this generation. Please try again.");
-    }
+    if (await undoableDelete.deleteVideos([job.id])) onClose();
   };
 
   return (
+    <>
     <Dialog
       open={Boolean(job)}
       onOpenChange={(open) => {
@@ -245,15 +239,15 @@ export function VideoGenerationViewer({
                     variant="outline"
                     className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => void deleteCurrentGeneration()}
-                    disabled={deleteGeneration.isPending}
+                    disabled={undoableDelete.pending}
                     data-testid="button-delete-generation"
                   >
                     <Trash2 className="size-4" />
-                    {deleteGeneration.isPending ? "Deleting..." : "Delete"}
+                    {undoableDelete.pending ? "Deleting..." : "Delete"}
                   </Button>
                 )}
               </div>
-              {deleteError && <p className="text-xs text-destructive" role="alert">{deleteError}</p>}
+              {(deleteError || undoableDelete.error) && <p className="text-xs text-destructive" role="alert">{deleteError || undoableDelete.error}</p>}
               {editDestination?.kind === "invalid" && (
                 <p className="text-xs text-destructive" role="alert">{editDestination.reason} Editing is unavailable until the parent shot can be resolved.</p>
               )}
@@ -275,6 +269,8 @@ export function VideoGenerationViewer({
         </DialogContent>
       )}
     </Dialog>
+    {undoableDelete.toast}
+    </>
   );
 }
 

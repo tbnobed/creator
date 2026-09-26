@@ -105,11 +105,20 @@ export function presentGeneration(
     motionInstructions: string;
     requestedWidth: number;
     requestedHeight: number;
-    requestedDurationSeconds: number;
+    requestedDurationSeconds: number | null;
+    aspectRatio?: string | null;
+    outputResolution?: string | null;
+    outputFormat?: string | null;
+    seedanceTask?: string | null;
+    startFrameKey?: string | null;
+    endFrameKey?: string | null;
+    referenceImageKeys?: string[];
+    referenceVideoKeys?: string[];
+    referenceAudioKeys?: string[];
   } | null = null,
 ) {
   const sanitizeProviderMessage = (message: string | null) => message
-    ?.replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run)[^\s"'<>]*/gi, "Cloud")
+    ?.replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run|media)[^\s"'<>]*/gi, "Cloud")
     .replace(/\bfal(?:\.ai)?\b/gi, "Cloud") ?? null;
   return {
     id: job.id,
@@ -135,7 +144,16 @@ export function presentGeneration(
     height: job.height,
     requestedWidth: restoreContext?.requestedWidth ?? job.width,
     requestedHeight: restoreContext?.requestedHeight ?? job.height,
-    requestedDurationSeconds: restoreContext?.requestedDurationSeconds ?? job.durationSeconds,
+    requestedDurationSeconds: restoreContext ? restoreContext.requestedDurationSeconds : job.durationSeconds,
+    aspectRatio: restoreContext?.aspectRatio ?? null,
+    outputResolution: restoreContext?.outputResolution ?? null,
+    outputFormat: restoreContext?.outputFormat ?? null,
+    seedanceTask: restoreContext?.seedanceTask ?? null,
+    startFrameKey: restoreContext?.startFrameKey ?? null,
+    endFrameKey: restoreContext?.endFrameKey ?? null,
+    referenceImageKeys: restoreContext?.referenceImageKeys ?? [],
+    referenceVideoKeys: restoreContext?.referenceVideoKeys ?? [],
+    referenceAudioKeys: restoreContext?.referenceAudioKeys ?? [],
     fps: job.fps,
     durationSeconds: job.durationSeconds,
     seed: job.seed,
@@ -150,6 +168,7 @@ export function presentGeneration(
     longFormShotNumber: longFormContext?.shotNumber ?? null,
     comfyPromptId: job.comfyPromptId,
     outputUrl: job.outputStorageKey ? `/api/media/${job.outputStorageKey}` : null,
+    outputMimeType: job.outputMimeType,
     errorMessage: sanitizeProviderMessage(job.errorMessage),
     createdAt: job.createdAt.toISOString(),
     queuedAt: date(job.queuedAt),

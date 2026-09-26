@@ -32,6 +32,10 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 _Describe the high-level user-facing capabilities of this app once they exist._
 
+## External repository for comparison
+
+- The creator's specified comparison repository is **https://github.com/wide-trace/open-higgsfield**. When asked to compare "the repo" with this app, inspect that repository rather than assuming "repo" means this workspace or its Git remote.
+
 ## User preferences
 
 - The UI must call the external provider **Cloud**, never fal.ai; API errors shown in the UI follow the same branding. Keep internal provider IDs, enum values, endpoint URLs, credential keys, and technical documentation unchanged.

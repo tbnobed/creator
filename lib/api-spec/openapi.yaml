@@ -24,6 +24,10 @@ tags:
     description: Workflow template administration
   - name: generations
     description: Video generation jobs
+  - name: video-library
+    description: Tenant video library and reversible bulk actions
+  - name: reference-library
+    description: Private reusable generation reference media
   - name: long-form-projects
     description: Long-form video planning and orchestration
   - name: image-studio
@@ -31,6 +35,122 @@ tags:
   - name: spending
     description: Estimated paid-provider spending policy and ledger
 paths:
+  /video-library:
+    get:
+      operationId: listVideoLibrary
+      tags: [video-library]
+      parameters:
+        - in: query
+          name: favorite
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Visible tenant videos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/VideoLibraryItem" } }
+  /video-library/favorites:
+    post:
+      operationId: setVideoLibraryFavorites
+      tags: [video-library]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VideoLibraryFavoritesInput" }
+      responses:
+        "200":
+          description: Favorite state applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ids, favorite]
+                properties:
+                  ids: { $ref: "#/components/schemas/VideoLibraryIds" }
+                  favorite: { type: boolean }
+  /video-library/bulk-delete:
+    post:
+      operationId: bulkDeleteVideoLibrary
+      tags: [video-library]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VideoLibraryDeleteInput" }
+      responses:
+        "200":
+          description: Videos hidden; token may be used for six seconds to undo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ids, undoToken, undoExpiresAt]
+                properties:
+                  ids: { $ref: "#/components/schemas/VideoLibraryIds" }
+                  undoToken: { type: string }
+                  undoExpiresAt: { type: string, format: date-time }
+  /video-library/undo:
+    post:
+      operationId: undoVideoLibraryDelete
+      tags: [video-library]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VideoLibraryUndoInput" }
+      responses:
+        "200":
+          description: Videos restored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ids]
+                properties:
+                  ids: { type: array, items: { type: string } }
+        "410": { description: Undo token expired or not found }
+  /reference-library:
+    get:
+      operationId: listReferenceLibrary
+      tags: [reference-library]
+      parameters:
+        - in: query
+          name: kind
+          schema: { type: string, enum: [image, video, audio] }
+        - in: query
+          name: role
+          schema: { $ref: "#/components/schemas/ReferenceLibraryRole" }
+      responses:
+        "200":
+          description: Tenant-owned reference media
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ReferenceLibraryItem" } }
+  /reference-library/import:
+    post:
+      operationId: importReferenceLibrary
+      tags: [reference-library]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReferenceLibraryImportInput" }
+      responses:
+        "201":
+          description: Private generation-reference copy created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GenerationReferenceMediaUpload" }
+        "415": { description: Incompatible role or unsupported WebM source }
   /auth/config:
     get:
       operationId: getAuthConfig
@@ -979,6 +1099,36 @@ paths:
       responses:
         "204":
           description: Reference video deleted
+  /generations/reference-media:
+    post:
+      operationId: uploadGenerationReferenceMedia
+      tags: [media]
+      summary: Upload private image, video, or audio reference media
+      requestBody:
+        required: true
+        description: "Send raw file bytes using the file's actual Content-Type. Maximum request size is 200 MB; per-provider limits are checked again before generation."
+        content:
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+          image/webp:
+            schema: { type: string, format: binary }
+          video/mp4:
+            schema: { type: string, format: binary }
+          video/quicktime:
+            schema: { type: string, format: binary }
+          audio/mpeg:
+            schema: { type: string, format: binary }
+          audio/wav:
+            schema: { type: string, format: binary }
+      responses:
+        "201":
+          description: Stored tenant-private reference media
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationReferenceMediaUpload"
   /prompt-guidance/polish:
     post:
       operationId: polishPrompt
@@ -2226,6 +2376,66 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/ParameterMapping"
+    VideoLibraryIds:
+      type: array
+      minItems: 1
+      maxItems: 100
+      uniqueItems: true
+      items: { type: string }
+    VideoLibraryFavoritesInput:
+      type: object
+      required: [ids, favorite]
+      properties:
+        ids: { $ref: "#/components/schemas/VideoLibraryIds" }
+        favorite: { type: boolean }
+    VideoLibraryDeleteInput:
+      type: object
+      required: [ids]
+      properties:
+        ids: { $ref: "#/components/schemas/VideoLibraryIds" }
+    VideoLibraryUndoInput:
+      type: object
+      required: [undoToken]
+      properties:
+        undoToken: { type: string }
+    VideoLibraryItem:
+      type: object
+      required: [id, title, status, favorite, outputStorageKey, outputMimeType, mediaUrl, previewUrl, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { type: string }
+        favorite: { type: boolean }
+        outputStorageKey: { type: ["string", "null"] }
+        outputMimeType: { type: ["string", "null"] }
+        mediaUrl: { type: ["string", "null"] }
+        previewUrl: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    ReferenceLibraryRole:
+      type: string
+      enum: [referenceImage, firstFrame, lastFrame, referenceVideo, referenceAudio]
+    ReferenceLibrarySourceType:
+      type: string
+      enum: [upload, referenceVideo, generation, imageAsset, characterAsset, settingAsset]
+    ReferenceLibraryImportInput:
+      type: object
+      required: [sourceType, sourceId]
+      properties:
+        sourceType: { $ref: "#/components/schemas/ReferenceLibrarySourceType" }
+        sourceId: { type: string, minLength: 1, maxLength: 255 }
+        role: { $ref: "#/components/schemas/ReferenceLibraryRole" }
+    ReferenceLibraryItem:
+      type: object
+      required: [sourceType, sourceId, name, kind, mimeType, mediaUrl, previewUrl, createdAt]
+      properties:
+        sourceType: { $ref: "#/components/schemas/ReferenceLibrarySourceType" }
+        sourceId: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [image, video, audio] }
+        mimeType: { type: string }
+        mediaUrl: { type: string }
+        previewUrl: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
     GenerationInput:
       type: object
       required: [prompt, generationMode, durationSeconds, fps, width, height, qualityPreset, seedMode]
@@ -2233,7 +2443,7 @@ components:
         provider: { type: string, enum: [COMFYUI, FAL], default: COMFYUI }
         model:
           type: string
-          enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0]
+          enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0, seedance-2.0-fast, seedance-2.5]
         voiceCloningEnabled: { type: boolean, default: false }
         nativeAudioEnabled:
           type: boolean
@@ -2248,6 +2458,39 @@ components:
         audioInstructions: { type: string, maxLength: 5000 }
         generationMode: { type: string }
         referenceVideoKey: { type: string }
+        seedanceTask:
+          type: string
+          enum: [reference, editing, extension]
+          description: "Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode."
+        aspectRatio:
+          type: string
+          enum: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"]
+          description: "Seedance output shape; Seedance 2.5 editing inherits the source shape instead."
+        outputResolution:
+          type: string
+          enum: [480p, 720p, 1080p, 4k]
+          description: "Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p."
+        outputFormat:
+          type: string
+          enum: [mp4, mov]
+          description: "Seedance returns MP4; requested MOV output is remuxed server-side without video/audio transcoding after generation, then served as video/quicktime."
+        startFrameKey: { type: string }
+        endFrameKey: { type: string }
+        referenceImageKeys:
+          type: array
+          maxItems: 30
+          description: "Tenant-owned image storage keys; Seedance 2.0 allows at most 9, Seedance 2.5 at most 30."
+          items: { type: string, minLength: 1 }
+        referenceVideoKeys:
+          type: array
+          maxItems: 10
+          description: "Tenant-owned video storage keys; provider-specific count, size, and duration limits are validated before spend reservation."
+          items: { type: string, minLength: 1 }
+        referenceAudioKeys:
+          type: array
+          maxItems: 10
+          description: "Tenant-owned audio storage keys; provider-specific count, size, and duration limits are validated before spend reservation."
+          items: { type: string, minLength: 1 }
         durationSeconds: { type: number, minimum: 1, maximum: 120 }
         fps: { type: number, enum: [24, 25, 30] }
         width: { type: number, minimum: 64, maximum: 4096 }
@@ -2277,6 +2520,15 @@ components:
         characterIds: { type: array, items: { type: string } }
         settingId: { type: ["string", "null"] }
         referenceVideoKey: { type: ["string", "null"] }
+        aspectRatio: { type: ["string", "null"] }
+        outputResolution: { type: ["string", "null"] }
+        outputFormat: { type: ["string", "null"] }
+        seedanceTask: { type: ["string", "null"] }
+        startFrameKey: { type: ["string", "null"] }
+        endFrameKey: { type: ["string", "null"] }
+        referenceImageKeys: { type: array, items: { type: string } }
+        referenceVideoKeys: { type: array, items: { type: string } }
+        referenceAudioKeys: { type: array, items: { type: string } }
         compiledPrompt: { type: string }
         generationMode: { type: string }
         qualityPreset: { type: string }
@@ -2284,7 +2536,9 @@ components:
         height: { type: number }
         requestedWidth: { type: number }
         requestedHeight: { type: number }
-        requestedDurationSeconds: { type: number }
+        requestedDurationSeconds:
+          type: [number, "null"]
+          description: "Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing."
         fps: { type: number }
         durationSeconds: { type: number }
         seed: { type: ["number", "null"] }
@@ -2299,6 +2553,7 @@ components:
         longFormShotNumber: { type: ["number", "null"] }
         comfyPromptId: { type: ["string", "null"] }
         outputUrl: { type: ["string", "null"] }
+        outputMimeType: { type: ["string", "null"], description: "Stored output MIME; video/quicktime for MOV exports." }
         errorMessage: { type: ["string", "null"] }
         createdAt: { type: string }
         queuedAt: { type: ["string", "null"] }
@@ -2322,6 +2577,15 @@ components:
         storageKey: { type: string }
         mediaUrl: { type: string }
         mimeType: { type: string, enum: [video/mp4, video/webm] }
+    GenerationReferenceMediaUpload:
+      type: object
+      required: [storageKey, mediaUrl, mimeType]
+      properties:
+        storageKey: { type: string }
+        mediaUrl: { type: string }
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp, video/mp4, video/quicktime, audio/mpeg, audio/wav]
     ReferenceVideo:
       type: object
       required: [storageKey, name, mimeType, size, createdAt, mediaUrl, previewUrl]

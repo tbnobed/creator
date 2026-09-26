@@ -60,7 +60,7 @@ export type ComposerRestoreSource = {
   fps: number;
   requestedWidth: number;
   requestedHeight: number;
-  requestedDurationSeconds: number;
+  requestedDurationSeconds: number | null;
   qualityPreset: string;
   seed?: number | null;
 };
@@ -85,7 +85,7 @@ export function restoreComposerFields(
     cameraInstructions: source.cameraInstructions,
     motionInstructions: source.motionInstructions,
     generationMode: source.generationMode,
-    duration: source.requestedDurationSeconds,
+    duration: source.requestedDurationSeconds ?? source.durationSeconds,
     fps: source.fps,
     width: source.requestedWidth,
     height: source.requestedHeight,
