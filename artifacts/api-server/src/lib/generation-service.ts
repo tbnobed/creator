@@ -31,6 +31,9 @@ import {
   falModelFromEndpoint,
   applyFalSeedanceTask,
   falSeedanceReferenceModels,
+  falKlingImageModel,
+  falVeoImageModels,
+  klingImageElements,
   FalHttpError,
   FalQueueClient,
   getFalVideoUrl,
@@ -260,6 +263,8 @@ export type GenerationRequest = {
   characterIds?: string[];
   /** Ordered image storage keys. Long-form continuity puts its approved still first. */
   referenceImageKeys?: string[];
+  klingElements?: Array<{ frontalImageKey: string; referenceImageKeys?: string[] }>;
+  klingCfgScale?: number;
   seedanceTask?: "reference" | "editing" | "extension";
   aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9";
   outputResolution?: "480p" | "720p" | "1080p" | "4k";
@@ -305,6 +310,8 @@ function composerRestoreMetadata(input: GenerationRequest): Record<string, unkno
       startFrameKey: input.startFrameKey ?? null,
       endFrameKey: input.endFrameKey ?? null,
       referenceImageKeys: input.referenceImageKeys ?? [],
+      klingElements: input.klingElements ?? [],
+      klingCfgScale: input.klingCfgScale ?? null,
       referenceVideoKeys: input.referenceVideoKeys ?? [],
       referenceAudioKeys: input.referenceAudioKeys ?? [],
       cameraInstructions: input.cameraInstructions ?? "",
@@ -493,23 +500,23 @@ export function planSeedanceReferences(
   characterAssets: SeedanceAsset[],
   setting: { name: string } | undefined,
   settingAssets: SeedanceAsset[],
-  model: SeedanceReferenceModel,
+  model: SeedanceReferenceModel | "kling-v3-standard" | "veo-3.1-fast",
   additionalImageCount = 0,
 ): Array<SeedanceAsset & { subject: string; kind: "character" | "setting" }> {
   const references: Array<SeedanceAsset & { subject: string; kind: "character" | "setting" }> = characters.map((character) => {
     const asset = characterAssets
       .filter((item) => item.characterId === character.id && item.label !== "wardrobe" && item.angle !== "wardrobe")
       .sort((a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary)))[0];
-    if (!asset) throw new Error(`${character.name} has no character reference image. Add one before using Seedance.`);
+    if (!asset) throw new Error(`${character.name} has no character reference image. Add one before using Cloud references.`);
     return { ...asset, subject: character.name, kind: "character" as const };
   });
   if (setting) {
-    if (!settingAssets[0]) throw new Error(`${setting.name} has no environment reference image. Add one before using Seedance.`);
+    if (!settingAssets[0]) throw new Error(`${setting.name} has no environment reference image. Add one before using Cloud references.`);
     references.push({ ...settingAssets[0], subject: setting.name, kind: "setting" as const });
   }
-  const maximumImages = model === "seedance-2.5" ? 30 : 9;
+  const maximumImages = model === "kling-v3-standard" ? 4 : model === "veo-3.1-fast" ? 3 : model === "seedance-2.5" ? 30 : 9;
   if (references.length + additionalImageCount > maximumImages) {
-    throw new Error(`Seedance ${model} accepts at most ${maximumImages} image references including primary and extra images.`);
+    throw new Error(`${model} accepts at most ${maximumImages} image references including primary and extra images.`);
   }
   return references;
 }
@@ -1193,11 +1200,19 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   if (input.referenceImageKeys?.some((key) => !key.startsWith(`tenants/${input.tenantId}/`))) {
     throw new ResourceNotFoundError("Continuity reference image not found");
   }
+  if ((input.klingElements?.length || input.klingCfgScale !== undefined) && (input.provider !== "FAL" || input.model !== "kling-v3-standard")) {
+    throw new Error("Kling elements and CFG scale require the Kling 3 Standard Cloud model");
+  }
+  const klingImageKeys = (input.klingElements ?? []).flatMap((element) => [
+    element.frontalImageKey,
+    ...(element.referenceImageKeys ?? []),
+  ]);
   const ownedReferenceMediaKeys = [
     ...(input.referenceVideoKeys ?? []),
     ...(input.referenceAudioKeys ?? []),
     ...(input.startFrameKey ? [input.startFrameKey] : []),
     ...(input.endFrameKey ? [input.endFrameKey] : []),
+    ...klingImageKeys,
   ];
   if (ownedReferenceMediaKeys.some((key) => !isTenantGenerationReferenceKey(key, input.tenantId))) {
     throw new ResourceNotFoundError("Reference media not found");
@@ -1563,19 +1578,20 @@ async function createAndSubmitFalGeneration(
     throw new Error("Output format selection is available for Seedance only");
   }
   const outputDurationMetadata = falOutputDurationMetadata(model, input.seedanceTask);
-  if (input.nativeAudioEnabled !== undefined && !model.startsWith("seedance")) {
-    throw new Error("Native audio selection is available for Seedance only");
-  }
   const explicitImages = (input.referenceImageKeys ?? []).filter((key) =>
     key.includes("/generation-references/"),
   );
   const continuityImages = (input.referenceImageKeys ?? []).filter((key) =>
     !key.includes("/generation-references/"),
   );
-  const seedanceReferenceModel = model in falSeedanceReferenceModels
-    ? model as SeedanceReferenceModel
+  const klingImageKeys = (input.klingElements ?? []).flatMap((element) => [
+    element.frontalImageKey,
+    ...(element.referenceImageKeys ?? []),
+  ]);
+  const referenceModel = model in falSeedanceReferenceModels || model === "kling-v3-standard" || model === "veo-3.1-fast"
+    ? model as SeedanceReferenceModel | "kling-v3-standard" | "veo-3.1-fast"
     : null;
-  const referenceAssets = seedanceReferenceModel
+  const referenceAssets = referenceModel
     ? planSeedanceReferences(
       characters,
       characters.length
@@ -1589,8 +1605,8 @@ async function createAndSubmitFalGeneration(
           .where(eq(settingAssetsTable.settingId, setting.id))
           .orderBy(asc(settingAssetsTable.sortOrder))
         : [],
-      seedanceReferenceModel,
-      explicitImages.length + continuityImages.length,
+      referenceModel,
+      explicitImages.length + continuityImages.length + (input.klingElements?.length ?? 0),
     )
     : [];
   const totalReferenceCount = explicitImages.length
@@ -1598,15 +1614,50 @@ async function createAndSubmitFalGeneration(
     + (input.referenceAudioKeys?.length ?? 0)
     + referenceAssets.length
     + continuityImages.length
+    + klingImageKeys.length
     + Number(Boolean(input.startFrameKey))
     + Number(Boolean(input.endFrameKey));
-  if (totalReferenceCount > 50) throw new Error("Seedance accepts at most 50 total image, video, and audio references");
+  if (totalReferenceCount > 50) throw new Error("Cloud accepts at most 50 total image, video, and audio references");
   if ((input.referenceAudioKeys?.length ?? 0) > 0 && explicitImages.length + continuityImages.length + referenceAssets.length + (input.referenceVideoKeys?.length ?? 0) === 0) {
     throw new Error("Seedance audio references require at least one image or video reference");
   }
   // Data URIs let the provider fetch private character images without making
   // tenant media publicly accessible. Never persist these data URIs to the job.
-  const imageUrls = [
+  const cloudImageUrl = async (key: string) => {
+    const isPrivateUpload = key.includes("/generation-references/");
+    const media = isPrivateUpload ? await mediaStorage.readGenerationReferenceMedia(key) : null;
+    const bytes = media?.bytes ?? await mediaStorage.readBuffer(key);
+    const extension = key.split(".").at(-1)?.toLowerCase();
+    const mimeType = media?.mimeType ?? (extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(mimeType)) throw new Error("Cloud reference images must be PNG, JPEG, or WebP");
+    if (model === "kling-v3-standard" && mimeType === "image/webp") throw new Error("Kling 3 reference images must be JPEG or PNG");
+    const keyValue = process.env.FAL_KEY?.trim();
+    if (!keyValue) throw new FalHttpError("FAL_KEY is not configured", null, false);
+    return uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-image", keyValue);
+  };
+  const referenceVideoKeys = input.referenceVideoKeys ?? [];
+  const referenceAudioKeys = input.referenceAudioKeys ?? [];
+  const modelId = selectFalGenerationEndpoint(model, {
+    hasStartFrame: Boolean(input.startFrameKey),
+    hasEndFrame: Boolean(input.endFrameKey),
+    imageCount: referenceAssets.length + explicitImages.length + continuityImages.length + (input.klingElements?.length ?? 0),
+    videoCount: referenceVideoKeys.length,
+    audioCount: referenceAudioKeys.length,
+    task: input.seedanceTask,
+  });
+  if (modelId === falVeoImageModels.reference && (input.negativePrompt || input.seedMode === "FIXED")) {
+    throw new FalHttpError("Veo reference-to-video does not support a negative prompt or fixed seed", null, false);
+  }
+  if (model.startsWith("seedance") && (input.negativePrompt || input.seedMode === "FIXED")) {
+    throw new FalHttpError("Seedance does not support a negative prompt or fixed seed", null, false);
+  }
+  if (model === "kling-v3-standard" && input.seedMode === "FIXED") {
+    throw new FalHttpError("Kling 3 Standard does not support a fixed seed", null, false);
+  }
+  if (input.klingElements?.length && !input.startFrameKey) {
+    throw new FalHttpError("Kling elements require a start frame", null, false);
+  }
+  const imageUrls = model.startsWith("seedance") ? [
     ...(referenceAssets.length ? await seedanceReferenceInput(referenceAssets) : []),
     ...await Promise.all([...continuityImages, ...explicitImages].map(async (key) => {
       const isPrivateUpload = key.includes("/generation-references/");
@@ -1617,12 +1668,13 @@ async function createAndSubmitFalGeneration(
       const mimeType = extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
       return `data:${mimeType};base64,${bytes.toString("base64")}`;
     })),
-  ];
+  ] : await Promise.all([...referenceAssets.map((asset) => asset.storageKey), ...continuityImages, ...explicitImages].map(cloudImageUrl));
   const imageReferenceKeysForLimits = [
     ...referenceAssets.map((asset) => asset.storageKey),
     ...(input.referenceImageKeys ?? []),
     ...(input.startFrameKey ? [input.startFrameKey] : []),
     ...(input.endFrameKey ? [input.endFrameKey] : []),
+    ...klingImageKeys,
   ];
   const imageStats = await Promise.all(imageReferenceKeysForLimits.map(async (key) => ({
     sizeBytes: key.includes("/generation-references/")
@@ -1653,17 +1705,19 @@ async function createAndSubmitFalGeneration(
   };
   const referenceVideoDuration = videoStats.reduce((total, video) => total + video.durationSeconds, 0);
   const referenceAudioDuration = audioStats.reduce((total, audio) => total + audio.durationSeconds, 0);
-  const referenceVideoKeys = input.referenceVideoKeys ?? [];
-  const referenceAudioKeys = input.referenceAudioKeys ?? [];
-  const modelId = selectFalGenerationEndpoint(model, {
-    hasStartFrame: Boolean(input.startFrameKey),
-    hasEndFrame: Boolean(input.endFrameKey),
-    imageCount: imageUrls.length,
-    videoCount: referenceVideoKeys.length,
-    audioCount: referenceAudioKeys.length,
-    task: input.seedanceTask,
-  });
-  const compiledPrompt = seedanceReferencePrompt(compileGenericPrompt(characters, setting, input), referenceAssets);
+  const basePrompt = compileGenericPrompt(characters, setting, input);
+  const describedReferences = [
+    ...referenceAssets.map((asset) => `appearance reference for ${asset.subject}`),
+    ...[...continuityImages, ...explicitImages].map(() => "additional selected image reference"),
+    ...(input.klingElements ?? []).map(() => "selected multi-view element"),
+  ];
+  const compiledPrompt = model.startsWith("seedance")
+    ? seedanceReferencePrompt(basePrompt, referenceAssets)
+    : describedReferences.length
+      ? `${describedReferences.map((description, index) =>
+        `${model === "kling-v3-standard" ? `@Element${index + 1}` : `Reference image ${index + 1}`} is the ${description}.`
+      ).join("\n")}\n${basePrompt}`
+      : basePrompt;
   const normalized = normalizeFalRequest(model, {
     prompt: compiledPrompt,
     negativePrompt: input.negativePrompt,
@@ -1679,13 +1733,33 @@ async function createAndSubmitFalGeneration(
     dialogue: input.dialogue,
     seedanceTask: input.seedanceTask,
     ...(input.startFrameKey ? {
-      startFrameUrl: await referenceImageDataUri(input.startFrameKey),
+      startFrameUrl: model.startsWith("seedance") ? await referenceImageDataUri(input.startFrameKey) : await cloudImageUrl(input.startFrameKey),
     } : {}),
     ...(input.endFrameKey ? {
-      endFrameUrl: await referenceImageDataUri(input.endFrameKey),
+      endFrameUrl: model.startsWith("seedance") ? await referenceImageDataUri(input.endFrameKey) : await cloudImageUrl(input.endFrameKey),
     } : {}),
   });
-  if (imageUrls.length) normalized.input.image_urls = imageUrls;
+  if (modelId === falVeoImageModels.reference) {
+    // This endpoint renders eight seconds regardless of the text/frame mode duration.
+    normalized.durationSeconds = 8;
+    normalized.frameCount = 8 * normalized.fps;
+    normalized.input.duration = "8s";
+  }
+  if (model === "kling-v3-standard") {
+    const extraElements = await Promise.all((input.klingElements ?? []).map(async (element) => ({
+      frontalUrl: await cloudImageUrl(element.frontalImageKey),
+      ...(element.referenceImageKeys?.length
+        ? { referenceUrls: await Promise.all(element.referenceImageKeys.map(cloudImageUrl)) }
+        : {}),
+    })));
+    if (imageUrls.length || extraElements.length) normalized.input.elements = klingImageElements(imageUrls, extraElements);
+  } else if (imageUrls.length) {
+    normalized.input.image_urls = imageUrls;
+  }
+  if (input.klingCfgScale !== undefined) normalized.input.cfg_scale = input.klingCfgScale;
+  if (modelId === falKlingImageModel && !input.startFrameKey) {
+    throw new FalHttpError("Kling 3 image elements require a start frame", null, false);
+  }
   applyFalSeedanceTask(normalized.input, model, modelId, input.seedanceTask);
   const audioMetadata = { nativeAudioEnabled: normalized.input.generate_audio };
   const [job] = await db.insert(generationJobsTable).values({
@@ -1708,7 +1782,7 @@ async function createAndSubmitFalGeneration(
     },
     voiceCloningEnabled: input.voiceCloningEnabled ?? false,
     voiceCharacterId: input.speakerCharacterId ?? null,
-    referenceImageKeys: [...referenceAssets.map((asset) => asset.storageKey), ...(input.referenceImageKeys ?? [])],
+    referenceImageKeys: [...referenceAssets.map((asset) => asset.storageKey), ...(input.referenceImageKeys ?? []), ...klingImageKeys],
     longFormShotId: input.longFormShotId ?? null,
     prompt: input.prompt,
     compiledPrompt,

@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 import { FileAudio, Film, ImagePlus, Plus, X } from "lucide-react";
 import { ReferenceLibraryPicker } from "@/components/video-studio/ReferenceLibraryPicker";
+import { KlingElements, type KlingElement } from "@/components/video-studio/KlingElements";
 import type { ReferenceRole } from "@/lib/video-library";
-import { activeSeedanceRoles, seedanceReferenceBudget, VIDEO_MODEL_CAPABILITIES, type FalModel, type SeedanceTask } from "@/lib/video-model-capabilities";
+import { activeSeedanceRoles, isSeedanceModel, seedanceReferenceBudget, VIDEO_MODEL_CAPABILITIES, type FalModel, type SeedanceTask } from "@/lib/video-model-capabilities";
 
 export type ReferenceKind = "image" | "video" | "audio";
 export type ReferenceMedia = { storageKey: string; mediaUrl: string; mimeType: string; name: string; kind: ReferenceKind };
@@ -13,8 +14,11 @@ export type SeedanceMedia = {
   images: ReferenceMedia[];
   videos: ReferenceMedia[];
   audio: ReferenceMedia[];
+  elements: KlingElement[];
 };
-export const emptySeedanceMedia = (): SeedanceMedia => ({ start: null, end: null, source: null, images: [], videos: [], audio: [] });
+export const emptySeedanceMedia = (): SeedanceMedia => ({ start: null, end: null, source: null, images: [], videos: [], audio: [], elements: [] });
+/** Older drafts predate `elements`; normalise so every consumer sees a full shape. */
+export const normalizeSeedanceMedia = (value: Partial<SeedanceMedia> | null | undefined): SeedanceMedia => ({ ...emptySeedanceMedia(), ...(value ?? {}), elements: Array.isArray(value?.elements) ? value.elements : [] });
 
 type Role = "start" | "end" | "source" | "images" | "videos" | "audio";
 const types: Record<ReferenceKind, string[]> = {
@@ -40,19 +44,23 @@ export function SeedanceReferences({ value, onChange, version, task, primaryImag
   const [uploading, setUploading] = useState<Role | null>(null);
   const [error, setError] = useState("");
   const busy = useRef(false);
-  const max = VIDEO_MODEL_CAPABILITIES[version].limits;
+  const caps = VIDEO_MODEL_CAPABILITIES[version];
+  const max = caps.limits;
+  const seedance = isSeedanceModel(version);
   const roles = activeSeedanceRoles(version, task);
   const budget = seedanceReferenceBudget(version, task, {
     characterCount: primaryImageCount,
     hasSetting: false,
-    images: value.images.length,
-    videos: value.videos.length,
-    audio: value.audio.length,
+    images: roles.images ? value.images.length : 0,
+    videos: roles.videos ? value.videos.length : 0,
+    audio: roles.audio ? value.audio.length : 0,
     frames: Number(Boolean(value.start)) + Number(Boolean(value.end)),
     hasSource: Boolean(value.source),
   });
-  const hasFrames = task === "reference" && Boolean(value.start || value.end);
-  const hasExtras = value.images.length + (roles.source ? 0 : value.videos.length) + value.audio.length > 0;
+  const hasFrames = task === "reference" && caps.framesExclusiveWithReferences && Boolean(value.start || value.end);
+  const elementSlotsUsed = caps.elements ? primaryImageCount + (roles.images ? value.images.length : 0) + value.elements.length : 0;
+  const elementsFull = Boolean(caps.elements) && elementSlotsUsed >= caps.elements!.max;
+  const hasExtras = (roles.images ? value.images.length : 0) + (roles.source || !roles.videos ? 0 : value.videos.length) + (roles.audio ? value.audio.length : 0) > 0;
   const rows: { role: Role; label: string; hint: string }[] = roles.source
     ? [
         { role: "source", label: "Source video", hint: "Required. Edit and Extend use exactly one source video." },
@@ -61,10 +69,10 @@ export function SeedanceReferences({ value, onChange, version, task, primaryImag
       ]
     : [
         ...(roles.frames ? [
-          { role: "start" as const, label: "Start frame", hint: "Optional still image to open the shot." },
+          { role: "start" as const, label: "Start frame", hint: `Optional still that opens the shot.${caps.startFrameInheritsAspect ? " Output takes this image's shape." : ""}${caps.imageConstraint ? ` ${caps.imageConstraint}` : ""}` },
           { role: "end" as const, label: "End frame", hint: "Optional closing still; add a start frame first." },
         ] : []),
-        ...(roles.images ? [{ role: "images" as const, label: "Reference images", hint: "Independent visual references." }] : []),
+        ...(roles.images ? [{ role: "images" as const, label: seedance ? "Reference images" : caps.elements ? "Quick reference images" : "Character / style / location references", hint: seedance ? "Independent visual references." : caps.elements ? `Each image becomes a frontal-only element (@Element) after selected cast/environment. Needs a start frame. ${caps.imageConstraint ?? ""}` : `Up to ${max.images} subject images kept consistent across the clip.${caps.referenceImageDurations ? ` Renders at ${caps.referenceImageDurations.join("/")}s.` : ""}${caps.imageConstraint ? ` ${caps.imageConstraint}` : ""}` }] : []),
         ...(roles.videos ? [{ role: "videos" as const, label: "Reference videos", hint: "Motion and visual references." }] : []),
         ...(roles.audio ? [{ role: "audio" as const, label: "Reference audio", hint: "Sound reference; cannot be the only reference." }] : []),
       ];
@@ -117,15 +125,16 @@ export function SeedanceReferences({ value, onChange, version, task, primaryImag
   return (
     <section aria-label="Seedance media references" className="space-y-4 rounded-xl border border-[#67445d] bg-[#30232f]/60 p-4" data-testid="section-seedance-references">
       <div className="flex items-start justify-between gap-3">
-        <div><h3 className="text-sm font-semibold text-[#f5e9f2]">Media direction</h3><p className="mt-1 text-xs leading-relaxed text-[#bdacbc]">{roles.source ? "Edit and Extend need one source video and can also take image and audio references. Frames and extra videos stay in your draft for Generate." : "Use start and end frames, or add independent image, video and audio references. Frames cannot be combined with extra references."}</p></div>
+        <div><h3 className="text-sm font-semibold text-[#f5e9f2]">Media direction</h3><p className="mt-1 text-xs leading-relaxed text-[#bdacbc]">{roles.source ? "Edit and Extend need one source video and can also take image and audio references. Frames and extra videos stay in your draft for Generate." : seedance ? "Use start and end frames, or add independent image, video and audio references. Frames cannot be combined with extra references." : caps.framesExclusiveWithReferences ? "Use a start frame (optionally with an end frame), or add character, style and location reference images. Frames and reference images use different modes and cannot be combined." : "Add a start frame to animate a still, optionally with an end frame. With a start frame you can also add reference images and character/object elements; selected cast and environment become elements too. Without frames the clip is generated from text."}</p></div>
         <span className="shrink-0 rounded-md bg-[#50334b] px-2 py-1 font-mono text-[10px] text-[#ffe2f0]" data-testid="text-reference-count">{roles.source ? `${Number(Boolean(value.source))}/${max.source} source · ${budget.total}/${max.total} media` : `${budget.total}/${max.total} media`}</span>
       </div>
-      {!roles.source && <p className="text-[11px] text-[#c9b8c5]" data-testid="text-reference-image-budget">{budget.imageCount}/{max.images} images · {primaryImageCount} selected cast/environment {primaryImageCount === 1 ? "image" : "images"} + {value.images.length} extra {value.images.length === 1 ? "image" : "images"}. Primary images count toward the limit.</p>}
+      {!roles.source && roles.images && <p className="text-[11px] text-[#c9b8c5]" data-testid="text-reference-image-budget">{budget.imageCount}/{max.images} images · {primaryImageCount} selected cast/environment {primaryImageCount === 1 ? "image" : "images"} + {value.images.length} extra {value.images.length === 1 ? "image" : "images"}. Primary images count toward the limit.</p>}
       {budget.framesWithPrimary && <p role="alert" className="rounded-md border border-rose-400/40 bg-rose-400/10 p-2 text-xs text-rose-200">Frames cannot be combined with selected cast or environment images. Clear those selections before rendering.</p>}
+      {caps.elements && <KlingElements value={value.elements} onChange={(elements) => onChange({ ...value, elements })} max={caps.elements.max} minAngles={caps.elements.minAngles} maxAngles={caps.elements.maxAngles} primaryCount={primaryImageCount + (roles.images ? value.images.length : 0)} disabledReason={!value.start ? "Elements are sent only with a start frame (Kling image-to-video). Add a start frame above." : undefined} />}
       {rows.map(({ role, label, hint }) => {
         const kind = roleKind(role);
         const items = role === "start" || role === "end" || role === "source" ? (value[role] ? [value[role]] : []) : value[role];
-        const disabled = Boolean(uploading) || (role === "end" && !value.start) || ((role === "start" || role === "end") && hasExtras) || ((role === "images" || role === "videos" || role === "audio") && (hasFrames || value[role].length >= max[role] || (role === "images" && budget.imageCount >= max.images) || budget.total >= max.total));
+        const disabled = Boolean(uploading) || (role === "end" && !value.start) || ((role === "start" || role === "end") && hasExtras && caps.framesExclusiveWithReferences) || (role === "images" && elementsFull) || ((role === "images" || role === "videos" || role === "audio") && (hasFrames || value[role].length >= max[role] || (role === "images" && budget.imageCount >= max.images) || budget.total >= max.total));
         return <div key={role} className="rounded-lg border border-[#54434f] bg-[#211d23] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div><p className="text-xs font-semibold text-[#eee3ec]">{label}{role === "source" && <span className="ml-1 text-[#f2a4c9]">Required</span>}</p><p className="mt-0.5 text-[11px] text-[#a99ba8]">{hint}</p></div>

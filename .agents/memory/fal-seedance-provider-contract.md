@@ -9,6 +9,12 @@ Use Fal's published Seedance API as the executable contract when matching the cr
 
 **How to apply:** Check the current Fal API schema for the selected endpoint before adding a mode or media role. In particular, don't silently drop media that the chosen endpoint cannot accept. Validate limits and reserve spending before inference.
 
+Resolve disputed provider capabilities from the exact operation's raw Fal OpenAPI, not similarly named types on the model documentation page.
+
+**Why:** The documentation pages mix model variants. Repeated page-based audits wrongly excluded Veo Fast 4K while its exact Fast request schemas included it; a similar confusion made optional Kling element angles appear required.
+
+**How to apply:** Fetch `https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=<exact endpoint>`, follow the POST request body's `$ref`, and inspect that schema's enums and required fields. Check each frame/reference route separately.
+
 Keep tenant-private video/audio private when handing them to Fal. Fal CDN inputs are public-by-link unless the upload itself requests a restrictive ACL; model workers can fetch a bounded signed read URL rather than an anonymous public URL.
 
 **Why:** A private workspace upload becoming a public CDN link violates the original tenant boundary even if the application does not display that link. Fal's direct-upload initiation may return a v3b.fal.media upload host, not just a cloud-storage hostname; a mock-only test missed this.

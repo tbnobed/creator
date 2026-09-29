@@ -13,10 +13,10 @@ import {
 import { Page } from "@/components/layout/page";
 import { BatchCountPicker, BatchReceipts, type BatchReceipt } from "@/components/video-studio/BatchReceipts";
 import { VideoGenerationViewer } from "@/components/video-studio/VideoGenerationViewer";
-import { SeedanceReferences, emptySeedanceMedia, type SeedanceMedia } from "@/components/video-studio/SeedanceReferences";
+import { SeedanceReferences, emptySeedanceMedia, normalizeSeedanceMedia, type SeedanceMedia } from "@/components/video-studio/SeedanceReferences";
 import { safeStorageRemove, safeStorageSet } from "@/lib/media-file";
 import { VideoOutputControls } from "@/components/video-studio/VideoOutputControls";
-import { aspectRatioIsInherited, RESOLUTION_QUALITY, type AspectRatio, type OutputResolution, activeSeedanceRoles, effectiveModelDuration, seedanceReferenceBudget, VIDEO_MODEL_CAPABILITIES, type FalModel, type SeedanceTask } from "@/lib/video-model-capabilities";
+import { cloudOutputOptions, cloudPromptControls, cloudReferencePayload, elementProblems, inactiveReferenceRoles, isSeedanceModel, modelAcceptsReferences, RESOLUTION_QUALITY, type AspectRatio, type OutputResolution, activeSeedanceRoles, effectiveModelDuration, seedanceReferenceBudget, VIDEO_MODEL_CAPABILITIES, type FalModel, type SeedanceTask } from "@/lib/video-model-capabilities";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -130,6 +130,7 @@ type ComposerDraft = {
   seedanceMedia?: SeedanceMedia;
   aspectRatio?: AspectRatio;
   outputResolution?: OutputResolution;
+  guidanceScale?: number | null;
   outputFormat?: "mp4" | "mov";
   referenceVideoKey?: string | null;
 };
@@ -214,7 +215,8 @@ export default function GeneratePage() {
   const [voiceCloningEnabled, setVoiceCloningEnabled] = useState(() => draft.voiceCloningEnabled ?? false);
   const [nativeAudioEnabled, setNativeAudioEnabled] = useState<boolean | null>(() => draft.nativeAudioEnabled ?? null);
   const [seedanceTask, setSeedanceTask] = useState<SeedanceTask>(() => draft.seedanceTask ?? "reference");
-  const [seedanceMedia, setSeedanceMedia] = useState<SeedanceMedia>(() => draft.seedanceMedia ?? emptySeedanceMedia());
+  const [seedanceMedia, setSeedanceMedia] = useState<SeedanceMedia>(() => draft.seedanceMedia ? normalizeSeedanceMedia(draft.seedanceMedia) : emptySeedanceMedia());
+  const [guidanceScale, setGuidanceScale] = useState<number | null>(() => typeof draft.guidanceScale === "number" ? draft.guidanceScale : null);
   
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(() => draft.aspectRatio ?? "16:9");
   const [outputFormat, setOutputFormat] = useState<"mp4" | "mov">(() => draft.outputFormat ?? "mp4");
@@ -270,44 +272,55 @@ export default function GeneratePage() {
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
   const resolvedDialogueForVoice = dialogue.trim() || inferredDialogue?.dialogue || "";
-  const seedanceSelected = isCloudProvider && model.startsWith("seedance");
+  const seedanceSelected = isCloudProvider && isSeedanceModel(model);
   const modelCapabilities = VIDEO_MODEL_CAPABILITIES[model];
   const seedance25 = seedanceSelected && modelCapabilities.roles.source;
-  const seedanceFull = seedanceSelected;
+  // Any cloud model with uploadable media roles (Seedance, Kling 3.0, Veo 3.1 Fast).
+  const seedanceFull = isCloudProvider && modelAcceptsReferences(model);
+  const referenceTask: SeedanceTask = seedance25 ? seedanceTask : "reference";
   const seedanceReferenceMode = seedanceFull && (!seedance25 || seedanceTask === "reference");
-  const activeRoles = activeSeedanceRoles(model, seedanceTask);
+  const activeRoles = activeSeedanceRoles(model, referenceTask);
   const editingSourceOnly = seedanceSelected && activeRoles.source;
-  const extraCount = seedanceMedia.images.length + seedanceMedia.videos.length + seedanceMedia.audio.length;
+  const activeImages = activeRoles.images ? seedanceMedia.images.length : 0;
+  const activeVideos = activeRoles.videos ? seedanceMedia.videos.length : 0;
+  const activeAudio = activeRoles.audio ? seedanceMedia.audio.length : 0;
+  const extraCount = activeImages + activeVideos + activeAudio;
   const activeReferenceCount = editingSourceOnly ? Number(Boolean(seedanceMedia.source)) + seedanceMedia.images.length + seedanceMedia.audio.length : extraCount;
-  const aspectInherited = seedanceSelected && aspectRatioIsInherited(model, seedanceTask);
+  const referenceImagesActive = seedanceFull && !seedanceSelected && Boolean(modelCapabilities.referenceImageDurations) && !seedanceMedia.start && (seedanceMedia.images.length > 0 || (modelCapabilities.castImagesSent && (selectedChars.length > 0 || Boolean(selectedSetting))));
+  const outputOptions = cloudOutputOptions(model, { hasStartFrame: seedanceFull && Boolean(seedanceMedia.start), hasReferenceImages: referenceImagesActive, task: referenceTask });
+  const aspectInherited = isCloudProvider && outputOptions.aspectInherited;
+  const inactiveRoles = seedanceFull || isCloudProvider ? inactiveReferenceRoles(model, referenceTask, seedanceMedia) : [];
+  const cloudModelName = FAL_MODELS.find((option) => option.value === model)?.label.split(" ·")[0] ?? model;
   const mediaLimit = modelCapabilities.limits;
-  const referenceBudget = seedanceReferenceBudget(model, seedanceTask, {
-    characterCount: seedanceSelected ? selectedChars.length : 0,
-    hasSetting: seedanceSelected && Boolean(selectedSetting),
-    images: seedanceMedia.images.length,
-    videos: seedanceMedia.videos.length,
-    audio: seedanceMedia.audio.length,
-    frames: Number(Boolean(seedanceMedia.start)) + Number(Boolean(seedanceMedia.end)),
+  const referenceBudget = seedanceReferenceBudget(model, referenceTask, {
+    characterCount: seedanceFull && modelCapabilities.castImagesSent ? selectedChars.length : 0,
+    hasSetting: seedanceFull && modelCapabilities.castImagesSent && Boolean(selectedSetting),
+    images: activeImages,
+    videos: activeVideos,
+    audio: activeAudio,
+    frames: activeRoles.frames ? Number(Boolean(seedanceMedia.start)) + Number(Boolean(seedanceMedia.end)) : 0,
     hasSource: Boolean(seedanceMedia.source),
   });
-  const mediaError = seedanceFull ? (
+  const promptControls = cloudPromptControls(model, { referenceImagesActive });
+  const klingElementError = seedanceFull ? elementProblems(model, seedanceMedia, (modelCapabilities.castImagesSent ? selectedChars.length + Number(Boolean(selectedSetting)) : 0)) : null;
+  const mediaError = seedanceFull ? klingElementError || (
     editingSourceOnly && !seedanceMedia.source ? "Add a source video for Edit or Extend." :
     editingSourceOnly && (seedanceMedia.images.length > mediaLimit.images || seedanceMedia.audio.length > mediaLimit.audio || referenceBudget.overTotalLimit) ? "Too many media references for this model." :
-    seedanceReferenceMode && seedanceMedia.end && !seedanceMedia.start ? "An end frame needs a start frame." :
+    seedanceReferenceMode && activeRoles.frames && seedanceMedia.end && !seedanceMedia.start ? "An end frame needs a start frame." :
     referenceBudget.framesWithPrimary ? "Start/end frames cannot be combined with selected cast or environment images. Remove cast and environment to render with frames." :
-    seedanceReferenceMode && (seedanceMedia.start || seedanceMedia.end) && extraCount ? "Remove extra references or start/end frames; they cannot be combined." :
+    seedanceReferenceMode && modelCapabilities.framesExclusiveWithReferences && activeRoles.frames && (seedanceMedia.start || seedanceMedia.end) && extraCount ? "Remove extra references or start/end frames; they cannot be combined." :
     seedanceReferenceMode && referenceBudget.overImageLimit ? `This model accepts at most ${referenceBudget.imageLimit} images including selected cast and environment. Remove a primary image or an extra reference.` :
-    seedanceReferenceMode && (seedanceMedia.videos.length > mediaLimit.videos || seedanceMedia.audio.length > mediaLimit.audio || referenceBudget.overTotalLimit) ? "Too many media references for this model." :
-    seedanceReferenceMode && seedanceMedia.audio.length > 0 && !seedanceMedia.images.length && !seedanceMedia.videos.length && !seedanceMedia.start && !selectedChars.length && !selectedSetting ? "Audio cannot be the only reference. Add an image or video." : ""
+    seedanceReferenceMode && (activeVideos > mediaLimit.videos || activeAudio > mediaLimit.audio || referenceBudget.overTotalLimit) ? "Too many media references for this model." :
+    seedanceReferenceMode && activeAudio > 0 && !activeImages && !activeVideos && !seedanceMedia.start && !selectedChars.length && !selectedSetting ? "Audio cannot be the only reference. Add an image or video." : ""
   ) : "";
-  const displayDuration = isCloudProvider ? effectiveModelDuration(model, duration) : duration;
+  const displayDuration = isCloudProvider ? effectiveModelDuration(model, duration, { hasReferenceImages: referenceImagesActive }) : duration;
   const durationIsAutomatic = editingSourceOnly && modelCapabilities.autoDurationTasks.includes(seedanceTask);
   const effectiveNativeAudio = nativeAudioEnabled ?? Boolean(resolvedDialogueForVoice);
   const firstSelectedCharacter = characters?.find((character) => character.id === selectedChars[0]);
   const hasConsentedSelectedVoice = Boolean(firstSelectedCharacter?.hasVoiceSample && firstSelectedCharacter.voiceConsentAt);
   const canEnableVoiceCloning = hasConsentedSelectedVoice && Boolean(resolvedDialogueForVoice);
   const selectedFalModel = FAL_MODELS.find((option) => option.value === model) ?? FAL_MODELS[0];
-  const pricedFalDuration = effectiveModelDuration(model, duration);
+  const pricedFalDuration = effectiveModelDuration(model, duration, { hasReferenceImages: referenceImagesActive });
   const pricedFalRate = falRate(model, qualityPreset);
   const estimatedFalCost = pricedFalRate === null ? null : pricedFalDuration * pricedFalRate;
   const recentJobs = (recentGenerations?.items ?? []).filter((job) => {
@@ -315,6 +328,14 @@ export default function GeneratePage() {
     if (galleryFilter === "active") return ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status);
     return true;
   });
+
+  // Keep visible output selections inside the selected model's real options.
+  useEffect(() => {
+    if (!isCloudProvider) return;
+    const caps = VIDEO_MODEL_CAPABILITIES[model];
+    if (caps.aspectRatios?.length && !caps.aspectRatios.includes(aspectRatio)) setAspectRatio(caps.aspectRatios[0]);
+    if (caps.resolutions?.length && !caps.resolutions.includes(outputResolution)) setOutputResolution(caps.resolutions.includes("720p") ? "720p" : caps.resolutions[0]);
+  }, [isCloudProvider, model, aspectRatio, outputResolution]);
 
   useEffect(() => {
     if (cloneJobId && sourceLoadState !== "ready") return;
@@ -343,12 +364,13 @@ export default function GeneratePage() {
       seedanceMedia,
       aspectRatio,
       outputResolution,
+      guidanceScale,
       outputFormat,
     } satisfies ComposerDraft));
   }, [
     cloneJobId, sourceLoadState,
     provider, model, voiceCloningEnabled, nativeAudioEnabled, selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
-    motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed, referenceVideoKey, seedanceTask, seedanceMedia, aspectRatio, outputResolution, outputFormat,
+    motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed, referenceVideoKey, seedanceTask, seedanceMedia, aspectRatio, outputResolution, outputFormat, guidanceScale,
   ]);
 
   useEffect(() => {
@@ -405,7 +427,17 @@ export default function GeneratePage() {
       images: mediaFromMetadata("referenceImageKeys", "image"),
       videos: mediaFromMetadata("referenceVideoKeys", "video").slice(metadata?.seedanceTask === "editing" || metadata?.seedanceTask === "extension" ? 1 : 0),
       audio: mediaFromMetadata("referenceAudioKeys", "audio"),
+      elements: Array.isArray(metadata?.klingElements) ? (metadata.klingElements as unknown[]).flatMap((raw, index) => {
+        const element = raw as { frontalImageKey?: unknown; referenceImageKeys?: unknown };
+        if (typeof element?.frontalImageKey !== "string") return [];
+        const angles = Array.isArray(element.referenceImageKeys) ? element.referenceImageKeys.filter((key): key is string => typeof key === "string") : [];
+        return [{
+          frontal: { storageKey: element.frontalImageKey, mediaUrl: "", mimeType: "", kind: "image" as const, name: `Saved element ${index + 1}` },
+          angles: angles.map((storageKey, a) => ({ storageKey, mediaUrl: "", mimeType: "", kind: "image" as const, name: `Saved angle ${a + 1}` })),
+        }];
+      }) : [],
     });
+    setGuidanceScale(typeof metadata?.klingCfgScale === "number" ? metadata.klingCfgScale : null);
     hasSelectedInitialMode.current = true;
     hasPrefilledSourceJob.current = true;
   }, [sourceJob]);
@@ -480,33 +512,32 @@ export default function GeneratePage() {
           provider,
           model: provider === "FAL" ? model : undefined,
           voiceCloningEnabled: editingSourceOnly ? false : voiceCloningEnabled,
-          nativeAudioEnabled: seedanceSelected ? effectiveNativeAudio : undefined,
+          nativeAudioEnabled: isCloudProvider && modelCapabilities.nativeAudio ? effectiveNativeAudio : undefined,
           characterIds: !editingSourceOnly && selectedChars.length ? selectedChars : undefined,
           settingId: editingSourceOnly ? undefined : selectedSetting || undefined,
           prompt: resolvedPrompt,
           dialogue: resolvedDialogue || undefined,
-          negativePrompt,
+          // Only providers/modes that accept a negative prompt or fixed seed receive them.
+          negativePrompt: !isCloudProvider || promptControls.negativePrompt ? negativePrompt : undefined,
           cameraInstructions,
           motionInstructions,
           generationMode,
-          durationSeconds: isCloudProvider ? durationIsAutomatic ? modelCapabilities.durationOptions.at(-1)! : effectiveModelDuration(model, resolvedDuration) : resolvedDuration,
+          durationSeconds: isCloudProvider ? durationIsAutomatic ? modelCapabilities.durationOptions.at(-1)! : effectiveModelDuration(model, resolvedDuration, { hasReferenceImages: referenceImagesActive }) : resolvedDuration,
           fps: (isCloudProvider ? 24 : fps) as 24 | 25 | 30,
           width,
           height,
           qualityPreset,
-          seedMode,
-          seed: seedMode === "FIXED" ? seed : null,
+          seedMode: !isCloudProvider || promptControls.fixedSeed ? seedMode : "RANDOM",
+          seed: seedMode === "FIXED" && (!isCloudProvider || promptControls.fixedSeed) ? seed : null,
           referenceVideoKey: provider === "COMFYUI" ? referenceVideoKey || undefined : undefined,
-          ...(seedanceFull ? {
-            aspectRatio: aspectInherited ? undefined : aspectRatio,
-            outputResolution: modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : undefined,
-            outputFormat,
+          ...(isCloudProvider ? {
+            aspectRatio: aspectInherited || !outputOptions.aspectRatios.includes(aspectRatio) ? undefined : aspectRatio,
+            outputResolution: outputOptions.resolutions.includes(outputResolution) ? outputResolution : undefined,
+            outputFormat: outputOptions.outputFormat ? outputFormat : undefined,
             seedanceTask: seedance25 && !seedanceMedia.start && (seedanceTask !== "reference" || activeReferenceCount > 0 || selectedChars.length > 0 || Boolean(selectedSetting)) ? seedanceTask : undefined,
-            startFrameKey: seedanceReferenceMode ? seedanceMedia.start?.storageKey : undefined,
-            endFrameKey: seedanceReferenceMode ? seedanceMedia.end?.storageKey : undefined,
-            referenceImageKeys: editingSourceOnly || (seedanceReferenceMode && !seedanceMedia.start) ? seedanceMedia.images.map(m => m.storageKey) : undefined,
-            referenceVideoKeys: editingSourceOnly ? [seedanceMedia.source!.storageKey] : seedanceReferenceMode ? seedanceMedia.videos.map(m => m.storageKey) : undefined,
-            referenceAudioKeys: editingSourceOnly || (seedanceReferenceMode && !seedanceMedia.start) ? seedanceMedia.audio.map(m => m.storageKey) : undefined,
+            // Only roles the selected model accepts are sent; other draft media stays local.
+            ...(seedanceFull ? cloudReferencePayload(model, referenceTask, seedanceMedia) : {}),
+            klingCfgScale: promptControls.guidanceScale && guidanceScale !== null ? guidanceScale : undefined,
           } : {}),
       };
       // Each take is a distinct createGeneration call; failures are recorded, never retried.
@@ -733,6 +764,7 @@ export default function GeneratePage() {
           </Card>}
 
           {seedanceFull && <SeedanceReferences value={seedanceMedia} onChange={setSeedanceMedia} version={model} task={seedance25 ? seedanceTask : "reference"} primaryImageCount={referenceBudget.primaryImages} />}
+          {isCloudProvider && inactiveRoles.length > 0 && <p className="rounded-lg border border-[#8a6a3f] bg-[#3a2e22] px-4 py-3 text-xs leading-relaxed text-[#f6e2c4]" data-testid="text-inactive-references">{cloudModelName}{seedance25 && seedanceTask !== "reference" ? ` ${seedanceTask === "editing" ? "Edit" : "Extend"}` : ""} does not accept {inactiveRoles.join(", ")}. They stay saved in this draft for other models but will not be sent with this render.</p>}
           {editingSourceOnly && <p className="rounded-lg border border-[#79506a] bg-[#3d2837] px-4 py-3 text-xs leading-relaxed text-[#f3d6e4]" data-testid="text-seedance-edit-limits">Edit and Extend send one source video plus any image and audio references. Cast, environment, frames and extra videos remain saved in this draft for Generate, but are not submitted with this task. Output keeps the source shape. Cloud chooses Edit output duration (up to 30s) and reserves the conservative maximum cost.</p>}
 
           {!isCloudProvider && hasReferenceVideo && (
@@ -951,6 +983,7 @@ export default function GeneratePage() {
                   </div>
                   <div className="space-y-2 pt-2">
                     <Label className="text-muted-foreground text-sm">Negative Prompt</Label>
+                    {isCloudProvider && !promptControls.negativePrompt && <p className="text-[11px] text-[#e7c89c]" data-testid="text-negative-prompt-unsupported">{cloudModelName}{referenceImagesActive ? " reference mode" : ""} has no negative prompt input; this text stays in the draft but is not sent.</p>}
                     <Textarea
                       value={negativePrompt}
                       onChange={e => setNegativePrompt(e.target.value)}
@@ -1076,9 +1109,9 @@ export default function GeneratePage() {
                     </PopoverContent>
                   </Popover>
                   <p className="text-xs text-muted-foreground">
-                    {model.startsWith("seedance")
+                    {modelCapabilities.castImagesSent
                       ? "Selected character and environment images are included automatically. Add independent media in Scene assets; the extra-media counter excludes these primary assets."
-                      : "This model uses character and environment descriptions as text; it does not receive their reference images."}
+                      : `${cloudModelName} receives selected cast and environment as text descriptions only; their images are not sent. Add start/end frames${modelCapabilities.roles.images ? " or up to " + modelCapabilities.limits.images + " reference images" : ""} in Scene assets to steer the look.`}
                   </p>
                   {modelCapabilities.tasks.length > 1 && <div className="space-y-2 rounded-lg border border-[#604257] bg-[#2d222c] p-3" role="group" aria-label="Seedance 2.5 task">
                     <Label>Task</Label>
@@ -1090,17 +1123,17 @@ export default function GeneratePage() {
                   {modelCapabilities.nativeAudio && isCloudProvider && (
                     <div className="rounded-md border border-border/50 bg-black/20 p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="seedance-native-audio" className="text-xs">Generate native Seedance audio</Label>
+                        <Label htmlFor="seedance-native-audio" className="text-xs">Generate native {seedanceSelected ? "Seedance" : cloudModelName} audio</Label>
                         <Switch id="seedance-native-audio" checked={effectiveNativeAudio} onCheckedChange={setNativeAudioEnabled} data-testid="switch-seedance-native-audio" />
                       </div>
                       <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                         {resolvedDialogueForVoice
                           ? effectiveNativeAudio
-                            ? "Seedance will attempt spoken dialogue with ambient sound. The words, voice, and lip sync are not guaranteed."
-                            : "Dialogue remains in the prompt, but the delivered Seedance video will have no native sound."
+                            ? `${seedanceSelected ? "Seedance" : cloudModelName} will attempt spoken dialogue with ambient sound. The words, voice, and lip sync are not guaranteed.`
+                            : `Dialogue remains in the prompt, but the delivered ${seedanceSelected ? "Seedance" : cloudModelName} video will have no native sound.`
                           : effectiveNativeAudio
-                            ? "Seedance will generate scene audio; add dialogue in Shot direction if you want speech."
-                            : "This Seedance video will be silent. Add dialogue to enable audio automatically, or turn it on for scene sound."}
+                            ? `${seedanceSelected ? "Seedance" : cloudModelName} will generate scene audio; add dialogue in Shot direction if you want speech.`
+                            : `This ${seedanceSelected ? "Seedance" : cloudModelName} video will be silent. Add dialogue to enable audio automatically, or turn it on for scene sound.`}
                         {voiceCloningEnabled && effectiveNativeAudio ? " Cloned dialogue is added afterward and may replace native sound." : ""}
                       </p>
                     </div>
@@ -1112,7 +1145,7 @@ export default function GeneratePage() {
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       {pricedFalDuration}s effective duration × ${pricedFalRate?.toFixed(4) ?? "unavailable"}/sec.
-                      {seedanceSelected ? " Seedance audio on/off uses the same estimated rate." : ""}
+                      {modelCapabilities.nativeAudio ? " Audio on/off uses the same estimated rate." : ""}
                     </p>
                   </div>}
                   {seedance25 && <p className="rounded-md border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground" data-testid="text-fal-cost-estimate">{durationIsAutomatic ? "Cloud chooses Edit output duration (up to 30s); a conservative maximum-cost reservation is made before submitting. " : "Cloud cost estimate unavailable. Seedance 2.5 billing depends on the selected task and uploaded media duration. "}Check job details for the final charge when available.</p>}
@@ -1120,19 +1153,36 @@ export default function GeneratePage() {
               )}
 
               <div className="space-y-4 border-t border-border/50 pt-4">
-                {seedanceSelected && <VideoOutputControls
-                  aspectRatios={modelCapabilities.aspectRatios ?? []}
+                {isCloudProvider && promptControls.guidanceScale && (() => {
+                  const range = promptControls.guidanceScale;
+                  const value = guidanceScale ?? range.default;
+                  return <div className="space-y-2 rounded-md border border-border/50 bg-black/20 p-3" data-testid="section-guidance-scale">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="guidance-scale" className="text-xs">Prompt adherence <span className="font-mono text-[10px] text-muted-foreground">cfg_scale</span></Label>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-foreground" data-testid="text-guidance-scale">{value.toFixed(2)}</span>
+                        {guidanceScale !== null && <button type="button" onClick={() => setGuidanceScale(null)} className="text-[10px] text-muted-foreground underline-offset-2 hover:underline" data-testid="button-reset-guidance-scale">Default</button>}
+                      </div>
+                    </div>
+                    <input id="guidance-scale" type="range" min={range.min} max={range.max} step={range.step} value={value} onChange={(event) => setGuidanceScale(Number(event.target.value))} className="w-full accent-[#ee87b4]" data-testid="input-guidance-scale" />
+                    <p className="text-[11px] text-muted-foreground">{range.min}–{range.max}; provider default {range.default}. Higher follows the prompt more literally. Left at default, nothing extra is sent.</p>
+                  </div>;
+                })()}
+                {isCloudProvider && <VideoOutputControls
+                  aspectRatios={outputOptions.aspectRatios}
+                  aspectLockedReason={seedanceSelected ? undefined : `${cloudModelName} takes its shape from the attached start frame.`}
+                  showFormat={outputOptions.outputFormat}
                   aspectRatio={aspectRatio}
                   onAspectRatio={setAspectRatio}
                   aspectLocked={aspectInherited}
                   format={outputFormat}
                   onFormat={setOutputFormat}
-                  resolutions={modelCapabilities.resolutions ?? []}
-                  resolution={modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : "720p"}
+                  resolutions={outputOptions.resolutions}
+                  resolution={outputOptions.resolutions.includes(outputResolution) ? outputResolution : outputOptions.resolutions[0] ?? "720p"}
                   onResolution={(value) => { setOutputResolution(value); setQualityPreset(RESOLUTION_QUALITY[value]); }}
                 />}
                 <div className="grid grid-cols-2 gap-3">
-                  {!seedanceSelected && <div className="space-y-2">
+                  {!isCloudProvider && <div className="space-y-2">
                     <Label>Resolution</Label>
                     <Select value={`${width}x${height}`} onValueChange={(v) => {
                       const [w, h] = v.split("x").map(Number);
@@ -1171,7 +1221,7 @@ export default function GeneratePage() {
                     <Label>Duration (sec)</Label>
                     {isCloudProvider ? <Select value={String(displayDuration)} onValueChange={v => setDuration(Number(v))}>
                       <SelectTrigger aria-label="Video duration" data-testid="select-cloud-duration" className="bg-secondary/20"><SelectValue /></SelectTrigger>
-                      <SelectContent className="z-[70]">{modelCapabilities.durationOptions.map(value => <SelectItem key={value} value={String(value)}>{value} seconds</SelectItem>)}</SelectContent>
+                      <SelectContent className="z-[70]">{outputOptions.durations.map(value => <SelectItem key={value} value={String(value)}>{value} seconds</SelectItem>)}</SelectContent>
                     </Select> :
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-4">{duration}s</span>
@@ -1204,7 +1254,7 @@ export default function GeneratePage() {
                 </div>
               </div>
 
-              {!isCloudProvider && <div className="space-y-3 pt-4 border-t border-border/50">
+              {(!isCloudProvider || promptControls.fixedSeed) && <div className="space-y-3 pt-4 border-t border-border/50">
                 <div className="flex justify-between items-center">
                   <Label>Seed Behavior</Label>
                   <Select value={seedMode} onValueChange={(v: any) => setSeedMode(v)}>
@@ -1258,7 +1308,7 @@ export default function GeneratePage() {
                    </div>
                   <div className="flex justify-between">
                     <span>Duration:</span>
-                    <span className="text-foreground" data-testid="text-preflight-duration">{durationIsAutomatic ? "Cloud auto · up to 30s" : `${displayDuration}s${seedance25 ? " · Seedance 2.5 (4–30s)" : ""}`}</span>
+                    <span className="text-foreground" data-testid="text-preflight-duration">{durationIsAutomatic ? "Cloud auto · up to 30s" : `${displayDuration}s${seedance25 ? " · Seedance 2.5 (4–30s)" : referenceImagesActive && modelCapabilities.referenceImageDurations ? " · fixed by reference images" : ""}`}</span>
                   </div>
                    <div className="flex justify-between">
                     <span>Cast:</span>

@@ -10,6 +10,9 @@ import {
   falModels,
   falSeedanceImageModels,
   falSeedanceReferenceModels,
+  falKlingImageModel,
+  falVeoImageModels,
+  klingImageElements,
   normalizeFalRequest,
   selectFalGenerationEndpoint,
   validateFalReferenceMediaLimits,
@@ -51,6 +54,49 @@ test("every Cloud video model normalizes a text-only request without references"
       model,
     );
   }
+});
+
+test("Cloud frame and reference modes select exact supported endpoints and input fields", async () => {
+  assert.equal(selectFalGenerationEndpoint("kling-v3-standard", { hasStartFrame: true, hasEndFrame: true, imageCount: 2 }), falKlingImageModel);
+  assert.equal(selectFalGenerationEndpoint("veo-3.1-fast", { hasStartFrame: true }), falVeoImageModels.image);
+  assert.equal(selectFalGenerationEndpoint("veo-3.1-fast", { hasStartFrame: true, hasEndFrame: true }), falVeoImageModels.frames);
+  assert.equal(selectFalGenerationEndpoint("veo-3.1-fast", { imageCount: 3 }), falVeoImageModels.reference);
+  for (const endpoint of [falKlingImageModel, ...Object.values(falVeoImageModels)]) {
+    assert.equal(falModelFromEndpoint(endpoint) !== undefined, true);
+    assert.ok((await quoteVideoSpend(endpoint, { duration: 6, resolution: "720p" })).estimatedUsd > 0);
+  }
+  assert.deepEqual(
+    ["start_image_url", "end_image_url"].map((key) => normalizeFalRequest("kling-v3-standard", {
+      ...request, startFrameUrl: "https://example.org/start.png", endFrameUrl: "https://example.org/end.png",
+    }).input[key]),
+    ["https://example.org/start.png", "https://example.org/end.png"],
+  );
+  assert.equal(normalizeFalRequest("veo-3.1-fast", {
+    ...request, startFrameUrl: "https://example.org/start.png",
+  }).input.image_url, "https://example.org/start.png");
+  assert.equal(normalizeFalRequest("veo-3.1-fast", {
+    ...request, startFrameUrl: "https://example.org/start.png", endFrameUrl: "https://example.org/end.png",
+  }).input.last_frame_url, "https://example.org/end.png");
+  assert.throws(() => selectFalGenerationEndpoint("kling-v3-standard", { imageCount: 1 }), /require a start frame/);
+  assert.throws(() => selectFalGenerationEndpoint("veo-3.1-fast", { hasStartFrame: true, imageCount: 1 }), /different endpoints/);
+  assert.throws(() => selectFalGenerationEndpoint("veo-3.1-fast", { videoCount: 1 }), /does not accept/);
+  assert.throws(() => selectFalGenerationEndpoint("veo-3.1-fast", { hasEndFrame: true }), /requires a start frame/);
+  assert.deepEqual(klingImageElements(["https://example.org/cast.png"], [
+    { frontalUrl: "https://example.org/front.png", referenceUrls: ["https://example.org/profile.png"] },
+    { frontalUrl: "https://example.org/prop.png" },
+  ]), [
+    { frontal_image_url: "https://example.org/cast.png" },
+    { frontal_image_url: "https://example.org/front.png", reference_image_urls: ["https://example.org/profile.png"] },
+    { frontal_image_url: "https://example.org/prop.png" },
+  ]);
+  assert.throws(() => klingImageElements([], [{ frontalUrl: "x", referenceUrls: [] }]), /1 to 3 additional views/);
+  assert.throws(() => klingImageElements(["a", "b", "c", "d"], [{ frontalUrl: "e" }]), /limits Kling/);
+  assert.equal(normalizeFalRequest("veo-3.1-fast", {
+    ...request, aspectRatio: "9:16", outputResolution: "4k", nativeAudioEnabled: true,
+  }).input.resolution, "4k");
+  assert.equal(normalizeFalRequest("kling-v3-standard", {
+    ...request, nativeAudioEnabled: true, aspectRatio: "1:1",
+  }).input.aspect_ratio, "1:1");
 });
 
 test("every Cloud video model accepts the text-only signature without an optional seed", () => {
@@ -114,7 +160,7 @@ test("Seedance endpoint selection rejects unsupported ignored reference combinat
   assert.throws(() => selectFalGenerationEndpoint("seedance-2.0", { task: "extension", imageCount: 1 }), /only on Seedance 2.5/);
   assert.throws(() => selectFalGenerationEndpoint("seedance-2.5", { task: "editing", videoCount: 1, hasStartFrame: true }), /cannot use start\/end frames/);
   assert.throws(() => selectFalGenerationEndpoint("seedance-2.5", { task: "extension", videoCount: 2 }), /exactly one source video/);
-  assert.throws(() => selectFalGenerationEndpoint("veo-3.1-fast", { hasStartFrame: true }), /supported only by Seedance/);
+  assert.equal(selectFalGenerationEndpoint("veo-3.1-fast", { hasStartFrame: true }), falVeoImageModels.image);
   assert.throws(() => selectFalGenerationEndpoint("seedance-2.5", { hasEndFrame: true }), /requires a start frame/);
 });
 
@@ -388,5 +434,24 @@ test("CreateGenerationBody accepts Seedance 2.5 tasks, frames, and typed media s
   }).success, false);
   assert.equal(CreateGenerationBody.strict().safeParse({
     ...generationInput, model: "seedance-2.5", image_url: "https://arbitrary.example/reference.png",
+  }).success, false);
+});
+
+test("Kling structured elements and CFG fields are bounded at the API boundary", () => {
+  const input = {
+    ...generationInput,
+    provider: "FAL",
+    model: "kling-v3-standard",
+    startFrameKey: "tenants/tenant-id/generation-references/start.png",
+    klingCfgScale: 0.5,
+    klingElements: [{
+      frontalImageKey: "tenants/tenant-id/generation-references/front.png",
+      referenceImageKeys: ["tenants/tenant-id/generation-references/side.png"],
+    }],
+  };
+  assert.equal(CreateGenerationBody.strict().safeParse(input).success, true);
+  assert.equal(CreateGenerationBody.strict().safeParse({ ...input, klingCfgScale: 1.2 }).success, false);
+  assert.equal(CreateGenerationBody.strict().safeParse({
+    ...input, klingElements: [{ frontalImageKey: "a", referenceImageKeys: ["a", "b", "c", "d"] }],
   }).success, false);
 });

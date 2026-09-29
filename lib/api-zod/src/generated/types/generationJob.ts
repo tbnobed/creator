@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GenerationJobKlingElementsItem } from './generationJobKlingElementsItem';
 import type { GenerationJobProvider } from './generationJobProvider';
 import type { GenerationJobProviderTaskMetadata } from './generationJobProviderTaskMetadata';
 import type { GenerationJobStatus } from './generationJobStatus';
@@ -44,6 +45,9 @@ export interface GenerationJob {
   /** @nullable */
   endFrameKey?: string | null;
   referenceImageKeys?: string[];
+  klingElements?: GenerationJobKlingElementsItem[];
+  /** @nullable */
+  klingCfgScale?: number | null;
   referenceVideoKeys?: string[];
   referenceAudioKeys?: string[];
   compiledPrompt: string;

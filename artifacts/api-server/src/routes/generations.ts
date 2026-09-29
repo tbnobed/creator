@@ -81,6 +81,20 @@ function restoreContextFromMetadata(
     startFrameKey: typeof composer.startFrameKey === "string" && composer.startFrameKey.startsWith(`tenants/${job.tenantId}/generation-references/`) ? composer.startFrameKey : null,
     endFrameKey: typeof composer.endFrameKey === "string" && composer.endFrameKey.startsWith(`tenants/${job.tenantId}/generation-references/`) ? composer.endFrameKey : null,
     referenceImageKeys: Array.isArray(composer.referenceImageKeys) ? composer.referenceImageKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/`)) : [],
+    klingElements: Array.isArray(composer.klingElements)
+      ? composer.klingElements.flatMap((element) => {
+        if (!element || typeof element !== "object" || Array.isArray(element)) return [];
+        const item = element as Record<string, unknown>;
+        if (typeof item.frontalImageKey !== "string" || !item.frontalImageKey.startsWith(`tenants/${job.tenantId}/generation-references/`)) return [];
+        return [{
+          frontalImageKey: item.frontalImageKey,
+          referenceImageKeys: Array.isArray(item.referenceImageKeys)
+            ? item.referenceImageKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/generation-references/`))
+            : [],
+        }];
+      })
+      : [],
+    klingCfgScale: typeof composer.klingCfgScale === "number" && composer.klingCfgScale >= 0 && composer.klingCfgScale <= 1 ? composer.klingCfgScale : null,
     referenceVideoKeys: Array.isArray(composer.referenceVideoKeys) ? composer.referenceVideoKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/generation-references/`)) : [],
     referenceAudioKeys: Array.isArray(composer.referenceAudioKeys) ? composer.referenceAudioKeys.filter((key): key is string => typeof key === "string" && key.startsWith(`tenants/${job.tenantId}/generation-references/`)) : [],
   };

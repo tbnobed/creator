@@ -7,7 +7,7 @@
  */
 
 /**
- * Seedance output shape; Seedance 2.5 editing inherits the source shape instead.
+ * Seedance output shape (editing inherits the source). Veo supports 16:9 and 9:16. Kling text-to-video supports 16:9, 9:16 and 1:1; Kling image-to-video inherits its start-frame shape instead.
  */
 export type GenerationInputAspectRatio = typeof GenerationInputAspectRatio[keyof typeof GenerationInputAspectRatio];
 

@@ -20,10 +20,35 @@ export const falSeedanceImageModels = {
   "seedance-2.0-fast": "bytedance/seedance-2.0/enterprise/v2/fast/image-to-video",
   "seedance-2.5": "bytedance/seedance-2.5/image-to-video",
 } as const;
+export const falKlingImageModel = "fal-ai/kling-video/v3/standard/image-to-video";
+export const falVeoImageModels = {
+  image: "fal-ai/veo3.1/fast/image-to-video",
+  frames: "fal-ai/veo3.1/fast/first-last-frame-to-video",
+  reference: "fal-ai/veo3.1/fast/reference-to-video",
+} as const;
+
+/** Map ordered, already signed image URLs to Kling's documented combo element shape. */
+export function klingImageElements(
+  frontalUrls: string[],
+  structured: Array<{ frontalUrl: string; referenceUrls?: string[] }>,
+): Array<{ frontal_image_url: string; reference_image_urls?: string[] }> {
+  const elements = frontalUrls.map((url) => ({ frontal_image_url: url }));
+  for (const element of structured) {
+    if (element.referenceUrls && (element.referenceUrls.length < 1 || element.referenceUrls.length > 3)) {
+      throw new FalHttpError("Kling elements accept 1 to 3 additional views", null, false);
+    }
+    elements.push({
+      frontal_image_url: element.frontalUrl,
+      ...(element.referenceUrls ? { reference_image_urls: element.referenceUrls } : {}),
+    });
+  }
+  if (elements.length > 4) throw new FalHttpError("OBTV limits Kling 3 Standard to 4 image elements", null, false);
+  return elements;
+}
 
 const falEndpointsByModel: Record<FalModel, readonly string[]> = {
-  "veo-3.1-fast": [falModels["veo-3.1-fast"]],
-  "kling-v3-standard": [falModels["kling-v3-standard"]],
+  "veo-3.1-fast": [falModels["veo-3.1-fast"], ...Object.values(falVeoImageModels)],
+  "kling-v3-standard": [falModels["kling-v3-standard"], falKlingImageModel],
   "seedance-2.0-mini": [falModels["seedance-2.0-mini"], falSeedanceReferenceModels["seedance-2.0-mini"], falSeedanceImageModels["seedance-2.0-mini"]],
   "seedance-2.0": [falModels["seedance-2.0"], falSeedanceReferenceModels["seedance-2.0"], falSeedanceImageModels["seedance-2.0"]],
   "seedance-2.0-fast": [falModels["seedance-2.0-fast"], falSeedanceReferenceModels["seedance-2.0-fast"], falSeedanceImageModels["seedance-2.0-fast"]],
@@ -53,6 +78,20 @@ export function selectFalGenerationEndpoint(
   const hasLists = imageCount + videoCount + audioCount > 0;
   if (references.hasEndFrame && !references.hasStartFrame) {
     throw new FalHttpError("An end frame requires a start frame", null, false);
+  }
+  if (model === "kling-v3-standard") {
+    if (references.task || videoCount || audioCount) throw new FalHttpError("Kling 3 Standard supports image elements and start/end frames, not video or audio references or Seedance tasks", null, false);
+    if (imageCount > 4) throw new FalHttpError("OBTV limits Kling 3 Standard to 4 image elements", null, false);
+    if (imageCount && !references.hasStartFrame) throw new FalHttpError("Kling 3 image elements require a start frame", null, false);
+    return hasFrames ? falKlingImageModel : falModels[model];
+  }
+  if (model === "veo-3.1-fast") {
+    if (references.task || videoCount || audioCount) throw new FalHttpError("Veo 3.1 Fast does not accept video/audio references or Seedance tasks", null, false);
+    if (imageCount > 3) throw new FalHttpError("Veo 3.1 Fast accepts at most 3 reference images", null, false);
+    if (hasFrames && hasLists) throw new FalHttpError("Veo frames and reference images use different endpoints; choose one mode", null, false);
+    return references.hasEndFrame ? falVeoImageModels.frames
+      : references.hasStartFrame ? falVeoImageModels.image
+      : hasLists ? falVeoImageModels.reference : falModels[model];
   }
   if (model === "seedance-2.5") {
     if (imageCount > 30 || videoCount > 10 || audioCount > 10 || imageCount + videoCount + audioCount + Number(references.hasStartFrame) + Number(references.hasEndFrame) > 50) {
@@ -152,7 +191,7 @@ export function validateFalReferenceMediaLimits(model: FalModel, stats: FalRefer
       throw new FalHttpError(`${modelName} reference video frame rate must be between 24 and 60 FPS`, null, false);
     }
   };
-  for (const image of images) assertSize(image.sizeBytes, 30 * MiB, "Reference image");
+  for (const image of images) assertSize(image.sizeBytes, model === "veo-3.1-fast" ? 8 * MiB : 30 * MiB, "Reference image");
   for (const audio of audios) assertSize(audio.sizeBytes, 15 * MiB, "Reference audio");
 
   if (model === "seedance-2.0" || model === "seedance-2.0-mini" || model === "seedance-2.0-fast") {
@@ -351,18 +390,30 @@ export function normalizeFalRequest(
   },
 ): NormalizedFalRequest {
   const inferredAspect = aspectRatio(request.width, request.height);
-  const aspect = model.startsWith("seedance")
+  const aspect = model.startsWith("seedance") || request.aspectRatio
     ? request.aspectRatio ?? inferredAspect
     : request.width / request.height > 1.2 ? "16:9"
       : request.width / request.height < 0.83 ? "9:16" : "1:1";
   const requestedRatio = request.width / request.height;
   const veoAspectIsSupported = Math.abs(requestedRatio - 16 / 9) / (16 / 9) <= 0.05
     || Math.abs(requestedRatio - 9 / 16) / (9 / 16) <= 0.05;
-  if (model === "veo-3.1-fast" && !veoAspectIsSupported) {
+  if (model === "veo-3.1-fast" && !request.aspectRatio && !veoAspectIsSupported) {
     throw new FalHttpError("Veo 3.1 Fast supports only 16:9 or 9:16 output", null, false);
   }
-  if (!model.startsWith("seedance") && (request.aspectRatio || request.outputResolution)) {
-    throw new FalHttpError("Aspect ratio and output resolution selection are supported only by Seedance", null, false);
+  if (model === "veo-3.1-fast" && !["16:9", "9:16"].includes(aspect)) {
+    throw new FalHttpError("Veo 3.1 Fast supports only 16:9 or 9:16 output", null, false);
+  }
+  if (model === "kling-v3-standard" && request.aspectRatio && !["16:9", "9:16", "1:1"].includes(request.aspectRatio)) {
+    throw new FalHttpError("Kling 3 Standard supports only 16:9, 9:16, or 1:1", null, false);
+  }
+  if (model === "kling-v3-standard" && request.startFrameUrl && request.aspectRatio) {
+    throw new FalHttpError("Kling image-to-video inherits aspect ratio from the start frame", null, false);
+  }
+  if (model === "kling-v3-standard" && request.outputResolution) {
+    throw new FalHttpError("Kling 3 Standard has no output resolution selection", null, false);
+  }
+  if (model === "veo-3.1-fast" && request.outputResolution && !["720p", "1080p", "4k"].includes(request.outputResolution)) {
+    throw new FalHttpError("Veo 3.1 Fast supports 720p, 1080p, or 4k output", null, false);
   }
   const common = { prompt: request.prompt, aspect_ratio: aspect };
   let durationSeconds: number;
@@ -372,22 +423,23 @@ export function normalizeFalRequest(
     durationSeconds = [4, 6, 8].reduce((best, value) => (
       Math.abs(value - request.durationSeconds) < Math.abs(best - request.durationSeconds) ? value : best
     ), 8);
-    resolution = request.qualityPreset === "HIGH" ? "1080p" : "720p";
+    resolution = request.outputResolution ?? (request.qualityPreset === "HIGH" ? "1080p" : "720p");
     input = {
       ...common,
       ...(request.negativePrompt ? { negative_prompt: request.negativePrompt } : {}),
       ...(request.seed != null ? { seed: Math.floor(request.seed) } : {}),
       duration: `${durationSeconds}s`,
       resolution,
-      generate_audio: false,
+      generate_audio: request.nativeAudioEnabled ?? false,
     };
   } else if (model === "kling-v3-standard") {
-    durationSeconds = request.durationSeconds <= 5 ? 5 : 10;
+    durationSeconds = Math.max(3, Math.min(15, Math.round(request.durationSeconds)));
     input = {
-      ...common,
+      prompt: request.prompt,
+      ...(!request.startFrameUrl ? { aspect_ratio: aspect } : {}),
       ...(request.negativePrompt ? { negative_prompt: request.negativePrompt } : {}),
       duration: String(durationSeconds),
-      generate_audio: false,
+      generate_audio: request.nativeAudioEnabled ?? false,
     };
   } else {
     const automaticEditDuration = model === "seedance-2.5" && request.seedanceTask === "editing";
@@ -415,15 +467,18 @@ export function normalizeFalRequest(
       resolution,
       generate_audio: request.nativeAudioEnabled ?? Boolean(request.dialogue?.trim()),
     };
-    if (request.startFrameUrl || request.endFrameUrl) {
-      if (!model.startsWith("seedance")) {
-        throw new FalHttpError("Start and end frames are supported only by Seedance image-to-video endpoints", null, false);
-      }
-      if (!request.startFrameUrl) {
-        throw new FalHttpError("An end frame requires a start frame", null, false);
-      }
+  }
+  if (request.endFrameUrl && !request.startFrameUrl) throw new FalHttpError("An end frame requires a start frame", null, false);
+  if (request.startFrameUrl) {
+    if (model.startsWith("seedance")) {
       input.image_url = request.startFrameUrl;
       if (request.endFrameUrl) input.end_image_url = request.endFrameUrl;
+    } else if (model === "kling-v3-standard") {
+      input.start_image_url = request.startFrameUrl;
+      if (request.endFrameUrl) input.end_image_url = request.endFrameUrl;
+    } else {
+      input[request.endFrameUrl ? "first_frame_url" : "image_url"] = request.startFrameUrl;
+      if (request.endFrameUrl) input.last_frame_url = request.endFrameUrl;
     }
   }
   const effective = falVideoDimensions(aspect, resolution);

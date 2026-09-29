@@ -1185,7 +1185,7 @@ export const GenerationInputSeedanceTask = {
 } as const;
 
 /**
- * Seedance output shape; Seedance 2.5 editing inherits the source shape instead.
+ * Seedance output shape (editing inherits the source). Veo supports 16:9 and 9:16. Kling text-to-video supports 16:9, 9:16 and 1:1; Kling image-to-video inherits its start-frame shape instead.
  */
 export type GenerationInputAspectRatio = typeof GenerationInputAspectRatio[keyof typeof GenerationInputAspectRatio];
 
@@ -1200,7 +1200,7 @@ export const GenerationInputAspectRatio = {
 } as const;
 
 /**
- * Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p.
+ * Seedance resolution (4k on 2.0 standard only; mini and fast support 480p and 720p). Veo 3.1 Fast supports 720p, 1080p and 4k on text, frame and reference endpoints. Kling does not expose resolution selection.
  */
 export type GenerationInputOutputResolution = typeof GenerationInputOutputResolution[keyof typeof GenerationInputOutputResolution];
 
@@ -1222,6 +1222,17 @@ export const GenerationInputOutputFormat = {
   mp4: 'mp4',
   mov: 'mov',
 } as const;
+
+export type GenerationInputKlingElementsItem = {
+  /** @minLength 1 */
+  frontalImageKey: string;
+  /**
+     * @minItems 1
+     * @maxItems 3
+     * @items.minLength 1
+     */
+  referenceImageKeys?: string[];
+};
 
 export type GenerationInputFps = typeof GenerationInputFps[keyof typeof GenerationInputFps];
 
@@ -1253,7 +1264,7 @@ export interface GenerationInput {
   provider?: GenerationInputProvider;
   model?: GenerationInputModel;
   voiceCloningEnabled?: boolean;
-  /** Seedance only. When omitted, dialogue enables native audio; without dialogue the video is silent. Explicit false keeps a dialogue request silent. */
+  /** Native audio is available on all Cloud models. For Seedance, omission enables audio for dialogue; for Veo 3.1 Fast and Kling 3 Standard, omission keeps output silent. Explicit false always keeps a request silent. */
   nativeAudioEnabled?: boolean;
   /**
      * @minItems 0
@@ -1281,20 +1292,33 @@ export interface GenerationInput {
   referenceVideoKey?: string;
   /** Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode. */
   seedanceTask?: GenerationInputSeedanceTask;
-  /** Seedance output shape; Seedance 2.5 editing inherits the source shape instead. */
+  /** Seedance output shape (editing inherits the source). Veo supports 16:9 and 9:16. Kling text-to-video supports 16:9, 9:16 and 1:1; Kling image-to-video inherits its start-frame shape instead. */
   aspectRatio?: GenerationInputAspectRatio;
-  /** Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p. */
+  /** Seedance resolution (4k on 2.0 standard only; mini and fast support 480p and 720p). Veo 3.1 Fast supports 720p, 1080p and 4k on text, frame and reference endpoints. Kling does not expose resolution selection. */
   outputResolution?: GenerationInputOutputResolution;
   /** Seedance returns MP4; requested MOV output is remuxed server-side without video/audio transcoding after generation, then served as video/quicktime. */
   outputFormat?: GenerationInputOutputFormat;
+  /** Tenant-owned first-frame image. Supported by Seedance image-to-video, Kling 3 Standard image-to-video, and Veo 3.1 Fast image-to-video or first/last-frame-to-video. */
   startFrameKey?: string;
+  /** Tenant-owned last-frame image; requires startFrameKey. Supported by Seedance, Kling 3 Standard and Veo 3.1 Fast first/last-frame endpoints. */
   endFrameKey?: string;
   /**
-     * Tenant-owned image storage keys; Seedance 2.0 allows at most 9, Seedance 2.5 at most 30.
+     * Tenant-owned image storage keys. Seedance 2.0 allows up to 9 and Seedance 2.5 up to 30. OBTV limits Veo 3.1 Fast to 3 as reference-to-video (cannot combine with frames), and Kling 3 Standard to 4 image elements (requires a start frame). Selected Character and Environment images count toward these limits.
      * @maxItems 30
      * @items.minLength 1
      */
   referenceImageKeys?: string[];
+  /**
+     * Kling 3 Standard image-to-video only. Ordered image elements referenced in the prompt as @Element1, @Element2, etc. Requires startFrameKey. Each element needs a frontal image and may include 1-3 additional views. Cannot be combined with referenceImageKeys or selected cast/environment references unless their combined element count is at most 4.
+     * @maxItems 4
+     */
+  klingElements?: GenerationInputKlingElementsItem[];
+  /**
+     * Kling 3 Standard only. Optional prompt adherence scale; provider default is 0.5.
+     * @minimum 0
+     * @maximum 1
+     */
+  klingCfgScale?: number;
   /**
      * Tenant-owned video storage keys; provider-specific count, size, and duration limits are validated before spend reservation.
      * @maxItems 10
@@ -1356,6 +1380,11 @@ export const GenerationJobProvider = {
 
 export type GenerationJobProviderTaskMetadata = { [key: string]: unknown };
 
+export type GenerationJobKlingElementsItem = {
+  frontalImageKey: string;
+  referenceImageKeys: string[];
+};
+
 export interface GenerationJob {
   id: string;
   title: string;
@@ -1391,6 +1420,9 @@ export interface GenerationJob {
   /** @nullable */
   endFrameKey?: string | null;
   referenceImageKeys?: string[];
+  klingElements?: GenerationJobKlingElementsItem[];
+  /** @nullable */
+  klingCfgScale?: number | null;
   referenceVideoKeys?: string[];
   referenceAudioKeys?: string[];
   compiledPrompt: string;

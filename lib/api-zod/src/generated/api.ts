@@ -1589,6 +1589,11 @@ export const ListGenerationsResponse = zod.object({
   "startFrameKey": zod.string().nullish(),
   "endFrameKey": zod.string().nullish(),
   "referenceImageKeys": zod.array(zod.string()).optional(),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string(),
+  "referenceImageKeys": zod.array(zod.string())
+})).optional(),
+  "klingCfgScale": zod.number().nullish(),
   "referenceVideoKeys": zod.array(zod.string()).optional(),
   "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
@@ -1650,6 +1655,15 @@ export const createGenerationBodyAudioInstructionsMax = 5000;
 export const createGenerationBodyReferenceImageKeysMax = 30;
 
 
+
+export const createGenerationBodyKlingElementsItemReferenceImageKeysMax = 3;
+
+export const createGenerationBodyKlingElementsMax = 4;
+
+export const createGenerationBodyKlingCfgScaleMin = 0;
+export const createGenerationBodyKlingCfgScaleMax = 1;
+
+
 export const createGenerationBodyReferenceVideoKeysMax = 10;
 
 
@@ -1671,7 +1685,7 @@ export const CreateGenerationBody = zod.object({
   "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
   "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0', 'seedance-2.0-fast', 'seedance-2.5']).optional(),
   "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
-  "nativeAudioEnabled": zod.boolean().optional().describe('Seedance only. When omitted, dialogue enables native audio; without dialogue the video is silent. Explicit false keeps a dialogue request silent.'),
+  "nativeAudioEnabled": zod.boolean().optional().describe('Native audio is available on all Cloud models. For Seedance, omission enables audio for dialogue; for Veo 3.1 Fast and Kling 3 Standard, omission keeps output silent. Explicit false always keeps a request silent.'),
   "characterIds": zod.array(zod.string()).min(createGenerationBodyCharacterIdsMin).max(createGenerationBodyCharacterIdsMax).optional(),
   "settingId": zod.string().nullish(),
   "prompt": zod.string().min(1).max(createGenerationBodyPromptMax),
@@ -1683,12 +1697,17 @@ export const CreateGenerationBody = zod.object({
   "generationMode": zod.string(),
   "referenceVideoKey": zod.string().optional(),
   "seedanceTask": zod.enum(['reference', 'editing', 'extension']).optional().describe('Optional Seedance task mode. Editing and extension require exactly one source video on Seedance 2.5. Reference with no references routes to text-to-video; Seedance 2.0 accepts reference as its default mode.'),
-  "aspectRatio": zod.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9']).optional().describe('Seedance output shape; Seedance 2.5 editing inherits the source shape instead.'),
-  "outputResolution": zod.enum(['480p', '720p', '1080p', '4k']).optional().describe('Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p.'),
+  "aspectRatio": zod.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9']).optional().describe('Seedance output shape (editing inherits the source). Veo supports 16:9 and 9:16. Kling text-to-video supports 16:9, 9:16 and 1:1; Kling image-to-video inherits its start-frame shape instead.'),
+  "outputResolution": zod.enum(['480p', '720p', '1080p', '4k']).optional().describe('Seedance resolution (4k on 2.0 standard only; mini and fast support 480p and 720p). Veo 3.1 Fast supports 720p, 1080p and 4k on text, frame and reference endpoints. Kling does not expose resolution selection.'),
   "outputFormat": zod.enum(['mp4', 'mov']).optional().describe('Seedance returns MP4; requested MOV output is remuxed server-side without video\/audio transcoding after generation, then served as video\/quicktime.'),
-  "startFrameKey": zod.string().optional(),
-  "endFrameKey": zod.string().optional(),
-  "referenceImageKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceImageKeysMax).optional().describe('Tenant-owned image storage keys; Seedance 2.0 allows at most 9, Seedance 2.5 at most 30.'),
+  "startFrameKey": zod.string().optional().describe('Tenant-owned first-frame image. Supported by Seedance image-to-video, Kling 3 Standard image-to-video, and Veo 3.1 Fast image-to-video or first\/last-frame-to-video.'),
+  "endFrameKey": zod.string().optional().describe('Tenant-owned last-frame image; requires startFrameKey. Supported by Seedance, Kling 3 Standard and Veo 3.1 Fast first\/last-frame endpoints.'),
+  "referenceImageKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceImageKeysMax).optional().describe('Tenant-owned image storage keys. Seedance 2.0 allows up to 9 and Seedance 2.5 up to 30. OBTV limits Veo 3.1 Fast to 3 as reference-to-video (cannot combine with frames), and Kling 3 Standard to 4 image elements (requires a start frame). Selected Character and Environment images count toward these limits.'),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string().min(1),
+  "referenceImageKeys": zod.array(zod.string().min(1)).min(1).max(createGenerationBodyKlingElementsItemReferenceImageKeysMax).optional()
+})).max(createGenerationBodyKlingElementsMax).optional().describe('Kling 3 Standard image-to-video only. Ordered image elements referenced in the prompt as @Element1, @Element2, etc. Requires startFrameKey. Each element needs a frontal image and may include 1-3 additional views. Cannot be combined with referenceImageKeys or selected cast\/environment references unless their combined element count is at most 4.'),
+  "klingCfgScale": zod.number().min(createGenerationBodyKlingCfgScaleMin).max(createGenerationBodyKlingCfgScaleMax).optional().describe('Kling 3 Standard only. Optional prompt adherence scale; provider default is 0.5.'),
   "referenceVideoKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceVideoKeysMax).optional().describe('Tenant-owned video storage keys; provider-specific count, size, and duration limits are validated before spend reservation.'),
   "referenceAudioKeys": zod.array(zod.string().min(1)).max(createGenerationBodyReferenceAudioKeysMax).optional().describe('Tenant-owned audio storage keys; provider-specific count, size, and duration limits are validated before spend reservation.'),
   "durationSeconds": zod.number().min(1).max(createGenerationBodyDurationSecondsMax),
@@ -1724,6 +1743,11 @@ export const CreateGenerationResponse = zod.object({
   "startFrameKey": zod.string().nullish(),
   "endFrameKey": zod.string().nullish(),
   "referenceImageKeys": zod.array(zod.string()).optional(),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string(),
+  "referenceImageKeys": zod.array(zod.string())
+})).optional(),
+  "klingCfgScale": zod.number().nullish(),
   "referenceVideoKeys": zod.array(zod.string()).optional(),
   "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
@@ -1787,6 +1811,11 @@ export const GetGenerationResponse = zod.object({
   "startFrameKey": zod.string().nullish(),
   "endFrameKey": zod.string().nullish(),
   "referenceImageKeys": zod.array(zod.string()).optional(),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string(),
+  "referenceImageKeys": zod.array(zod.string())
+})).optional(),
+  "klingCfgScale": zod.number().nullish(),
   "referenceVideoKeys": zod.array(zod.string()).optional(),
   "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
@@ -1860,6 +1889,11 @@ export const CancelGenerationResponse = zod.object({
   "startFrameKey": zod.string().nullish(),
   "endFrameKey": zod.string().nullish(),
   "referenceImageKeys": zod.array(zod.string()).optional(),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string(),
+  "referenceImageKeys": zod.array(zod.string())
+})).optional(),
+  "klingCfgScale": zod.number().nullish(),
   "referenceVideoKeys": zod.array(zod.string()).optional(),
   "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),
@@ -2056,6 +2090,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "startFrameKey": zod.string().nullish(),
   "endFrameKey": zod.string().nullish(),
   "referenceImageKeys": zod.array(zod.string()).optional(),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string(),
+  "referenceImageKeys": zod.array(zod.string())
+})).optional(),
+  "klingCfgScale": zod.number().nullish(),
   "referenceVideoKeys": zod.array(zod.string()).optional(),
   "referenceAudioKeys": zod.array(zod.string()).optional(),
   "compiledPrompt": zod.string(),

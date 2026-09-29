@@ -7,7 +7,7 @@
  */
 
 /**
- * Seedance resolution. 4k is available on Seedance 2.0 standard only; mini and fast support 480p and 720p.
+ * Seedance resolution (4k on 2.0 standard only; mini and fast support 480p and 720p). Veo 3.1 Fast supports 720p, 1080p and 4k on text, frame and reference endpoints. Kling does not expose resolution selection.
  */
 export type GenerationInputOutputResolution = typeof GenerationInputOutputResolution[keyof typeof GenerationInputOutputResolution];
 

@@ -85,7 +85,11 @@ const imageCatalog = {
 
 const videoCatalog = {
   "fal-ai/veo3.1/fast": { units: ["seconds"] },
+  "fal-ai/veo3.1/fast/image-to-video": { units: ["seconds"] },
+  "fal-ai/veo3.1/fast/first-last-frame-to-video": { units: ["seconds"] },
+  "fal-ai/veo3.1/fast/reference-to-video": { units: ["seconds"] },
   "fal-ai/kling-video/v3/standard/text-to-video": { units: ["seconds"] },
+  "fal-ai/kling-video/v3/standard/image-to-video": { units: ["seconds"] },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/v2/fast/text-to-video": { units: ["1000 tokens"] },
@@ -115,7 +119,11 @@ const localRateCard: Readonly<Record<string, Price>> = {
   "fal-ai/esrgan": { unitPrice: 0.00111, unit: "compute seconds" },
   "fal-ai/imageutils/rembg": { unitPrice: 0.00111, unit: "compute seconds" },
   "fal-ai/veo3.1/fast": { unitPrice: 0.15, unit: "seconds" },
+  "fal-ai/veo3.1/fast/image-to-video": { unitPrice: 0.15, unit: "seconds" },
+  "fal-ai/veo3.1/fast/first-last-frame-to-video": { unitPrice: 0.15, unit: "seconds" },
+  "fal-ai/veo3.1/fast/reference-to-video": { unitPrice: 0.15, unit: "seconds" },
   "fal-ai/kling-video/v3/standard/text-to-video": { unitPrice: 0.14, unit: "seconds" },
+  "fal-ai/kling-video/v3/standard/image-to-video": { unitPrice: 0.14, unit: "seconds" },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { unitPrice: 0.014, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/v2/fast/text-to-video": { unitPrice: 0.0112, unit: "1000 tokens" },
@@ -305,7 +313,7 @@ export async function quoteVideoSpend(modelId: string, input: VideoQuoteInput): 
       + `${referenceAudioDuration ? ` plus ${referenceAudioDuration}s frame-equivalent audio` : ""}`
       + `${referenceImageCount ? ` plus ${referenceImageCount} full-resolution image reference(s)` : ""}`
       + ` (${Math.ceil(tokens)} estimated tokens); checked-in 2.0 rate is applied conservatively to references.`;
-  } else if (modelId === "fal-ai/veo3.1/fast" && dimensions.label === "4k") {
+  } else if (modelId.startsWith("fal-ai/veo3.1/fast") && dimensions.label === "4k") {
     // The local rate is the 720p/1080p audio rate. Documented 4K rates are
     // $0.35 with audio and $0.30 without it, represented as relative factors.
     const multiplier = audio ? 0.35 / 0.15 : 0.30 / 0.15;
