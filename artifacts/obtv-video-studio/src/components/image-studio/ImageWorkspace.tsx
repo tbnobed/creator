@@ -46,6 +46,14 @@ export function ImageWorkspace() {
     setReferenceAssets((current) => current.map((item) => item.id === asset.id ? asset : item));
   };
 
+  const removeDeletedAsset = (id: string) => {
+    setActiveAsset((current) => current?.id === id ? null : current);
+    setReferenceAssets((current) => current.filter((asset) => asset.id !== id));
+    setMaskAssetId(undefined);
+    setPreparedOutpaintAsset(undefined);
+    setUploadedInput((current) => current?.id === id ? undefined : current);
+  };
+
   const toggleReference = (asset: ImageAsset) => {
     setReferenceAssets((current) => {
       if (current.some((item) => item.id === asset.id)) {
@@ -124,6 +132,7 @@ export function ImageWorkspace() {
             mode={mode}
             onMaskUpdate={setMaskAssetId}
             onAssetUpdated={updateActiveAsset}
+            onAssetDeleted={removeDeletedAsset}
             onOutpaintPrepared={setPreparedOutpaintAsset}
             onUpload={openUpload}
           />

@@ -19,6 +19,7 @@ interface ActiveImagePreviewProps {
   mode: WorkspaceMode;
   onMaskUpdate: (maskId: string | undefined) => void;
   onAssetUpdated: (asset: ImageAsset) => void;
+  onAssetDeleted: (id: string) => void;
   onOutpaintPrepared: (asset: ImageAsset | undefined) => void;
   onUpload: () => void;
 }
@@ -31,6 +32,7 @@ export function ActiveImagePreview({
   mode,
   onMaskUpdate,
   onAssetUpdated,
+  onAssetDeleted,
   onOutpaintPrepared,
   onUpload,
 }: ActiveImagePreviewProps) {
@@ -171,7 +173,7 @@ export function ActiveImagePreview({
     if (!window.confirm("Delete this image forever?")) return;
     try {
       await deleteAsset.mutateAsync({ id: asset.id });
-      onClear();
+      onAssetDeleted(asset.id);
       toast({ title: "Image deleted" });
     } catch (error) {
       toast({
@@ -220,7 +222,7 @@ export function ActiveImagePreview({
           <Button size="icon" variant="ghost" aria-label="Download image" className="h-8 w-8 text-white/70" onClick={() => void handleDownload()}>
             <Download className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="ghost" aria-label="Delete image" className="h-8 w-8 text-white/70 hover:bg-destructive" onClick={() => void handleDelete()}>
+          <Button size="icon" variant="ghost" aria-label="Delete image" disabled={deleteAsset.isPending} className="h-8 w-8 text-white/70 hover:bg-destructive" onClick={() => void handleDelete()}>
             <Trash2 className="h-4 w-4" />
           </Button>
           <Button size="icon" variant="ghost" aria-label="Close preview" className="h-8 w-8 text-white/70" onClick={onClear}>

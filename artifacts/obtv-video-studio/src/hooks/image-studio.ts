@@ -202,6 +202,8 @@ export function useDeleteAsset() {
     mutation: {
       onSuccess: () => {
         void qc.invalidateQueries({ queryKey: ["/api/image-studio/assets"] });
+        // Generated images also appear in job cards and job detail responses.
+        void qc.invalidateQueries({ queryKey: ["/api/image-studio/jobs"] });
       }
     }
   });

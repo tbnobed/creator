@@ -1537,13 +1537,15 @@ export async function deleteImageAsset(
       ))
       .limit(1);
     if (reference) return { kind: "referenced" as const };
+    // jsonb_build_object's variadic arguments cannot infer an untyped bound
+    // parameter. Cast the asset ID to text in both JSON containment checks.
     const [continuityReference] = await tx.select({ id: longFormProjectsTable.id })
       .from(longFormProjectsTable)
       .where(and(
         eq(longFormProjectsTable.tenantId, tenantId),
         sql`${longFormProjectsTable.continuity} @> jsonb_build_object(
           'characters', jsonb_build_array(jsonb_build_object(
-            'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}))
+            'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}::text))
           ))
         )`,
       )).limit(1);
@@ -1559,7 +1561,7 @@ export async function deleteImageAsset(
       .where(and(
         eq(charactersTable.tenantId, tenantId),
         sql`${charactersTable.dossier} @> jsonb_build_object(
-          'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}))
+          'wardrobes', jsonb_build_array(jsonb_build_object('referenceAssetId', ${id}::text))
         )`,
       ))
       .limit(1);
@@ -1575,7 +1577,17 @@ export async function deleteImageAsset(
     return { kind: "deleted" as const, asset: deleted };
   });
   if (result.kind !== "deleted") return result.kind;
-  await mediaStorage.deleteImageStudioImage(result.asset.storageKey);
+  // Commit reference checks and row removal before touching bytes: a failed
+  // transaction must never leave a visible asset pointing at a deleted file.
+  // Once committed, a cleanup failure must not falsely report that deletion
+  // failed (retrying would only return 404). Retain/log the orphan for cleanup.
+  try {
+    await mediaStorage.deleteImageStudioImage(result.asset.storageKey);
+  } catch (error) {
+    logger.error({
+      err: error, tenantId, assetId: id, storageKey: result.asset.storageKey,
+    }, "Image asset removed; unreferenced media file needs cleanup");
+  }
   return "deleted";
 }
 
