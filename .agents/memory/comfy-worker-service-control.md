@@ -20,3 +20,9 @@ Do not accept a newly provisioned multi-GPU worker based only on initial `/syste
 **Why:** Both services on a new passive-H100 host initially responded successfully, then one GPU reported fatal PCIe errors while another overheated at modest power. Initial CUDA enumeration was not evidence of a stable replacement.
 
 **How to apply:** Pin processes to physical GPU UUIDs, validate them separately and concurrently, and stop services rather than retrying indefinitely after Xid 79, fatal PCIe recovery failures, or unsafe temperatures. Keep model downloads separate from GPU service startup.
+
+For the dual-H100 workstation, check BMC thermal events before treating GPU disappearance as a driver-install problem. Passive GPU cooling must work independently of CPU load.
+
+**Why:** Inspection on 2026-09-30 found a PCIe-slot critical-temperature event before fatal surprise-link-down errors on both GPU links. The supplied screenshot showed GPUs at 93°C/85°C with no compute processes, while the CPU was cool. GPU initialization failures and ECC messages after the link loss did not establish the original cause.
+
+**How to apply:** Read BMC sensors/event logs and the first kernel error sequence, not just the final NVIDIA errors. Require adequate directed airflow and safe idle temperatures before any stress test; do not assume CPU-based chassis fan curves cool passive accelerators.
