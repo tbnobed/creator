@@ -53,6 +53,7 @@ import { UploadIntent } from "./UploadImageDialog";
 import { UploadCloud, ChevronsUpDown, Check } from "lucide-react";
 
 interface GenerationPanelProps {
+  topazRequest?: number;
   activeAsset: ImageAsset | null;
   referenceAssets: ImageAsset[];
   preparedOutpaintAsset?: ImageAsset;
@@ -123,6 +124,7 @@ export function GenerationPanel({
   reuseJob,
   onUpload,
   uploadedInput,
+  topazRequest,
 }: GenerationPanelProps) {
   const { data: modelsData, isLoading: modelsLoading } = useGetModels();
   const models = modelsData?.models || [];
@@ -164,6 +166,7 @@ export function GenerationPanel({
 
   useEffect(() => {
     if (!models.length) return;
+    if (modelId === "cloud-topaz-upscale" && mode === "upscale") return;
     if (!availableModels.some((model) => model.id === modelId)) {
       const selectedModel = models.find((model) => model.id === modelId);
       const sameProviderModel = selectedModel
@@ -186,6 +189,15 @@ export function GenerationPanel({
       setModelId(nextModel?.id || "");
     }
   }, [availableModels, modelId, mode, models]);
+
+  useEffect(() => {
+    if (!topazRequest) return;
+    modelSelectionCleared.current = false;
+    setModelId("cloud-topaz-upscale");
+    setUpscaleFactor(2);
+    setCount(1);
+    setCloudConfirmed(false);
+  }, [topazRequest]);
 
   useEffect(() => {
     setCount((current) => Math.min(current, activeModel?.maxImages || 1));
@@ -261,13 +273,20 @@ export function GenerationPanel({
     && submittedReferences.length === 1,
   );
   const maskRequired = mode === "inpaint" || mode === "outpaint";
+  const isTopaz = modelId === "cloud-topaz-upscale";
+  const topazPixels = activeAsset ? activeAsset.width * activeAsset.height * upscaleFactor ** 2 : 0;
+  const topazSizeValid = !isTopaz || Boolean(activeAsset && [2, 4].includes(upscaleFactor)
+    && topazPixels <= 96_000_000 && activeAsset.width * upscaleFactor <= 32768
+    && activeAsset.height * upscaleFactor <= 32768);
+  const topazEstimate = topazPixels <= 24_000_000 ? 0.08 : topazPixels <= 48_000_000 ? 0.16 : 0.32;
   const canSubmit = Boolean(
     activeModel
     && (!sourceRequired || operationSource)
     && (!maskRequired || maskAssetId)
     && !tooManyReferences
     && !localReferenceOverflow
-    && localEditDimensionsValid,
+    && localEditDimensionsValid
+    && topazSizeValid,
   );
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -362,10 +381,12 @@ export function GenerationPanel({
       setCloudConfirmed(false);
       toast({ title: "Job started", description: "Your image is being processed." });
     } catch (error) {
-      if (!isTransportError(error)) paidRequest.current = undefined;
+      const unknownAcceptance = isTransportError(error)
+        || (isTopaz && error && typeof error === "object" && "status" in error && Number(error.status) >= 500);
+      if (!unknownAcceptance) paidRequest.current = undefined;
       toast({
         title: "Image job failed to start",
-        description: isTransportError(error) && isPaid
+        description: unknownAcceptance && isPaid
           ? `${imageStudioError(error)} Retry to safely check the same request.`
           : imageStudioError(error),
         variant: "destructive",
@@ -596,13 +617,23 @@ export function GenerationPanel({
           <div className="space-y-2">
             <Label>Upscale factor</Label>
             <div className="flex gap-2">
-              {[2, 4, 8].map((factor) => (
-                <button key={factor} type="button" onClick={() => setUpscaleFactor(factor)} className={`flex-1 rounded-lg border py-2 text-sm ${upscaleFactor === factor ? "border-primary bg-primary/10 text-primary" : "border-white/10 bg-black/40"}`}>
+              {(isTopaz ? [2, 4] : [2, 4, 8]).map((factor) => (
+                <button key={factor} type="button"
+                  disabled={isTopaz && Boolean(activeAsset && (activeAsset.width * activeAsset.height * factor ** 2 > 96_000_000
+                    || activeAsset.width * factor > 32768 || activeAsset.height * factor > 32768))}
+                  onClick={() => setUpscaleFactor(factor)} className={`flex-1 rounded-lg border py-2 text-sm disabled:opacity-40 ${upscaleFactor === factor ? "border-primary bg-primary/10 text-primary" : "border-white/10 bg-black/40"}`}>
                   {factor}×
                 </button>
               ))}
             </div>
             {activeAsset && <p className="text-xs text-muted-foreground">{activeAsset.width * upscaleFactor} × {activeAsset.height * upscaleFactor}</p>}
+            {isTopaz && <div className="space-y-2 text-xs text-muted-foreground">
+              <p>Topaz Standard V2 • PNG • No cropping or face reconstruction. Original stays unchanged; the result is a separate library image linked to this job and source.</p>
+              <p>Opaque images only. Transparency-bearing inputs are rejected before paid submission.</p>
+              {!activeModel && <p role="alert" className="text-destructive">Topaz is unavailable. Configure Fal Cloud credentials to enable it.</p>}
+              {!topazSizeValid && <p role="alert" className="text-destructive">Select a supported 2× or 4× size, up to 96 MP and 32768 pixels per edge.</p>}
+              {activeAsset && topazSizeValid && <p className="font-semibold text-primary">Estimated cost: ${topazEstimate.toFixed(2)} USD. Local estimate, not a provider invoice.</p>}
+            </div>}
           </div>
         )}
 
@@ -674,13 +705,13 @@ export function GenerationPanel({
             <p className="text-xs text-primary">{activeModel.priceNote || "This action consumes credits."}</p>
             <div className="flex items-center gap-2">
               <Checkbox id="cloud-confirm" checked={cloudConfirmed} onCheckedChange={(value) => setCloudConfirmed(Boolean(value))} />
-              <label htmlFor="cloud-confirm" className="cursor-pointer text-xs">I confirm the cost for this render</label>
+              <label htmlFor="cloud-confirm" className="cursor-pointer text-xs">{isTopaz ? "I approve this cost and sending the source image to Fal / Topaz" : "I confirm the cost for this render"}</label>
             </div>
           </div>
         )}
 
         <div className="sticky bottom-0 bg-card/95 py-3 backdrop-blur">
-          <Button type="submit" className="h-12 w-full font-bold" disabled={createJob.isPending || !canSubmit}>
+          <Button type="submit" className="h-12 w-full font-bold" disabled={createJob.isPending || !canSubmit || (isTopaz && !cloudConfirmed)}>
             {createJob.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Submitting…</> : <><Sparkles className="mr-2 h-5 w-5" />{mode === "generate" ? "Generate" : "Process"}</>}
           </Button>
         </div>

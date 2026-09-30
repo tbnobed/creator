@@ -15,6 +15,7 @@ export function ImageWorkspace() {
   const [referenceAssets, setReferenceAssets] = useState<ImageAsset[]>([]);
   const [maxReferences, setMaxReferences] = useState(0);
   const [reuseJob, setReuseJob] = useState<ImageJob>();
+  const [topazRequest, setTopazRequest] = useState(0);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadedInput, setUploadedInput] = useState<{ id: string; intent: UploadIntent }>();
 
@@ -99,12 +100,24 @@ export function ImageWorkspace() {
           reuseJob={reuseJob}
           onUpload={openUpload}
           uploadedInput={uploadedInput}
+          topazRequest={topazRequest}
         />
       </div>
 
       {/* Main Area: Preview & Gallery */}
       <div className="relative order-1 flex min-w-0 flex-none flex-col overflow-hidden md:min-h-0 md:flex-1">
         <div className="flex h-[420px] flex-none flex-col overflow-hidden p-2 md:h-auto md:min-h-0 md:flex-1 md:p-5">
+          {activeAsset && (
+            <button type="button" className="mb-2 self-end rounded-lg border border-primary/40 px-3 py-2 text-sm text-primary"
+              onClick={() => {
+                changeMode("upscale");
+                setReferenceAssets([]);
+                setReuseJob(undefined);
+                setTopazRequest((value) => value + 1);
+              }}>
+              Upscale with Topaz
+            </button>
+          )}
           <ActiveImagePreview 
             asset={activeAsset} 
             onClear={clearAsset}

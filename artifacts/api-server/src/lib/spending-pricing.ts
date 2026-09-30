@@ -73,6 +73,10 @@ const imageCatalog = {
     },
     units: ["megapixels"],
   },
+  "cloud-topaz-upscale": {
+    endpoints: { upscale: "fal-ai/topaz/upscale/image" },
+    units: ["images"],
+  },
   "cloud-esrgan-upscale": {
     endpoints: { upscale: "fal-ai/esrgan" },
     units: ["compute seconds"],
@@ -117,6 +121,7 @@ const localRateCard: Readonly<Record<string, Price>> = {
   "fal-ai/ideogram/v3": { unitPrice: 0.03, unit: "images" },
   "fal-ai/recraft/v3/text-to-image": { unitPrice: 0.04, unit: "images" },
   "fal-ai/qwen-image-edit/inpaint": { unitPrice: 0.03, unit: "megapixels" },
+  "fal-ai/topaz/upscale/image": { unitPrice: 0.08, unit: "images" },
   "fal-ai/esrgan": { unitPrice: 0.00111, unit: "compute seconds" },
   "fal-ai/imageutils/rembg": { unitPrice: 0.00111, unit: "compute seconds" },
   "fal-ai/veo3.1/fast": { unitPrice: 0.15, unit: "seconds" },
@@ -206,7 +211,14 @@ export async function quoteImageSpend(modelId: string, input: QuoteInput): Promi
   let raw: number;
   let detail: string;
   const mp = megapixels(input.width, input.height);
-  if (modelId === "cloud-nano-banana-2") {
+  if (modelId === "cloud-topaz-upscale") {
+    if (input.width > 32768 || input.height > 32768 || input.width * input.height > 96_000_000) {
+      throw unavailable("Topaz image output exceeds the supported 96 MP or 32768-pixel edge limit");
+    }
+    const pixels = input.width * input.height;
+    raw = (pixels <= 24_000_000 ? 0.08 : pixels <= 48_000_000 ? 0.16 : 0.32) * input.count;
+    detail = `${input.count} Topaz Standard V2 output(s), ${pixels} pixels per image; tiered output-image rate.`;
+  } else if (modelId === "cloud-nano-banana-2") {
     const resolution = googleResolution(modelId, input.width, input.height);
     const multiplier = resolution === "0.5K" ? 0.75 : resolution === "2K" ? 1.5 : resolution === "4K" ? 2 : 1;
     raw = price.unitPrice * multiplier * input.count;

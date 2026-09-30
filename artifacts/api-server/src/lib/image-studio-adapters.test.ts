@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 import type { ComfyServer } from "@workspace/db";
 import {
   ImageTaskError,
@@ -309,6 +310,75 @@ for (const [status, retryable] of [[400, false], [429, true], [503, true]] as co
     }
   });
 }
+
+test("Topaz sends conservative source-based payload and recovers singular image results", async () => {
+  const referencePng = execFileSync("ffmpeg", [
+    "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", "2x2", "-i", "pipe:0",
+    "-frames:v", "1", "-threads", "1", "-c:v", "png", "-f", "image2pipe", "pipe:1",
+  ], { input: Buffer.from(Array.from({ length: 4 }, () => [100, 150, 200, 255]).flat()), timeout: 15_000 });
+  const oldFetch = globalThis.fetch;
+  const oldKey = process.env.FAL_KEY;
+  const calls: string[] = [];
+  process.env.FAL_KEY = "mock-topaz-key";
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    calls.push(url);
+    if (url === "https://queue.fal.run/fal-ai/topaz/upscale/image") {
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        image_url: `data:image/png;base64,${referencePng.toString("base64")}`,
+        model: "Standard V2", upscale_factor: 2, output_format: "png",
+        crop_to_fill: false, face_enhancement: false, subject_detection: "All",
+      });
+      return jsonResponse({ request_id: "topaz-test", status_url: "https://queue.fal.run/requests/topaz-test/status",
+        response_url: "https://queue.fal.run/requests/topaz-test", cancel_url: "https://queue.fal.run/requests/topaz-test/cancel" });
+    }
+    if (url === "https://queue.fal.run/requests/topaz-test/status") return jsonResponse({ status: "COMPLETED" });
+    if (url === "https://queue.fal.run/requests/topaz-test") return jsonResponse({ image: { url: "https://v3.fal.media/topaz-test.png", content_type: "image/png" } });
+    if (url === "https://v3.fal.media/topaz-test.png") return new Response(new Uint8Array(referencePng), { headers: { "content-type": "image/png" } });
+    throw new Error(`Unexpected network: ${url}`);
+  }) as typeof fetch;
+  try {
+    const receipt = await submitImageTask({
+      modelId: "cloud-topaz-upscale", operation: "upscale", prompt: "", count: 1,
+      width: referencePng.readUInt32BE(16) * 2, height: referencePng.readUInt32BE(20) * 2,
+      referenceImages: [{ bytes: referencePng, mimeType: "image/png" }], clientId: "topaz-image-test",
+    });
+    const result = await pollImageTask(receipt);
+    assert.equal(result.status, "COMPLETED");
+    assert.equal(result.images?.length, 1);
+    assert.equal(calls.filter((url) => url.endsWith("/upscale/image")).length, 1);
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldKey === undefined) delete process.env.FAL_KEY;
+    else process.env.FAL_KEY = oldKey;
+  }
+});
+
+test("Topaz rejects genuinely transparent pixels before provider intent or paid network", async () => {
+  const source = execFileSync("ffmpeg", [
+    "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", "2x2", "-i", "pipe:0",
+    "-frames:v", "1", "-threads", "1", "-c:v", "png", "-f", "image2pipe", "pipe:1",
+  ], { input: Buffer.from(Array.from({ length: 4 }, () => [100, 150, 200, 128]).flat()), timeout: 15_000 });
+  const oldFetch = globalThis.fetch;
+  const oldKey = process.env.FAL_KEY;
+  let calls = 0;
+  let attempts = 0;
+  process.env.FAL_KEY = "mock-key";
+  globalThis.fetch = (async () => { calls++; throw new Error("Network forbidden"); }) as typeof fetch;
+  try {
+    await assert.rejects(submitImageTask({
+      modelId: "cloud-topaz-upscale", operation: "upscale", prompt: "", count: 1,
+      width: 4, height: 4, referenceImages: [{ bytes: source, mimeType: "image/png" }],
+      clientId: "transparent-topaz", beforeProviderSubmit: async () => { attempts++; },
+    }), /transparency/);
+    assert.equal(calls, 0);
+    assert.equal(attempts, 0);
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldKey === undefined) delete process.env.FAL_KEY;
+    else process.env.FAL_KEY = oldKey;
+  }
+});
 
 test("Cloud Nano Banana Pro edit sends the canonical source bytes and never calls Comfy", async () => {
   const originalFetch = globalThis.fetch;

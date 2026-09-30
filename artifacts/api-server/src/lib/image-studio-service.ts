@@ -1,3 +1,4 @@
+import { assertOpaqueTopazSource, topazImageScale, TOPAZ_IMAGE_MODEL } from "./topaz-image";
 import {
   and,
   desc,
@@ -680,6 +681,16 @@ async function loadInputAssets(
     return { bytes, mimeType: asset.mimeType };
   };
   const references = await Promise.all(referenceIds.map(read));
+  if (input.modelId === TOPAZ_IMAGE_MODEL) {
+    if (references.length !== 1) throw new ImageStudioRequestError("Topaz requires one source image", 400);
+    try {
+      const inspected = inspectImage(references[0]!.bytes, references[0]!.mimeType);
+      topazImageScale(inspected, input.width, input.height);
+      await assertOpaqueTopazSource(references[0]!.bytes, inspected.mimeType);
+    } catch (error) {
+      throw new ImageStudioRequestError(error instanceof Error ? error.message : "Invalid Topaz source", 400);
+    }
+  }
   const mask = input.maskAssetId ? await read(input.maskAssetId) : undefined;
   const totalBytes = [...references, ...(mask ? [mask] : [])]
     .reduce((total, asset) => total + asset.bytes.length, 0);
@@ -704,7 +715,13 @@ async function handleCompleted(
   try {
     for (const [index, image] of images.slice(0, job.count).entries()) {
       const inspected = inspectImage(image.bytes, image.mimeType);
-      const safeName = image.name.trim().slice(0, 255) || `${job.modelName} ${index + 1}`;
+      if (job.modelId === TOPAZ_IMAGE_MODEL
+        && (inspected.width !== job.width || inspected.height !== job.height || inspected.mimeType !== "image/png")) {
+        throw new Error("Topaz returned an unexpected format or size. The original remains unchanged.");
+      }
+      const safeName = job.modelId === TOPAZ_IMAGE_MODEL
+        ? `Topaz upscaled ${inspected.width} × ${inspected.height}`
+        : image.name.trim().slice(0, 255) || `${job.modelName} ${index + 1}`;
       const storageKey = await mediaStorage.storeImageStudioImage(
         safeName,
         inspected.mimeType,

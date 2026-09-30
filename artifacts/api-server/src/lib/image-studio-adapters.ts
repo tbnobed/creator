@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { assertOpaqueTopazSource, topazImageScale } from "./topaz-image";
 import type { ComfyServer } from "@workspace/db";
 import {
   assertTrustedComfyUrl,
@@ -198,6 +199,7 @@ const cloudEndpointByOperation: Record<string, Partial<Record<ImageOperation, st
     inpaint: "fal-ai/qwen-image-edit/inpaint",
     outpaint: "fal-ai/qwen-image-edit/inpaint",
   },
+  "cloud-topaz-upscale": { upscale: "fal-ai/topaz/upscale/image" },
   "cloud-esrgan-upscale": { upscale: "fal-ai/esrgan" },
   "cloud-remove-background": { "remove-background": "fal-ai/imageutils/rembg" },
 };
@@ -1044,7 +1046,7 @@ function rasterDimensions(file: { bytes: Buffer; mimeType: string }): { width: n
   return null;
 }
 
-function buildCloudInput(input: ImageTaskInput, model: ImageModel): Record<string, unknown> {
+async function buildCloudInput(input: ImageTaskInput, model: ImageModel): Promise<Record<string, unknown>> {
   const references = input.referenceImages.map(asDataUri);
   const maskUrl = input.mask ? asDataUri(input.mask) : undefined;
   const imageSize = { width: input.width, height: input.height };
@@ -1102,6 +1104,16 @@ function buildCloudInput(input: ImageTaskInput, model: ImageModel): Record<strin
       output_format: "png",
       ...(input.negativePrompt?.trim() ? { negative_prompt: input.negativePrompt.trim() } : {}),
       ...commonSeed,
+    };
+  }
+  if (input.modelId === "cloud-topaz-upscale") {
+    const dimensions = rasterDimensions(input.referenceImages[0]);
+    if (!dimensions) throw new Error("Could not read the source image dimensions.");
+    const scale = topazImageScale(dimensions, input.width, input.height);
+    await assertOpaqueTopazSource(input.referenceImages[0]!.bytes, input.referenceImages[0]!.mimeType);
+    return {
+      image_url: references[0], model: "Standard V2", upscale_factor: scale,
+      output_format: "png", crop_to_fill: false, face_enhancement: false, subject_detection: "All",
     };
   }
   if (input.modelId === "cloud-esrgan-upscale") {
@@ -1489,8 +1501,9 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
   if (!endpoint) {
     throw new ImageTaskError(`${model.name} has no verified Cloud endpoint for ${input.operation}.`, false);
   }
+  const payload = await buildCloudInput(input, model);
   await input.beforeProviderSubmit?.();
-  const submitted = await submitCloud(endpoint, buildCloudInput(input, model));
+  const submitted = await submitCloud(endpoint, payload);
   return {
     provider: "CLOUD",
     requestId: submitted.requestId,
