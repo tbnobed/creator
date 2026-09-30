@@ -5,6 +5,7 @@ export type VideoMediaProperties = {
   fps?: number;
   width?: number;
   height?: number;
+  audioStreams?: number;
 };
 
 function parseRate(value: unknown): number | undefined {
@@ -51,6 +52,7 @@ export function parseVideoMediaProperties(probeOutput: string): VideoMediaProper
     ...(fps ? { fps } : {}),
     ...(Number.isSafeInteger(width) && width > 0 ? { width } : {}),
     ...(Number.isSafeInteger(height) && height > 0 ? { height } : {}),
+    audioStreams: output.streams?.filter((stream) => stream.codec_type === "audio").length ?? 0,
   };
 }
 

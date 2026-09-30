@@ -1,5 +1,6 @@
 export const falModels = {
   "veo-3.1-fast": "fal-ai/veo3.1/fast",
+  "gemini-omni-flash": "google/gemini-omni-flash",
   "kling-v3-standard": "fal-ai/kling-video/v3/standard/text-to-video",
   "seedance-2.0-mini": "bytedance/seedance-2.0/enterprise/mini/text-to-video",
   "seedance-2.0": "bytedance/seedance-2.0/enterprise/v2/text-to-video",
@@ -46,8 +47,12 @@ export function klingImageElements(
   return elements;
 }
 
-const falEndpointsByModel: Record<FalModel, readonly string[]> = {
+export const TOPAZ_VIDEO_ENDPOINT = "fal-ai/topaz/upscale/video";
+export type FalQueueModel = FalModel | "topaz-upscale";
+const falEndpointsByModel: Record<FalQueueModel, readonly string[]> = {
+  "topaz-upscale": [TOPAZ_VIDEO_ENDPOINT],
   "veo-3.1-fast": [falModels["veo-3.1-fast"], ...Object.values(falVeoImageModels)],
+  "gemini-omni-flash": [falModels["gemini-omni-flash"]],
   "kling-v3-standard": [falModels["kling-v3-standard"], falKlingImageModel],
   "seedance-2.0-mini": [falModels["seedance-2.0-mini"], falSeedanceReferenceModels["seedance-2.0-mini"], falSeedanceImageModels["seedance-2.0-mini"]],
   "seedance-2.0": [falModels["seedance-2.0"], falSeedanceReferenceModels["seedance-2.0"], falSeedanceImageModels["seedance-2.0"]],
@@ -55,9 +60,9 @@ const falEndpointsByModel: Record<FalModel, readonly string[]> = {
   "seedance-2.5": [falModels["seedance-2.5"], falSeedanceReferenceModels["seedance-2.5"], falSeedanceImageModels["seedance-2.5"]],
 };
 
-export function falModelFromEndpoint(endpoint: string): FalModel | undefined {
+export function falModelFromEndpoint(endpoint: string): FalQueueModel | undefined {
   return (Object.entries(falEndpointsByModel)
-    .find(([, endpoints]) => endpoints.includes(endpoint))?.[0]) as FalModel | undefined;
+    .find(([, endpoints]) => endpoints.includes(endpoint))?.[0]) as FalQueueModel | undefined;
 }
 
 export function selectFalGenerationEndpoint(
@@ -78,6 +83,12 @@ export function selectFalGenerationEndpoint(
   const hasLists = imageCount + videoCount + audioCount > 0;
   if (references.hasEndFrame && !references.hasStartFrame) {
     throw new FalHttpError("An end frame requires a start frame", null, false);
+  }
+  if (model === "gemini-omni-flash") {
+    if (hasFrames || hasLists || references.task) {
+      throw new FalHttpError("Gemini Omni Flash text-to-video does not accept reference media, frames, or Seedance tasks", null, false);
+    }
+    return falModels[model];
   }
   if (model === "kling-v3-standard") {
     if (references.task || videoCount || audioCount) throw new FalHttpError("Kling 3 Standard supports image elements and start/end frames, not video or audio references or Seedance tasks", null, false);
@@ -397,10 +408,10 @@ export function normalizeFalRequest(
   const requestedRatio = request.width / request.height;
   const veoAspectIsSupported = Math.abs(requestedRatio - 16 / 9) / (16 / 9) <= 0.05
     || Math.abs(requestedRatio - 9 / 16) / (9 / 16) <= 0.05;
-  if (model === "veo-3.1-fast" && !request.aspectRatio && !veoAspectIsSupported) {
+  if ((model === "veo-3.1-fast" || model === "gemini-omni-flash") && !request.aspectRatio && !veoAspectIsSupported) {
     throw new FalHttpError("Veo 3.1 Fast supports only 16:9 or 9:16 output", null, false);
   }
-  if (model === "veo-3.1-fast" && !["16:9", "9:16"].includes(aspect)) {
+  if ((model === "veo-3.1-fast" || model === "gemini-omni-flash") && !["16:9", "9:16"].includes(aspect)) {
     throw new FalHttpError("Veo 3.1 Fast supports only 16:9 or 9:16 output", null, false);
   }
   if (model === "kling-v3-standard" && request.aspectRatio && !["16:9", "9:16", "1:1"].includes(request.aspectRatio)) {
@@ -412,8 +423,11 @@ export function normalizeFalRequest(
   if (model === "kling-v3-standard" && request.outputResolution) {
     throw new FalHttpError("Kling 3 Standard has no output resolution selection", null, false);
   }
-  if (model === "veo-3.1-fast" && request.outputResolution && !["720p", "1080p", "4k"].includes(request.outputResolution)) {
-    throw new FalHttpError("Veo 3.1 Fast supports 720p, 1080p, or 4k output", null, false);
+  if (model === "veo-3.1-fast" && request.outputResolution && request.outputResolution !== "720p") {
+    throw new FalHttpError("OBTV only offers 720p for Veo 3.1 Fast to avoid higher-resolution charges", null, false);
+  }
+  if (model === "gemini-omni-flash" && request.outputResolution && request.outputResolution !== "720p") {
+    throw new FalHttpError("Gemini Omni Flash supports only native 720p in OBTV", null, false);
   }
   const common = { prompt: request.prompt, aspect_ratio: aspect };
   let durationSeconds: number;
@@ -423,7 +437,7 @@ export function normalizeFalRequest(
     durationSeconds = [4, 6, 8].reduce((best, value) => (
       Math.abs(value - request.durationSeconds) < Math.abs(best - request.durationSeconds) ? value : best
     ), 8);
-    resolution = request.outputResolution ?? (request.qualityPreset === "HIGH" ? "1080p" : "720p");
+    resolution = "720p";
     input = {
       ...common,
       ...(request.negativePrompt ? { negative_prompt: request.negativePrompt } : {}),
@@ -432,6 +446,15 @@ export function normalizeFalRequest(
       resolution,
       generate_audio: request.nativeAudioEnabled ?? false,
     };
+  } else if (model === "gemini-omni-flash") {
+    if (request.seedanceTask || request.startFrameUrl || request.endFrameUrl || request.negativePrompt || request.seed != null) {
+      throw new FalHttpError("Gemini Omni Flash text-to-video accepts no reference frames, negative prompt, fixed seed, or Seedance task", null, false);
+    }
+    if (request.nativeAudioEnabled === false) {
+      throw new FalHttpError("Gemini Omni Flash always generates audio; audio cannot be disabled", null, false);
+    }
+    durationSeconds = Math.max(3, Math.min(10, Math.round(request.durationSeconds)));
+    input = { ...common, duration: durationSeconds };
   } else if (model === "kling-v3-standard") {
     durationSeconds = Math.max(3, Math.min(15, Math.round(request.durationSeconds)));
     input = {
@@ -493,13 +516,13 @@ export function normalizeFalRequest(
 }
 
 export class FalQueueClient {
-  readonly model: FalModel;
+  readonly model: FalQueueModel;
 
-  constructor(model: FalModel) {
+  constructor(model: FalQueueModel) {
     this.model = model;
   }
 
-  async submit(input: Record<string, unknown>, endpoint: string = falModels[this.model]): Promise<{
+  async submit(input: Record<string, unknown>, endpoint: string = this.model === "topaz-upscale" ? TOPAZ_VIDEO_ENDPOINT : falModels[this.model]): Promise<{
     requestId: string;
     endpoints: FalQueueEndpoints;
     metadata: Record<string, unknown>;

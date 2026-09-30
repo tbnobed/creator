@@ -47,6 +47,8 @@ export function useVideoLibrary(favorite?: boolean) {
   return useQuery({
     queryKey: videoLibraryKey(favorite),
     queryFn: () => call(() => listVideoLibrary(favorite === undefined ? undefined : { favorite })),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 }
 

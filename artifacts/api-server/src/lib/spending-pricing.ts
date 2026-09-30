@@ -85,6 +85,7 @@ const imageCatalog = {
 
 const videoCatalog = {
   "fal-ai/veo3.1/fast": { units: ["seconds"] },
+  "google/gemini-omni-flash": { units: ["seconds"] },
   "fal-ai/veo3.1/fast/image-to-video": { units: ["seconds"] },
   "fal-ai/veo3.1/fast/first-last-frame-to-video": { units: ["seconds"] },
   "fal-ai/veo3.1/fast/reference-to-video": { units: ["seconds"] },
@@ -119,6 +120,7 @@ const localRateCard: Readonly<Record<string, Price>> = {
   "fal-ai/esrgan": { unitPrice: 0.00111, unit: "compute seconds" },
   "fal-ai/imageutils/rembg": { unitPrice: 0.00111, unit: "compute seconds" },
   "fal-ai/veo3.1/fast": { unitPrice: 0.15, unit: "seconds" },
+  "google/gemini-omni-flash": { unitPrice: 0.125, unit: "seconds" },
   "fal-ai/veo3.1/fast/image-to-video": { unitPrice: 0.15, unit: "seconds" },
   "fal-ai/veo3.1/fast/first-last-frame-to-video": { unitPrice: 0.15, unit: "seconds" },
   "fal-ai/veo3.1/fast/reference-to-video": { unitPrice: 0.15, unit: "seconds" },

@@ -1,0 +1,30 @@
+[Unit]
+Description=OBTV ComfyUI GPU worker %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=obtv-comfy%i
+Group=obtv-comfy%i
+WorkingDirectory=/opt/obtv/ComfyUI
+EnvironmentFile=/etc/obtv/comfy-%i.env
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/var/lib/obtv/comfy%i
+Environment=HF_HOME=/var/lib/obtv/comfy%i/cache/huggingface
+Environment=TORCH_HOME=/var/lib/obtv/comfy%i/cache/torch
+Environment=TMPDIR=/var/lib/obtv/comfy%i/temp
+Environment=OBTV_CHATTERBOX_PYTHON=/opt/obtv/voice-venv/bin/python
+ExecStart=/opt/obtv/venv/bin/python /opt/obtv/ComfyUI/main.py --listen 127.0.0.1 --port ${COMFY_PORT} --input-directory /var/lib/obtv/comfy%i/input --output-directory /var/lib/obtv/comfy%i/output --temp-directory /var/lib/obtv/comfy%i/temp --user-directory /var/lib/obtv/comfy%i/user --disable-auto-launch
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=120
+LimitNOFILE=65535
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/obtv/comfy%i
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

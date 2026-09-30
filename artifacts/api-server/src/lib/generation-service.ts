@@ -45,10 +45,11 @@ import {
   type FalQueueEndpoints,
 } from "./fal/client";
 import { uploadFalStorageFile } from "./fal/storage";
-import { FAL_MOV_FINALIZATION_ERROR, isRecoverableFalOutputFailure, remuxMp4ToMov } from "./fal/remux";
+import { FAL_MOV_FINALIZATION_ERROR, TOPAZ_FINALIZATION_ERROR, isRecoverableFalOutputFailure, remuxMp4ToMov } from "./fal/remux";
 import { measuredVideoJobMetrics, probeVideoMediaProperties } from "./video-media-probe";
 import { quoteVideoSpend } from "./spending-pricing";
 import { reserveSpend, settleSpend } from "./spending-service";
+import { finalizeTopazOutput, type TopazPlan } from "./topaz-video";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
@@ -1076,6 +1077,17 @@ export async function resumeActiveGenerations(): Promise<void> {
     ));
   for (const job of terminalCloudJobs) {
     if (!hasFalSpendLifecycle(job.providerTaskMetadata)) continue;
+    if (job.status === "CANCELLED" && job.providerTaskMetadata.operation === "topaz-upscale"
+      && job.providerRequestId && !job.providerTaskMetadata.cancellationConfirmed) {
+      try {
+        await new FalQueueClient("topaz-upscale").cancel(falEndpointsFromMetadata(job.providerTaskMetadata));
+        await db.update(generationJobsTable).set({
+          providerTaskMetadata: { ...job.providerTaskMetadata, cancellationRequested: true, cancellationConfirmed: true },
+        }).where(eq(generationJobsTable.id, job.id));
+      } catch (error) {
+        logger.warn({ err: error, jobId: job.id }, "Topaz cancellation is still unconfirmed");
+      }
+    }
     if (job.status === "COMPLETED" || latestFalStatus(job.providerTaskMetadata) === "COMPLETED") {
       await settleVideoSpendIfReserved(
         job.id,
@@ -1574,6 +1586,12 @@ async function createAndSubmitFalGeneration(
     throw new FalHttpError("FAL_KEY is not configured", null, false);
   }
   const model = input.model;
+  if (model === "gemini-omni-flash" && input.nativeAudioEnabled === false) {
+    throw new FalHttpError("Gemini Omni Flash always generates audio; audio cannot be disabled", null, false);
+  }
+  if (model === "gemini-omni-flash" && input.seedMode === "FIXED") {
+    throw new FalHttpError("Gemini Omni Flash does not support a fixed seed", null, false);
+  }
   if (input.outputFormat && !model.startsWith("seedance")) {
     throw new Error("Output format selection is available for Seedance only");
   }
@@ -2006,6 +2024,19 @@ async function completeFalOutput(
     }
   };
   let outputProperties = await probeOutput(bytes);
+  if (metadata.operation === "topaz-upscale") {
+    try {
+      const topaz = metadata.topaz as TopazPlan & { sourceStorageKey: string };
+      if (!topaz?.sourceStorageKey) throw new Error("Topaz source metadata is missing.");
+      const finalized = await finalizeTopazOutput(bytes, await mediaStorage.readBuffer(topaz.sourceStorageKey), topaz);
+      bytes = finalized.bytes;
+      outputProperties = finalized.properties;
+      mimeType = "video/mp4";
+      outputName = `topaz-${requestId}.mp4`;
+    } catch (error) {
+      throw new Error(`${TOPAZ_FINALIZATION_ERROR}: ${error instanceof Error ? error.message : "Could not preserve the source audio and timing."}`);
+    }
+  }
   if (job.voiceCloningEnabled && job.dialogue.trim()) {
     const [speaker, [server]] = await Promise.all([
       selectedVoiceSpeaker(jobId, job.voiceCharacterId),
@@ -2076,7 +2107,7 @@ async function completeFalOutput(
     outputMimeType: mimeType,
     ...(outputProperties ? {
       durationSeconds: measuredMetrics!.durationSeconds,
-      fps: measuredMetrics!.fps,
+      fps: metadata.operation === "topaz-upscale" ? Math.round(measuredMetrics!.fps) : measuredMetrics!.fps,
       frameCount: measuredMetrics!.frameCount,
     } : {}),
     providerTaskMetadata: mergeFalMetadata(metadata, { result, ...durationMetadata }),
@@ -2087,7 +2118,7 @@ async function completeFalOutput(
   }).where(and(eq(generationJobsTable.id, jobId), eq(generationJobsTable.status, "DOWNLOADING")));
 }
 
-async function monitorFalGeneration(
+export async function monitorFalGeneration(
   jobId: string,
   client: FalQueueClient,
   requestId: string,
@@ -2233,6 +2264,29 @@ export async function cancelGeneration(jobId: string) {
   const alreadyCancelled = job.status === "CANCELLED";
   if (!activeGenerationStatuses.includes(job.status) && !alreadyCancelled) {
     throw new Error("Only active generation jobs can be cancelled");
+  }
+  if (job.providerTaskMetadata.operation === "topaz-upscale") {
+    // Persist intent first: a restart must not resume a cancelled paid operation.
+    const [cancelled] = await db.update(generationJobsTable).set({
+      status: "CANCELLED", currentNode: null, errorMessage: "Topaz cancellation requested. Charges may still apply.",
+      providerTaskMetadata: sql`${generationJobsTable.providerTaskMetadata} || '{"cancellationRequested":true}'::jsonb`,
+    }).where(and(eq(generationJobsTable.id, jobId),
+      inArray(generationJobsTable.status, [...activeGenerationStatuses, "CANCELLED"]))).returning();
+    if (!cancelled) throw new Error("Generation job finished before it could be cancelled");
+    if (cancelled.providerRequestId) {
+      try {
+        await new FalQueueClient("topaz-upscale").cancel(falEndpointsFromMetadata(cancelled.providerTaskMetadata));
+        await db.update(generationJobsTable).set({
+          providerTaskMetadata: { ...cancelled.providerTaskMetadata, cancellationConfirmed: true },
+        }).where(eq(generationJobsTable.id, jobId));
+      } catch (error) {
+        logger.warn({ err: error, jobId }, "Topaz cancellation receipt will be retried after restart");
+      }
+    }
+    await settleVideoSpendIfReserved(job.id,
+      cancelled.providerRequestId || cancelled.providerTaskMetadata.submissionIntent ? "uncertain" : "released",
+      "Topaz cancellation preserves the estimate whenever paid execution cannot be ruled out.");
+    return cancelled;
   }
 
   let cancellationNote = "Cancelled by user.";
@@ -2448,6 +2502,7 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
         or(
           inArray(generationJobsTable.errorMessage, ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"]),
           like(generationJobsTable.errorMessage, `${FAL_MOV_FINALIZATION_ERROR}%`),
+          like(generationJobsTable.errorMessage, `${TOPAZ_FINALIZATION_ERROR}%`),
         ),
       )).returning({ id: generationJobsTable.id });
       if (!claimed) return false;

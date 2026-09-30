@@ -88,9 +88,15 @@ test("Output options follow provider contracts", () => {
   assert.equal(kling.durations.at(-1), 15);
   const veo = cloudOutputOptions("veo-3.1-fast", { hasStartFrame: false, hasReferenceImages: false, task: "reference" });
   assert.deepEqual(veo.aspectRatios, ["16:9", "9:16"]);
-  assert.deepEqual(veo.resolutions, ["720p", "1080p", "4k"]);
+  assert.deepEqual(veo.resolutions, ["720p"]);
   assert.deepEqual(veo.durations, [4, 6, 8]);
   assert.equal(veo.nativeAudio, true);
+  const omni = cloudOutputOptions("gemini-omni-flash", { hasStartFrame: false, hasReferenceImages: false, task: "reference" });
+  assert.deepEqual(omni.resolutions, ["720p"]);
+  assert.deepEqual(omni.aspectRatios, ["16:9", "9:16"]);
+  assert.deepEqual([omni.durations[0], omni.durations.at(-1)], [3, 10]);
+  assert.equal(modelAcceptsReferences("gemini-omni-flash"), false);
+  assert.deepEqual(cloudPromptControls("gemini-omni-flash", { referenceImagesActive: false }), { negativePrompt: false, fixedSeed: false, guidanceScale: null });
 });
 
 test("Kling elements are sent only with a start frame and at least one angle", () => {

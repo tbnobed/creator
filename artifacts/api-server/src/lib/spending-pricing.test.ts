@@ -81,6 +81,9 @@ test("all video models use duration, resolution, audio, and token formulas", asy
   assert.equal((await quoteVideoSpend("fal-ai/kling-video/v3/standard/text-to-video", {
     duration: 5, resolution: "720p", generateAudio: true,
   })).estimatedUsd, 0.7);
+  assert.equal((await quoteVideoSpend("google/gemini-omni-flash", {
+    duration: 8, resolution: "720p", generateAudio: true,
+  })).estimatedUsd, 1);
 
   const seedance = await quoteVideoSpend("bytedance/seedance-2.0/enterprise/mini/text-to-video", {
     duration: 5, resolution: "480p", generateAudio: false,

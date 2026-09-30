@@ -8,6 +8,10 @@ import {
   GetGenerationResponse,
   ListGenerationsResponse,
   ListGenerationsQueryParams,
+  QuoteVideoUpscaleBody,
+  QuoteVideoUpscaleResponse,
+  SubmitVideoUpscaleBody,
+  SubmitVideoUpscaleResponse,
 } from "@workspace/api-zod";
 import {
   charactersTable,
@@ -27,6 +31,7 @@ import { isRecoverableFalOutputFailure } from "../lib/fal/remux";
 import { presentGeneration } from "../lib/studio-presenters";
 import { mediaStorage } from "../lib/storage-service";
 import { ResourceNotFoundError } from "../lib/resource-errors";
+import { quoteTopaz, submitTopaz } from "../lib/topaz-service";
 
 const router: IRouter = Router();
 
@@ -263,6 +268,33 @@ router.post("/generations", async (req, res): Promise<void> => {
       ? 404
       : message.startsWith("No healthy") || message.startsWith("No active") ? 409 : 400;
     res.status(status).json({ error: message });
+  }
+});
+
+router.post("/generations/:id/upscale/quote", async (req, res): Promise<void> => {
+  const params = GetGenerationParams.safeParse(req.params);
+  const body = QuoteVideoUpscaleBody.strict().safeParse(req.body);
+  if (!params.success || !body.success) { res.status(400).json({ error: "Invalid upscale source or target." }); return; }
+  try {
+    res.json(QuoteVideoUpscaleResponse.parse(await quoteTopaz(req.context!.tenant!.id, params.data.id, body.data.targetResolution)));
+  } catch (error) {
+    const code = error && typeof error === "object" && "statusCode" in error ? Number(error.statusCode) : 400;
+    res.status(code).json({ error: error instanceof Error ? error.message : "Could not inspect the source video." });
+  }
+});
+
+router.post("/generations/:id/upscale", async (req, res): Promise<void> => {
+  const params = GetGenerationParams.safeParse(req.params);
+  const body = SubmitVideoUpscaleBody.strict().safeParse(req.body);
+  if (!params.success || !body.success) { res.status(400).json({ error: "Invalid upscale confirmation. Review a quote first." }); return; }
+  try {
+    const job = await submitTopaz({
+      ...body.data, sourceId: params.data.id, tenantId: req.context!.tenant!.id, userId: req.context!.user.id,
+    });
+    res.json(SubmitVideoUpscaleResponse.parse(await present(job, req.context!.tenant!.isDefault)));
+  } catch (error) {
+    const code = error && typeof error === "object" && "statusCode" in error ? Number(error.statusCode) : 400;
+    res.status(code).json({ error: error instanceof Error ? error.message : "Could not submit Topaz processing." });
   }
 });
 

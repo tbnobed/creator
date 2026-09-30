@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
 import { generationEditDestination } from "@/lib/generation-edit";
+import { isTopazVideo, TopazProvenance, TopazUpscaleAction } from "@/components/video-studio/TopazUpscaleAction";
 
 export default function GenerationDetailPage() {
   const params = useParams();
@@ -51,18 +52,19 @@ export default function GenerationDetailPage() {
 
   return (
     <Page>
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-4 mb-6">
         <Link href="/generations">
           <Button variant="ghost" size="icon"><ArrowLeft className="size-4" /></Button>
         </Link>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
             {job.title || "Untitled Job"}
             <StatusBadge status={job.status} />
           </h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">ID: {job.id}</p>
         </div>
-        {!isRunning && editDestination.kind !== "invalid" && (
+        <TopazUpscaleAction key={job.id} job={job} />
+        {!isTopazVideo(job) && !isRunning && editDestination.kind !== "invalid" && (
           <Button
             variant="outline"
             className="gap-2"
@@ -82,6 +84,8 @@ export default function GenerationDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <TopazProvenance job={job} />
+          {isCompleted && job.outputUrl && <a className="inline-block text-sm text-primary underline" href={job.outputUrl} download>Download video</a>}
           {/* Main Display Area */}
           <Card className="overflow-hidden border-border/50 bg-card/30 backdrop-blur-sm">
             <div className="aspect-video bg-black flex flex-col items-center justify-center relative">
@@ -246,6 +250,7 @@ export default function GenerationDetailPage() {
 }
 
 function formatProviderModel(providerModelId: string | null) {
+  if (providerModelId === "fal-ai/topaz/upscale/video") return "Topaz Proteus · Upscale";
   switch (providerModelId) {
     case "fal-ai/veo3.1/fast": return "Veo 3.1 Fast";
     case "fal-ai/kling-video/v3/standard/text-to-video": return "Kling v3 Standard";

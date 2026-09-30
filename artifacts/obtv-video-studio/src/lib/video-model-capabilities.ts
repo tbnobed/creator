@@ -1,4 +1,4 @@
-export type FalModel = "veo-3.1-fast" | "kling-v3-standard" | "seedance-2.0-mini" | "seedance-2.0-fast" | "seedance-2.0" | "seedance-2.5";
+export type FalModel = "veo-3.1-fast" | "gemini-omni-flash" | "kling-v3-standard" | "seedance-2.0-mini" | "seedance-2.0-fast" | "seedance-2.0" | "seedance-2.5";
 export type SeedanceTask = "reference" | "editing" | "extension";
 export type VideoQuality = "DRAFT" | "STANDARD" | "HIGH";
 export type AspectRatio = "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9";
@@ -60,7 +60,8 @@ const seedance20 = {
 
 export const VIDEO_MODEL_CAPABILITIES: Record<FalModel, ModelCapabilities> = {
   // fal-ai/veo3.1/fast (+ /image-to-video, /first-last-frame-to-video, /reference-to-video):
-  // duration 4s|6s|8s (reference-to-video is fixed at 8s), aspect 16:9|9:16, resolution 720p|1080p|4k, generate_audio.
+  // duration 4s|6s|8s (reference-to-video is fixed at 8s), aspect 16:9|9:16.
+  // OBTV intentionally offers only 720p to avoid charging for questionable higher-resolution output.
   // Reference images: Google documents up to 3 subject images; they cannot be combined with first/last frames.
   "veo-3.1-fast": {
     durationOptions: [4, 6, 8],
@@ -71,7 +72,7 @@ export const VIDEO_MODEL_CAPABILITIES: Record<FalModel, ModelCapabilities> = {
     tasks: [],
     autoDurationTasks: [],
     aspectRatios: ["16:9", "9:16"],
-    resolutions: ["720p", "1080p", "4k"],
+    resolutions: ["720p"],
     castImagesSent: true,
     framesExclusiveWithReferences: true,
     startFrameInheritsAspect: false,
@@ -81,6 +82,25 @@ export const VIDEO_MODEL_CAPABILITIES: Record<FalModel, ModelCapabilities> = {
     // reference-to-video has no negative_prompt / seed; text, image and first-last endpoints do.
     negativePrompt: { base: true, referenceMode: false },
     fixedSeed: { base: true, referenceMode: false },
+  },
+  // google/gemini-omni-flash text-to-video accepts prompt, aspect_ratio and integer duration only.
+  // Its 720p output is native; higher-resolution downloads are upscaled, not a native render.
+  "gemini-omni-flash": {
+    durationOptions: range(3, 10),
+    roles: { frames: false, images: false, videos: false, audio: false, source: false },
+    limits: { images: 0, videos: 0, audio: 0, total: 0, source: 0 },
+    qualities: [],
+    nativeAudio: true,
+    tasks: [],
+    autoDurationTasks: [],
+    aspectRatios: ["16:9", "9:16"],
+    resolutions: ["720p"],
+    castImagesSent: false,
+    framesExclusiveWithReferences: false,
+    startFrameInheritsAspect: false,
+    outputFormat: false,
+    negativePrompt: { base: false, referenceMode: false },
+    fixedSeed: { base: false, referenceMode: false },
   },
   // fal-ai/kling-video/v3/standard (text-to-video / image-to-video): duration 3–15s, generate_audio,
   // aspect 16:9|9:16|1:1 for text-to-video only; image-to-video takes start_image_url (+ optional end_image_url).

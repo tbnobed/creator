@@ -27,3 +27,4 @@
 - [Seeded workflow upgrades](seeded-workflow-upgrades.md) — Correct seed definitions do not repair existing database rows; reconcile recognizable stale seeds without overwriting custom graphs.
 - [Seedance image references](seedance-image-references.md) — Selected Cloud cast/set images need a reference-capable endpoint or an explicit failure before paid submission.
 - [Fal Seedance provider contract](fal-seedance-provider-contract.md) — Repository routes differ from Fal; Edit duration is automatic, and private CDN inputs need signed reads.
+- [Cloud native-resolution policy](cloud-native-resolution-policy.md) — Google video stays at 720p without automatic upscaling; provider output enums do not prove native detail.

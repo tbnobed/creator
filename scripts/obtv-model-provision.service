@@ -1,0 +1,23 @@
+[Unit]
+Description=Resume OBTV shared verified model provisioning
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=obtv-models
+Group=obtv-models
+WorkingDirectory=/opt/obtv/setup/scripts
+Environment=COMFYUI_DIR=/opt/obtv/ComfyUI
+Environment=COMFY_PYTHON=/opt/obtv/venv/bin/python
+Environment=OBTV_CHATTERBOX_VENV=/opt/obtv/voice-venv
+ExecStart=/usr/bin/python3 /opt/obtv/setup/scripts/provision-image-studio-models.py --models-dir /srv/obtv/models --parallel 3
+ExecStart=/usr/bin/python3 /opt/obtv/setup/scripts/provision-minimax-h3-models.py --models-dir /srv/obtv/models
+ExecStart=/usr/bin/bash /opt/obtv/setup/scripts/provision-comfy-video-models.sh
+Restart=on-failure
+RestartSec=120
+TimeoutStartSec=infinity
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

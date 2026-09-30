@@ -1683,7 +1683,7 @@ export const createGenerationBodySeedMin = 0;
 
 export const CreateGenerationBody = zod.object({
   "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
-  "model": zod.enum(['veo-3.1-fast', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0', 'seedance-2.0-fast', 'seedance-2.5']).optional(),
+  "model": zod.enum(['veo-3.1-fast', 'gemini-omni-flash', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0', 'seedance-2.0-fast', 'seedance-2.5']).optional(),
   "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
   "nativeAudioEnabled": zod.boolean().optional().describe('Native audio is available on all Cloud models. For Seedance, omission enables audio for dialogue; for Veo 3.1 Fast and Kling 3 Standard, omission keeps output silent. Explicit false always keeps a request silent.'),
   "characterIds": zod.array(zod.string()).min(createGenerationBodyCharacterIdsMin).max(createGenerationBodyCharacterIdsMax).optional(),
@@ -1856,6 +1856,113 @@ export const DeleteGenerationParams = zod.object({
 })
 
 export const DeleteGenerationResponse = zod.void()
+
+
+/**
+ * @summary Measure a completed video and estimate optional Topaz enhancement
+ */
+export const QuoteVideoUpscaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const QuoteVideoUpscaleBody = zod.object({
+  "targetResolution": zod.enum(['1080p', '4k'])
+})
+
+export const QuoteVideoUpscaleResponse = zod.object({
+  "sourceId": zod.string(),
+  "sourceWidth": zod.number(),
+  "sourceHeight": zod.number(),
+  "targetWidth": zod.number(),
+  "targetHeight": zod.number(),
+  "durationSeconds": zod.number(),
+  "fps": zod.number(),
+  "hasAudio": zod.boolean(),
+  "targetResolution": zod.enum(['1080p', '4k']),
+  "estimatedUsd": zod.number(),
+  "pricingNote": zod.string(),
+  "quoteToken": zod.string()
+})
+
+
+/**
+ * @summary Create a separate paid Topaz upscale without replacing the source video
+ */
+export const SubmitVideoUpscaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const submitVideoUpscaleBodyQuoteTokenMin = 64;
+export const submitVideoUpscaleBodyQuoteTokenMax = 64;
+
+export const submitVideoUpscaleBodyRequestIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const SubmitVideoUpscaleBody = zod.object({
+  "targetResolution": zod.enum(['1080p', '4k']),
+  "quoteToken": zod.string().min(submitVideoUpscaleBodyQuoteTokenMin).max(submitVideoUpscaleBodyQuoteTokenMax),
+  "requestId": zod.string().regex(submitVideoUpscaleBodyRequestIdRegExp)
+})
+
+export const SubmitVideoUpscaleResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['DRAFT', 'UPLOADING', 'QUEUED', 'RUNNING', 'DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "provider": zod.enum(['COMFYUI', 'FAL']),
+  "providerModelId": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "providerTaskMetadata": zod.record(zod.string(), zod.unknown()),
+  "voiceCloningEnabled": zod.boolean(),
+  "prompt": zod.string(),
+  "dialogue": zod.string(),
+  "negativePrompt": zod.string().nullable(),
+  "cameraInstructions": zod.string(),
+  "motionInstructions": zod.string(),
+  "characterIds": zod.array(zod.string()),
+  "settingId": zod.string().nullable(),
+  "referenceVideoKey": zod.string().nullable(),
+  "aspectRatio": zod.string().nullish(),
+  "outputResolution": zod.string().nullish(),
+  "outputFormat": zod.string().nullish(),
+  "seedanceTask": zod.string().nullish(),
+  "startFrameKey": zod.string().nullish(),
+  "endFrameKey": zod.string().nullish(),
+  "referenceImageKeys": zod.array(zod.string()).optional(),
+  "klingElements": zod.array(zod.object({
+  "frontalImageKey": zod.string(),
+  "referenceImageKeys": zod.array(zod.string())
+})).optional(),
+  "klingCfgScale": zod.number().nullish(),
+  "referenceVideoKeys": zod.array(zod.string()).optional(),
+  "referenceAudioKeys": zod.array(zod.string()).optional(),
+  "compiledPrompt": zod.string(),
+  "generationMode": zod.string(),
+  "qualityPreset": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "requestedWidth": zod.number(),
+  "requestedHeight": zod.number(),
+  "requestedDurationSeconds": zod.number().nullable().describe('Creator-selected duration when meaningful; null for provider-selected auto-duration tasks such as Seedance 2.5 editing.'),
+  "fps": zod.number(),
+  "durationSeconds": zod.number(),
+  "seed": zod.number().nullish(),
+  "progress": zod.number().nullable(),
+  "currentNode": zod.string().nullable(),
+  "serverName": zod.string().nullable(),
+  "workflowName": zod.string().nullable(),
+  "longFormProjectId": zod.string().nullable(),
+  "longFormShotId": zod.string().nullable(),
+  "longFormProjectTitle": zod.string().nullable(),
+  "longFormSceneNumber": zod.number().nullable(),
+  "longFormShotNumber": zod.number().nullable(),
+  "comfyPromptId": zod.string().nullish(),
+  "outputUrl": zod.string().nullish(),
+  "outputMimeType": zod.string().nullish().describe('Stored output MIME; video\/quicktime for MOV exports.'),
+  "errorMessage": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "queuedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish()
+})
 
 
 /**

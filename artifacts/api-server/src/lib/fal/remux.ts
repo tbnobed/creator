@@ -7,11 +7,13 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 export const FAL_MOV_FINALIZATION_ERROR = "Cloud MOV output finalization failed";
+export const TOPAZ_FINALIZATION_ERROR = "Topaz output verification failed";
 
 export function isRecoverableFalOutputFailure(message: string | null): boolean {
   return message !== null
     && (["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"].includes(message)
-      || message.startsWith(FAL_MOV_FINALIZATION_ERROR));
+      || message.startsWith(FAL_MOV_FINALIZATION_ERROR)
+      || message.startsWith(TOPAZ_FINALIZATION_ERROR));
 }
 
 /** Container-only conversion: keep the provider's video/audio streams unchanged. */

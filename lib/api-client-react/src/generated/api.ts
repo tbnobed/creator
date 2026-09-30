@@ -101,6 +101,9 @@ import type {
   VideoLibraryDeleteInput,
   VideoLibraryFavoritesInput,
   VideoLibraryUndoInput,
+  VideoUpscaleOptions,
+  VideoUpscaleQuote,
+  VideoUpscaleSubmission,
   WorkflowInput,
   WorkflowTemplate,
   WorkflowUpdate
@@ -4249,6 +4252,150 @@ export const useDeleteGeneration = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteGenerationMutationOptions(options));
+    }
+
+export const getQuoteVideoUpscaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/generations/${id}/upscale/quote`
+}
+
+/**
+ * @summary Measure a completed video and estimate optional Topaz enhancement
+ */
+export const quoteVideoUpscale = async (id: string,
+    videoUpscaleOptions: VideoUpscaleOptions, options?: Parameters<typeof customFetch>[1]): Promise<VideoUpscaleQuote> => {
+
+  return customFetch<VideoUpscaleQuote>(getQuoteVideoUpscaleUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoUpscaleOptions)
+  }
+);}
+
+
+
+
+
+export const getQuoteVideoUpscaleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteVideoUpscale>>, TError,{id: string;data: BodyType<VideoUpscaleOptions>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof quoteVideoUpscale>>, TError,{id: string;data: BodyType<VideoUpscaleOptions>}, TContext> => {
+
+const mutationKey = ['quoteVideoUpscale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof quoteVideoUpscale>>, {id: string;data: BodyType<VideoUpscaleOptions>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  quoteVideoUpscale(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QuoteVideoUpscaleMutationResult = NonNullable<Awaited<ReturnType<typeof quoteVideoUpscale>>>
+    export type QuoteVideoUpscaleMutationBody = BodyType<VideoUpscaleOptions>
+    export type QuoteVideoUpscaleMutationError = ErrorType<void>
+
+    /**
+ * @summary Measure a completed video and estimate optional Topaz enhancement
+ */
+export const useQuoteVideoUpscale = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteVideoUpscale>>, TError,{id: string;data: BodyType<VideoUpscaleOptions>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof quoteVideoUpscale>>,
+        TError,
+        {id: string;data: BodyType<VideoUpscaleOptions>},
+        TContext
+      > => {
+      return useMutation(getQuoteVideoUpscaleMutationOptions(options));
+    }
+
+export const getSubmitVideoUpscaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/generations/${id}/upscale`
+}
+
+/**
+ * @summary Create a separate paid Topaz upscale without replacing the source video
+ */
+export const submitVideoUpscale = async (id: string,
+    videoUpscaleSubmission: VideoUpscaleSubmission, options?: Parameters<typeof customFetch>[1]): Promise<GenerationJob> => {
+
+  return customFetch<GenerationJob>(getSubmitVideoUpscaleUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoUpscaleSubmission)
+  }
+);}
+
+
+
+
+
+export const getSubmitVideoUpscaleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVideoUpscale>>, TError,{id: string;data: BodyType<VideoUpscaleSubmission>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitVideoUpscale>>, TError,{id: string;data: BodyType<VideoUpscaleSubmission>}, TContext> => {
+
+const mutationKey = ['submitVideoUpscale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitVideoUpscale>>, {id: string;data: BodyType<VideoUpscaleSubmission>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitVideoUpscale(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitVideoUpscaleMutationResult = NonNullable<Awaited<ReturnType<typeof submitVideoUpscale>>>
+    export type SubmitVideoUpscaleMutationBody = BodyType<VideoUpscaleSubmission>
+    export type SubmitVideoUpscaleMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a separate paid Topaz upscale without replacing the source video
+ */
+export const useSubmitVideoUpscale = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVideoUpscale>>, TError,{id: string;data: BodyType<VideoUpscaleSubmission>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitVideoUpscale>>,
+        TError,
+        {id: string;data: BodyType<VideoUpscaleSubmission>},
+        TContext
+      > => {
+      return useMutation(getSubmitVideoUpscaleMutationOptions(options));
     }
 
 export const getCancelGenerationUrl = (id: string,) => {

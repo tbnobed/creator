@@ -1038,6 +1038,66 @@ paths:
           description: Generation not found
         "409":
           description: Active generations must be cancelled before deletion
+  /generations/{id}/upscale/quote:
+    post:
+      operationId: quoteVideoUpscale
+      tags: [generations]
+      summary: Measure a completed video and estimate optional Topaz enhancement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoUpscaleOptions"
+      responses:
+        "200":
+          description: Local estimate, not an invoice; no paid processing submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoUpscaleQuote"
+        "400":
+          description: Invalid video or target
+        "404":
+          description: Source video not found
+        "409":
+          description: Source is not completed
+        "503":
+          description: Cloud configuration unavailable
+  /generations/{id}/upscale:
+    post:
+      operationId: submitVideoUpscale
+      tags: [generations]
+      summary: Create a separate paid Topaz upscale without replacing the source video
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoUpscaleSubmission"
+      responses:
+        "200":
+          description: Separate child generation, including idempotent retries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationJob"
+        "400":
+          description: Invalid input
+        "403":
+          description: Tenant membership required
+        "402":
+          description: Spending allowance exceeded
+        "404":
+          description: Source video not found
+        "409":
+          description: Quote changed or conflicting request
+        "503":
+          description: Cloud configuration unavailable
   /generations/{id}/cancel:
     post:
       operationId: cancelGeneration
@@ -2436,6 +2496,43 @@ components:
         mediaUrl: { type: string }
         previewUrl: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }
+    VideoUpscaleOptions:
+      type: object
+      required: [targetResolution]
+      properties:
+        targetResolution:
+          type: string
+          enum: ["1080p", "4k"]
+    VideoUpscaleSubmission:
+      type: object
+      required: [targetResolution, quoteToken, requestId]
+      properties:
+        targetResolution:
+          type: string
+          enum: ["1080p", "4k"]
+        quoteToken:
+          type: string
+          minLength: 64
+          maxLength: 64
+        requestId:
+          type: string
+          pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    VideoUpscaleQuote:
+      type: object
+      required: [sourceId, sourceWidth, sourceHeight, targetWidth, targetHeight, durationSeconds, fps, hasAudio, targetResolution, estimatedUsd, pricingNote, quoteToken]
+      properties:
+        sourceId: { type: string }
+        sourceWidth: { type: number }
+        sourceHeight: { type: number }
+        targetWidth: { type: number }
+        targetHeight: { type: number }
+        durationSeconds: { type: number }
+        fps: { type: number }
+        hasAudio: { type: boolean }
+        targetResolution: { type: string, enum: ["1080p", "4k"] }
+        estimatedUsd: { type: number }
+        pricingNote: { type: string }
+        quoteToken: { type: string }
     GenerationInput:
       type: object
       required: [prompt, generationMode, durationSeconds, fps, width, height, qualityPreset, seedMode]
@@ -2443,7 +2540,7 @@ components:
         provider: { type: string, enum: [COMFYUI, FAL], default: COMFYUI }
         model:
           type: string
-          enum: [veo-3.1-fast, kling-v3-standard, seedance-2.0-mini, seedance-2.0, seedance-2.0-fast, seedance-2.5]
+          enum: [veo-3.1-fast, gemini-omni-flash, kling-v3-standard, seedance-2.0-mini, seedance-2.0, seedance-2.0-fast, seedance-2.5]
         voiceCloningEnabled: { type: boolean, default: false }
         nativeAudioEnabled:
           type: boolean

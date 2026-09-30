@@ -71,7 +71,8 @@ const LTX25_RESOLUTION_OPTIONS = [
 type GenerationProvider = "COMFYUI" | "FAL";
 
 const FAL_MODELS: Array<{ value: FalModel; label: string; rate?: number }> = [
-  { value: "veo-3.1-fast", label: "Veo 3.1 Fast", rate: 0.10 },
+  { value: "veo-3.1-fast", label: "Veo 3.1 Fast", rate: 0.15 },
+  { value: "gemini-omni-flash", label: "Gemini Omni Flash", rate: 0.125 },
   { value: "kling-v3-standard", label: "Kling v3 Standard", rate: 0.084 },
   { value: "seedance-2.0-mini", label: "Seedance 2.0 Mini", rate: 0.0721 },
   { value: "seedance-2.0-fast", label: "Seedance 2.0 Fast" },
@@ -81,6 +82,7 @@ const FAL_MODELS: Array<{ value: FalModel; label: string; rate?: number }> = [
 
 const FAL_MODEL_BY_PROVIDER_ID: Record<string, FalModel> = {
   "fal-ai/veo3.1/fast": "veo-3.1-fast",
+  "google/gemini-omni-flash": "gemini-omni-flash",
   "fal-ai/kling-video/v3/standard/text-to-video": "kling-v3-standard",
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": "seedance-2.0-mini",
   "bytedance/seedance-2.0/enterprise/mini/reference-to-video": "seedance-2.0-mini",
@@ -512,7 +514,7 @@ export default function GeneratePage() {
           provider,
           model: provider === "FAL" ? model : undefined,
           voiceCloningEnabled: editingSourceOnly ? false : voiceCloningEnabled,
-          nativeAudioEnabled: isCloudProvider && modelCapabilities.nativeAudio ? effectiveNativeAudio : undefined,
+          nativeAudioEnabled: isCloudProvider && modelCapabilities.nativeAudio && model !== "gemini-omni-flash" ? effectiveNativeAudio : undefined,
           characterIds: !editingSourceOnly && selectedChars.length ? selectedChars : undefined,
           settingId: editingSourceOnly ? undefined : selectedSetting || undefined,
           prompt: resolvedPrompt,
@@ -532,7 +534,7 @@ export default function GeneratePage() {
           referenceVideoKey: provider === "COMFYUI" ? referenceVideoKey || undefined : undefined,
           ...(isCloudProvider ? {
             aspectRatio: aspectInherited || !outputOptions.aspectRatios.includes(aspectRatio) ? undefined : aspectRatio,
-            outputResolution: outputOptions.resolutions.includes(outputResolution) ? outputResolution : undefined,
+            outputResolution: outputOptions.resolutions.includes(outputResolution) ? outputResolution : outputOptions.resolutions[0],
             outputFormat: outputOptions.outputFormat ? outputFormat : undefined,
             seedanceTask: seedance25 && !seedanceMedia.start && (seedanceTask !== "reference" || activeReferenceCount > 0 || selectedChars.length > 0 || Boolean(selectedSetting)) ? seedanceTask : undefined,
             // Only roles the selected model accepts are sent; other draft media stays local.
@@ -1111,8 +1113,10 @@ export default function GeneratePage() {
                   <p className="text-xs text-muted-foreground">
                     {modelCapabilities.castImagesSent
                       ? "Selected character and environment images are included automatically. Add independent media in Scene assets; the extra-media counter excludes these primary assets."
-                      : `${cloudModelName} receives selected cast and environment as text descriptions only; their images are not sent. Add start/end frames${modelCapabilities.roles.images ? " or up to " + modelCapabilities.limits.images + " reference images" : ""} in Scene assets to steer the look.`}
+                      : `${cloudModelName} receives selected cast and environment as text descriptions only; their images are not sent.${modelCapabilities.roles.frames ? ` Add start/end frames${modelCapabilities.roles.images ? " or up to " + modelCapabilities.limits.images + " reference images" : ""} in Scene assets to steer the look.` : " This endpoint generates from text only."}`}
                   </p>
+                  {model === "veo-3.1-fast" && <p className="text-xs text-muted-foreground">OBTV offers Veo at 720p only to avoid potentially charging for higher-resolution output.</p>}
+                  {model === "gemini-omni-flash" && <p className="text-xs text-muted-foreground">Native 720p output with audio. Higher-resolution downloads would be upscaled, not native renders.</p>}
                   {modelCapabilities.tasks.length > 1 && <div className="space-y-2 rounded-lg border border-[#604257] bg-[#2d222c] p-3" role="group" aria-label="Seedance 2.5 task">
                     <Label>Task</Label>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -1120,7 +1124,7 @@ export default function GeneratePage() {
                     </div>
                     <p className="text-[11px] text-[#bdaabc]">{seedanceTask === "reference" ? "Create a new clip from text and optional references." : seedanceTask === "editing" ? "Edit an existing clip. A source video is required in Scene assets." : "Continue an existing clip. A source video is required in Scene assets."} Switching tasks keeps uploaded media in your draft. Edit and Extend send the source video with image and audio references only.</p>
                   </div>}
-                  {modelCapabilities.nativeAudio && isCloudProvider && (
+                  {modelCapabilities.nativeAudio && isCloudProvider && model !== "gemini-omni-flash" && (
                     <div className="rounded-md border border-border/50 bg-black/20 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <Label htmlFor="seedance-native-audio" className="text-xs">Generate native {seedanceSelected ? "Seedance" : cloudModelName} audio</Label>
@@ -1145,7 +1149,7 @@ export default function GeneratePage() {
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       {pricedFalDuration}s effective duration × ${pricedFalRate?.toFixed(4) ?? "unavailable"}/sec.
-                      {modelCapabilities.nativeAudio ? " Audio on/off uses the same estimated rate." : ""}
+                      {modelCapabilities.nativeAudio && model !== "gemini-omni-flash" ? " Audio on/off uses the same estimated rate." : ""}
                     </p>
                   </div>}
                   {seedance25 && <p className="rounded-md border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground" data-testid="text-fal-cost-estimate">{durationIsAutomatic ? "Cloud chooses Edit output duration (up to 30s); a conservative maximum-cost reservation is made before submitting. " : "Cloud cost estimate unavailable. Seedance 2.5 billing depends on the selected task and uploaded media duration. "}Check job details for the final charge when available.</p>}

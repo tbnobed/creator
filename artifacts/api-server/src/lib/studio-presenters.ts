@@ -154,7 +154,9 @@ export function presentGeneration(
     referenceImageKeys: restoreContext?.referenceImageKeys ?? [],
     referenceVideoKeys: restoreContext?.referenceVideoKeys ?? [],
     referenceAudioKeys: restoreContext?.referenceAudioKeys ?? [],
-    fps: job.fps,
+    fps: job.providerTaskMetadata.operation === "topaz-upscale"
+      && typeof (job.providerTaskMetadata.topaz as { fps?: unknown } | undefined)?.fps === "number"
+      ? (job.providerTaskMetadata.topaz as { fps: number }).fps : job.fps,
     durationSeconds: job.durationSeconds,
     seed: job.seed,
     progress: job.progress,

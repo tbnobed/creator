@@ -28,9 +28,36 @@ const request = {
   seed: 42,
 };
 
+test("Veo and Omni enforce native 720p before any paid provider request", () => {
+  for (const model of ["veo-3.1-fast", "gemini-omni-flash"] as const) {
+    assert.throws(() => normalizeFalRequest(model, { ...request, seed: null, outputResolution: "1080p" }), /720p/);
+    assert.throws(() => normalizeFalRequest(model, { ...request, seed: null, outputResolution: "4k" }), /720p/);
+    const portrait = normalizeFalRequest(model, { ...request, seed: null, aspectRatio: "9:16", outputResolution: "720p" });
+    assert.deepEqual([portrait.width, portrait.height], [720, 1280]);
+  }
+  const veo = normalizeFalRequest("veo-3.1-fast", { ...request, qualityPreset: "HIGH" });
+  assert.equal(veo.input.resolution, "720p");
+  assert.deepEqual([veo.width, veo.height], [1280, 720]);
+});
+
+test("Omni sends only documented text, aspect, and integer duration", () => {
+  assert.equal(falModelFromEndpoint(falModels["gemini-omni-flash"]), "gemini-omni-flash");
+  assert.equal(selectFalGenerationEndpoint("gemini-omni-flash"), falModels["gemini-omni-flash"]);
+  for (const refs of [{ hasStartFrame: true }, { imageCount: 1 }, { videoCount: 1 }, { audioCount: 1 }, { task: "editing" as const }]) {
+    assert.throws(() => selectFalGenerationEndpoint("gemini-omni-flash", refs), /does not accept/);
+  }
+  const omni = normalizeFalRequest("gemini-omni-flash", { ...request, seed: null, durationSeconds: 11, aspectRatio: "16:9", nativeAudioEnabled: true });
+  assert.deepEqual(omni.input, { prompt: request.prompt, aspect_ratio: "16:9", duration: 10 });
+  assert.deepEqual([omni.width, omni.height, omni.durationSeconds], [1280, 720, 10]);
+  assert.throws(() => normalizeFalRequest("gemini-omni-flash", { ...request, seed: null, nativeAudioEnabled: false }), /audio cannot be disabled/);
+  assert.throws(() => normalizeFalRequest("gemini-omni-flash", { ...request, seed: null, negativePrompt: "blurry" }), /no reference frames/);
+  assert.throws(() => normalizeFalRequest("gemini-omni-flash", { ...request, seed: null, aspectRatio: "1:1" }), /16:9 or 9:16/);
+});
+
 test("every Cloud video model normalizes a text-only request without references", () => {
   assert.deepEqual(Object.keys(falModels), [
     "veo-3.1-fast",
+    "gemini-omni-flash",
     "kling-v3-standard",
     "seedance-2.0-mini",
     "seedance-2.0",
@@ -39,11 +66,11 @@ test("every Cloud video model normalizes a text-only request without references"
   ]);
 
   for (const model of Object.keys(falModels) as Array<keyof typeof falModels>) {
-    const normalized = normalizeFalRequest(model, request);
+    const normalized = normalizeFalRequest(model, model === "gemini-omni-flash" ? { ...request, seed: null } : request);
 
     assert.equal(normalized.input.prompt, request.prompt, model);
     assert.equal(normalized.input.aspect_ratio, "16:9", model);
-    assert.equal(normalized.input.generate_audio, false, model);
+    assert.equal(normalized.input.generate_audio, model === "gemini-omni-flash" ? undefined : false, model);
     assert.equal(normalized.width, 1280, model);
     assert.equal(normalized.height, 720, model);
     assert.equal(normalized.fps, 24, model);
@@ -92,8 +119,8 @@ test("Cloud frame and reference modes select exact supported endpoints and input
   assert.throws(() => klingImageElements([], [{ frontalUrl: "x", referenceUrls: [] }]), /1 to 3 additional views/);
   assert.throws(() => klingImageElements(["a", "b", "c", "d"], [{ frontalUrl: "e" }]), /limits Kling/);
   assert.equal(normalizeFalRequest("veo-3.1-fast", {
-    ...request, aspectRatio: "9:16", outputResolution: "4k", nativeAudioEnabled: true,
-  }).input.resolution, "4k");
+    ...request, aspectRatio: "9:16", outputResolution: "720p", nativeAudioEnabled: true,
+  }).input.resolution, "720p");
   assert.equal(normalizeFalRequest("kling-v3-standard", {
     ...request, nativeAudioEnabled: true, aspectRatio: "1:1",
   }).input.aspect_ratio, "1:1");

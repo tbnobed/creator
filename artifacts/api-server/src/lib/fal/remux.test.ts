@@ -53,6 +53,7 @@ test("synthetic MP4 video and audio remux into a private, previewable MOV withou
 test("failed remux does not produce a mislabeled MOV output", async () => {
   await assert.rejects(remuxMp4ToMov(Buffer.from("corrupted mp4")), /ffmpeg|Invalid data|could not/i);
   assert.equal(isRecoverableFalOutputFailure("Cloud MOV output finalization failed: incompatible codec"), true);
+  assert.equal(isRecoverableFalOutputFailure("Topaz output verification failed: audio finalization interrupted"), true);
   assert.equal(isRecoverableFalOutputFailure("Timed out while waiting for Cloud"), true);
   assert.equal(isRecoverableFalOutputFailure("Cloud generation failed"), false);
 });

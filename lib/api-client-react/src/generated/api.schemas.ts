@@ -1152,6 +1152,60 @@ export interface ReferenceLibraryItem {
   createdAt: string;
 }
 
+export type VideoUpscaleOptionsTargetResolution = typeof VideoUpscaleOptionsTargetResolution[keyof typeof VideoUpscaleOptionsTargetResolution];
+
+
+export const VideoUpscaleOptionsTargetResolution = {
+  '1080p': '1080p',
+  '4k': '4k',
+} as const;
+
+export interface VideoUpscaleOptions {
+  targetResolution: VideoUpscaleOptionsTargetResolution;
+}
+
+export type VideoUpscaleSubmissionTargetResolution = typeof VideoUpscaleSubmissionTargetResolution[keyof typeof VideoUpscaleSubmissionTargetResolution];
+
+
+export const VideoUpscaleSubmissionTargetResolution = {
+  '1080p': '1080p',
+  '4k': '4k',
+} as const;
+
+export interface VideoUpscaleSubmission {
+  targetResolution: VideoUpscaleSubmissionTargetResolution;
+  /**
+     * @minLength 64
+     * @maxLength 64
+     */
+  quoteToken: string;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
+  requestId: string;
+}
+
+export type VideoUpscaleQuoteTargetResolution = typeof VideoUpscaleQuoteTargetResolution[keyof typeof VideoUpscaleQuoteTargetResolution];
+
+
+export const VideoUpscaleQuoteTargetResolution = {
+  '1080p': '1080p',
+  '4k': '4k',
+} as const;
+
+export interface VideoUpscaleQuote {
+  sourceId: string;
+  sourceWidth: number;
+  sourceHeight: number;
+  targetWidth: number;
+  targetHeight: number;
+  durationSeconds: number;
+  fps: number;
+  hasAudio: boolean;
+  targetResolution: VideoUpscaleQuoteTargetResolution;
+  estimatedUsd: number;
+  pricingNote: string;
+  quoteToken: string;
+}
+
 export type GenerationInputProvider = typeof GenerationInputProvider[keyof typeof GenerationInputProvider];
 
 
@@ -1165,6 +1219,7 @@ export type GenerationInputModel = typeof GenerationInputModel[keyof typeof Gene
 
 export const GenerationInputModel = {
   'veo-31-fast': 'veo-3.1-fast',
+  'gemini-omni-flash': 'gemini-omni-flash',
   'kling-v3-standard': 'kling-v3-standard',
   'seedance-20-mini': 'seedance-2.0-mini',
   'seedance-20': 'seedance-2.0',

@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { isTopazVideo, TopazProvenance, TopazUpscaleAction } from "./TopazUpscaleAction";
 import {
   ArrowLeft,
   ArrowRight,
@@ -61,6 +62,7 @@ export function VideoGenerationViewer({
   React.useEffect(() => {
     if (!job) return;
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector("[data-topaz-dialog]")) return;
       if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       const target = event.target;
       if (target instanceof HTMLElement && (
@@ -184,6 +186,7 @@ export function VideoGenerationViewer({
             </div>
 
             <aside className="min-w-0 space-y-4">
+              <TopazProvenance job={job} />
               <section className="rounded-lg border border-border/60 bg-card/40 p-4">
                 <h3 className="mb-3 text-sm font-semibold">Generation details</h3>
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
@@ -203,6 +206,7 @@ export function VideoGenerationViewer({
               </section>
 
               <div className="flex flex-wrap gap-2">
+                <TopazUpscaleAction key={job.id} job={job} />
                 {job.outputUrl && (
                   <>
                     <a
@@ -224,7 +228,7 @@ export function VideoGenerationViewer({
                     </a>
                   </>
                 )}
-                {editDestination?.kind !== "invalid" && editDestination && job.status !== "RUNNING" && job.status !== "QUEUED" && job.status !== "UPLOADING" && job.status !== "DOWNLOADING" && (
+                {!isTopazVideo(job) && editDestination?.kind !== "invalid" && editDestination && job.status !== "RUNNING" && job.status !== "QUEUED" && job.status !== "UPLOADING" && job.status !== "DOWNLOADING" && (
                   <Button
                     variant="outline"
                     onClick={() => setLocation(editDestination.path)}

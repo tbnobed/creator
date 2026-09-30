@@ -11,6 +11,7 @@ export type GenerationInputModel = typeof GenerationInputModel[keyof typeof Gene
 
 export const GenerationInputModel = {
   'veo-31-fast': 'veo-3.1-fast',
+  'gemini-omni-flash': 'gemini-omni-flash',
   'kling-v3-standard': 'kling-v3-standard',
   'seedance-20-mini': 'seedance-2.0-mini',
   'seedance-20': 'seedance-2.0',
