@@ -50,6 +50,7 @@ These SSH connection details were confirmed by the operator. Keep them available
 
 - **A100:** `ssh ubuntu@107.180.212.240 -p 225` — password supplied through `GPU_A100_SSH_PASSWORD`.
 - **H100:** `ssh ubuntu@107.180.212.240 -p 226` — password supplied through `GPU_H100_SSH_PASSWORD`.
+- **Dual H100 (separate host):** `98.191.147.191`, SSH port **229** — username and password supplied through `GPU_DUAL_H100_SSH_USERNAME` and `GPU_DUAL_H100_SSH_PASSWORD`. Operator reconfirmed this address on 2026-09-30. Do not confuse it with the older A100 labelled H100 above. Previously shut down after overheating/ECC/PCIe faults; inspect health before considering any workload or service startup.
 - SSH inspection confirmed `/home/ubuntu/ComfyUI` on port 225 (runs as `ubuntu`) and `/opt/ComfyUI` on port 226 (systemd `comfyui.service`, runs as `comfyui`, models in `/srv/comfyui/models`).
 - Both machines reported **NVIDIA A100 80GB PCIe** during SSH verification on 2026-09-10; “H100” remains the operator's label for port 226, not a verified hardware specification.
 - Passwords and Hugging Face credentials belong only in workspace secrets, never in files or logs.
