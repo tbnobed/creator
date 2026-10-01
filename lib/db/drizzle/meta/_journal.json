@@ -127,6 +127,13 @@
       "when": 1790304934072,
       "tag": "0017_panoramic_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790886370195,
+      "tag": "0018_worker_soft_deletion",
+      "breakpoints": true
     }
   ]
 }

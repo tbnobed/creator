@@ -29,3 +29,4 @@
 - [Fal Seedance provider contract](fal-seedance-provider-contract.md) — Repository routes differ from Fal; Edit duration is automatic, and private CDN inputs need signed reads.
 - [Cloud native-resolution policy](cloud-native-resolution-policy.md) — Google video stays at 720p without automatic upscaling; provider output enums do not prove native detail.
 - [Media proxy diagnosis](media-proxy-diagnosis.md) — API completion does not prove delivery; identify the actual NPM upstream and test proxy survival on interrupted transfers.
+- [Worker history preservation](worker-history-preservation.md) — Removing a fleet worker must preserve historical attribution and prevent new assignments.

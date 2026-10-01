@@ -8,6 +8,7 @@ import {
   useGetServerQueue,
   useGetServerConfiguration,
   getListServersQueryKey,
+  getGetDashboardSummaryQueryKey,
   getGetServerQueueQueryKey,
   getGetServerConfigurationQueryKey,
 } from "@workspace/api-client-react";
@@ -29,7 +30,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
 export default function ServersPage() {
-  const { data: servers, isLoading } = useListServers();
+  const { data: servers, isLoading } = useListServers({
+    query: { queryKey: getListServersQueryKey(), refetchInterval: 15000 },
+  });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   return (
@@ -93,18 +96,19 @@ function ServerCard({ server }: { server: any }) {
   const testMutation = useTestServerConnection();
 
   const handleDelete = async () => {
-    if (confirm("Remove this compute node? Running jobs may fail.")) {
+    if (confirm(`Remove "${server.displayName}" from the compute fleet? Linked jobs, shots, and their history will be kept. Workers with active jobs cannot be removed until those jobs finish or are cancelled.`)) {
       setActionError(null);
       try {
         await deleteMutation.mutateAsync({ id: server.id });
         queryClient.invalidateQueries({ queryKey: getListServersQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       } catch (error) {
         const apiError = error && typeof error === "object"
           ? error as { status?: number; data?: { error?: string } }
           : null;
         const conflictMessage = apiError?.status === 409 && typeof apiError.data?.error === "string"
           ? apiError.data.error : null;
-        setActionError(conflictMessage ?? "Could not remove this worker. Try again, or disable it instead.");
+        setActionError(conflictMessage ?? "Could not remove this worker. Your linked history has not been changed. Please try again.");
       }
     }
   };

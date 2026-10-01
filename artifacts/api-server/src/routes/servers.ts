@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateServerBody,
@@ -18,14 +18,12 @@ import {
 import {
   comfyServersTable,
   db,
-  generationJobsTable,
-  imageStudioJobsTable,
-  longFormShotsTable,
   workflowTemplatesTable,
 } from "@workspace/db";
 import { assertTrustedComfyUrl, ComfyUIClient } from "../lib/comfy/client";
 import { presentServer } from "../lib/studio-presenters";
 import { requireSiteAdmin } from "../middlewares/auth";
+import { liveWorker, liveWorkerById, softDeleteWorker } from "../lib/worker-lifecycle";
 
 const router: IRouter = Router();
 router.use("/servers", requireSiteAdmin);
@@ -61,6 +59,7 @@ async function present(server: typeof comfyServersTable.$inferSelect) {
 
 router.get("/servers", async (_req, res): Promise<void> => {
   const servers = await db.select().from(comfyServersTable)
+    .where(liveWorker())
     .orderBy(asc(comfyServersTable.createdAt), asc(comfyServersTable.id));
   res.json(ListServersResponse.parse(await Promise.all(servers.map(present))));
 });
@@ -101,7 +100,7 @@ router.patch("/servers/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
-  const [existing] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, params.data.id));
+  const [existing] = await db.select().from(comfyServersTable).where(liveWorkerById(params.data.id));
   if (!existing) {
     res.status(404).json({ error: "Server not found" });
     return;
@@ -126,7 +125,11 @@ router.patch("/servers/:id", async (req, res): Promise<void> => {
       maxConcurrentJobs: input.data.maxConcurrentJobs === undefined ? existing.maxConcurrentJobs : input.data.maxConcurrentJobs,
       enabled: input.data.enabled ?? existing.enabled,
       priority: input.data.priority ?? existing.priority,
-    }).where(eq(comfyServersTable.id, params.data.id)).returning();
+    }).where(liveWorkerById(params.data.id)).returning();
+    if (!server) {
+      res.status(404).json({ error: "Server not found" });
+      return;
+    }
     res.json(UpdateServerResponse.parse(await present(server)));
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Invalid server configuration" });
@@ -139,7 +142,7 @@ router.get("/servers/:id/configuration", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, params.data.id));
+  const [server] = await db.select().from(comfyServersTable).where(liveWorkerById(params.data.id));
   if (!server) {
     res.status(404).json({ error: "Server not found" });
     return;
@@ -157,36 +160,16 @@ router.delete("/servers/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const serverId = params.data.id;
-  const [generation, imageJob, shot] = await Promise.all([
-    db.select({ id: generationJobsTable.id }).from(generationJobsTable)
-      .where(eq(generationJobsTable.comfyServerId, serverId)).limit(1),
-    db.select({ id: imageStudioJobsTable.id }).from(imageStudioJobsTable)
-      .where(eq(imageStudioJobsTable.comfyServerId, serverId)).limit(1),
-    db.select({ id: longFormShotsTable.id }).from(longFormShotsTable)
-      .where(eq(longFormShotsTable.assignedServerId, serverId)).limit(1),
-  ]);
-  const linkedWorkerMessage = "This worker is linked to existing jobs or shots. Disable it instead to preserve their history.";
-  if (generation.length || imageJob.length || shot.length) {
-    res.status(409).json({ error: linkedWorkerMessage });
+  const result = await softDeleteWorker(params.data.id);
+  if (result === "missing") {
+    res.status(404).json({ error: "Server not found" });
     return;
   }
-  try {
-    const [server] = await db.delete(comfyServersTable).where(eq(comfyServersTable.id, serverId)).returning();
-    if (!server) {
-      res.status(404).json({ error: "Server not found" });
-      return;
-    }
-    res.sendStatus(204);
-  } catch (error) {
-    // A job may have claimed this worker after the preflight check.
-    const pgError = error as { code?: string; cause?: { code?: string } };
-    if (pgError.code === "23503" || pgError.cause?.code === "23503") {
-      res.status(409).json({ error: linkedWorkerMessage });
-      return;
-    }
-    throw error;
+  if (result === "active") {
+    res.status(409).json({ error: "This worker has active jobs or shots. Wait for them to finish or cancel them before removing it." });
+    return;
   }
+  res.sendStatus(204);
 });
 
 router.post("/servers/:id/test", async (req, res): Promise<void> => {
@@ -195,7 +178,7 @@ router.post("/servers/:id/test", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, params.data.id));
+  const [server] = await db.select().from(comfyServersTable).where(liveWorkerById(params.data.id));
   if (!server) {
     res.status(404).json({ error: "Server not found" });
     return;
@@ -216,11 +199,11 @@ router.post("/servers/:id/test", async (req, res): Promise<void> => {
       queueSize: queue.queue_pending?.length ?? 0,
       activeJobCount: queue.queue_running?.length ?? 0,
       lastHeartbeat: new Date(),
-    }).where(eq(comfyServersTable.id, server.id));
+    }).where(liveWorkerById(server.id));
     res.json(TestServerConnectionResponse.parse({ connected: true, message: "Connected to ComfyUI", server: server.hostname, gpu: gpuName, vramGb }));
   } catch (error) {
     const message = error instanceof Error ? error.message : "ComfyUI connection failed";
-    await db.update(comfyServersTable).set({ status: "OFFLINE" }).where(eq(comfyServersTable.id, server.id));
+    await db.update(comfyServersTable).set({ status: "OFFLINE" }).where(liveWorkerById(server.id));
     res.json(TestServerConnectionResponse.parse({ connected: false, message, server: server.hostname, gpu: null, vramGb: null }));
   }
 });
@@ -231,7 +214,7 @@ router.get("/servers/:id/queue", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, params.data.id));
+  const [server] = await db.select().from(comfyServersTable).where(liveWorkerById(params.data.id));
   if (!server) {
     res.status(404).json({ error: "Server not found" });
     return;

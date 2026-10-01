@@ -38,6 +38,7 @@ const localServer: ComfyServer = {
   activeJobCount: 0,
   memoryUsedGb: null,
   lastHeartbeat: null,
+  deletedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

@@ -26,6 +26,7 @@ import {
 import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
+import { comfyServerLockKey, getAssignableWorker, liveWorker } from "./worker-lifecycle";
 import { mediaStorage } from "./storage-service";
 import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
 import {
@@ -852,7 +853,7 @@ type DispatchAvailability = {
 
 async function findDispatchAvailability(project: LongFormProject, requiredReferenceSlots = 0): Promise<DispatchAvailability> {
   const [servers, workflows, activeJobs, activeImageJobs] = await Promise.all([
-    db.select().from(comfyServersTable),
+    db.select().from(comfyServersTable).where(liveWorker()),
     db.select().from(workflowTemplatesTable).where(and(eq(workflowTemplatesTable.generationMode, project.generationMode), eq(workflowTemplatesTable.active, true))),
     db
       .select({ comfyServerId: generationJobsTable.comfyServerId })
@@ -1465,10 +1466,18 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
       );
       const confirmedServer = confirmedAvailability.server;
       if (confirmedServer?.id !== server.id) return false;
-      const [claimed] = await db.update(longFormShotsTable)
-        .set({ status: "QUEUED", assignedServerId: server.id, errorMessage: null, startedAt: new Date() })
-        .where(and(eq(longFormShotsTable.id, nextShot.id), eq(longFormShotsTable.status, "PLANNED")))
-        .returning();
+      // Hold the worker lock only for the shot claim. Generation submission
+      // acquires it separately; the QUEUED shot protects the gap from deletion.
+      const serverId = server.id;
+      const claimed = await withAdvisoryLock(comfyServerLockKey(serverId), async () => {
+        const currentServer = await getAssignableWorker(serverId);
+        if (!currentServer) return null;
+        const [shot] = await db.update(longFormShotsTable)
+          .set({ status: "QUEUED", assignedServerId: serverId, errorMessage: null, startedAt: new Date() })
+          .where(and(eq(longFormShotsTable.id, nextShot.id), eq(longFormShotsTable.status, "PLANNED")))
+          .returning();
+        return shot;
+      });
       if (!claimed) return false;
       try {
         const renderDurationSeconds = Math.max(claimed.durationSeconds, minimumShotDuration(claimed.dialogue));

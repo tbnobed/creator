@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
 import { db, comfyServersTable } from "@workspace/db";
+import { liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { ComfyUIClient } from "./comfy/client";
 import { logger } from "./logger";
 
@@ -25,17 +25,17 @@ async function pingServer(server: typeof comfyServersTable.$inferSelect): Promis
       queueSize: queue.queue_pending?.length ?? 0,
       activeJobCount: queue.queue_running?.length ?? 0,
       lastHeartbeat: new Date(),
-    }).where(eq(comfyServersTable.id, server.id));
+    }).where(liveWorkerById(server.id));
     logger.info({ server: server.displayName }, "Server health check: ONLINE");
   } catch (err) {
     await db.update(comfyServersTable).set({ status: "OFFLINE" })
-      .where(eq(comfyServersTable.id, server.id));
+      .where(liveWorkerById(server.id));
     logger.warn({ server: server.displayName, err }, "Server health check: OFFLINE");
   }
 }
 
 async function checkAllServers(): Promise<void> {
-  const servers = await db.select().from(comfyServersTable);
+  const servers = await db.select().from(comfyServersTable).where(liveWorker());
   await Promise.allSettled(servers.filter((s) => s.enabled).map(pingServer));
 }
 

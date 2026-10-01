@@ -9,6 +9,7 @@ import {
   workflowTemplatesTable,
 } from "@workspace/db";
 import { assertTrustedComfyUrl } from "./comfy/client";
+import { liveWorkerById } from "./worker-lifecycle";
 import {
   createMiniMaxH3R2vWorkflow,
   createMiniMaxH3R2vVideoWorkflow,
@@ -132,6 +133,7 @@ async function seedConfiguredWorkers(): Promise<void> {
       id: comfyServersTable.id,
       displayName: comfyServersTable.displayName,
       tags: comfyServersTable.tags,
+      deletedAt: comfyServersTable.deletedAt,
     })
     .from(comfyServersTable);
   const existingByName = new Map(existing.map((worker) => [worker.displayName, worker]));
@@ -141,7 +143,7 @@ async function seedConfiguredWorkers(): Promise<void> {
   }
   await Promise.all(workers.flatMap((worker) => {
     const current = existingByName.get(worker.displayName);
-    if (!current) return [];
+    if (!current || current.deletedAt) return [];
     const canonicalTags = new Set(worker.tags.map((tag) => tag.toLowerCase()));
     const mergedTags = [
       ...worker.tags,
@@ -156,7 +158,7 @@ async function seedConfiguredWorkers(): Promise<void> {
     return [
       db.update(comfyServersTable)
         .set({ tags: mergedTags })
-        .where(eq(comfyServersTable.id, current.id)),
+        .where(liveWorkerById(current.id)),
     ];
   }));
 }

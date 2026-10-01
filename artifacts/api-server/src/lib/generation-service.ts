@@ -17,6 +17,7 @@ import {
   type GenerationJob,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { comfyServerLockKey, getAssignableWorker, liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { hasRequiredTags } from "./comfy/scheduler";
 import { buildWorkflow, type ParameterMappings } from "./comfy/workflow-builder";
@@ -237,7 +238,7 @@ async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): 
   try {
     const lock = await client.query<{ locked: boolean }>(
       "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
-      [`comfy-server:${serverId}`],
+      [comfyServerLockKey(serverId)],
     );
     if (!lock.rows[0]?.locked) {
       throw new Error("The selected GPU is being reserved by another render. Try again shortly.");
@@ -245,7 +246,7 @@ async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): 
     try {
       return await work();
     } finally {
-      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [`comfy-server:${serverId}`]);
+      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [comfyServerLockKey(serverId)]);
     }
   } finally {
     client.release();
@@ -1152,7 +1153,7 @@ export async function resumeActiveGenerations(): Promise<void> {
     const [server] = await db
       .select()
       .from(comfyServersTable)
-      .where(eq(comfyServersTable.id, job.comfyServerId));
+      .where(liveWorkerById(job.comfyServerId));
     if (!server) {
       logger.warn({ jobId: job.id, serverId: job.comfyServerId }, "Cannot resume generation: ComfyUI server is missing");
       await db.update(generationJobsTable).set({
@@ -1344,7 +1345,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   )) {
     throw new Error("No active workflow supports the approved continuity still reference");
   }
-  const servers = await db.select().from(comfyServersTable);
+  const servers = await db.select().from(comfyServersTable).where(liveWorker());
   const requestedServer = input.preferredServerId
     ? servers.find((server) => server.id === input.preferredServerId)
     : undefined;
@@ -1430,6 +1431,12 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   try {
     return await withServerSlotLock(server.id, async () => {
+    const currentServer = await getAssignableWorker(server.id);
+    if (!currentServer) {
+      throw new Error("The selected GPU worker is no longer available. Try again with a live, enabled worker.");
+    }
+    // Refresh capacity and connection configuration under the reservation lock.
+    Object.assign(server, currentServer);
     const [activeJobs, activeImageJobs] = await Promise.all([
       db
         .select({ id: generationJobsTable.id })
@@ -2041,7 +2048,7 @@ async function completeFalOutput(
     const [speaker, [server]] = await Promise.all([
       selectedVoiceSpeaker(jobId, job.voiceCharacterId),
       db.select().from(comfyServersTable)
-        .where(and(eq(comfyServersTable.enabled, true), eq(comfyServersTable.status, "ONLINE")))
+        .where(and(liveWorker(), eq(comfyServersTable.enabled, true), eq(comfyServersTable.status, "ONLINE")))
         .orderBy(asc(comfyServersTable.priority))
         .limit(1),
     ]);
@@ -2302,7 +2309,7 @@ export async function cancelGeneration(jobId: string) {
     }
   }
   if (job.comfyServerId && job.comfyPromptId) {
-    const [server] = await db.select().from(comfyServersTable).where(eq(comfyServersTable.id, job.comfyServerId));
+    const [server] = await db.select().from(comfyServersTable).where(liveWorkerById(job.comfyServerId));
     if (server) {
       try {
         const client = new ComfyUIClient(server);
@@ -2539,11 +2546,17 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
   const [server] = await db
     .select()
     .from(comfyServersTable)
-    .where(eq(comfyServersTable.id, job.comfyServerId));
+    .where(liveWorkerById(job.comfyServerId));
   if (!server) return false;
 
   try {
-    return await downloadCompletedOutput(job.id, new ComfyUIClient(server), job.comfyPromptId, true);
+    // Recovery can reactivate a FAILED job. Serialize that claim just like a
+    // new submission so deletion cannot tombstone the worker in between.
+    return await withServerSlotLock(server.id, async () => {
+      const currentServer = await getAssignableWorker(server.id);
+      if (!currentServer) return false;
+      return downloadCompletedOutput(job.id, new ComfyUIClient(currentServer), job.comfyPromptId!, true);
+    });
   } catch (error) {
     logger.warn({ err: error, jobId }, "Could not recover timed-out generation output");
     return false;

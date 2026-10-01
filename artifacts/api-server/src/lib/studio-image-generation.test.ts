@@ -58,6 +58,7 @@ function workerCandidate(
     activeJobCount: 0,
     memoryUsedGb: null,
     lastHeartbeat: null,
+    deletedAt: null,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     ...overrides,
@@ -69,6 +70,18 @@ const nativeCapability = async (
   _server: ComfyServer,
   _options: { referenceMode?: "latent-img2img" | "native-reference-edit" },
 ) => ({ nativeReferenceResizeMode: "total-pixels" as const });
+
+test("character dispatch never probes or selects a tombstoned worker, even if enabled", async () => {
+  const deleted = workerCandidate("deleted", { deletedAt: new Date(), enabled: true });
+  let probes = 0;
+  const inspector: typeof nativeCapability = async () => {
+    probes++;
+    return { nativeReferenceResizeMode: "total-pixels" };
+  };
+  assert.equal(await selectCharacterWorker([deleted], false, inspector), null);
+  assert.equal(await selectCharacterWorker([deleted], true, inspector), null);
+  assert.equal(probes, 0);
+});
 
 test("pre-prompt preparation failures are retryable without entering uncertain reconciliation", () => {
   assert.equal(

@@ -22,6 +22,7 @@ import { selectServer } from "./comfy/scheduler";
 import { createFlux2KleinWorkflow, type Flux2AssetKind } from "./seed-data/flux2-klein";
 import { mediaStorage } from "./storage-service";
 import { logger } from "./logger";
+import { comfyServerLockKey, getAssignableWorker, liveWorker } from "./worker-lifecycle";
 import {
   cancelImageTask,
   inspectLocalImageCapability,
@@ -715,7 +716,8 @@ export async function selectCharacterWorker(
   // check is the important contract.
   const candidates = servers
     .filter((server) => (
-      server.enabled
+      !server.deletedAt
+      && server.enabled
       && server.status === "ONLINE"
       && server.activeJobCount < (server.maxConcurrentJobs ?? 1)
       && server.tags.some((tag) => tag.trim().toLowerCase() === "flux2-klein")
@@ -752,27 +754,41 @@ export async function selectCharacterWorker(
   return null;
 }
 
-async function acquireServerLock(serverId: string): Promise<() => Promise<void>> {
+async function acquireServerLock(server: ComfyServer): Promise<() => Promise<void>> {
+  const serverId = server.id;
   const client = await pool.connect();
+  let locked = false;
   try {
     const result = await client.query<{ locked: boolean }>(
       "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
-      [`comfy-server:${serverId}`],
+      [comfyServerLockKey(serverId)],
     );
     if (!result.rows[0]?.locked) {
       throw new StudioImageGenerationUnavailableError(
         "The selected GPU is being reserved by another render. Try again shortly.",
       );
     }
+    locked = true;
+    const currentServer = await getAssignableWorker(serverId);
+    if (!currentServer) {
+      throw new StudioImageGenerationUnavailableError(
+        "The selected GPU worker is no longer available. Try again with a live, enabled worker.",
+      );
+    }
+    Object.assign(server, currentServer);
     return async () => {
       try {
-        await client.query("SELECT pg_advisory_unlock(hashtext($1))", [`comfy-server:${serverId}`]);
+        await client.query("SELECT pg_advisory_unlock(hashtext($1))", [comfyServerLockKey(serverId)]);
       } finally {
         client.release();
       }
     };
   } catch (error) {
-    client.release();
+    try {
+      if (locked) await client.query("SELECT pg_advisory_unlock(hashtext($1))", [comfyServerLockKey(serverId)]);
+    } finally {
+      client.release();
+    }
     throw error;
   }
 }
@@ -925,7 +941,7 @@ export async function generateStudioImage(input: {
   if (!entity) throw new Error(`${input.kind === "character" ? "Character" : "Setting"} not found`);
 
   const activeByServer = await activeDatabaseJobsByServer();
-  const servers = (await db.select().from(comfyServersTable))
+  const servers = (await db.select().from(comfyServersTable).where(liveWorker()))
     .map((server) => ({
       ...server,
       activeJobCount: Math.max(server.activeJobCount, activeByServer.get(server.id) ?? 0),
@@ -941,7 +957,7 @@ export async function generateStudioImage(input: {
   reservedServers.add(server.id);
   let releaseServerLock: (() => Promise<void>) | undefined;
   try {
-    releaseServerLock = await acquireServerLock(server.id);
+    releaseServerLock = await acquireServerLock(server);
     const currentActive = await activeDatabaseJobsByServer();
     if (
       Math.max(server.activeJobCount, currentActive.get(server.id) ?? 0)
@@ -1092,12 +1108,12 @@ function characterGenerationResponse(
   };
 }
 
-async function characterImageJobServer(job: ImageStudioJob) {
+async function characterImageJobServer(job: ImageStudioJob, operational = false) {
   if (!job.comfyServerId) return undefined;
   const [server] = await db
     .select()
     .from(comfyServersTable)
-    .where(eq(comfyServersTable.id, job.comfyServerId))
+    .where(and(eq(comfyServersTable.id, job.comfyServerId), operational ? liveWorker() : undefined))
     .limit(1);
   return server;
 }
@@ -1503,7 +1519,7 @@ async function finalizeCharacterImageJob(
   if (!storageKey) {
     const outputBytes = bytes ?? await (async () => {
       if (!output) throw new Error("Generated image output descriptor is unavailable");
-      const server = await characterImageJobServer(job);
+      const server = await characterImageJobServer(job, true);
       if (!server) throw new Error("The assigned image worker is no longer configured");
       return new ComfyUIClient(server).getOutputFile(output.filename, output.subfolder, output.type);
     })();
@@ -1817,7 +1833,7 @@ async function submitCharacterImageJob(job: ImageStudioJob): Promise<void> {
       return;
     }
   }
-  const server = await characterImageJobServer(job);
+  const server = await characterImageJobServer(job, true);
   const hasSubmissionIntent = job.providerTaskMetadata.submissionIntent === true;
   const promptAttempted = submissionPromptWasAttempted(job.providerTaskMetadata);
   const preparationInProgress = hasSubmissionIntent && !promptAttempted;
@@ -2272,7 +2288,7 @@ async function monitorCharacterImageJobLoop(jobId: string): Promise<void> {
       }
       continue;
     }
-    const server = await characterImageJobServer(job);
+    const server = await characterImageJobServer(job, true);
     if (!server) {
       await db.update(imageStudioJobsTable)
         .set({
@@ -2564,7 +2580,7 @@ export async function createCharacterImageJob(input: {
   const selectedWorker = cloudModel
     ? null
     : await selectCharacterWorker(
-      (await db.select().from(comfyServersTable))
+      (await db.select().from(comfyServersTable).where(liveWorker()))
         .map((candidate) => ({
           ...candidate,
           activeJobCount: Math.max(candidate.activeJobCount, activeByServer.get(candidate.id) ?? 0),
@@ -2587,7 +2603,7 @@ export async function createCharacterImageJob(input: {
   let reference: Awaited<ReturnType<typeof resolveCharacterReference>> | undefined;
   try {
     if (server) {
-      releaseServerLock = await acquireServerLock(server.id);
+      releaseServerLock = await acquireServerLock(server);
       const currentActive = await activeDatabaseJobsByServer();
       if (
         Math.max(server.activeJobCount, currentActive.get(server.id) ?? 0)

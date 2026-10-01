@@ -32,6 +32,7 @@ import { presentGeneration } from "../lib/studio-presenters";
 import { mediaStorage } from "../lib/storage-service";
 import { ResourceNotFoundError } from "../lib/resource-errors";
 import { quoteTopaz, submitTopaz } from "../lib/topaz-service";
+import { liveWorker } from "../lib/worker-lifecycle";
 
 const router: IRouter = Router();
 
@@ -398,7 +399,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const [characters, settings, servers, jobs] = await Promise.all([
     db.select().from(charactersTable).where(eq(charactersTable.tenantId, tenantId)),
     db.select().from(settingsTable).where(eq(settingsTable.tenantId, tenantId)),
-    db.select().from(comfyServersTable),
+    db.select().from(comfyServersTable).where(liveWorker()),
     db.select().from(generationJobsTable).where(visibleToTenant(tenantId)).orderBy(desc(generationJobsTable.createdAt)),
   ]);
    const latestGenerations = await Promise.all(jobs.slice(0, 5).map((job) => present(job, req.context!.tenant!.isDefault)));

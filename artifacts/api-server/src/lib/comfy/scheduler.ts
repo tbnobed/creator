@@ -31,7 +31,7 @@ export function selectServer(
   requiredTags: string[],
 ): ComfyServer | null {
   const candidates = servers.filter((server) => {
-    if (!server.enabled || server.status !== "ONLINE") return false;
+    if (server.deletedAt || !server.enabled || server.status !== "ONLINE") return false;
     if (server.activeJobCount >= (server.maxConcurrentJobs ?? 1)) return false;
     return hasRequiredTags(server.tags, requiredTags);
   });

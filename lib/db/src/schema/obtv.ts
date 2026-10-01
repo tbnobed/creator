@@ -201,6 +201,7 @@ export const comfyServersTable = pgTable("obtv_comfy_servers", {
   activeJobCount: integer("active_job_count").notNull().default(0),
   memoryUsedGb: real("memory_used_gb"),
   lastHeartbeat: timestamp("last_heartbeat", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps,
 });
 

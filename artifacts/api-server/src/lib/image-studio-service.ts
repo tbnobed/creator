@@ -37,6 +37,7 @@ import {
 } from "./image-studio-adapters";
 import { hasRequiredTags } from "./comfy/scheduler";
 import { logger } from "./logger";
+import { comfyServerLockKey, getAssignableWorker, liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { mediaStorage } from "./storage-service";
 import { quoteImageSpend } from "./spending-pricing";
 import { reserveSpend, settleSpend } from "./spending-service";
@@ -426,13 +427,13 @@ export async function listImageAssets(input: {
 
 async function withServerSlotLock<T>(
   serverId: string,
-  work: () => Promise<T>,
+  work: (server: ComfyServer) => Promise<T>,
 ): Promise<T> {
   const client = await pool.connect();
   try {
     const result = await client.query<{ locked: boolean }>(
       "SELECT pg_try_advisory_lock(hashtext($1)) AS locked",
-      [`comfy-server:${serverId}`],
+      [comfyServerLockKey(serverId)],
     );
     if (!result.rows[0]?.locked) {
       throw new ImageStudioRequestError(
@@ -441,9 +442,13 @@ async function withServerSlotLock<T>(
       );
     }
     try {
-      return await work();
+      const server = await getAssignableWorker(serverId);
+      if (!server) {
+        throw new ImageStudioRequestError("The selected GPU worker is no longer available. Try again with a live, enabled worker.", 409);
+      }
+      return await work(server);
     } finally {
-      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [`comfy-server:${serverId}`]);
+      await client.query("SELECT pg_advisory_unlock(hashtext($1))", [comfyServerLockKey(serverId)]);
     }
   } finally {
     client.release();
@@ -451,7 +456,7 @@ async function withServerSlotLock<T>(
 }
 
 async function compatibleLocalServers(model: ImageModel): Promise<ComfyServer[]> {
-  const servers = await db.select().from(comfyServersTable);
+  const servers = await db.select().from(comfyServersTable).where(liveWorker());
   return servers
     .filter((server) => (
       server.enabled
@@ -777,7 +782,7 @@ async function assignedServer(job: ImageStudioJob): Promise<ComfyServer | undefi
     ? (await db
       .select()
       .from(comfyServersTable)
-      .where(eq(comfyServersTable.id, job.comfyServerId))
+      .where(liveWorkerById(job.comfyServerId))
       .limit(1))[0]
     : undefined;
 }
@@ -1144,7 +1149,8 @@ export async function createImageJob(input: {
     }
   }
 
-  const submit = async (): Promise<ImageStudioJob> => {
+  const submit = async (currentServer?: ComfyServer): Promise<ImageStudioJob> => {
+    if (currentServer) server = currentServer;
     if (server && !(await serverHasCapacity(server))) {
       throw new ImageStudioRequestError(`${server.displayName} is at safe render capacity`, 409);
     }

@@ -1,0 +1,1 @@
+ALTER TABLE "obtv_comfy_servers" ADD COLUMN "deleted_at" timestamp with time zone;
