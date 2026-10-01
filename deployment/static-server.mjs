@@ -1,8 +1,8 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import http from "node:http";
+import https from "node:https";
 import path from "node:path";
-import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +61,18 @@ async function resolveFile(urlPath) {
   return path.join(root, "index.html");
 }
 
+function proxyHeaders(headers) {
+  // Connection may nominate additional hop-specific headers to remove.
+  const excluded = new Set([
+    "connection", "keep-alive", "transfer-encoding", "te", "trailer",
+    "upgrade", "proxy-authenticate", "proxy-authorization",
+    "proxy-connection",
+    ...String(headers.connection ?? "").toLowerCase().split(",").map((name) => name.trim()),
+  ]);
+  return Object.fromEntries(Object.entries(headers).filter(([name, value]) =>
+    value !== undefined && !excluded.has(name.toLowerCase())));
+}
+
 const server = http.createServer(async (request, response) => {
   const requestPath = (request.url ?? "/").split("?", 1)[0];
   if ((requestPath === "/api" || requestPath.startsWith("/api/")) && apiProxyOrigin) {
@@ -68,18 +80,19 @@ const server = http.createServer(async (request, response) => {
     const cancelUpstream = () => {
       if (!response.writableFinished) controller.abort();
     };
+    request.on("aborted", cancelUpstream);
+    request.on("error", cancelUpstream);
     response.on("close", cancelUpstream);
     try {
       const target = new URL(request.url ?? "/api", apiProxyOrigin);
-      const headers = new Headers();
-      for (const [name, value] of Object.entries(request.headers)) {
-        if (value === undefined || ["host", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto"].includes(name)) continue;
-        headers.set(name, Array.isArray(value) ? value.join(", ") : value);
+      const headers = proxyHeaders(request.headers);
+      for (const name of ["host", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto"]) {
+        delete headers[name];
       }
       const publicHost = request.headers.host;
       if (publicHost) {
-        headers.set("host", publicHost);
-        headers.set("x-forwarded-host", publicHost);
+        headers.host = publicHost;
+        headers["x-forwarded-host"] = publicHost;
       }
       const incomingForwardedFor = request.headers["x-forwarded-for"];
       const trustedForwardedFor = Array.isArray(incomingForwardedFor)
@@ -88,43 +101,41 @@ const server = http.createServer(async (request, response) => {
       const clientIp = trustUpstreamProxy && trustedForwardedFor
         ? trustedForwardedFor
         : request.socket.remoteAddress;
-      if (clientIp) headers.set("x-forwarded-for", clientIp);
+      if (clientIp) headers["x-forwarded-for"] = clientIp;
       const incomingForwardedProto = request.headers["x-forwarded-proto"];
       const trustedForwardedProto = Array.isArray(incomingForwardedProto)
         ? incomingForwardedProto[0]
         : incomingForwardedProto?.split(",", 1)[0]?.trim();
-      headers.set(
-        "x-forwarded-proto",
-        trustUpstreamProxy && trustedForwardedProto
+      headers["x-forwarded-proto"] = trustUpstreamProxy && trustedForwardedProto
           ? trustedForwardedProto
-          : request.socket.encrypted ? "https" : "http",
-      );
-      const upstream = await fetch(target, {
-        method: request.method,
-        headers,
-        body: ["GET", "HEAD"].includes(request.method ?? "GET") ? undefined : request,
-        duplex: "half",
-        signal: controller.signal,
+          : request.socket.encrypted ? "https" : "http";
+      if (!["http:", "https:"].includes(target.protocol)) {
+        throw new Error("API proxy origin must use HTTP or HTTPS");
+      }
+      // Do not use fetch/Undici here. Its parser can assert outside promise
+      // error handling when a backpressured media socket ends (Node 24).
+      // Native HTTP streams preserve wire bytes, compression, and Set-Cookie.
+      const transport = target.protocol === "https:" ? https : http;
+      await new Promise((resolve, reject) => {
+        const outgoing = transport.request(target, {
+          method: request.method,
+          headers,
+          signal: controller.signal,
+          // Isolate transfers from upstream idle/keep-alive socket races.
+          agent: false,
+        }, (upstream) => {
+          try {
+            response.writeHead(upstream.statusCode ?? 502, proxyHeaders(upstream.headers));
+            pipeline(upstream, response).then(resolve, reject);
+          } catch (error) {
+            upstream.destroy();
+            reject(error);
+          }
+        });
+        outgoing.on("error", reject);
+        // Preserve streaming uploads and backpressure without buffering files.
+        request.pipe(outgoing);
       });
-      const responseHeaders = Object.fromEntries(
-        [...upstream.headers].filter(([name]) => !["connection", "keep-alive", "transfer-encoding"].includes(name.toLowerCase())),
-      );
-      // Fetch decodes these encodings, but preserves the upstream wire headers.
-      // Forwarding the compressed length/encoding would corrupt the response.
-      const encoding = upstream.headers.get("content-encoding");
-      if (upstream.body && encoding &&
-          encoding.split(",").every((value) => ["gzip", "deflate", "br"].includes(value.trim().toLowerCase()))) {
-        delete responseHeaders["content-encoding"];
-        delete responseHeaders["content-length"];
-      }
-      response.writeHead(upstream.status, responseHeaders);
-      if (upstream.body) {
-        // Await stream failures: an unhandled Readable error kills the web
-        // process and drops every concurrent gallery/video request.
-        await pipeline(Readable.fromWeb(upstream.body), response);
-      } else {
-        response.end();
-      }
     } catch (error) {
       const clientCancellation = controller.signal.aborted &&
         (error?.name === "AbortError" || error?.code === "ERR_STREAM_PREMATURE_CLOSE");
@@ -137,6 +148,8 @@ const server = http.createServer(async (request, response) => {
         }
       }
     } finally {
+      request.off("aborted", cancelUpstream);
+      request.off("error", cancelUpstream);
       response.off("close", cancelUpstream);
     }
     return;

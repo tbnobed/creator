@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
@@ -7,7 +8,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { gzipSync } from "node:zlib";
+import { setTimeout as delay } from "node:timers/promises";
+import { brotliCompressSync, deflateSync, gzipSync } from "node:zlib";
 
 const serverScript = fileURLToPath(new URL("./static-server.mjs", import.meta.url));
 const fixture = "<!doctype html><title>Static proxy regression fixture</title>";
@@ -51,7 +53,7 @@ async function listen(server) {
   return server.address().port;
 }
 
-async function createProxy(t, handler) {
+async function createProxy(t, handler, { trustProxy = false } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), "static-server-test-"));
   const upstream = http.createServer(handler);
   let child;
@@ -96,6 +98,7 @@ async function createProxy(t, handler) {
       ...process.env,
       PORT: String(requestedPort),
       API_PROXY_ORIGIN: `http://127.0.0.1:${upstreamPort}`,
+      TRUST_PROXY: String(trustProxy),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -128,7 +131,7 @@ async function createProxy(t, handler) {
   };
 }
 
-async function collect(port, url, { method = "GET", headers = {}, onChunk } = {}) {
+async function collect(port, url, { method = "GET", headers = {}, body, onChunk } = {}) {
   let request;
   const result = new Promise((resolve) => {
     let response;
@@ -154,7 +157,7 @@ async function collect(port, url, { method = "GET", headers = {}, onChunk } = {}
     request.on("error", (cause) => {
       if (!response) resolve({ body: Buffer.alloc(0), complete: false, error: cause });
     });
-    request.end();
+    request.end(body);
   });
   try {
     return await deadline(result, `${method} ${url}`);
@@ -227,27 +230,34 @@ test("proxy HEAD has no body and preserves compressed representation metadata", 
   await proxy.healthy();
 });
 
-test("proxy strips gzip wire headers when fetch decodes the upstream body", testOptions, async (t) => {
-  const proxy = await createProxy(t, (_request, response) => {
-    response.writeHead(200, {
-      "content-type": "application/octet-stream",
-      "content-length": compressed.length,
-      "content-encoding": "gzip",
-      "x-upstream-marker": "compressed",
+for (const [encoding, compress] of [
+  ["gzip", gzipSync],
+  ["deflate", deflateSync],
+  ["br", brotliCompressSync],
+]) {
+  test(`proxy preserves raw ${encoding} bytes, encoding, and wire length`, testOptions, async (t) => {
+    const wireBody = compress(binary);
+    const proxy = await createProxy(t, (_request, response) => {
+      response.writeHead(200, {
+        "content-type": "application/octet-stream",
+        "content-length": wireBody.length,
+        "content-encoding": encoding,
+        "x-upstream-marker": "compressed",
+      });
+      response.end(wireBody);
     });
-    response.end(compressed);
+    // node:http intentionally does not decompress: this tests the actual wire
+    // response, not a second client's transparent decoding.
+    const result = await collect(proxy.port, "/api/media/compressed");
+    assert.equal(result.status, 200);
+    assert.equal(result.headers["content-encoding"], encoding);
+    assert.equal(result.headers["content-length"], String(wireBody.length));
+    assert.equal(result.headers["x-upstream-marker"], "compressed");
+    assert.equal(result.complete, true);
+    assert.deepEqual(result.body, wireBody);
+    await proxy.healthy();
   });
-  // node:http intentionally does not decompress: this tests the actual wire
-  // response, not a second client's transparent decoding.
-  const result = await collect(proxy.port, "/api/media/compressed");
-  assert.equal(result.status, 200);
-  assert.equal(result.headers["content-encoding"], undefined);
-  assert.equal(result.headers["content-length"], undefined);
-  assert.equal(result.headers["x-upstream-marker"], "compressed");
-  assert.equal(result.complete, true);
-  assert.deepEqual(result.body, binary);
-  await proxy.healthy();
-});
+}
 
 for (const kind of ["interrupted chunked", "truncated content-length"]) {
   test(`proxy survives ${kind} upstream data after sending headers`, testOptions, async (t) => {
@@ -269,11 +279,9 @@ for (const kind of ["interrupted chunked", "truncated content-length"]) {
       onChunk: () => upstreamResponse.destroy(),
     });
     assert.equal(result.status, 200, proxy.output());
-    if (kind === "truncated content-length") {
-      assert.equal(result.complete, false, "A short fixed-length body must not appear successful");
-    }
-    // Fetch versions differ on treating EOF between chunks as an error. Both
-    // paths must preserve the received bytes and leave the proxy alive.
+    assert.equal(result.complete, false, "An interrupted upstream body must not appear successful");
+    // Preserve already-delivered bytes, but never mark a truncated response as
+    // a successful complete transfer.
     assert.deepEqual(result.body, prefix);
     await proxy.healthy();
   });
@@ -327,3 +335,259 @@ for (const phase of ["before headers", "during the response body"]) {
     await proxy.healthy();
   });
 }
+
+for (const framing of ["content-length", "chunked"]) {
+  test(`proxy forwards a ${framing} POST upload body and request metadata`, testOptions, async (t) => {
+    const received = deferred();
+    const proxy = await createProxy(t, (request, response) => {
+      const chunks = [];
+      request.on("data", (chunk) => chunks.push(chunk));
+      request.on("end", () => {
+        received.resolve({
+          method: request.method,
+          url: request.url,
+          headers: request.headers,
+          body: Buffer.concat(chunks),
+        });
+        response.writeHead(201, { "content-type": "text/plain" });
+        response.end("uploaded");
+      });
+    });
+    const result = await collect(proxy.port, "/api/media/upload?name=video.bin", {
+      method: "POST",
+      headers: {
+        "content-type": "application/octet-stream",
+        "x-upload-marker": "binary-upload",
+        ...(framing === "content-length" ? { "content-length": binary.length } : {}),
+      },
+      body: binary,
+    });
+    const upload = await deadline(received.promise, "upstream upload body");
+    assert.equal(upload.method, "POST");
+    assert.equal(upload.url, "/api/media/upload?name=video.bin");
+    assert.equal(upload.headers["content-type"], "application/octet-stream");
+    assert.equal(upload.headers["x-upload-marker"], "binary-upload");
+    if (framing === "content-length") {
+      assert.equal(upload.headers["content-length"], String(binary.length));
+    }
+    assert.deepEqual(upload.body, binary);
+    assert.equal(result.status, 201);
+    assert.equal(result.complete, true);
+    assert.equal(result.body.toString(), "uploaded");
+    await proxy.healthy();
+  });
+}
+
+test("proxy keeps separate Set-Cookie values, including an Expires comma", testOptions, async (t) => {
+  const cookies = [
+    "session=abc; Path=/; HttpOnly; SameSite=Lax",
+    "preference=dark; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/",
+  ];
+  const proxy = await createProxy(t, (_request, response) => {
+    response.writeHead(200, { "set-cookie": cookies });
+    response.end("cookies");
+  });
+  const result = await collect(proxy.port, "/api/session");
+  assert.equal(result.status, 200);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.headers["set-cookie"], cookies);
+  assert.equal(result.body.toString(), "cookies");
+  await proxy.healthy();
+});
+
+test("proxy strips hop-by-hop and Connection-nominated headers in both directions", testOptions, async (t) => {
+  const received = deferred();
+  const proxy = await createProxy(t, (request, response) => {
+    received.resolve(request.headers);
+    response.writeHead(200, {
+      "content-length": 2,
+      "connection": "close, x-response-private",
+      "keep-alive": "timeout=999",
+      "proxy-connection": "keep-alive",
+      "proxy-authenticate": 'Basic realm="upstream"',
+      "te": "trailers",
+      "upgrade": "websocket",
+      "x-response-private": "must-not-leak",
+      "x-response-public": "preserved",
+    });
+    response.end("ok");
+  });
+  const result = await collect(proxy.port, "/api/headers", {
+    headers: {
+      "connection": "keep-alive, x-request-private",
+      "keep-alive": "timeout=999",
+      "proxy-connection": "keep-alive",
+      "proxy-authorization": "Basic dGVzdDp0ZXN0",
+      "te": "trailers",
+      "upgrade": "websocket",
+      "x-request-private": "must-not-leak",
+      "x-request-public": "preserved",
+    },
+  });
+  const upstreamHeaders = await deadline(received.promise, "upstream request headers");
+  for (const name of ["keep-alive", "proxy-connection", "proxy-authorization", "te", "upgrade", "x-request-private"]) {
+    assert.equal(upstreamHeaders[name], undefined, `Request header ${name} must not reach upstream`);
+  }
+  assert.doesNotMatch(upstreamHeaders.connection ?? "", /x-request-private/i);
+  assert.equal(upstreamHeaders["x-request-public"], "preserved");
+  assert.equal(result.status, 200);
+  assert.equal(result.complete, true);
+  assert.equal(result.body.toString(), "ok");
+  for (const name of ["proxy-connection", "proxy-authenticate", "te", "upgrade", "x-response-private"]) {
+    assert.equal(result.headers[name], undefined, `Response header ${name} must not reach the client`);
+  }
+  // Node may generate Connection/Keep-Alive headers for the local socket; it
+  // must never relay upstream's extension token, timeout, or stale framing.
+  assert.doesNotMatch(result.headers.connection ?? "", /x-response-private/i);
+  assert.doesNotMatch(result.headers["keep-alive"] ?? "", /timeout=999/);
+  assert.equal(result.headers["transfer-encoding"], undefined);
+  assert.equal(result.headers["content-length"], "2");
+  assert.equal(result.headers["x-response-public"], "preserved");
+  await proxy.healthy();
+});
+
+for (const trustProxy of [false, true]) {
+  test(`proxy forwards the public host and ${trustProxy ? "trusts" : "ignores"} incoming forwarded proto/IP`, testOptions, async (t) => {
+    const received = deferred();
+    const publicHost = "studio.example.test:8443";
+    const proxy = await createProxy(t, (request, response) => {
+      received.resolve(request.headers);
+      response.end("forwarded");
+    }, { trustProxy });
+    const result = await collect(proxy.port, "/api/forwarded", {
+      headers: {
+        "host": publicHost,
+        "x-forwarded-host": "attacker.example.test",
+        "x-forwarded-proto": "https, http",
+        "x-forwarded-for": "198.51.100.10, 198.51.100.11",
+      },
+    });
+    const headers = await deadline(received.promise, "forwarded request headers");
+    assert.equal(result.status, 200);
+    assert.equal(result.complete, true);
+    assert.equal(headers.host, publicHost);
+    assert.equal(headers["x-forwarded-host"], publicHost);
+    assert.equal(headers["x-forwarded-proto"], trustProxy ? "https" : "http");
+    if (trustProxy) assert.equal(headers["x-forwarded-for"], "198.51.100.10");
+    else assert.match(headers["x-forwarded-for"], /^(?:::ffff:)?127\.0\.0\.1$/);
+    await proxy.healthy();
+  });
+}
+
+test("proxy backpressures large concurrent slow consumers with upstream Connection: close", testOptions, async (t) => {
+  const chunk = binary.subarray(0, 64 * 1024);
+  const chunkCount = 512;
+  const totalBytes = chunk.length * chunkCount;
+  const expectedHash = createHash("sha256");
+  for (let i = 0; i < chunkCount; i++) expectedHash.update(chunk);
+  const expectedDigest = expectedHash.digest("hex");
+  const transfers = [];
+  const upstreamErrors = [];
+  const proxy = await createProxy(t, (_request, response) => {
+    const state = { bytes: 0, backpressure: 0, finished: false };
+    transfers.push(state);
+    response.writeHead(200, {
+      "content-type": "application/octet-stream",
+      "content-length": totalBytes,
+      "connection": "close",
+    });
+    // Respect the producer's own backpressure too: do not hide proxy buffering
+    // behind an upstream that eagerly queues the entire fixture.
+    void (async () => {
+      for (let i = 0; i < chunkCount; i++) {
+        const writable = response.write(chunk);
+        state.bytes += chunk.length;
+        if (!writable) {
+          state.backpressure++;
+          await once(response, "drain");
+        }
+      }
+      state.finished = true;
+      response.end();
+    })().catch((error) => {
+      upstreamErrors.push(error);
+      response.destroy();
+    });
+  });
+
+  const consumers = Array.from({ length: 3 }, (_, index) => {
+    const ready = deferred();
+    let incoming;
+    let gated = true;
+    let timer;
+    const request = http.get({
+      hostname: "127.0.0.1", port: proxy.port,
+      path: `/api/media/large-${index}.bin`, agent: false,
+    });
+    t.after(() => {
+      clearTimeout(timer);
+      request.destroy();
+      incoming?.destroy();
+    });
+    const done = new Promise((resolve) => {
+      let error;
+      request.on("response", (response) => {
+        incoming = response;
+        let bytes = 0;
+        const hash = createHash("sha256");
+        response.on("data", (data) => {
+          bytes += data.length;
+          hash.update(data);
+          response.pause();
+          if (gated) ready.resolve();
+          else timer = setTimeout(() => response.resume(), 2);
+        });
+        response.on("error", (cause) => { error = cause; });
+        response.on("close", () => {
+          clearTimeout(timer);
+          resolve({
+            status: response.statusCode,
+            headers: response.headers,
+            complete: response.complete,
+            bytes,
+            digest: hash.digest("hex"),
+            error,
+          });
+        });
+      });
+      request.on("error", (cause) => {
+        if (!incoming) resolve({ complete: false, error: cause });
+      });
+    });
+    return {
+      ready: ready.promise,
+      done,
+      release() {
+        gated = false;
+        incoming.resume();
+      },
+    };
+  });
+
+  await deadline(Promise.all(consumers.map((consumer) => consumer.ready)), "concurrent first bytes");
+  // Leave every client paused long enough for bounded TCP/stream buffers to
+  // fill. A proxy buffering whole bodies would let upstream finish here.
+  await delay(250);
+  assert.equal(transfers.length, consumers.length);
+  for (const state of transfers) {
+    assert.ok(state.backpressure > 0, "Upstream producer must observe backpressure");
+    assert.ok(state.bytes < totalBytes, "Paused client must stall upstream before its entire body is consumed");
+    assert.equal(state.finished, false);
+  }
+  await proxy.healthy();
+  for (const consumer of consumers) consumer.release();
+  const results = await deadline(
+    Promise.all(consumers.map((consumer) => consumer.done)), "concurrent slow transfers", 10_000,
+  );
+  assert.deepEqual(upstreamErrors, []);
+  for (const result of results) {
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 200);
+    assert.equal(result.complete, true);
+    assert.equal(result.headers["content-length"], String(totalBytes));
+    assert.equal(result.bytes, totalBytes);
+    assert.equal(result.digest, expectedDigest);
+  }
+  assert.ok(transfers.every((state) => state.finished));
+  await proxy.healthy();
+});
