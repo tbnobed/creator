@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "public");
@@ -63,6 +64,11 @@ async function resolveFile(urlPath) {
 const server = http.createServer(async (request, response) => {
   const requestPath = (request.url ?? "/").split("?", 1)[0];
   if ((requestPath === "/api" || requestPath.startsWith("/api/")) && apiProxyOrigin) {
+    const controller = new AbortController();
+    const cancelUpstream = () => {
+      if (!response.writableFinished) controller.abort();
+    };
+    response.on("close", cancelUpstream);
     try {
       const target = new URL(request.url ?? "/api", apiProxyOrigin);
       const headers = new Headers();
@@ -98,20 +104,40 @@ const server = http.createServer(async (request, response) => {
         headers,
         body: ["GET", "HEAD"].includes(request.method ?? "GET") ? undefined : request,
         duplex: "half",
+        signal: controller.signal,
       });
       const responseHeaders = Object.fromEntries(
         [...upstream.headers].filter(([name]) => !["connection", "keep-alive", "transfer-encoding"].includes(name.toLowerCase())),
       );
+      // Fetch decodes these encodings, but preserves the upstream wire headers.
+      // Forwarding the compressed length/encoding would corrupt the response.
+      const encoding = upstream.headers.get("content-encoding");
+      if (upstream.body && encoding &&
+          encoding.split(",").every((value) => ["gzip", "deflate", "br"].includes(value.trim().toLowerCase()))) {
+        delete responseHeaders["content-encoding"];
+        delete responseHeaders["content-length"];
+      }
       response.writeHead(upstream.status, responseHeaders);
       if (upstream.body) {
-        Readable.fromWeb(upstream.body).pipe(response);
+        // Await stream failures: an unhandled Readable error kills the web
+        // process and drops every concurrent gallery/video request.
+        await pipeline(Readable.fromWeb(upstream.body), response);
       } else {
         response.end();
       }
     } catch (error) {
-      console.error("API proxy request failed", error);
-      response.writeHead(502, { "content-type": "text/plain; charset=utf-8" });
-      response.end("API proxy unavailable");
+      const clientCancellation = controller.signal.aborted &&
+        (error?.name === "AbortError" || error?.code === "ERR_STREAM_PREMATURE_CLOSE");
+      if (!clientCancellation) console.error("API proxy request failed", error);
+      if (!response.destroyed) {
+        if (response.headersSent) response.destroy();
+        else {
+          response.writeHead(502, { "content-type": "text/plain; charset=utf-8" });
+          response.end("API proxy unavailable");
+        }
+      }
+    } finally {
+      response.off("close", cancelUpstream);
     }
     return;
   }
@@ -141,14 +167,19 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "HEAD") {
       response.end();
     } else {
-      createReadStream(filePath).pipe(response);
+      await pipeline(createReadStream(filePath), response);
     }
   } catch {
-    response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-    response.end("Internal server error");
+    if (!response.destroyed) {
+      if (response.headersSent) response.destroy();
+      else {
+        response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+        response.end("Internal server error");
+      }
+    }
   }
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.info(`Static web server listening on port ${port}`);
+  console.info(`Static web server listening on port ${server.address().port}`);
 });
