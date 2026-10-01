@@ -57,6 +57,13 @@ These SSH connection details were confirmed by the operator. Keep them available
 - Check the actual GPU, ComfyUI process, model directory, and active queue on each SSH host before maintenance. App display labels and API port mappings alone are not proof of worker identity.
 - Preserve existing video/voice workloads and Python environments; do not restart an occupied worker.
 
+### Dual-H100 restricted operation
+
+- Both cards are configured for **250 W** with persistence enabled. `obtv-h100-power.service` reapplies the limits at boot; ComfyUI service drop-ins require this service and a safety precheck.
+- Existing `obtv-comfy@0` and `obtv-comfy@1` services use their original environment files, GPU UUID assignments, and `/opt/obtv/venv`. They run on **127.0.0.1:8188** and **127.0.0.1:8189** respectively. They were started for local verification, not enabled for automatic startup or exposed to application dispatch.
+- `obtv-h100-guard.timer` runs `/usr/local/sbin/obtv-h100-guard` every 10 seconds. It stops both workers at GPU temperature ≥70°C, memory temperature ≥80°C, an enforced power limit above 250 W, uncorrectable volatile ECC errors, or unreadable/missing GPU telemetry. These temperature cutoffs are conservative operational limits, not manufacturer failure thresholds.
+- Do not expose these workers, change routing/capability tags, or submit test renders without authorization. Worker API checks passed with empty queues; real-render and sustained simultaneous stability remain unverified.
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
