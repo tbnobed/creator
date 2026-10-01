@@ -1,0 +1,166 @@
+Removed only test history 8188 9a94ec26-8305-495e-9601-253e131413a3
+Removed only test history 8189 6a426392-4b01-43b1-ae7d-0dc383696bad
+Removed only test history 8188 9500ccc8-d97f-4df4-bdc8-ce57dda2e017
+Removed only test history 8189 4f3290d6-c7bb-454e-a7f7-d9ddbb7347e8
+Removed only test history 8188 9371d2a1-7dea-49bf-92d1-06ede70a8ff5
+Removed only test history 8189 becd7ec4-04a2-44cc-8cdc-d1b94cc1a56f
+Removed only test history 8188 b154704d-027c-4c62-ad5b-221ef3f573d3
+Removed only test history 8189 7824c393-6342-4884-ac7f-53430814b326
+All eight test histories, test videos and remote temporary test files cleaned
+FINAL_HEALTH
+Thu Oct  1 08:26:18 PM UTC 2026
+index, temperature.gpu, temperature.memory, power.draw [W], power.limit [W], enforced.power.limit [W], persistence_mode, ecc.errors.uncorrected.volatile.total
+0, 46, 60, 83.88 W, 250.00 W, 250.00 W, Enabled, 0
+1, 47, 60, 83.70 W, 250.00 W, 250.00 W, Enabled, 0
+Id=obtv-comfy@0.service
+ActiveState=active
+UnitFileState=disabled
+
+Id=obtv-comfy@1.service
+ActiveState=active
+UnitFileState=disabled
+
+Id=obtv-h100-power.service
+ActiveState=active
+UnitFileState=enabled
+
+Id=obtv-h100-guard.timer
+ActiveState=active
+UnitFileState=enabled
+LISTEN 0      128        127.0.0.1:8188      0.0.0.0:*    users:(("python",pid=10474,fd=52))                     
+LISTEN 0      128        127.0.0.1:8189      0.0.0.0:*    users:(("python",pid=10477,fd=52))                     
+QUEUES
+{"queue_running": [], "queue_pending": []}
+{"queue_running": [], "queue_pending": []}
+KERNEL_ERRORS
+GUARD_ERRORS
+Oct 01 20:21:46 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:21:46 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:21:57 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:21:57 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:22:07 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:22:07 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:22:18 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:22:18 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:22:28 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:22:28 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:22:39 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:22:39 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:22:50 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:22:50 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:23:01 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:23:01 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:23:12 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:23:12 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:23:22 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:23:22 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:23:33 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:23:33 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:23:43 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:23:43 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:23:54 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:23:54 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:24:05 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:24:05 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:24:16 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:24:16 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:24:26 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:24:26 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:24:37 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:24:37 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:24:47 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:24:47 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:24:57 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:24:57 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:25:07 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:25:07 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:25:18 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:25:18 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:25:29 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:25:29 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:25:39 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:25:39 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:25:50 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:25:50 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:26:01 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:26:01 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+Oct 01 20:26:12 ai-creator2 systemd[1]: Starting obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state...
+Oct 01 20:26:12 ai-creator2 systemd[1]: Finished obtv-h100-guard.service - Stop OBTV H100 workers on unsafe temperature, ECC, or power state.
+BMC_LAST_EVENTS
+  66 | 09/30/2026 | 01:16:20 PM UTC | Fan CPU_FAN | Lower Critical going low  | Deasserted | Reading 600 > Threshold 360 RPM
+  67 | 09/30/2026 | 01:16:20 PM UTC | Fan CPU_FAN | Lower Non-critical going low  | Deasserted | Reading 600 > Threshold 360 RPM
+  68 | 09/30/2026 | 01:16:47 PM UTC | Fan CPU_FAN | Lower Non-critical going low  | Asserted | Reading 360 < Threshold 360 RPM
+  69 | 09/30/2026 | 01:16:47 PM UTC | Fan CPU_FAN | Lower Critical going low  | Asserted | Reading 360 < Threshold 360 RPM
+WORKER_LOG
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m got prompt
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Model storage policy: fast_disk=True paths=['/srv/obtv/models/vae/wan2.2_vae.safetensors']
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Using pytorch attention in VAE
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Using pytorch attention in VAE
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m VAE load device: cuda:0, offload device: cpu, dtype: torch.bfloat16
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Found quantization metadata version 1
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Using MixedPrecisionOps for text encoder
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Model storage policy: fast_disk=True paths=['/srv/obtv/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors']
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m CLIP/text encoder model load device: cuda:0, offload device: cpu, current: cpu, dtype: torch.float16
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Requested to load WanTEModel
+Oct 01 20:23:45 ai-creator2 python[10474]: [32m[INFO][0m Model WanTEModel prepared for dynamic VRAM loading. 6419MB Staged. 0 patches attached. Force pre-loaded 73 weights: 488 KB.
+Oct 01 20:23:47 ai-creator2 python[10474]: [32m[INFO][0m Model WanTEModel prepared for dynamic VRAM loading. 6419MB Staged. 0 patches attached. Force pre-loaded 73 weights: 488 KB.
+Oct 01 20:23:47 ai-creator2 python[10474]: [32m[INFO][0m model weight dtype torch.float16, manual cast: None
+Oct 01 20:23:47 ai-creator2 python[10474]: [32m[INFO][0m model_type FLOW
+Oct 01 20:23:47 ai-creator2 python[10474]: [32m[INFO][0m Model storage policy: fast_disk=True paths=['/srv/obtv/models/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors']
+Oct 01 20:23:47 ai-creator2 python[10474]: [32m[INFO][0m Requested to load WAN22
+Oct 01 20:23:47 ai-creator2 python[10474]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:23:50 ai-creator2 python[10474]:   0%|          | 0/8 [00:00<?, ?it/s] 12%|█▎        | 1/8 [00:02<00:20,  2.89s/it] 38%|███▊      | 3/8 [00:02<00:03,  1.27it/s] 62%|██████▎   | 5/8 [00:03<00:01,  2.42it/s] 88%|████████▊ | 7/8 [00:03<00:00,  3.79it/s]100%|██████████| 8/8 [00:03<00:00,  2.40it/s]
+Oct 01 20:23:50 ai-creator2 python[10474]: [32m[INFO][0m Requested to load WanVAE
+Oct 01 20:23:50 ai-creator2 python[10474]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:23:51 ai-creator2 python[10474]: [32m[INFO][0m [32mPrompt executed in 6.09 seconds[0m
+Oct 01 20:23:51 ai-creator2 python[10477]: [32m[INFO][0m got prompt
+Oct 01 20:23:51 ai-creator2 python[10477]: [32m[INFO][0m Model storage policy: fast_disk=True paths=['/srv/obtv/models/vae/wan2.2_vae.safetensors']
+Oct 01 20:23:51 ai-creator2 python[10477]: [32m[INFO][0m Using pytorch attention in VAE
+Oct 01 20:23:51 ai-creator2 python[10477]: [32m[INFO][0m Using pytorch attention in VAE
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m VAE load device: cuda:0, offload device: cpu, dtype: torch.bfloat16
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m Found quantization metadata version 1
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m Using MixedPrecisionOps for text encoder
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m Model storage policy: fast_disk=True paths=['/srv/obtv/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors']
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m CLIP/text encoder model load device: cuda:0, offload device: cpu, current: cpu, dtype: torch.float16
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m Requested to load WanTEModel
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m Model WanTEModel prepared for dynamic VRAM loading. 6419MB Staged. 0 patches attached. Force pre-loaded 73 weights: 488 KB.
+Oct 01 20:23:52 ai-creator2 python[10477]: [32m[INFO][0m Model WanTEModel prepared for dynamic VRAM loading. 6419MB Staged. 0 patches attached. Force pre-loaded 73 weights: 488 KB.
+Oct 01 20:23:53 ai-creator2 python[10477]: [32m[INFO][0m model weight dtype torch.float16, manual cast: None
+Oct 01 20:23:53 ai-creator2 python[10477]: [32m[INFO][0m model_type FLOW
+Oct 01 20:23:53 ai-creator2 python[10477]: [32m[INFO][0m Model storage policy: fast_disk=True paths=['/srv/obtv/models/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors']
+Oct 01 20:23:53 ai-creator2 python[10477]: [32m[INFO][0m Requested to load WAN22
+Oct 01 20:23:53 ai-creator2 python[10477]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:23:54 ai-creator2 python[10477]:   0%|          | 0/8 [00:00<?, ?it/s] 12%|█▎        | 1/8 [00:00<00:04,  1.61it/s] 50%|█████     | 4/8 [00:00<00:00,  6.34it/s] 75%|███████▌  | 6/8 [00:00<00:00,  8.64it/s]100%|██████████| 8/8 [00:01<00:00,  9.75it/s]100%|██████████| 8/8 [00:01<00:00,  7.58it/s]
+Oct 01 20:23:54 ai-creator2 python[10477]: [32m[INFO][0m Requested to load WanVAE
+Oct 01 20:23:54 ai-creator2 python[10477]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:23:54 ai-creator2 python[10477]: [32m[INFO][0m [32mPrompt executed in 2.67 seconds[0m
+Oct 01 20:23:55 ai-creator2 python[10474]: [32m[INFO][0m got prompt
+Oct 01 20:23:55 ai-creator2 python[10477]: [32m[INFO][0m got prompt
+Oct 01 20:23:55 ai-creator2 python[10474]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:23:55 ai-creator2 python[10477]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:23:55 ai-creator2 python[10474]:   0%|          | 0/8 [00:00<?, ?it/s] 38%|███▊      | 3/8 [00:00<00:00, 21.28it/s] 75%|███████▌  | 6/8 [00:00<00:00, 18.17it/s]100%|██████████| 8/8 [00:00<00:00, 15.84it/s]100%|██████████| 8/8 [00:00<00:00, 16.73it/s]
+Oct 01 20:23:55 ai-creator2 python[10474]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:23:55 ai-creator2 python[10477]:   0%|          | 0/8 [00:00<?, ?it/s] 38%|███▊      | 3/8 [00:00<00:00, 21.81it/s] 75%|███████▌  | 6/8 [00:00<00:00, 18.37it/s]100%|██████████| 8/8 [00:00<00:00, 15.63it/s]100%|██████████| 8/8 [00:00<00:00, 16.63it/s]
+Oct 01 20:23:55 ai-creator2 python[10477]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:23:55 ai-creator2 python[10474]: [32m[INFO][0m [32mPrompt executed in 0.82 seconds[0m
+Oct 01 20:23:55 ai-creator2 python[10477]: [32m[INFO][0m [32mPrompt executed in 0.83 seconds[0m
+Oct 01 20:25:08 ai-creator2 python[10474]: [32m[INFO][0m got prompt
+Oct 01 20:25:08 ai-creator2 python[10474]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:25:09 ai-creator2 python[10474]:   0%|          | 0/20 [00:00<?, ?it/s] 15%|█▌        | 3/20 [00:00<00:00, 22.54it/s] 30%|███       | 6/20 [00:00<00:00, 18.83it/s] 40%|████      | 8/20 [00:00<00:00, 17.83it/s] 50%|█████     | 10/20 [00:00<00:00, 17.33it/s] 60%|██████    | 12/20 [00:00<00:00, 17.02it/s] 70%|███████   | 14/20 [00:00<00:00, 16.81it/s] 80%|████████  | 16/20 [00:00<00:00, 16.22it/s] 90%|█████████ | 18/20 [00:01<00:00, 15.80it/s]100%|██████████| 20/20 [00:01<00:00, 14.48it/s]100%|██████████| 20/20 [00:01<00:00, 16.25it/s]
+Oct 01 20:25:09 ai-creator2 python[10474]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:25:09 ai-creator2 python[10474]: [32m[INFO][0m [32mPrompt executed in 1.56 seconds[0m
+Oct 01 20:25:10 ai-creator2 python[10477]: [32m[INFO][0m got prompt
+Oct 01 20:25:10 ai-creator2 python[10477]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:25:11 ai-creator2 python[10477]:   0%|          | 0/20 [00:00<?, ?it/s] 15%|█▌        | 3/20 [00:00<00:00, 21.89it/s] 30%|███       | 6/20 [00:00<00:00, 18.69it/s] 40%|████      | 8/20 [00:00<00:00, 17.78it/s] 50%|█████     | 10/20 [00:00<00:00, 17.27it/s] 60%|██████    | 12/20 [00:00<00:00, 17.04it/s] 70%|███████   | 14/20 [00:00<00:00, 16.82it/s] 80%|████████  | 16/20 [00:00<00:00, 16.44it/s] 90%|█████████ | 18/20 [00:01<00:00, 16.01it/s]100%|██████████| 20/20 [00:01<00:00, 14.41it/s]100%|██████████| 20/20 [00:01<00:00, 16.24it/s]
+Oct 01 20:25:11 ai-creator2 python[10477]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:25:12 ai-creator2 python[10477]: [32m[INFO][0m [32mPrompt executed in 1.57 seconds[0m
+Oct 01 20:25:12 ai-creator2 python[10474]: [32m[INFO][0m got prompt
+Oct 01 20:25:12 ai-creator2 python[10477]: [32m[INFO][0m got prompt
+Oct 01 20:25:12 ai-creator2 python[10474]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:25:12 ai-creator2 python[10477]: [32m[INFO][0m Model WAN22 prepared for dynamic VRAM loading. 9535MB Staged. 0 patches attached. Force pre-loaded 180 weights: 1083 KB.
+Oct 01 20:25:14 ai-creator2 python[10474]:   0%|          | 0/20 [00:00<?, ?it/s] 15%|█▌        | 3/20 [00:00<00:00, 22.47it/s] 30%|███       | 6/20 [00:00<00:00, 18.86it/s] 40%|████      | 8/20 [00:00<00:00, 18.08it/s] 50%|█████     | 10/20 [00:00<00:00, 17.38it/s] 60%|██████    | 12/20 [00:00<00:00, 17.08it/s] 70%|███████   | 14/20 [00:00<00:00, 16.82it/s] 80%|████████  | 16/20 [00:00<00:00, 16.11it/s] 90%|█████████ | 18/20 [00:01<00:00, 15.81it/s]100%|██████████| 20/20 [00:01<00:00, 14.45it/s]100%|██████████| 20/20 [00:01<00:00, 16.26it/s]
+Oct 01 20:25:14 ai-creator2 python[10474]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:25:14 ai-creator2 python[10477]:   0%|          | 0/20 [00:00<?, ?it/s] 15%|█▌        | 3/20 [00:00<00:00, 20.29it/s] 30%|███       | 6/20 [00:00<00:00, 17.75it/s] 40%|████      | 8/20 [00:00<00:00, 17.28it/s] 50%|█████     | 10/20 [00:00<00:00, 17.04it/s] 60%|██████    | 12/20 [00:00<00:00, 16.86it/s] 70%|███████   | 14/20 [00:00<00:00, 16.77it/s] 80%|████████  | 16/20 [00:00<00:00, 16.34it/s] 90%|█████████ | 18/20 [00:01<00:00, 16.03it/s]100%|██████████| 20/20 [00:01<00:00, 14.52it/s]100%|██████████| 20/20 [00:01<00:00, 16.10it/s]
+Oct 01 20:25:14 ai-creator2 python[10477]: [32m[INFO][0m Model WanVAE prepared for dynamic VRAM loading. 1344MB Staged. 0 patches attached. Force pre-loaded 54 weights: 69 KB.
+Oct 01 20:25:14 ai-creator2 python[10474]: [32m[INFO][0m [32mPrompt executed in 1.60 seconds[0m
+Oct 01 20:25:14 ai-creator2 python[10477]: [32m[INFO][0m [32mPrompt executed in 1.61 seconds[0m

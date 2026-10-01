@@ -1,0 +1,943 @@
+{
+  "run": "obtv-validation-cd4e548cea47",
+  "start_utc": "2026-10-01T20:23:44Z",
+  "stages": [
+    {
+      "workers": [
+        8188
+      ],
+      "status": "passed",
+      "jobs": [
+        {
+          "port": 8188,
+          "prompt_id": "9a94ec26-8305-495e-9601-253e131413a3",
+          "prefix": "obtv-validation-cd4e548cea47-8188-8188",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "9a94ec26-8305-495e-9601-253e131413a3",
+                  "timestamp": 1790886225504
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [],
+                  "prompt_id": "9a94ec26-8305-495e-9601-253e131413a3",
+                  "timestamp": 1790886225507
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "9a94ec26-8305-495e-9601-253e131413a3",
+                  "timestamp": 1790886231593
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-cd4e548cea47-8188-8188_00001_.mp4",
+              "bytes": 162205,
+              "sha256": "e57a1adc15644ca4e409dd6e4b19deb776d8a2002b62ad2315cead2d1f64788b",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                134.030115198206,
+                175.2486459237558
+              ],
+              "frame_std_range": [
+                86.76409204596487,
+                92.4752234302685
+              ],
+              "preview": "/tmp/obtv-validation-cd4e548cea47-8188-8188.jpg"
+            }
+          ]
+        }
+      ],
+      "peaks": {
+        "0": {
+          "gpu": 52.0,
+          "memory": 62.0,
+          "watts": 165.48,
+          "utilization": 91.0
+        },
+        "1": {
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.21,
+          "utilization": 0
+        }
+      },
+      "seconds": 6.4
+    },
+    {
+      "workers": [
+        8189
+      ],
+      "status": "passed",
+      "jobs": [
+        {
+          "port": 8189,
+          "prompt_id": "6a426392-4b01-43b1-ae7d-0dc383696bad",
+          "prefix": "obtv-validation-cd4e548cea47-8189-8189",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "6a426392-4b01-43b1-ae7d-0dc383696bad",
+                  "timestamp": 1790886231932
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [],
+                  "prompt_id": "6a426392-4b01-43b1-ae7d-0dc383696bad",
+                  "timestamp": 1790886231934
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "6a426392-4b01-43b1-ae7d-0dc383696bad",
+                  "timestamp": 1790886234606
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-cd4e548cea47-8189-8189_00001_.mp4",
+              "bytes": 157810,
+              "sha256": "2ae4627282e4a3ef73e84df9d0530573a811a822244e57506256d63bb7367624",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                127.68555817780671,
+                143.81447799117475
+              ],
+              "frame_std_range": [
+                84.95164360410483,
+                94.62412255975204
+              ],
+              "preview": "/tmp/obtv-validation-cd4e548cea47-8189-8189.jpg"
+            }
+          ]
+        }
+      ],
+      "peaks": {
+        "0": {
+          "gpu": 47.0,
+          "memory": 61.0,
+          "watts": 127.71,
+          "utilization": 0
+        },
+        "1": {
+          "gpu": 54.0,
+          "memory": 64.0,
+          "watts": 159.67,
+          "utilization": 97.0
+        }
+      },
+      "seconds": 3.14
+    },
+    {
+      "workers": [
+        8188,
+        8189
+      ],
+      "status": "passed",
+      "jobs": [
+        {
+          "port": 8188,
+          "prompt_id": "9500ccc8-d97f-4df4-bdc8-ce57dda2e017",
+          "prefix": "obtv-validation-cd4e548cea47-8188+8189-8188",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "9500ccc8-d97f-4df4-bdc8-ce57dda2e017",
+                  "timestamp": 1790886235101
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [
+                    "6",
+                    "7",
+                    "37",
+                    "38",
+                    "39",
+                    "48",
+                    "55",
+                    "60",
+                    "61"
+                  ],
+                  "prompt_id": "9500ccc8-d97f-4df4-bdc8-ce57dda2e017",
+                  "timestamp": 1790886235102
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "9500ccc8-d97f-4df4-bdc8-ce57dda2e017",
+                  "timestamp": 1790886235921
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-cd4e548cea47-8188+8189-8188_00001_.mp4",
+              "bytes": 153771,
+              "sha256": "73f27e99417c9bf6adfc4c0c769d828aa8ffbe4a1c94e27f0df6573063f84bfd",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                152.68516257957177,
+                175.30098017939815
+              ],
+              "frame_std_range": [
+                81.97175199410422,
+                91.11075205996045
+              ],
+              "preview": "/tmp/obtv-validation-cd4e548cea47-8188+8189-8188.jpg"
+            }
+          ]
+        },
+        {
+          "port": 8189,
+          "prompt_id": "4f3290d6-c7bb-454e-a7f7-d9ddbb7347e8",
+          "prefix": "obtv-validation-cd4e548cea47-8188+8189-8189",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "4f3290d6-c7bb-454e-a7f7-d9ddbb7347e8",
+                  "timestamp": 1790886235102
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [
+                    "6",
+                    "7",
+                    "37",
+                    "38",
+                    "39",
+                    "48",
+                    "55",
+                    "60",
+                    "61"
+                  ],
+                  "prompt_id": "4f3290d6-c7bb-454e-a7f7-d9ddbb7347e8",
+                  "timestamp": 1790886235103
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "4f3290d6-c7bb-454e-a7f7-d9ddbb7347e8",
+                  "timestamp": 1790886235930
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-cd4e548cea47-8188+8189-8189_00001_.mp4",
+              "bytes": 171840,
+              "sha256": "8fd5c9ebeccd2d474f1c99b2873595aa771ba3afbe1e1a7a4bd2a2caaefcfade",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                135.87540464048033,
+                150.8522587528935
+              ],
+              "frame_std_range": [
+                83.97194474979362,
+                90.81765125729315
+              ],
+              "preview": "/tmp/obtv-validation-cd4e548cea47-8188+8189-8189.jpg"
+            }
+          ]
+        }
+      ],
+      "peaks": {
+        "0": {
+          "gpu": 49.0,
+          "memory": 62.0,
+          "watts": 211.22,
+          "utilization": 0
+        },
+        "1": {
+          "gpu": 50.0,
+          "memory": 64.0,
+          "watts": 208.73,
+          "utilization": 0
+        }
+      },
+      "seconds": 1.1
+    }
+  ],
+  "telemetry": [
+    {
+      "utc": "2026-10-01T20:23:44Z",
+      "stage": "baseline",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 45.0,
+          "memory": 60.0,
+          "watts": 82.82,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.22,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:45Z",
+      "stage": "cooldown",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 45.0,
+          "memory": 60.0,
+          "watts": 82.91,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.21,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:45Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 45.0,
+          "memory": 59.0,
+          "watts": 82.91,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.21,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:46Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 59.0,
+          "watts": 90.69,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 26.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.01,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:47Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 52.0,
+          "memory": 62.0,
+          "watts": 164.97,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 52.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 82.76,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:48Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 91.34,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 12.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 82.82,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:49Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 88.22,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 82.96,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:50Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 49.0,
+          "memory": 61.0,
+          "watts": 119.42,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 91.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 82.88,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:51Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 165.48,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 82.82,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:51Z",
+      "stage": "cooldown",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 47.0,
+          "memory": 61.0,
+          "watts": 134.57,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 82.87,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:51Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 47.0,
+          "memory": 61.0,
+          "watts": 127.71,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 82.87,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:52Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.6,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 54.0,
+          "memory": 64.0,
+          "watts": 159.67,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 82.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:54Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.39,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 54.0,
+          "memory": 63.0,
+          "watts": 154.94,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 97.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:55Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.24,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 147.2,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:55Z",
+      "stage": "cooldown",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.27,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 140.39,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:55Z",
+      "stage": "8188+8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.27,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 136.64,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:56Z",
+      "stage": "8188+8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 49.0,
+          "memory": 62.0,
+          "watts": 211.22,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 50.0,
+          "memory": 64.0,
+          "watts": 208.73,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:23:56Z",
+      "stage": "final",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 198.8,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 49.0,
+          "memory": 62.0,
+          "watts": 197.31,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "8188": {
+      "nodes": [
+        "CLIPLoader",
+        "CLIPTextEncode",
+        "ComfyMathExpression",
+        "CreateVideo",
+        "KSampler",
+        "ModelSamplingSD3",
+        "PrimitiveInt",
+        "SaveVideo",
+        "UNETLoader",
+        "VAEDecode",
+        "VAELoader",
+        "Wan22ImageToVideoLatent"
+      ],
+      "models": [
+        {
+          "name": "wan2.2_ti2v_5B_fp16.safetensors",
+          "bytes": 9999658848,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+          "bytes": 6735906897,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "wan2.2_vae.safetensors",
+          "bytes": 1409400960,
+          "safetensors_layout": "valid"
+        }
+      ]
+    },
+    "8189": {
+      "nodes": [
+        "CLIPLoader",
+        "CLIPTextEncode",
+        "ComfyMathExpression",
+        "CreateVideo",
+        "KSampler",
+        "ModelSamplingSD3",
+        "PrimitiveInt",
+        "SaveVideo",
+        "UNETLoader",
+        "VAEDecode",
+        "VAELoader",
+        "Wan22ImageToVideoLatent"
+      ],
+      "models": [
+        {
+          "name": "wan2.2_ti2v_5B_fp16.safetensors",
+          "bytes": 9999658848,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+          "bytes": 6735906897,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "wan2.2_vae.safetensors",
+          "bytes": 1409400960,
+          "safetensors_layout": "valid"
+        }
+      ]
+    }
+  },
+  "cleanup": [
+    {
+      "port": 8188,
+      "queue": {
+        "queue_running": [],
+        "queue_pending": []
+      }
+    },
+    {
+      "port": 8189,
+      "queue": {
+        "queue_running": [],
+        "queue_pending": []
+      }
+    }
+  ],
+  "result": "short_render_validation_passed",
+  "visual_quality_result": "failed_manual_frame_inspection",
+  "readiness": "not_approved_for_automatic_jobs",
+  "removed_test_outputs": [
+    "/var/lib/obtv/comfy0/output/obtv-validation-cd4e548cea47-8188-8188_00001_.mp4",
+    "/var/lib/obtv/comfy1/output/obtv-validation-cd4e548cea47-8189-8189_00001_.mp4",
+    "/var/lib/obtv/comfy0/output/obtv-validation-cd4e548cea47-8188+8189-8188_00001_.mp4",
+    "/var/lib/obtv/comfy1/output/obtv-validation-cd4e548cea47-8188+8189-8189_00001_.mp4"
+  ]
+}

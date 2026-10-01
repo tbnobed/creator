@@ -1,0 +1,843 @@
+{
+  "run": "obtv-validation-7a9aad15313c",
+  "start_utc": "2026-10-01T20:25:08Z",
+  "stages": [
+    {
+      "workers": [
+        8188
+      ],
+      "status": "passed",
+      "jobs": [
+        {
+          "port": 8188,
+          "prompt_id": "9371d2a1-7dea-49bf-92d1-06ede70a8ff5",
+          "prefix": "obtv-validation-7a9aad15313c-8188-8188",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "9371d2a1-7dea-49bf-92d1-06ede70a8ff5",
+                  "timestamp": 1790886308427
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [
+                    "6",
+                    "7",
+                    "37",
+                    "38",
+                    "39",
+                    "48",
+                    "55",
+                    "60",
+                    "61"
+                  ],
+                  "prompt_id": "9371d2a1-7dea-49bf-92d1-06ede70a8ff5",
+                  "timestamp": 1790886308428
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "9371d2a1-7dea-49bf-92d1-06ede70a8ff5",
+                  "timestamp": 1790886309984
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-7a9aad15313c-8188-8188_00001_.mp4",
+              "bytes": 191311,
+              "sha256": "6d2cd470605f832efff19d50940dbad6eed3ff1fdb22f8d0158a9fa9a9af2a59",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                110.21312572337963,
+                153.68697102864584
+              ],
+              "frame_std_range": [
+                92.05103818740345,
+                100.25164568800778
+              ],
+              "preview": "/tmp/obtv-validation-7a9aad15313c-8188-8188.jpg"
+            }
+          ]
+        }
+      ],
+      "peaks": {
+        "0": {
+          "gpu": 54.0,
+          "memory": 64.0,
+          "watts": 257.99,
+          "utilization": 97.0
+        },
+        "1": {
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.33,
+          "utilization": 0
+        }
+      },
+      "seconds": 2.14
+    },
+    {
+      "workers": [
+        8189
+      ],
+      "status": "passed",
+      "jobs": [
+        {
+          "port": 8189,
+          "prompt_id": "becd7ec4-04a2-44cc-8cdc-d1b94cc1a56f",
+          "prefix": "obtv-validation-7a9aad15313c-8189-8189",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "becd7ec4-04a2-44cc-8cdc-d1b94cc1a56f",
+                  "timestamp": 1790886310593
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [
+                    "6",
+                    "7",
+                    "37",
+                    "38",
+                    "39",
+                    "48",
+                    "55",
+                    "60",
+                    "61"
+                  ],
+                  "prompt_id": "becd7ec4-04a2-44cc-8cdc-d1b94cc1a56f",
+                  "timestamp": 1790886310594
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "becd7ec4-04a2-44cc-8cdc-d1b94cc1a56f",
+                  "timestamp": 1790886312165
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-7a9aad15313c-8189-8189_00001_.mp4",
+              "bytes": 225451,
+              "sha256": "d0d1044aded51f3368ef99fff27c153b67db7e74864991dea33edf2ce2d1fece",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                101.55745668764467,
+                113.33460602936921
+              ],
+              "frame_std_range": [
+                88.32142788136073,
+                95.10501089613486
+              ],
+              "preview": "/tmp/obtv-validation-7a9aad15313c-8189-8189.jpg"
+            }
+          ]
+        }
+      ],
+      "peaks": {
+        "0": {
+          "gpu": 48.0,
+          "memory": 61.0,
+          "watts": 139.59,
+          "utilization": 0
+        },
+        "1": {
+          "gpu": 55.0,
+          "memory": 65.0,
+          "watts": 258.78,
+          "utilization": 96.0
+        }
+      },
+      "seconds": 2.11
+    },
+    {
+      "workers": [
+        8188,
+        8189
+      ],
+      "status": "passed",
+      "jobs": [
+        {
+          "port": 8188,
+          "prompt_id": "b154704d-027c-4c62-ad5b-221ef3f573d3",
+          "prefix": "obtv-validation-7a9aad15313c-8188+8189-8188",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "b154704d-027c-4c62-ad5b-221ef3f573d3",
+                  "timestamp": 1790886312732
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [
+                    "6",
+                    "7",
+                    "37",
+                    "38",
+                    "39",
+                    "48",
+                    "55",
+                    "60",
+                    "61"
+                  ],
+                  "prompt_id": "b154704d-027c-4c62-ad5b-221ef3f573d3",
+                  "timestamp": 1790886312733
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "b154704d-027c-4c62-ad5b-221ef3f573d3",
+                  "timestamp": 1790886314335
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-7a9aad15313c-8188+8189-8188_00001_.mp4",
+              "bytes": 179343,
+              "sha256": "c0fd93a59fb1bdb466a020a9a4aa02a02e44861b1aacfa7fc16965ff1414f2be",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                152.8533777307581,
+                174.97066017433448
+              ],
+              "frame_std_range": [
+                82.18929590078274,
+                87.14330976359557
+              ],
+              "preview": "/tmp/obtv-validation-7a9aad15313c-8188+8189-8188.jpg"
+            }
+          ]
+        },
+        {
+          "port": 8189,
+          "prompt_id": "7824c393-6342-4884-ac7f-53430814b326",
+          "prefix": "obtv-validation-7a9aad15313c-8188+8189-8189",
+          "status": {
+            "status_str": "success",
+            "completed": true,
+            "messages": [
+              [
+                "execution_start",
+                {
+                  "prompt_id": "7824c393-6342-4884-ac7f-53430814b326",
+                  "timestamp": 1790886312733
+                }
+              ],
+              [
+                "execution_cached",
+                {
+                  "nodes": [
+                    "6",
+                    "7",
+                    "37",
+                    "38",
+                    "39",
+                    "48",
+                    "55",
+                    "60",
+                    "61"
+                  ],
+                  "prompt_id": "7824c393-6342-4884-ac7f-53430814b326",
+                  "timestamp": 1790886312734
+                }
+              ],
+              [
+                "execution_success",
+                {
+                  "prompt_id": "7824c393-6342-4884-ac7f-53430814b326",
+                  "timestamp": 1790886314346
+                }
+              ]
+            ]
+          },
+          "outputs": [
+            {
+              "filename": "obtv-validation-7a9aad15313c-8188+8189-8189_00001_.mp4",
+              "bytes": 185635,
+              "sha256": "faa1227f02f43b186a225f1a8781d9157caf2e4718d4b257ca07df16319e4321",
+              "frames": 17,
+              "fps": 24.0,
+              "width": 512,
+              "height": 288,
+              "frame_mean_range": [
+                118.57248942057292,
+                132.5687052408854
+              ],
+              "frame_std_range": [
+                89.53712887507962,
+                95.75304708765185
+              ],
+              "preview": "/tmp/obtv-validation-7a9aad15313c-8188+8189-8189.jpg"
+            }
+          ]
+        }
+      ],
+      "peaks": {
+        "0": {
+          "gpu": 54.0,
+          "memory": 65.0,
+          "watts": 262.21,
+          "utilization": 98.0
+        },
+        "1": {
+          "gpu": 56.0,
+          "memory": 66.0,
+          "watts": 257.8,
+          "utilization": 96.0
+        }
+      },
+      "seconds": 2.14
+    }
+  ],
+  "telemetry": [
+    {
+      "utc": "2026-10-01T20:25:08Z",
+      "stage": "baseline",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.07,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.35,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:08Z",
+      "stage": "cooldown",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.16,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.28,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:08Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 46.0,
+          "memory": 60.0,
+          "watts": 83.14,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.28,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:09Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 54.0,
+          "memory": 64.0,
+          "watts": 257.99,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 97.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.2,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:10Z",
+      "stage": "8188",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 155.27,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.33,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:10Z",
+      "stage": "cooldown",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 48.0,
+          "memory": 62.0,
+          "watts": 145.82,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.37,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:10Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 48.0,
+          "memory": 61.0,
+          "watts": 139.59,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 46.0,
+          "memory": 61.0,
+          "watts": 83.38,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:11Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 47.0,
+          "memory": 61.0,
+          "watts": 83.97,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 55.0,
+          "memory": 65.0,
+          "watts": 258.78,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 96.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:12Z",
+      "stage": "8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 47.0,
+          "memory": 60.0,
+          "watts": 83.66,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 49.0,
+          "memory": 63.0,
+          "watts": 155.23,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:12Z",
+      "stage": "cooldown",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 47.0,
+          "memory": 60.0,
+          "watts": 83.67,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 49.0,
+          "memory": 63.0,
+          "watts": 149.82,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:12Z",
+      "stage": "8188+8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 47.0,
+          "memory": 60.0,
+          "watts": 83.69,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 49.0,
+          "memory": 63.0,
+          "watts": 143.73,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:13Z",
+      "stage": "8188+8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 54.0,
+          "memory": 65.0,
+          "watts": 262.21,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 98.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 56.0,
+          "memory": 66.0,
+          "watts": 257.8,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 96.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:14Z",
+      "stage": "8188+8189",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 49.0,
+          "memory": 61.0,
+          "watts": 157.1,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 50.0,
+          "memory": 63.0,
+          "watts": 155.01,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-01T20:25:14Z",
+      "stage": "final",
+      "gpus": [
+        {
+          "index": 0,
+          "uuid": "GPU-4f5b19ff-6860-134c-51fa-78c273778ddf",
+          "gpu": 49.0,
+          "memory": 61.0,
+          "watts": 148.91,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        },
+        {
+          "index": 1,
+          "uuid": "GPU-0e1c4502-e952-091a-ea96-f815459d59f4",
+          "gpu": 50.0,
+          "memory": 63.0,
+          "watts": 145.37,
+          "limit": 250.0,
+          "enforced": 250.0,
+          "persistence": "Enabled",
+          "ecc": 0,
+          "utilization": 0.0
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "8188": {
+      "nodes": [
+        "CLIPLoader",
+        "CLIPTextEncode",
+        "ComfyMathExpression",
+        "CreateVideo",
+        "KSampler",
+        "ModelSamplingSD3",
+        "PrimitiveInt",
+        "SaveVideo",
+        "UNETLoader",
+        "VAEDecode",
+        "VAELoader",
+        "Wan22ImageToVideoLatent"
+      ],
+      "models": [
+        {
+          "name": "wan2.2_ti2v_5B_fp16.safetensors",
+          "bytes": 9999658848,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+          "bytes": 6735906897,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "wan2.2_vae.safetensors",
+          "bytes": 1409400960,
+          "safetensors_layout": "valid"
+        }
+      ]
+    },
+    "8189": {
+      "nodes": [
+        "CLIPLoader",
+        "CLIPTextEncode",
+        "ComfyMathExpression",
+        "CreateVideo",
+        "KSampler",
+        "ModelSamplingSD3",
+        "PrimitiveInt",
+        "SaveVideo",
+        "UNETLoader",
+        "VAEDecode",
+        "VAELoader",
+        "Wan22ImageToVideoLatent"
+      ],
+      "models": [
+        {
+          "name": "wan2.2_ti2v_5B_fp16.safetensors",
+          "bytes": 9999658848,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+          "bytes": 6735906897,
+          "safetensors_layout": "valid"
+        },
+        {
+          "name": "wan2.2_vae.safetensors",
+          "bytes": 1409400960,
+          "safetensors_layout": "valid"
+        }
+      ]
+    }
+  },
+  "cleanup": [
+    {
+      "port": 8188,
+      "queue": {
+        "queue_running": [],
+        "queue_pending": []
+      }
+    },
+    {
+      "port": 8189,
+      "queue": {
+        "queue_running": [],
+        "queue_pending": []
+      }
+    }
+  ],
+  "result": "short_render_validation_passed",
+  "visual_quality_result": "failed_manual_frame_inspection",
+  "readiness": "not_approved_for_automatic_jobs",
+  "removed_test_outputs": [
+    "/var/lib/obtv/comfy0/output/obtv-validation-7a9aad15313c-8188-8188_00001_.mp4",
+    "/var/lib/obtv/comfy1/output/obtv-validation-7a9aad15313c-8189-8189_00001_.mp4",
+    "/var/lib/obtv/comfy0/output/obtv-validation-7a9aad15313c-8188+8189-8188_00001_.mp4",
+    "/var/lib/obtv/comfy1/output/obtv-validation-7a9aad15313c-8188+8189-8189_00001_.mp4"
+  ]
+}

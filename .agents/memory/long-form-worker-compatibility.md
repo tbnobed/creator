@@ -14,3 +14,9 @@ Worker installation and application-deployment readiness are separate claims. A 
 **Why:** The same GPU workers serve independently configured application databases. Previously, all image models passed real worker tests but remained unavailable in Docker because only development capability tags had been updated.
 
 **How to apply:** Verify capability registration in the application environment the user actually uses. State explicitly when Docker-side configuration is still required; never present development-only configuration as a deployed fix.
+
+Treat execution success, media integrity, and visual correctness as separate validation gates.
+
+**Why:** Controlled dual-H100 Wan runs completed without execution errors and produced correctly sized, fully decodable MP4s, yet inspected frames were severely distorted at both reduced and original sampling-step counts. Nonzero pixel variance and a success history do not establish usable output.
+
+**How to apply:** Inspect generated frames before approving capabilities or automatic dispatch. Record codec checks and visual acceptance separately; do not turn a short thermal smoke-test pass into a quality or sustained-capacity claim.
