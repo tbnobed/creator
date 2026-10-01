@@ -60,9 +60,10 @@ These SSH connection details were confirmed by the operator. Keep them available
 ### Dual-H100 restricted operation
 
 - Both cards are configured for **250 W** with persistence enabled. `obtv-h100-power.service` reapplies the limits at boot; ComfyUI service drop-ins require this service and a safety precheck.
-- Existing `obtv-comfy@0` and `obtv-comfy@1` services use their original environment files, GPU UUID assignments, and `/opt/obtv/venv`. They run on **127.0.0.1:8188** and **127.0.0.1:8189** respectively. They were started for local verification, not enabled for automatic startup or exposed to application dispatch.
+- Existing `obtv-comfy@0` and `obtv-comfy@1` services use their original environment files, GPU UUID assignments, and `/opt/obtv/venv`. Per operator authorization they listen on **0.0.0.0:8188** and **0.0.0.0:8189**, reachable through the server LAN address **192.168.203.4**. The `network-listen.conf` template drop-in changes only the listen address. They are not enabled for automatic startup.
+- The operator requested no added access restrictions for these ComfyUI listeners: no authentication, IP allowlists, or firewall restrictions were added. Router port forwarding was not changed. Network reachability does not authorize enabling automatic app dispatch; backend-to-worker connectivity still needs verification from the actual deployed API host.
 - `obtv-h100-guard.timer` runs `/usr/local/sbin/obtv-h100-guard` every 10 seconds. It stops both workers at GPU temperature ≥70°C, memory temperature ≥80°C, an enforced power limit above 250 W, uncorrectable volatile ECC errors, or unreadable/missing GPU telemetry. These temperature cutoffs are conservative operational limits, not manufacturer failure thresholds.
-- Do not expose these workers, change routing/capability tags, or submit test renders without authorization. Worker API checks passed with empty queues; real-render and sustained simultaneous stability remain unverified.
+- Do not change routing/capability tags, enable automatic job assignment, or submit test renders without authorization. LAN-address API checks from the GPU host passed; those checks alone do not establish sustained rendering stability or reachability from the deployed API host.
 
 ## Pointers
 
