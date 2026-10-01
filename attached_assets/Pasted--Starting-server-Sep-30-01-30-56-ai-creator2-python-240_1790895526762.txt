@@ -1,0 +1,22 @@
+ Starting server
+Sep 30 01:30:56 ai-creator2 python[2401]: [INFO] To see the GUI go to: http://127.0.0.1:8188
+Sep 30 01:32:19 ai-creator2 systemd[1]: Stopping obtv-comfy@0.service - OBTV ComfyUI GPU worker 0...
+Sep 30 01:32:19 ai-creator2 systemd[1]: obtv-comfy@0.service: Deactivated successfully.
+Sep 30 01:32:19 ai-creator2 systemd[1]: Stopped obtv-comfy@0.service - OBTV ComfyUI GPU worker 0.
+Sep 30 01:32:19 ai-creator2 systemd[1]: obtv-comfy@0.service: Consumed 8.001s CPU time, 604.4M memory peak, 0B memory swap peak.
+-- Boot 0f93998e10ac41a581d7d681aa0f918f --
+Oct 01 20:13:39 ai-creator2 systemd[1]: Starting obtv-comfy@0.service - OBTV ComfyUI GPU worker 0...
+Oct 01 20:13:39 ai-creator2 systemd[1]: Started obtv-comfy@0.service - OBTV ComfyUI GPU worker 0.
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.autogenerate.schemas
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.autogenerate.tables
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.autogenerate.types
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.autogenerate.constraints
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.autogenerate.defaults
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.autogenerate.comments
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] setup plugin alembic.ext.checkconstraint_byname
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] Setting output directory to: /var/lib/obtv/comfy0/output
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] Setting input directory to: /var/lib/obtv/comfy0/input
+Oct 01 20:13:39 ai-creator2 python[10474]: [INFO] Setting user directory to: /var/lib/obtv/comfy0/user
+Oct 01 20:13:41 ai-creator2 python[10474]: [INFO] Found comfy_kitchen backend hip: {'available': False, 'disabled': False, 'unavailable_reason': 'PyTorch RO>
+Oct 01 20:13:41 ai-creator2 python[10474]: [INFO] Found comfy_kitchen backend eager: {'available': True, 'disabled': False, 'unavailable_reason': None, 'cap>
+Oct 01 20:13:41 ai-creator2 python[10474]: [INFO] Found comfy_kitchen backend triton: {'available': True, 'disabled': True, 'unavailable_reason': None, 'cap>
