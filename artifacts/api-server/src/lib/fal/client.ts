@@ -48,8 +48,9 @@ export function klingImageElements(
 }
 
 export const TOPAZ_VIDEO_ENDPOINT = "fal-ai/topaz/upscale/video";
-export type FalQueueModel = FalModel | "topaz-upscale";
+export type FalQueueModel = FalModel | "topaz-upscale" | "video-cleanup";
 const falEndpointsByModel: Record<FalQueueModel, readonly string[]> = {
+  "video-cleanup": ["bria/video/erase/keypoints"],
   "topaz-upscale": [TOPAZ_VIDEO_ENDPOINT],
   "veo-3.1-fast": [falModels["veo-3.1-fast"], ...Object.values(falVeoImageModels)],
   "gemini-omni-flash": [falModels["gemini-omni-flash"]],
@@ -522,7 +523,7 @@ export class FalQueueClient {
     this.model = model;
   }
 
-  async submit(input: Record<string, unknown>, endpoint: string = this.model === "topaz-upscale" ? TOPAZ_VIDEO_ENDPOINT : falModels[this.model]): Promise<{
+  async submit(input: Record<string, unknown>, endpoint: string = falEndpointsByModel[this.model][0]): Promise<{
     requestId: string;
     endpoints: FalQueueEndpoints;
     metadata: Record<string, unknown>;

@@ -30,3 +30,4 @@
 - [Cloud native-resolution policy](cloud-native-resolution-policy.md) — Google video stays at 720p without automatic upscaling; provider output enums do not prove native detail.
 - [Media proxy diagnosis](media-proxy-diagnosis.md) — API completion does not prove delivery; identify the actual NPM upstream and test proxy survival on interrupted transfers.
 - [Worker history preservation](worker-history-preservation.md) — Removing a fleet worker must preserve historical attribution and prevent new assignments.
+- [Video Cleanup contract](video-cleanup-contract.md) — Both camera modes use tracked short-shot removal; preserve source audio and distinguish local allowances from provider prices.

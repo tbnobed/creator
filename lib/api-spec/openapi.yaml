@@ -1692,6 +1692,54 @@ paths:
           description: Image asset not found
         "409":
           description: Image asset is still referenced by a job, continuity record, or character wardrobe
+  /video-cleanup/inspect:
+    post:
+      operationId: inspectVideoCleanup
+      tags: [VideoCleanup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoCleanupInspectRequest"
+      responses:
+        "200":
+          description: Verified clip and local spending allowance
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/VideoCleanupSource"}
+  /video-cleanup:
+    post:
+      operationId: submitVideoCleanup
+      tags: [VideoCleanup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoCleanupSubmitRequest"
+      responses:
+        "200":
+          description: Durable cleanup job, including duplicate submissions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobId]
+                properties:
+                  jobId: {type: string}
+  /video-cleanup/jobs:
+    get:
+      operationId: listVideoCleanupJobs
+      tags: [VideoCleanup]
+      responses:
+        "200":
+          description: Recent tenant cleanup jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/VideoCleanupJob"}
 components:
   parameters:
     Id:
@@ -1701,6 +1749,62 @@ components:
       schema:
         type: string
   schemas:
+    VideoCleanupInspectRequest:
+      type: object
+      required: [sourceStorageKey]
+      properties:
+        sourceStorageKey: {type: string}
+    VideoCleanupSubmitRequest:
+      type: object
+      required: [sourceStorageKey, sourceToken, points, cameraMode, requestId, confirmPaid]
+      properties:
+        sourceStorageKey: {type: string}
+        sourceToken: {type: string}
+        requestId: {type: string}
+        confirmPaid: {type: boolean}
+        cameraMode: {type: string, enum: [stationary, moving]}
+        points:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items: {$ref: "#/components/schemas/VideoCleanupPoint"}
+    VideoCleanupPoint:
+      type: object
+      required: [x, y, type]
+      properties:
+        x: {type: number, minimum: 0, maximum: 1}
+        y: {type: number, minimum: 0, maximum: 1}
+        type: {type: string, enum: [positive, negative]}
+    VideoCleanupSource:
+      type: object
+      required: [storageKey, mediaUrl, sourceToken, width, height, fps, durationSeconds, hasAudio, estimatedUsd, pricingNote]
+      properties:
+        storageKey: {type: string}
+        mediaUrl: {type: string}
+        sourceToken: {type: string}
+        width: {type: number}
+        height: {type: number}
+        fps: {type: number}
+        durationSeconds: {type: number}
+        hasAudio: {type: boolean}
+        estimatedUsd: {type: number}
+        pricingNote: {type: string}
+    VideoCleanupJob:
+      type: object
+      required: [jobId, title, status, cameraMode, sourceMediaUrl, points, createdAt]
+      properties:
+        jobId: {type: string}
+        title: {type: string}
+        status: {type: string}
+        cameraMode: {type: string, enum: [stationary, moving]}
+        sourceMediaUrl: {type: string}
+        outputMediaUrl: {type: string, nullable: true}
+        errorMessage: {type: string, nullable: true}
+        currentNode: {type: string, nullable: true}
+        createdAt: {type: string}
+        points:
+          type: array
+          items: {$ref: "#/components/schemas/VideoCleanupPoint"}
     ImageOperation:
       type: string
       enum: [generate, edit, inpaint, outpaint, upscale, remove-background]

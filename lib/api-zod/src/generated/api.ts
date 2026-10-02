@@ -4347,3 +4347,76 @@ export const DeleteImageStudioAssetParams = zod.object({
 export const DeleteImageStudioAssetResponse = zod.void()
 
 
+export const InspectVideoCleanupBody = zod.object({
+  "sourceStorageKey": zod.string()
+})
+
+export const InspectVideoCleanupResponse = zod.object({
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "sourceToken": zod.string(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "fps": zod.number(),
+  "durationSeconds": zod.number(),
+  "hasAudio": zod.boolean(),
+  "estimatedUsd": zod.number(),
+  "pricingNote": zod.string()
+})
+
+
+export const submitVideoCleanupBodyPointsItemXMin = 0;
+export const submitVideoCleanupBodyPointsItemXMax = 1;
+
+export const submitVideoCleanupBodyPointsItemYMin = 0;
+export const submitVideoCleanupBodyPointsItemYMax = 1;
+
+export const submitVideoCleanupBodyPointsMax = 40;
+
+
+
+export const SubmitVideoCleanupBody = zod.object({
+  "sourceStorageKey": zod.string(),
+  "sourceToken": zod.string(),
+  "requestId": zod.string(),
+  "confirmPaid": zod.boolean(),
+  "cameraMode": zod.enum(['stationary', 'moving']),
+  "points": zod.array(zod.object({
+  "x": zod.number().min(submitVideoCleanupBodyPointsItemXMin).max(submitVideoCleanupBodyPointsItemXMax),
+  "y": zod.number().min(submitVideoCleanupBodyPointsItemYMin).max(submitVideoCleanupBodyPointsItemYMax),
+  "type": zod.enum(['positive', 'negative'])
+})).min(1).max(submitVideoCleanupBodyPointsMax)
+})
+
+export const SubmitVideoCleanupResponse = zod.object({
+  "jobId": zod.string()
+})
+
+
+export const listVideoCleanupJobsResponsePointsItemXMin = 0;
+export const listVideoCleanupJobsResponsePointsItemXMax = 1;
+
+export const listVideoCleanupJobsResponsePointsItemYMin = 0;
+export const listVideoCleanupJobsResponsePointsItemYMax = 1;
+
+
+
+export const ListVideoCleanupJobsResponseItem = zod.object({
+  "jobId": zod.string(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "cameraMode": zod.enum(['stationary', 'moving']),
+  "sourceMediaUrl": zod.string(),
+  "outputMediaUrl": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "currentNode": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "points": zod.array(zod.object({
+  "x": zod.number().min(listVideoCleanupJobsResponsePointsItemXMin).max(listVideoCleanupJobsResponsePointsItemXMax),
+  "y": zod.number().min(listVideoCleanupJobsResponsePointsItemYMin).max(listVideoCleanupJobsResponsePointsItemYMax),
+  "type": zod.enum(['positive', 'negative'])
+}))
+})
+export const ListVideoCleanupJobsResponse = zod.array(ListVideoCleanupJobsResponseItem)
+
+

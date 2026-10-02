@@ -51,6 +51,7 @@ import { measuredVideoJobMetrics, probeVideoMediaProperties } from "./video-medi
 import { quoteVideoSpend } from "./spending-pricing";
 import { reserveSpend, settleSpend } from "./spending-service";
 import { finalizeTopazOutput, type TopazPlan } from "./topaz-video";
+import { CLEANUP_FINALIZATION_ERROR, finalizeCleanupOutput, type CleanupPlan } from "./video-cleanup";
 
 const activeGenerationStatuses = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
 const generationTimeoutMessage = "Timed out while waiting for ComfyUI";
@@ -1078,10 +1079,10 @@ export async function resumeActiveGenerations(): Promise<void> {
     ));
   for (const job of terminalCloudJobs) {
     if (!hasFalSpendLifecycle(job.providerTaskMetadata)) continue;
-    if (job.status === "CANCELLED" && job.providerTaskMetadata.operation === "topaz-upscale"
+    if (job.status === "CANCELLED" && ["topaz-upscale", "video-cleanup"].includes(String(job.providerTaskMetadata.operation))
       && job.providerRequestId && !job.providerTaskMetadata.cancellationConfirmed) {
       try {
-        await new FalQueueClient("topaz-upscale").cancel(falEndpointsFromMetadata(job.providerTaskMetadata));
+        await new FalQueueClient(job.providerTaskMetadata.operation === "video-cleanup" ? "video-cleanup" : "topaz-upscale").cancel(falEndpointsFromMetadata(job.providerTaskMetadata));
         await db.update(generationJobsTable).set({
           providerTaskMetadata: { ...job.providerTaskMetadata, cancellationRequested: true, cancellationConfirmed: true },
         }).where(eq(generationJobsTable.id, job.id));
@@ -2031,6 +2032,19 @@ async function completeFalOutput(
     }
   };
   let outputProperties = await probeOutput(bytes);
+  if (metadata.operation === "video-cleanup") {
+    try {
+      const cleanup = metadata.cleanup as CleanupPlan & { sourceStorageKey: string };
+      if (!cleanup?.sourceStorageKey) throw new Error("Cleanup source metadata is missing.");
+      const finalized = await finalizeCleanupOutput(bytes, await mediaStorage.readBuffer(cleanup.sourceStorageKey), cleanup);
+      bytes = finalized.bytes;
+      outputProperties = finalized.properties;
+      mimeType = "video/mp4";
+      outputName = `cleanup-${requestId}.mp4`;
+    } catch (error) {
+      throw new Error(`${CLEANUP_FINALIZATION_ERROR}: ${error instanceof Error ? error.message : "verification failed"}`);
+    }
+  }
   if (metadata.operation === "topaz-upscale") {
     try {
       const topaz = metadata.topaz as TopazPlan & { sourceStorageKey: string };
@@ -2114,10 +2128,16 @@ async function completeFalOutput(
     outputMimeType: mimeType,
     ...(outputProperties ? {
       durationSeconds: measuredMetrics!.durationSeconds,
-      fps: metadata.operation === "topaz-upscale" ? Math.round(measuredMetrics!.fps) : measuredMetrics!.fps,
+      ...(metadata.operation === "video-cleanup" ? {
+        width: outputProperties.width,
+        height: outputProperties.height,
+      } : {}),
+      fps: ["topaz-upscale", "video-cleanup"].includes(String(metadata.operation)) ? Math.round(measuredMetrics!.fps) : measuredMetrics!.fps,
       frameCount: measuredMetrics!.frameCount,
     } : {}),
-    providerTaskMetadata: mergeFalMetadata(metadata, { result, ...durationMetadata }),
+    providerTaskMetadata: mergeFalMetadata(metadata, { result, ...durationMetadata,
+      ...(metadata.operation === "video-cleanup" && outputProperties ? { cleanupOutput: outputProperties } : {}),
+    }),
     progress: 1,
     currentNode: null,
     errorMessage: null,
@@ -2272,17 +2292,17 @@ export async function cancelGeneration(jobId: string) {
   if (!activeGenerationStatuses.includes(job.status) && !alreadyCancelled) {
     throw new Error("Only active generation jobs can be cancelled");
   }
-  if (job.providerTaskMetadata.operation === "topaz-upscale") {
+  if (["topaz-upscale", "video-cleanup"].includes(String(job.providerTaskMetadata.operation))) {
     // Persist intent first: a restart must not resume a cancelled paid operation.
     const [cancelled] = await db.update(generationJobsTable).set({
-      status: "CANCELLED", currentNode: null, errorMessage: "Topaz cancellation requested. Charges may still apply.",
+      status: "CANCELLED", currentNode: null, errorMessage: "Cloud processing cancellation requested. Charges may still apply.",
       providerTaskMetadata: sql`${generationJobsTable.providerTaskMetadata} || '{"cancellationRequested":true}'::jsonb`,
     }).where(and(eq(generationJobsTable.id, jobId),
       inArray(generationJobsTable.status, [...activeGenerationStatuses, "CANCELLED"]))).returning();
     if (!cancelled) throw new Error("Generation job finished before it could be cancelled");
     if (cancelled.providerRequestId) {
       try {
-        await new FalQueueClient("topaz-upscale").cancel(falEndpointsFromMetadata(cancelled.providerTaskMetadata));
+        await new FalQueueClient(job.providerTaskMetadata.operation === "video-cleanup" ? "video-cleanup" : "topaz-upscale").cancel(falEndpointsFromMetadata(cancelled.providerTaskMetadata));
         await db.update(generationJobsTable).set({
           providerTaskMetadata: { ...cancelled.providerTaskMetadata, cancellationConfirmed: true },
         }).where(eq(generationJobsTable.id, jobId));
@@ -2510,6 +2530,7 @@ export async function recoverTimedOutGeneration(jobId: string): Promise<boolean>
           inArray(generationJobsTable.errorMessage, ["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"]),
           like(generationJobsTable.errorMessage, `${FAL_MOV_FINALIZATION_ERROR}%`),
           like(generationJobsTable.errorMessage, `${TOPAZ_FINALIZATION_ERROR}%`),
+          like(generationJobsTable.errorMessage, `${CLEANUP_FINALIZATION_ERROR}%`),
         ),
       )).returning({ id: generationJobsTable.id });
       if (!claimed) return false;

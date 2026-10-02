@@ -91,6 +91,7 @@ import type {
   SpendingReport,
   StudioImageGenerationInput,
   StudioImageGenerationResult,
+  SubmitVideoCleanup200,
   TenantInput,
   TenantInvitation,
   TenantInvitationAcceptanceInput,
@@ -98,6 +99,10 @@ import type {
   TenantMemberInput,
   TenantSummary,
   UndoVideoLibraryDelete200,
+  VideoCleanupInspectRequest,
+  VideoCleanupJob,
+  VideoCleanupSource,
+  VideoCleanupSubmitRequest,
   VideoLibraryDeleteInput,
   VideoLibraryFavoritesInput,
   VideoLibraryUndoInput,
@@ -6895,4 +6900,205 @@ export const useDeleteImageStudioAsset = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteImageStudioAssetMutationOptions(options));
     }
+
+export const getInspectVideoCleanupUrl = () => {
+
+
+
+
+  return `/api/video-cleanup/inspect`
+}
+
+export const inspectVideoCleanup = async (videoCleanupInspectRequest: VideoCleanupInspectRequest, options?: Parameters<typeof customFetch>[1]): Promise<VideoCleanupSource> => {
+
+  return customFetch<VideoCleanupSource>(getInspectVideoCleanupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoCleanupInspectRequest)
+  }
+);}
+
+
+
+
+
+export const getInspectVideoCleanupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectVideoCleanup>>, TError,{data: BodyType<VideoCleanupInspectRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inspectVideoCleanup>>, TError,{data: BodyType<VideoCleanupInspectRequest>}, TContext> => {
+
+const mutationKey = ['inspectVideoCleanup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inspectVideoCleanup>>, {data: BodyType<VideoCleanupInspectRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  inspectVideoCleanup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InspectVideoCleanupMutationResult = NonNullable<Awaited<ReturnType<typeof inspectVideoCleanup>>>
+    export type InspectVideoCleanupMutationBody = BodyType<VideoCleanupInspectRequest>
+    export type InspectVideoCleanupMutationError = ErrorType<unknown>
+
+    export const useInspectVideoCleanup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectVideoCleanup>>, TError,{data: BodyType<VideoCleanupInspectRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inspectVideoCleanup>>,
+        TError,
+        {data: BodyType<VideoCleanupInspectRequest>},
+        TContext
+      > => {
+      return useMutation(getInspectVideoCleanupMutationOptions(options));
+    }
+
+export const getSubmitVideoCleanupUrl = () => {
+
+
+
+
+  return `/api/video-cleanup`
+}
+
+export const submitVideoCleanup = async (videoCleanupSubmitRequest: VideoCleanupSubmitRequest, options?: Parameters<typeof customFetch>[1]): Promise<SubmitVideoCleanup200> => {
+
+  return customFetch<SubmitVideoCleanup200>(getSubmitVideoCleanupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(videoCleanupSubmitRequest)
+  }
+);}
+
+
+
+
+
+export const getSubmitVideoCleanupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVideoCleanup>>, TError,{data: BodyType<VideoCleanupSubmitRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitVideoCleanup>>, TError,{data: BodyType<VideoCleanupSubmitRequest>}, TContext> => {
+
+const mutationKey = ['submitVideoCleanup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitVideoCleanup>>, {data: BodyType<VideoCleanupSubmitRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitVideoCleanup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitVideoCleanupMutationResult = NonNullable<Awaited<ReturnType<typeof submitVideoCleanup>>>
+    export type SubmitVideoCleanupMutationBody = BodyType<VideoCleanupSubmitRequest>
+    export type SubmitVideoCleanupMutationError = ErrorType<unknown>
+
+    export const useSubmitVideoCleanup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVideoCleanup>>, TError,{data: BodyType<VideoCleanupSubmitRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitVideoCleanup>>,
+        TError,
+        {data: BodyType<VideoCleanupSubmitRequest>},
+        TContext
+      > => {
+      return useMutation(getSubmitVideoCleanupMutationOptions(options));
+    }
+
+export const getListVideoCleanupJobsUrl = () => {
+
+
+
+
+  return `/api/video-cleanup/jobs`
+}
+
+export const listVideoCleanupJobs = async ( options?: Parameters<typeof customFetch>[1]): Promise<VideoCleanupJob[]> => {
+
+  return customFetch<VideoCleanupJob[]>(getListVideoCleanupJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVideoCleanupJobsQueryKey = () => {
+    return [
+    `/api/video-cleanup/jobs`
+    ] as const;
+    }
+
+
+export const getListVideoCleanupJobsQueryOptions = <TData = Awaited<ReturnType<typeof listVideoCleanupJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVideoCleanupJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVideoCleanupJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVideoCleanupJobs>>> = ({ signal }) => listVideoCleanupJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVideoCleanupJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVideoCleanupJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listVideoCleanupJobs>>>
+export type ListVideoCleanupJobsQueryError = ErrorType<unknown>
+
+
+
+export function useListVideoCleanupJobs<TData = Awaited<ReturnType<typeof listVideoCleanupJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVideoCleanupJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVideoCleanupJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

@@ -5,6 +5,87 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface VideoCleanupInspectRequest {
+  sourceStorageKey: string;
+}
+
+export type VideoCleanupSubmitRequestCameraMode = typeof VideoCleanupSubmitRequestCameraMode[keyof typeof VideoCleanupSubmitRequestCameraMode];
+
+
+export const VideoCleanupSubmitRequestCameraMode = {
+  stationary: 'stationary',
+  moving: 'moving',
+} as const;
+
+export type VideoCleanupPointType = typeof VideoCleanupPointType[keyof typeof VideoCleanupPointType];
+
+
+export const VideoCleanupPointType = {
+  positive: 'positive',
+  negative: 'negative',
+} as const;
+
+export interface VideoCleanupPoint {
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  x: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  y: number;
+  type: VideoCleanupPointType;
+}
+
+export interface VideoCleanupSubmitRequest {
+  sourceStorageKey: string;
+  sourceToken: string;
+  requestId: string;
+  confirmPaid: boolean;
+  cameraMode: VideoCleanupSubmitRequestCameraMode;
+  /**
+     * @minItems 1
+     * @maxItems 40
+     */
+  points: VideoCleanupPoint[];
+}
+
+export interface VideoCleanupSource {
+  storageKey: string;
+  mediaUrl: string;
+  sourceToken: string;
+  width: number;
+  height: number;
+  fps: number;
+  durationSeconds: number;
+  hasAudio: boolean;
+  estimatedUsd: number;
+  pricingNote: string;
+}
+
+export type VideoCleanupJobCameraMode = typeof VideoCleanupJobCameraMode[keyof typeof VideoCleanupJobCameraMode];
+
+
+export const VideoCleanupJobCameraMode = {
+  stationary: 'stationary',
+  moving: 'moving',
+} as const;
+
+export interface VideoCleanupJob {
+  jobId: string;
+  title: string;
+  status: string;
+  cameraMode: VideoCleanupJobCameraMode;
+  sourceMediaUrl: string;
+  outputMediaUrl?: string | null;
+  errorMessage?: string | null;
+  currentNode?: string | null;
+  createdAt: string;
+  points: VideoCleanupPoint[];
+}
+
 export type ImageOperation = typeof ImageOperation[keyof typeof ImageOperation];
 
 
@@ -2103,5 +2184,9 @@ favorite?: boolean;
  * @maxLength 200
  */
 collection?: string;
+};
+
+export type SubmitVideoCleanup200 = {
+  jobId: string;
 };
 

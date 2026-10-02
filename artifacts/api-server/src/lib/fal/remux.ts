@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { CLEANUP_FINALIZATION_ERROR } from "../video-cleanup";
 
 const execFileAsync = promisify(execFile);
 export const FAL_MOV_FINALIZATION_ERROR = "Cloud MOV output finalization failed";
@@ -13,7 +14,8 @@ export function isRecoverableFalOutputFailure(message: string | null): boolean {
   return message !== null
     && (["Timed out while waiting for Cloud", "Timed out while waiting for fal.ai"].includes(message)
       || message.startsWith(FAL_MOV_FINALIZATION_ERROR)
-      || message.startsWith(TOPAZ_FINALIZATION_ERROR));
+      || message.startsWith(TOPAZ_FINALIZATION_ERROR)
+      || message.startsWith(CLEANUP_FINALIZATION_ERROR));
 }
 
 /** Container-only conversion: keep the provider's video/audio streams unchanged. */

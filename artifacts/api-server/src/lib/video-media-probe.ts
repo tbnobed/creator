@@ -6,6 +6,7 @@ export type VideoMediaProperties = {
   width?: number;
   height?: number;
   audioStreams?: number;
+  rotationDegrees?: number;
 };
 
 function parseRate(value: unknown): number | undefined {
@@ -37,6 +38,7 @@ export function parseVideoMediaProperties(probeOutput: string): VideoMediaProper
       r_frame_rate?: unknown;
       width?: unknown;
       height?: unknown;
+      side_data_list?: Array<{ rotation?: unknown }>;
     }>;
   };
   const duration = Number(output.format?.duration);
@@ -47,12 +49,14 @@ export function parseVideoMediaProperties(probeOutput: string): VideoMediaProper
   const fps = parseRate(videoStream?.avg_frame_rate) ?? parseRate(videoStream?.r_frame_rate);
   const width = Number(videoStream?.width);
   const height = Number(videoStream?.height);
+  const rotation = Number(videoStream?.side_data_list?.find((item) => item.rotation !== undefined)?.rotation ?? 0);
   return {
     durationSeconds: duration,
     ...(fps ? { fps } : {}),
     ...(Number.isSafeInteger(width) && width > 0 ? { width } : {}),
     ...(Number.isSafeInteger(height) && height > 0 ? { height } : {}),
     audioStreams: output.streams?.filter((stream) => stream.codec_type === "audio").length ?? 0,
+    ...(Number.isFinite(rotation) && rotation !== 0 ? { rotationDegrees: rotation } : {}),
   };
 }
 
@@ -79,7 +83,7 @@ export function probeVideoMediaProperties(bytes: Buffer): Promise<VideoMediaProp
   return new Promise<VideoMediaProperties>((resolve, reject) => {
     const child = spawn("ffprobe", [
       "-v", "error",
-      "-show_entries", "format=duration:stream=codec_type,width,height,avg_frame_rate,r_frame_rate",
+      "-show_entries", "format=duration:stream=codec_type,width,height,avg_frame_rate,r_frame_rate:stream_side_data=rotation",
       "-of", "json",
       "-i", "pipe:0",
     ]);
