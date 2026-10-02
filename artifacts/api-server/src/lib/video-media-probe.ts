@@ -1,4 +1,8 @@
-import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 
 export type VideoMediaProperties = {
   durationSeconds: number;
@@ -79,48 +83,30 @@ export function measuredVideoJobMetrics(
   };
 }
 
-export function probeVideoMediaProperties(bytes: Buffer): Promise<VideoMediaProperties> {
-  return new Promise<VideoMediaProperties>((resolve, reject) => {
-    const child = spawn("ffprobe", [
+export async function probeVideoMediaProperties(bytes: Buffer): Promise<VideoMediaProperties> {
+  if (!bytes.length) throw new Error("The video file is empty.");
+  // Uploaded MP4/MOV files may require seeking (including metadata at the end).
+  // A pipe also raises EPIPE when ffprobe finishes before consuming the upload.
+  const directory = await mkdtemp(path.join(tmpdir(), "obtv-video-probe-"));
+  try {
+    const input = path.join(directory, "source");
+    await writeFile(input, bytes);
+    let stdout: string;
+    try {
+      ({ stdout } = await promisify(execFile)("ffprobe", [
       "-v", "error",
       "-show_entries", "format=duration:stream=codec_type,width,height,avg_frame_rate,r_frame_rate:stream_side_data=rotation",
       "-of", "json",
-      "-i", "pipe:0",
-    ]);
-    let stdout = "";
-    let stderr = "";
-    let settled = false;
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      finish(new Error("Video metadata probe timed out"));
-    }, 15_000);
-    const finish = (error?: Error, properties?: VideoMediaProperties) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      if (error) reject(error);
-      else resolve(properties!);
-    };
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", () => finish(new Error("Could not start video metadata probe")));
-    child.on("close", (code) => {
-      if (code !== 0) {
-        finish(new Error(stderr.trim() ? "Video metadata probe failed" : "Video metadata probe did not complete"));
-        return;
-      }
-      try {
-        finish(undefined, parseVideoMediaProperties(stdout));
-      } catch (error) {
-        finish(error instanceof Error ? error : new Error("Video metadata probe failed"));
-      }
-    });
-    child.stdin.on("error", () => finish(new Error("Could not provide video bytes to metadata probe")));
-    child.stdin.end(bytes);
-  });
+      "-i", input,
+      ], { timeout: 15_000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 }));
+    } catch (error) {
+      const failure = error as NodeJS.ErrnoException & { killed?: boolean };
+      if (failure.code === "ENOENT") throw new Error("Video inspection is unavailable: ffprobe is not installed on the API server.");
+      if (failure.killed) throw new Error("Video metadata probe timed out.");
+      throw new Error("Could not read the video's metadata. The file may be damaged or unsupported; export it as MP4 (H.264) and try again.");
+    }
+    return parseVideoMediaProperties(stdout);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }
