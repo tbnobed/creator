@@ -32,3 +32,9 @@ Verify an enforced power cap throughout a GPU test, not only the success message
 **Why:** On the dual-H100 host, a temporary 250 W setting was accepted but reverted to 350 W before CUDA load with persistence disabled. Temporarily enabling persistence kept the requested cap enforced. Without telemetry readback, the test would have been incorrectly reported as a lower-power test.
 
 **How to apply:** Record original power limits and persistence state, keep GPU initialization alive during the test, and fail closed if the enforced limit rises. Restore both settings in cleanup and independently verify them afterward. A conservative test temperature cutoff is not the manufacturer's hardware-failure threshold.
+
+Assess sustained real-workload temperature behavior separately from the earlier conservative benchmark cutoff.
+
+**Why:** On 2026-10-01 the operator reported an hour of video generation with both H100s holding around 79°C at 250 W caps after disabling the custom cutoffs. This is user-reported sustained workload evidence, not an independently monitored stability certification. The earlier 70°C test abort should not be described as proof that these workloads cannot run.
+
+**How to apply:** Retain that distinction when discussing cooling or operational readiness. Do not generalize the reported result to every workload or to memory temperatures, throttling, or output quality that were not measured.
