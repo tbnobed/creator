@@ -109,6 +109,9 @@ const MAX_PROMPT_LENGTH = 50_000;
 const MAX_INPUT_FILE_BYTES = 12 * 1024 * 1024;
 const MAX_INPUT_TOTAL_BYTES = 32 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
+// A ~51 MP upscale can exceed 32 MiB even though the output is valid.
+// Bound the entire cloud result, not each image independently.
+const MAX_CLOUD_OUTPUT_BYTES = 256 * 1024 * 1024;
 const MAX_OBJECT_INFO_BYTES = 24 * 1024 * 1024;
 const CLOUD_REQUEST_TIMEOUT_MS = 30_000;
 const LOCAL_TASK_VISIBILITY_GRACE_MS = 20_000;
@@ -376,6 +379,7 @@ function validateInput(input: ImageTaskInput, model: ImageModel): void {
 async function readBounded(response: Response, maxBytes: number, label: string): Promise<Buffer> {
   const length = Number(response.headers.get("content-length"));
   if (Number.isFinite(length) && length > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
     throw new ImageTaskError(`${label} exceeds the download limit.`, false);
   }
   if (!response.body) return Buffer.alloc(0);
@@ -1267,7 +1271,10 @@ function normalizeOutputMime(value: unknown, response: Response): "image/png" | 
 
 async function downloadCloudOutputs(result: Record<string, unknown>): Promise<ImageTaskResult["images"]> {
   const items = outputItems(result);
-  return Promise.all(items.map(async (item, index) => {
+  const images: ImageTaskResult["images"] = [];
+  let remainingBytes = MAX_CLOUD_OUTPUT_BYTES;
+  // Sequential reads avoid multiplying the memory allowance across a batch.
+  for (const [index, item] of items.entries()) {
     const url = outputUrl(item.url);
     let response: Response;
     try {
@@ -1283,9 +1290,11 @@ async function downloadCloudOutputs(result: Record<string, unknown>): Promise<Im
       );
     }
     const mimeType = normalizeOutputMime(item.content_type, response);
-    const bytes = await readBounded(response, MAX_OUTPUT_BYTES, "Cloud raster output");
-    return { bytes, mimeType, name: safeOutputName(item.file_name, index, mimeType) };
-  }));
+    const bytes = await readBounded(response, remainingBytes, "Cloud raster output");
+    remainingBytes -= bytes.length;
+    images.push({ bytes, mimeType, name: safeOutputName(item.file_name, index, mimeType) });
+  }
+  return images;
 }
 
 function queueContains(queue: unknown[] | undefined, promptId: string): boolean {

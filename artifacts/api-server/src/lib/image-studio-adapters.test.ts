@@ -283,6 +283,47 @@ test("Cloud output download network failures remain retryable", async () => {
   }
 });
 
+test("Cloud upscale downloads over 32 MiB while retaining a 256 MiB batch bound", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.FAL_KEY;
+  process.env.FAL_KEY = "test-key";
+  let oversized = false;
+  let batch = false;
+  let cancelled = false;
+  const bytes = new Uint8Array(33 * 1024 * 1024);
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith("/status")) return jsonResponse({ status: "COMPLETED" });
+    if (url.includes("queue.fal.run")) return jsonResponse({
+      images: [
+        { url: "https://v3b.fal.media/files/b/test/output.png", content_type: "image/png" },
+        ...(batch ? [{ url: "https://v3b.fal.media/files/b/test/second.png", content_type: "image/png" }] : []),
+      ],
+    });
+    if (oversized || url.endsWith("/second.png")) return new Response(new ReadableStream({
+      cancel() { cancelled = true; },
+    }), { headers: { "content-length": String(oversized ? 256 * 1024 * 1024 + 1 : 224 * 1024 * 1024) } });
+    // No Content-Length: also exercise streamed byte counting.
+    return new Response(bytes);
+  }) as typeof fetch;
+  try {
+    const result = await pollImageTask(cloudTask);
+    assert.equal(result.status, "COMPLETED");
+    oversized = true;
+    await expectTaskError(() => pollImageTask(cloudTask), false);
+    assert.equal(cancelled, true, "oversized responses are cancelled without reading their bodies");
+    oversized = false;
+    cancelled = false;
+    batch = true;
+    await expectTaskError(() => pollImageTask(cloudTask), false);
+    assert.equal(cancelled, true, "33 + 224 MiB must not bypass the total batch limit");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.FAL_KEY;
+    else process.env.FAL_KEY = originalKey;
+  }
+});
+
 for (const [status, retryable] of [[400, false], [429, true], [503, true]] as const) {
   test(`Cloud output download HTTP ${status} has retryable=${retryable}`, async () => {
     const originalFetch = globalThis.fetch;
