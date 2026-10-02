@@ -37,6 +37,7 @@ export function garmentScript(name: string) {
 }
 
 export async function checkGarmentRuntime() {
+  garmentScript("garment-reference.py");
   garmentScript("garment-print-proof.py");
   garmentScript("garment-proof.py");
   await execute("python", ["-c", "import cv2, numpy, PIL"], { timeout: 15_000, maxBuffer: 4096 });
@@ -63,6 +64,17 @@ export async function prepareGarmentSource(bytes: Buffer, start: number, duratio
     ], { timeout: 120_000, maxBuffer: 8192 });
     const result = await readFile(path.join(dir, "prepared.mp4"));
     return { bytes: result, frames: count, duration: count / 16 };
+  } finally { await rm(dir, { recursive: true, force: true }); }
+}
+
+export async function prepareGarmentReference(bytes: Buffer): Promise<Buffer> {
+  const dir = await mkdtemp(path.join(tmpdir(), "obtv-garment-reference-"));
+  try {
+    const input = path.join(dir, "reference"), output = path.join(dir, "reference.png");
+    await writeFile(input, bytes);
+    await execute("python", [garmentScript("garment-reference.py"), "--input", input, "--output", output],
+      { timeout: 30_000, maxBuffer: 8192 });
+    return await readFile(output);
   } finally { await rm(dir, { recursive: true, force: true }); }
 }
 

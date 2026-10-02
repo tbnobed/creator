@@ -4,7 +4,7 @@ import { db, pool, comfyServersTable, generationJobsTable, type GenerationJob } 
 import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { mediaStorage } from "./storage-service";
 import { probeVideoMediaProperties } from "./video-media-probe";
-import { assertGarmentKey, buildGarmentGraph, checkGarmentRuntime, GarmentError, garmentFrames, prepareGarmentSource, renderGarmentPrint } from "./garment-media";
+import { assertGarmentKey, buildGarmentGraph, checkGarmentRuntime, GarmentError, garmentFrames, prepareGarmentSource, prepareGarmentReference, renderGarmentPrint } from "./garment-media";
 import { comfyServerLockKey, getAssignableWorker, liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { logger } from "./logger";
 
@@ -138,7 +138,8 @@ export async function submitGarment(input: Submission) {
     let reference: string | undefined;
     if (input.referenceStorageKey) {
       const image = await mediaStorage.readGenerationReferenceMedia(input.referenceStorageKey);
-      reference=(await client.uploadImage({name:`garment-reference-${job.id}.${input.referenceStorageKey.split(".").pop()}`,mimeType:image.mimeType,bytes:image.bytes})).name;
+      const referenceBytes = await prepareGarmentReference(image.bytes);
+      reference=(await client.uploadImage({name:`garment-reference-${job.id}.png`,mimeType:"image/png",bytes:referenceBytes})).name;
     }
     const graph = await buildGarmentGraph({filename:uploaded.name,prefix:`garment/${job.id}`,prompt:input.prompt,
       seed:input.seed,frames:prepared.frames,reference,mode:input.mode,targetGarment:input.targetGarment.trim()});

@@ -12,7 +12,23 @@ import urllib.request
 import uuid
 
 
-def workflow(filename, prefix, prompt, seed=421, reference=None, target=None):
+def replacement_prompt(instruction):
+    return (
+        "Replace the selected garment with the garment shown in the reference image. "
+        "The reference is authoritative for garment construction, collar, closures, sleeve length, "
+        "printed motifs, motif size, repetition and placement. Transfer the complete design, "
+        "not a few small logos or an approximation. The white surrounding canvas is not fabric. "
+        "Apply only the following requested changes to that reference garment: "
+        f"{instruction.strip()}\n"
+        "Keep every other reference detail unchanged. An explicit requested fabric color overrides "
+        "the reference base color, not the printed design. Fit the garment naturally to the wearer, "
+        "with fabric folds, lighting and occlusion. If shorter sleeves expose an arm inside the edit "
+        "region, show anatomically consistent bare skin, not white sleeves or a second garment. "
+        "Keep the original person, pose, hands and camera motion. Maintain the same design across frames."
+    )
+
+
+def workflow(filename, prefix, prompt, seed=421, reference=None, target=None, artwork=False):
     if not target or not target.strip():
         raise ValueError("Identify the garment to edit.")
     graph = {}
@@ -43,9 +59,12 @@ def workflow(filename, prefix, prompt, seed=421, reference=None, target=None):
     model = node(11, "ModelSamplingSD3", model=model, shift=5)
     clip = node(12, "CLIPLoader", clip_name="umt5_xxl_fp8_e4m3fn_scaled.safetensors", type="wan")
     vae = node(13, "VAELoader", vae_name="wan_2.1_vae.safetensors")
-    positive = node(14, "CLIPTextEncode", clip=clip, text=prompt)
+    positive = node(14, "CLIPTextEncode", clip=clip,
+                    text=replacement_prompt(prompt) if reference and not artwork else prompt)
     negative = node(15, "CLIPTextEncode", clip=clip,
-                    text="flicker, distorted clothing, extra limbs, changed face, changed hands, text, watermark")
+                    text="flicker, distorted clothing, extra limbs, changed face, changed hands, watermark"
+                    + (", invented undershirt, duplicate sleeves, missing reference pattern, tiny substitute logos, changing print"
+                       if reference and not artwork else ""))
     node(16, "WanVaceToVideo", positive=positive, negative=negative, vae=vae,
          width=512, height=288, length=49, batch_size=1, strength=1,
          control_video=control, control_masks=mask)
@@ -82,7 +101,7 @@ def artwork_workflow(filename, prefix, instruction, seed=421, reference=None, le
         "Preserve the garment's cut, color, seams and fit, the actor, camera and background. "
         "Do not create floating stickers or physical characters outside the print."
     )
-    graph = workflow(filename, prefix, prompt, seed, reference, target)
+    graph = workflow(filename, prefix, prompt, seed, reference, target, artwork=True)
     graph["16"]["inputs"]["length"] = length
     if not reference:
         # VACE receives the actual source appearance, not a monkey asset or invented design.

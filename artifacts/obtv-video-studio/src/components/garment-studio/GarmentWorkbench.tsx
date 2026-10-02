@@ -220,7 +220,7 @@ export function GarmentWorkbench({
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onReferenceUpload?.(f); }} />
               <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 {mode === "replace-garment"
-                  ? "Replacement needs a clear photo of the garment to transfer onto the wearer. The description guides fit and details."
+                  ? "The full reference guides garment shape and print. Describe only changes you want, such as an orange fabric background. For moving prints, use Animate artwork after checking the replacement."
                   : "Any design works. It is placed on the target garment inside the garment mask and animated following your instruction."}
               </p>
             </div>

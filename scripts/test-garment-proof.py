@@ -46,6 +46,22 @@ class GarmentGraphTests(unittest.TestCase):
             graph = module.workflow("source.mp4", "test", "Orange linen", target=target)
             self.assertEqual(graph["4"]["inputs"]["text"], target)
 
+    def test_reference_fidelity_and_requested_override_reach_model(self):
+        graph = module.workflow("source.mp4", "test", "orange background", reference="design.png", target="jacket")
+        text = graph["14"]["inputs"]["text"]
+        self.assertIn("orange background", text)
+        self.assertIn("motif size, repetition and placement", text)
+        self.assertIn("bare skin", text)
+        self.assertIn("missing reference pattern", graph["15"]["inputs"]["text"])
+
+    def test_artwork_does_not_inherit_replacement_instructions(self):
+        for reference in [None, "design.png"]:
+            graph = module.artwork_workflow("source.mp4", "test", "Birds flap their wings", reference=reference, target="jacket")
+            text = graph["14"]["inputs"]["text"]
+            self.assertIn("Birds flap their wings", text)
+            self.assertNotIn("Replace the selected garment", text)
+            self.assertEqual(graph["21"]["inputs"]["audio"], ["2", 1])
+
 
 if __name__ == "__main__":
     unittest.main()

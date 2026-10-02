@@ -46,3 +46,9 @@ Keep interactive garment processing limited to short draft windows until longer 
 **Why:** The garment and moving-print proofs establish only a short, low-resolution result. They do not establish stable behavior across extended motion, deep folds, or occlusion.
 
 **How to apply:** Treat expanded duration/resolution as a separate validation milestone; do not remove draft limits merely because a GPU has enough memory or a render completes.
+
+VACE center-crops its reference input to the video aspect ratio. Portrait garment photos must be fitted to that ratio before conditioning.
+
+**Why:** A portrait product photo fed directly into widescreen VACE conditioning loses its upper and lower design; correct upload handling does not prevent this model-side crop.
+
+**How to apply:** Preserve the complete reference with aspect-preserving padding before worker upload. Test all four image edges, and keep artwork motion separate from garment replacement instructions. This prevents cropping; it is not proof of accurate generative transfer.
