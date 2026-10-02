@@ -1,4 +1,5 @@
 import { count, eq } from "drizzle-orm";
+import { upgradeLegacyLtxFps } from "./seed-data/ltx-25-upgrade";
 import {
   charactersTable,
   comfyServersTable,
@@ -297,6 +298,15 @@ async function seedWorkflowDefinitions(): Promise<void> {
       mappings: ltx25T2vMappings,
     },
   ];
+  for (const workflow of existing) {
+    const repaired = upgradeLegacyLtxFps(workflow);
+    if (repaired) {
+      await db.update(workflowTemplatesTable).set({
+        apiWorkflow: repaired,
+        version: workflow.version + 1,
+      }).where(eq(workflowTemplatesTable.id, workflow.id));
+    }
+  }
   const missingExternalVariants = externalVariants
     .filter((variant) => !existingNames.has(variant.name))
     .map((variant) => ({
