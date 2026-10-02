@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { 
   useListCharacters, 
   useListSettings, 
@@ -50,6 +50,8 @@ import { PromptGuidancePanel } from "@/components/prompt-guidance-panel";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
 import {
   composerSourceLoadState,
+  ComposerModelSelection,
+  localPipelineError,
   restoreComposerFields,
 } from "@/lib/generation-edit";
 
@@ -174,8 +176,9 @@ function readReferenceVideoKey(): string | null {
 
 export default function GeneratePage() {
   const [, setLocation] = useLocation();
-  const cloneJobId = new URLSearchParams(window.location.search).get("cloneJob");
-  const queryReferenceVideoKey = new URLSearchParams(window.location.search).get("referenceVideoKey");
+  const search = useSearch();
+  const cloneJobId = new URLSearchParams(search).get("cloneJob");
+  const queryReferenceVideoKey = new URLSearchParams(search).get("referenceVideoKey");
   const [draft] = useState<ComposerDraft>(() => cloneJobId ? {} : readComposerDraft());
   const { data: characters } = useListCharacters();
   const { data: settings } = useListSettings();
@@ -202,7 +205,7 @@ export default function GeneratePage() {
   const sourceLoadState = composerSourceLoadState({
     cloneJobId,
     isLoading: isLoadingSourceJob,
-    hasSourceJob: Boolean(sourceJob),
+    hasSourceJob: Boolean(sourceJob && sourceJob.id === cloneJobId),
     hasError: Boolean(sourceJobError),
   });
   const createJob = useCreateGeneration();
@@ -248,8 +251,9 @@ export default function GeneratePage() {
   const [batchCount, setBatchCount] = useState(1);
   const [batchReceipts, setBatchReceipts] = useState<BatchReceipt[]>([]);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const hasSelectedInitialMode = useRef(false);
-  const hasPrefilledSourceJob = useRef(false);
+  const modelSelection = useRef(new ComposerModelSelection(draft.generationMode, cloneJobId));
+  const [restoredCloneJobId, setRestoredCloneJobId] = useState<string | null>(null);
+  const cloneRestorationPending = Boolean(cloneJobId && (sourceLoadState !== "ready" || restoredCloneJobId !== cloneJobId));
   const capabilitiesForMode = capabilities?.filter((cap) => cap.generationMode === generationMode) || [];
   const hasReferenceVideo = Boolean(referenceVideoKey);
   const hasNonReferenceCapability = capabilitiesForMode.some((cap) => !cap.supportsReferenceVideo);
@@ -271,6 +275,8 @@ export default function GeneratePage() {
   const isLtx25Mode = capabilitiesForMode.some((cap) => cap.modelFamily === "LTX 2.5");
   const resolutionOptions = isLtx25Mode ? LTX25_RESOLUTION_OPTIONS : DEFAULT_RESOLUTION_OPTIONS;
   const isCloudProvider = provider === "FAL";
+  const pipelineError = isCloudProvider ? null : localPipelineError(generationMode, capabilities);
+  const localModelName = [...new Set(capabilitiesForMode.map((cap) => cap.modelFamily))].join(" / ") || generationMode;
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
   const resolvedDialogueForVoice = dialogue.trim() || inferredDialogue?.dialogue || "";
@@ -340,7 +346,7 @@ export default function GeneratePage() {
   }, [isCloudProvider, model, aspectRatio, outputResolution]);
 
   useEffect(() => {
-    if (cloneJobId && sourceLoadState !== "ready") return;
+    if (cloneRestorationPending) return;
     safeStorageSet(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
       provider,
       model,
@@ -370,7 +376,7 @@ export default function GeneratePage() {
       outputFormat,
     } satisfies ComposerDraft));
   }, [
-    cloneJobId, sourceLoadState,
+    cloneJobId, cloneRestorationPending,
     provider, model, voiceCloningEnabled, nativeAudioEnabled, selectedChars, selectedSetting, prompt, dialogue, negativePrompt, cameraInstructions,
     motionInstructions, generationMode, duration, fps, width, height, qualityPreset, seedMode, seed, referenceVideoKey, seedanceTask, seedanceMedia, aspectRatio, outputResolution, outputFormat, guidanceScale,
   ]);
@@ -382,11 +388,15 @@ export default function GeneratePage() {
   }, [queryReferenceVideoKey, cloneJobId]);
 
   useEffect(() => {
-    if (!sourceJob || hasPrefilledSourceJob.current) return;
+    if (!sourceJob || !modelSelection.current.needsRestore(cloneJobId, sourceJob.id) || !cloneJobId) return;
     const restored = restoreComposerFields(sourceJob, FAL_MODEL_BY_PROVIDER_ID);
+    const restoreSelection = modelSelection.current.restoreSelection(cloneJobId);
     setPrompt(restored.prompt);
-    setProvider(restored.provider);
-    if (restored.model) setModel(restored.model as FalModel);
+    if (restoreSelection) {
+      setProvider(restored.provider);
+      if (restored.model) setModel(restored.model as FalModel);
+      setGenerationMode(restored.generationMode);
+    }
     setSelectedChars(restored.selectedChars);
     setSelectedSetting(restored.selectedSetting);
     setReferenceVideoKey(restored.referenceVideoKey);
@@ -401,7 +411,6 @@ export default function GeneratePage() {
     setNegativePrompt(restored.negativePrompt);
     setCameraInstructions(restored.cameraInstructions);
     setMotionInstructions(restored.motionInstructions);
-    setGenerationMode(restored.generationMode);
     setDuration(restored.duration);
     setFps(restored.fps);
     setWidth(restored.width);
@@ -440,18 +449,13 @@ export default function GeneratePage() {
       }) : [],
     });
     setGuidanceScale(typeof metadata?.klingCfgScale === "number" ? metadata.klingCfgScale : null);
-    hasSelectedInitialMode.current = true;
-    hasPrefilledSourceJob.current = true;
-  }, [sourceJob]);
+    setRestoredCloneJobId(cloneJobId);
+  }, [sourceJob, cloneJobId]);
 
   useEffect(() => {
-    if (hasSelectedInitialMode.current || !capabilities) return;
-    const preferredCapability = capabilities.find((cap) => !cap.supportsReferenceVideo) ?? capabilities[0];
-    if (preferredCapability) {
-      setGenerationMode(preferredCapability.generationMode);
-    }
-    hasSelectedInitialMode.current = true;
-  }, [capabilities]);
+    const initialMode = modelSelection.current.initialMode(cloneJobId, capabilities);
+    if (initialMode) setGenerationMode(initialMode);
+  }, [capabilities, cloneJobId]);
 
   useEffect(() => {
     if (!isLtx25Mode) return;
@@ -478,11 +482,12 @@ export default function GeneratePage() {
 
   const handleGenerate = async () => {
     if (submissionInFlight.current) return;
-    if (cloneJobId && sourceLoadState !== "ready") {
+    if (cloneRestorationPending) {
       return alert(sourceLoadState === "loading"
         ? "Loading the original generation before submission."
         : "The original generation could not be loaded. Return to Queue & History and open it again.");
     }
+    if (pipelineError) return alert(pipelineError);
     if (!prompt) return alert("Shot prompt is required");
     if (mediaError) return alert(mediaError);
     if (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) {
@@ -930,7 +935,7 @@ export default function GeneratePage() {
                     <Plus className="size-3.5 text-primary" /> Scene assets{editingSourceOnly ? activeReferenceCount ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{activeReferenceCount}</span> : null : selectedChars.length || selectedSetting || hasReferenceVideo || (seedanceFull && (extraCount || seedanceMedia.start || seedanceMedia.end)) ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{selectedChars.length + Number(Boolean(selectedSetting)) + Number(!isCloudProvider && hasReferenceVideo) + (seedanceFull ? extraCount + Number(Boolean(seedanceMedia.start)) + Number(Boolean(seedanceMedia.end)) : 0)}</span> : null}
                   </button>
                   <span className="h-4 w-px bg-[#474b43]" />
-                  <button type="button" onClick={() => setSetupOpen(true)} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#d4c8d3] hover:bg-[#3c303e] hover:text-white" data-testid="button-render-setup"><SlidersHorizontal className="size-3.5" /> {isCloudProvider ? selectedFalModel.label : "Local GPU"} <ChevronDown className="size-3" /></button>
+                  <button type="button" onClick={() => setSetupOpen(true)} className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#d4c8d3] hover:bg-[#3c303e] hover:text-white" data-testid="button-render-setup"><SlidersHorizontal className="size-3.5 shrink-0" /> {isCloudProvider ? selectedFalModel.label : <span data-testid="text-current-local-model">Local GPU · {cloneRestorationPending ? "Loading original model…" : localModelName}</span>} <ChevronDown className="size-3 shrink-0" /></button>
                   <span className="hidden h-4 w-px bg-[#474b43] sm:block" />
                   <button type="button" onClick={() => setSetupOpen(true)} className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-[#b8a8b8] hover:bg-[#3c303e] hover:text-white sm:inline-flex">{seedanceSelected ? `${aspectInherited ? "source" : aspectRatio} · ${modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : "720p"}` : isCloudProvider ? "Provider output" : `${width} × ${height}`} <span className="text-[#756678]">/</span> {durationIsAutomatic ? "Auto duration" : `${displayDuration}s`}</button>
                   <div className="ml-auto flex items-center gap-2">
@@ -938,7 +943,7 @@ export default function GeneratePage() {
                     {isCloudProvider && <BatchCountPicker value={batchCount} onChange={setBatchCount} disabled={batchSubmitting} />}
                     <Button
                       onClick={handleGenerate}
-                      disabled={batchSubmitting || createJob.isPending || Boolean(mediaError) || sourceLoadState === "loading" || sourceLoadState === "error" || !prompt || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
+                      disabled={batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || cloneRestorationPending || !prompt || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
                       className="h-8 rounded-md bg-[linear-gradient(90deg,#FF1F62,#8B2BE2)] px-3 text-[11px] font-semibold text-white hover:brightness-110 disabled:bg-none disabled:bg-[#514551] disabled:text-[#a8a0aa] sm:px-5"
                       data-testid="button-generate-video"
                     >
@@ -946,6 +951,7 @@ export default function GeneratePage() {
                     </Button>
                   </div>
                 </div>
+                {pipelineError && <p role="alert" data-testid="status-local-pipeline-error" className="px-4 pb-3 text-xs text-rose-200">{pipelineError}</p>}
               </div>
 
               {composerExpanded && <div className="mt-2 max-h-[40vh] overflow-y-auto rounded-xl border border-[#483649] bg-[#252027]">
@@ -1040,7 +1046,10 @@ export default function GeneratePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="generation-provider">Target</Label>
-                  <Select value={provider} onValueChange={(value: GenerationProvider) => setProvider(value)}>
+                  <Select value={provider} disabled={cloneRestorationPending} onValueChange={(value: GenerationProvider) => {
+                    modelSelection.current.selectExplicitly(cloneJobId);
+                    setProvider(value);
+                  }}>
                     <SelectTrigger id="generation-provider" className="bg-secondary/20" data-testid="select-generation-provider">
                       <SelectValue />
                     </SelectTrigger>
@@ -1052,19 +1061,20 @@ export default function GeneratePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Pipeline</Label>
-                  <Select value={generationMode} onValueChange={setGenerationMode} disabled={isCloudProvider}>
-                    <SelectTrigger className="bg-secondary/20">
+                  <Select value={generationMode} onValueChange={(value) => {
+                    modelSelection.current.selectExplicitly(cloneJobId);
+                    setGenerationMode(value);
+                  }} disabled={isCloudProvider || cloneRestorationPending || !capabilities?.length}>
+                    <SelectTrigger className="bg-secondary/20" data-testid="select-generation-pipeline">
                       <SelectValue placeholder="Select mode" />
                     </SelectTrigger>
                     <SelectContent className="z-[70]">
-                      {availableModes.length > 0 ? (
-                        availableModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)
-                      ) : (
-                        <SelectItem value="txt2vid">txt2vid (fallback)</SelectItem>
-                      )}
+                      {availableModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   {isCloudProvider && <p className="text-[10px] text-muted-foreground">Cloud pipeline follows the selected model.</p>}
+                  {cloneRestorationPending && <p className="text-[10px] text-muted-foreground">Model controls unlock after the original generation is restored.</p>}
+                  {pipelineError && <p role="alert" className="text-xs text-rose-200">{pipelineError}</p>}
                 </div>
               </div>
 
@@ -1077,6 +1087,7 @@ export default function GeneratePage() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={modelPickerOpen}
+                        disabled={cloneRestorationPending}
                         className="w-full justify-between h-11 bg-black/40 font-normal hover:bg-black/60 border-border/50 text-left"
                         data-testid="select-fal-model-combobox"
                       >
@@ -1097,6 +1108,7 @@ export default function GeneratePage() {
                                 key={option.value}
                                 value={option.label}
                                 onSelect={() => {
+                                  modelSelection.current.selectExplicitly(cloneJobId);
                                   setModel(option.value);
                                   setModelPickerOpen(false);
                                 }}
@@ -1343,8 +1355,8 @@ export default function GeneratePage() {
                   disabled={
                     createJob.isPending
                     || Boolean(mediaError)
-                    || sourceLoadState === "loading"
-                    || sourceLoadState === "error"
+                    || cloneRestorationPending
+                    || Boolean(pipelineError)
                     || !prompt
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)

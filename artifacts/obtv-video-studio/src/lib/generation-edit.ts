@@ -30,6 +30,64 @@ export function generationEditDestination(job: GenerationEditLink): GenerationEd
 
 export type ComposerSourceLoadState = "idle" | "loading" | "ready" | "error";
 
+// Selection precedence: explicit edit > cloned/saved selection > capability default.
+// Keep this separate from query arrival order; a mounted composer can change source.
+export class ComposerModelSelection {
+  private sourceId: string | null;
+  private restoredSourceId: string | null = null;
+  private explicit = false;
+  private initialized: boolean;
+
+  constructor(savedMode: string | undefined, sourceId: string | null) {
+    this.sourceId = sourceId;
+    this.initialized = Boolean(savedMode);
+  }
+
+  syncSource(sourceId: string | null) {
+    if (sourceId === this.sourceId) return;
+    this.sourceId = sourceId;
+    this.restoredSourceId = null;
+    this.explicit = false;
+    // Removing cloneJob keeps the current composer selection.
+    this.initialized = sourceId === null;
+  }
+
+  selectExplicitly(sourceId: string | null) {
+    this.syncSource(sourceId);
+    this.explicit = true;
+    this.initialized = true;
+  }
+
+  needsRestore(sourceId: string | null, loadedId: string | undefined) {
+    this.syncSource(sourceId);
+    return Boolean(sourceId && loadedId === sourceId && this.restoredSourceId !== sourceId);
+  }
+
+  restoreSelection(sourceId: string) {
+    this.restoredSourceId = sourceId;
+    this.initialized = true;
+    return !this.explicit;
+  }
+
+  initialMode(sourceId: string | null, capabilities: readonly { generationMode: string; supportsReferenceVideo: boolean }[] | undefined) {
+    this.syncSource(sourceId);
+    if (sourceId || this.initialized || !capabilities?.length) return undefined;
+    this.initialized = true;
+    return (capabilities.find((cap) => !cap.supportsReferenceVideo) ?? capabilities[0]).generationMode;
+  }
+}
+
+export function localPipelineError(
+  mode: string,
+  capabilities: readonly { generationMode: string }[] | undefined,
+): string | null {
+  if (!capabilities) return "Loading local pipelines before submission.";
+  if (!capabilities.some((cap) => cap.generationMode === mode)) {
+    return `The selected local pipeline "${mode}" is unavailable. Choose an available pipeline in Render setup before submitting.`;
+  }
+  return null;
+}
+
 export function composerSourceLoadState(input: {
   cloneJobId: string | null;
   isLoading: boolean;

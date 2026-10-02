@@ -20,3 +20,9 @@ Treat execution success, media integrity, and visual correctness as separate val
 **Why:** Controlled dual-H100 Wan runs completed without execution errors and produced correctly sized, fully decodable MP4s, yet inspected frames were severely distorted at both reduced and original sampling-step counts. Nonzero pixel variance and a success history do not establish usable output.
 
 **How to apply:** Inspect generated frames before approving capabilities or automatic dispatch. Record codec checks and visual acceptance separately; do not turn a short thermal smoke-test pass into a quality or sustained-capacity claim.
+
+Comfy V3 autogrowing inputs must be validated against their expanded names, not only their parent input name.
+
+**Why:** Live metadata advertises a required `values` input for math expressions, while valid Wan and LTX graphs supply `values.a` and `values.b`. A naive required-key check falsely reports those working graph nodes as incomplete.
+
+**How to apply:** Recognize `COMFY_AUTOGROW_V3` metadata when checking workflow inputs. Keep this exception separate from strict node-class and selectable-model filename checks.

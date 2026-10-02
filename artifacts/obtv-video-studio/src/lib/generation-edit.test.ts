@@ -2,9 +2,81 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   composerSourceLoadState,
+  ComposerModelSelection,
   generationEditDestination,
+  localPipelineError,
   restoreComposerFields,
 } from "./generation-edit";
+
+const ltxFirstCapabilities = [
+  { generationMode: "LTX", supportsReferenceVideo: false },
+  { generationMode: "Wan", supportsReferenceVideo: false },
+];
+
+test("saved Wan selection survives LTX-first capabilities arriving after draft restoration", () => {
+  const selection = new ComposerModelSelection("Wan", null);
+  assert.equal(selection.initialMode(null, undefined), undefined);
+  assert.equal(selection.initialMode(null, ltxFirstCapabilities), undefined);
+  assert.equal(localPipelineError("Wan", ltxFirstCapabilities), null);
+});
+
+test("only a fresh composer without a saved selection chooses a capability default", () => {
+  const selection = new ComposerModelSelection(undefined, null);
+  assert.equal(selection.initialMode(null, []), undefined);
+  assert.equal(selection.initialMode(null, ltxFirstCapabilities), "LTX");
+  assert.equal(selection.initialMode(null, ltxFirstCapabilities), undefined);
+});
+
+test("explicit pipeline edit before delayed capabilities wins over their default", () => {
+  const selection = new ComposerModelSelection(undefined, null);
+  selection.selectExplicitly(null);
+  assert.equal(selection.initialMode(null, ltxFirstCapabilities), undefined);
+});
+
+test("explicit model selection during delayed clone load wins over clone prefill", () => {
+  const selection = new ComposerModelSelection(undefined, "clone-ltx");
+  assert.equal(selection.initialMode("clone-ltx", ltxFirstCapabilities), undefined);
+  selection.selectExplicitly("clone-ltx");
+  assert.equal(selection.needsRestore("clone-ltx", undefined), false);
+  assert.equal(selection.needsRestore("clone-ltx", "clone-ltx"), true);
+  // Other clone fields may restore, but provider/model/pipeline must not.
+  assert.equal(selection.restoreSelection("clone-ltx"), false);
+  assert.equal(selection.needsRestore("clone-ltx", "clone-ltx"), false);
+});
+
+test("cloned LTX restores once, then switching to Wan survives clone refetches", () => {
+  const selection = new ComposerModelSelection(undefined, "clone-ltx");
+  assert.equal(selection.initialMode("clone-ltx", ltxFirstCapabilities), undefined);
+  assert.equal(selection.needsRestore("clone-ltx", "clone-ltx"), true);
+  assert.equal(selection.restoreSelection("clone-ltx"), true);
+  selection.selectExplicitly("clone-ltx");
+  assert.equal(selection.needsRestore("clone-ltx", "clone-ltx"), false);
+  assert.equal(selection.initialMode("clone-ltx", ltxFirstCapabilities), undefined);
+  assert.equal(localPipelineError("Wan", ltxFirstCapabilities), null);
+});
+
+test("cloneJob changes restore the new source and reject stale previous query data", () => {
+  const selection = new ComposerModelSelection(undefined, "clone-ltx");
+  selection.restoreSelection("clone-ltx");
+  selection.selectExplicitly("clone-ltx");
+  assert.equal(selection.needsRestore("clone-wan", "clone-ltx"), false);
+  assert.equal(selection.initialMode("clone-wan", ltxFirstCapabilities), undefined);
+  assert.equal(selection.needsRestore("clone-wan", "clone-wan"), true);
+  assert.equal(selection.restoreSelection("clone-wan"), true);
+  assert.equal(selection.needsRestore("clone-ltx", "clone-ltx"), true);
+  assert.equal(selection.restoreSelection("clone-ltx"), true);
+});
+
+test("unavailable saved mode is preserved and blocks submission until an explicit valid choice", () => {
+  const selection = new ComposerModelSelection("retired-wan", null);
+  assert.equal(selection.initialMode(null, ltxFirstCapabilities), undefined);
+  assert.match(localPipelineError("retired-wan", ltxFirstCapabilities)!, /unavailable.*Choose an available pipeline/);
+  assert.match(localPipelineError("retired-wan", undefined)!, /Loading local pipelines/);
+  assert.match(localPipelineError("retired-wan", [])!, /unavailable/);
+  selection.selectExplicitly(null);
+  assert.equal(localPipelineError("Wan", ltxFirstCapabilities), null);
+  assert.equal(selection.initialMode(null, ltxFirstCapabilities), undefined);
+});
 
 test("long-form generation edits stay attached to the validated parent shot", () => {
   assert.deepEqual(
