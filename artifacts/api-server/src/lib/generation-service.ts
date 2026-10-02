@@ -1123,6 +1123,7 @@ export async function resumeActiveGenerations(): Promise<void> {
     .from(generationJobsTable)
     .where(inArray(generationJobsTable.status, ["QUEUED", "RUNNING", "DOWNLOADING"]));
   for (const job of jobs) {
+    if (job.providerTaskMetadata.operation === "garment-studio") continue;
     if (job.provider === "FAL" && job.providerModelId && job.providerRequestId) {
       const model = falModelFromEndpoint(job.providerModelId);
       if (model) {

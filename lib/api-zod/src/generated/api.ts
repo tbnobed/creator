@@ -4420,3 +4420,86 @@ export const ListVideoCleanupJobsResponseItem = zod.object({
 export const ListVideoCleanupJobsResponse = zod.array(ListVideoCleanupJobsResponseItem)
 
 
+export const ListGarmentWorkersResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "ready": zod.boolean(),
+  "busy": zod.boolean(),
+  "reason": zod.string().nullable()
+})
+export const ListGarmentWorkersResponse = zod.array(ListGarmentWorkersResponseItem)
+
+
+export const InspectGarmentSourceBody = zod.object({
+  "sourceStorageKey": zod.string()
+})
+
+export const InspectGarmentSourceResponse = zod.object({
+  "sourceStorageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "durationSeconds": zod.number(),
+  "width": zod.number(),
+  "height": zod.number()
+})
+
+
+export const ListGarmentJobsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled']),
+  "stage": zod.string().nullable(),
+  "sourceUrl": zod.string(),
+  "maskUrl": zod.string().nullable(),
+  "outputUrl": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "mode": zod.enum(['replace-garment', 'animate-artwork'])
+})
+export const ListGarmentJobsResponse = zod.array(ListGarmentJobsResponseItem)
+
+
+export const submitGarmentJobBodyRequestIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const submitGarmentJobBodyTargetGarmentMax = 160;
+
+export const submitGarmentJobBodyWorkerIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const submitGarmentJobBodyPromptMax = 600;
+
+export const submitGarmentJobBodyStartSecondsMin = 0;
+
+export const submitGarmentJobBodyDurationSecondsMin = 0.5;
+export const submitGarmentJobBodyDurationSecondsMax = 3;
+
+export const submitGarmentJobBodySeedMin = 0;
+export const submitGarmentJobBodySeedMax = 2147483647;
+export const submitGarmentJobBodySeedMultipleOf = 1;
+
+
+
+export const SubmitGarmentJobBody = zod.object({
+  "requestId": zod.string().regex(submitGarmentJobBodyRequestIdRegExp),
+  "sourceStorageKey": zod.string(),
+  "referenceStorageKey": zod.string().optional(),
+  "artworkSource": zod.enum(['existing', 'upload']).optional(),
+  "targetGarment": zod.string().min(1).max(submitGarmentJobBodyTargetGarmentMax),
+  "workerId": zod.string().regex(submitGarmentJobBodyWorkerIdRegExp),
+  "mode": zod.enum(['replace-garment', 'animate-artwork']),
+  "prompt": zod.string().max(submitGarmentJobBodyPromptMax),
+  "startSeconds": zod.number().min(submitGarmentJobBodyStartSecondsMin),
+  "durationSeconds": zod.number().min(submitGarmentJobBodyDurationSecondsMin).max(submitGarmentJobBodyDurationSecondsMax),
+  "seed": zod.number().min(submitGarmentJobBodySeedMin).max(submitGarmentJobBodySeedMax).multipleOf(submitGarmentJobBodySeedMultipleOf)
+})
+
+export const SubmitGarmentJobResponse = zod.object({
+  "jobId": zod.string()
+})
+
+
+export const CancelGarmentJobParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CancelGarmentJobResponse = zod.object({
+  "jobId": zod.string()
+})
+
+

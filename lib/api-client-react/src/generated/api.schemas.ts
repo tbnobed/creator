@@ -5,6 +5,105 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface GarmentWorker {
+  id: string;
+  name: string;
+  ready: boolean;
+  busy: boolean;
+  /** @nullable */
+  reason: string | null;
+}
+
+export interface GarmentInspectRequest {
+  sourceStorageKey: string;
+}
+
+export interface GarmentSource {
+  sourceStorageKey: string;
+  mediaUrl: string;
+  durationSeconds: number;
+  width: number;
+  height: number;
+}
+
+export type GarmentMode = typeof GarmentMode[keyof typeof GarmentMode];
+
+
+export const GarmentMode = {
+  'replace-garment': 'replace-garment',
+  'animate-artwork': 'animate-artwork',
+} as const;
+
+export type GarmentJobSubmitRequestArtworkSource = typeof GarmentJobSubmitRequestArtworkSource[keyof typeof GarmentJobSubmitRequestArtworkSource];
+
+
+export const GarmentJobSubmitRequestArtworkSource = {
+  existing: 'existing',
+  upload: 'upload',
+} as const;
+
+export interface GarmentJobSubmitRequest {
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  requestId: string;
+  sourceStorageKey: string;
+  referenceStorageKey?: string;
+  artworkSource?: GarmentJobSubmitRequestArtworkSource;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  targetGarment: string;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  workerId: string;
+  mode: GarmentMode;
+  /** @maxLength 600 */
+  prompt: string;
+  /** @minimum 0 */
+  startSeconds: number;
+  /**
+     * @minimum 0.5
+     * @maximum 3
+     */
+  durationSeconds: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  seed: number;
+}
+
+export interface GarmentJobRef {
+  jobId: string;
+}
+
+export type GarmentJobStatus = typeof GarmentJobStatus[keyof typeof GarmentJobStatus];
+
+
+export const GarmentJobStatus = {
+  queued: 'queued',
+  running: 'running',
+  succeeded: 'succeeded',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface GarmentJob {
+  id: string;
+  title: string;
+  status: GarmentJobStatus;
+  /** @nullable */
+  stage: string | null;
+  sourceUrl: string;
+  /** @nullable */
+  maskUrl: string | null;
+  /** @nullable */
+  outputUrl: string | null;
+  /** @nullable */
+  error: string | null;
+  createdAt: string;
+  mode: GarmentMode;
+}
+
 export interface VideoCleanupInspectRequest {
   sourceStorageKey: string;
 }

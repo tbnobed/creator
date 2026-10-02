@@ -17,7 +17,7 @@ ENV NODE_ENV=production \
     OBTV_MEDIA_ROOT=/var/lib/obtv-media
 
 RUN apt-get update \
-  && apt-get install --yes --no-install-recommends ffmpeg zip \
+  && apt-get install --yes --no-install-recommends ffmpeg zip python3 python-is-python3 python3-opencv python3-numpy python3-pil \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 10001 obtv \
   && useradd --system --uid 10001 --gid obtv --home-dir /app --shell /usr/sbin/nologin obtv \
@@ -25,6 +25,8 @@ RUN apt-get update \
 
 COPY --from=build --chown=obtv:obtv /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY --from=build --chown=obtv:obtv /app/lib/db/drizzle ./lib/db/drizzle
+COPY --from=build --chown=obtv:obtv /app/scripts/garment-proof.py ./scripts/garment-proof.py
+COPY --from=build --chown=obtv:obtv /app/scripts/garment-print-proof.py ./scripts/garment-print-proof.py
 COPY --from=build --chown=obtv:obtv /app/deployment/start-api.sh ./deployment/start-api.sh
 
 RUN chmod 0555 /app/deployment/start-api.sh

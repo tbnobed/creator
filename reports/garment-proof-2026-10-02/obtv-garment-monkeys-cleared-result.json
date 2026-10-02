@@ -1,0 +1,752 @@
+{
+  "receipt": {
+    "prompt_id": "8ee5f871-067c-4d99-9c42-92960603f591",
+    "number": 15,
+    "node_errors": {}
+  },
+  "workflow": {
+    "1": {
+      "class_type": "LoadVideo",
+      "inputs": {
+        "file": "obtv-garment-proof-source.mp4"
+      }
+    },
+    "2": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1",
+          0
+        ]
+      }
+    },
+    "3": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "3",
+          1
+        ],
+        "text": "shirt"
+      }
+    },
+    "5": {
+      "class_type": "SAM3_VideoTrack",
+      "inputs": {
+        "images": [
+          "2",
+          0
+        ],
+        "model": [
+          "3",
+          0
+        ],
+        "conditioning": [
+          "4",
+          0
+        ],
+        "detection_threshold": 0.5,
+        "max_objects": 1,
+        "detect_interval": 1
+      }
+    },
+    "6": {
+      "class_type": "SAM3_TrackToMask",
+      "inputs": {
+        "track_data": [
+          "5",
+          0
+        ],
+        "object_indices": "0"
+      }
+    },
+    "7": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": [
+          "6",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "7",
+          0
+        ],
+        "fps": 16
+      }
+    },
+    "9": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "8",
+          0
+        ],
+        "filename_prefix": "garment-proof-596902eba58649698405a773572709c3/mask",
+        "format": "mp4",
+        "format.codec": "h264",
+        "format.codec.encoding": "auto"
+      }
+    },
+    "24": {
+      "class_type": "InvertMask",
+      "inputs": {
+        "mask": [
+          "6",
+          0
+        ]
+      }
+    },
+    "25": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": [
+          "24",
+          0
+        ]
+      }
+    },
+    "26": {
+      "class_type": "ImageCompositeMasked",
+      "inputs": {
+        "destination": [
+          "2",
+          0
+        ],
+        "source": [
+          "25",
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "resize_source": false,
+        "mask": [
+          "6",
+          0
+        ]
+      }
+    },
+    "10": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "wan2.1_vace_14B_fp16.safetensors",
+        "weight_dtype": "fp8_e4m3fn"
+      }
+    },
+    "11": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "10",
+          0
+        ],
+        "shift": 5
+      }
+    },
+    "12": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "type": "wan"
+      }
+    },
+    "13": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "wan_2.1_vae.safetensors"
+      }
+    },
+    "14": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "12",
+          0
+        ],
+        "text": "Three colorful cartoon monkeys play on the front of a black shirt as an animated design printed on the fabric. One monkey waves its arms, one hops and one swings its tail. Their poses visibly change over time. Realistic fabric folds and original lighting."
+      }
+    },
+    "15": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "12",
+          0
+        ],
+        "text": "flicker, distorted clothing, extra limbs, changed face, changed hands, text, watermark"
+      }
+    },
+    "16": {
+      "class_type": "WanVaceToVideo",
+      "inputs": {
+        "positive": [
+          "14",
+          0
+        ],
+        "negative": [
+          "15",
+          0
+        ],
+        "vae": [
+          "13",
+          0
+        ],
+        "width": 512,
+        "height": 288,
+        "length": 49,
+        "batch_size": 1,
+        "strength": 1,
+        "control_video": [
+          "26",
+          0
+        ],
+        "control_masks": [
+          "6",
+          0
+        ]
+      }
+    },
+    "17": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "11",
+          0
+        ],
+        "positive": [
+          "16",
+          0
+        ],
+        "negative": [
+          "16",
+          1
+        ],
+        "latent_image": [
+          "16",
+          2
+        ],
+        "seed": 421,
+        "steps": 20,
+        "cfg": 6,
+        "sampler_name": "uni_pc",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "18": {
+      "class_type": "TrimVideoLatent",
+      "inputs": {
+        "samples": [
+          "17",
+          0
+        ],
+        "trim_amount": [
+          "16",
+          3
+        ]
+      }
+    },
+    "19": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "18",
+          0
+        ],
+        "vae": [
+          "13",
+          0
+        ]
+      }
+    },
+    "20": {
+      "class_type": "ImageCompositeMasked",
+      "inputs": {
+        "destination": [
+          "2",
+          0
+        ],
+        "source": [
+          "19",
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "resize_source": false,
+        "mask": [
+          "6",
+          0
+        ]
+      }
+    },
+    "21": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "20",
+          0
+        ],
+        "fps": 16,
+        "audio": [
+          "2",
+          1
+        ]
+      }
+    },
+    "22": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "21",
+          0
+        ],
+        "filename_prefix": "garment-proof-596902eba58649698405a773572709c3/replacement",
+        "format": "mp4",
+        "format.codec": "h264",
+        "format.codec.encoding": "auto"
+      }
+    }
+  },
+  "history": {
+    "8ee5f871-067c-4d99-9c42-92960603f591": {
+      "prompt": [
+        15,
+        "8ee5f871-067c-4d99-9c42-92960603f591",
+        {
+          "1": {
+            "class_type": "LoadVideo",
+            "inputs": {
+              "file": "obtv-garment-proof-source.mp4"
+            }
+          },
+          "2": {
+            "class_type": "GetVideoComponents",
+            "inputs": {
+              "video": [
+                "1",
+                0
+              ]
+            }
+          },
+          "3": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+              "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+            }
+          },
+          "4": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "3",
+                1
+              ],
+              "text": "shirt"
+            }
+          },
+          "5": {
+            "class_type": "SAM3_VideoTrack",
+            "inputs": {
+              "images": [
+                "2",
+                0
+              ],
+              "model": [
+                "3",
+                0
+              ],
+              "conditioning": [
+                "4",
+                0
+              ],
+              "detection_threshold": 0.5,
+              "max_objects": 1,
+              "detect_interval": 1
+            }
+          },
+          "6": {
+            "class_type": "SAM3_TrackToMask",
+            "inputs": {
+              "track_data": [
+                "5",
+                0
+              ],
+              "object_indices": "0"
+            }
+          },
+          "7": {
+            "class_type": "MaskToImage",
+            "inputs": {
+              "mask": [
+                "6",
+                0
+              ]
+            }
+          },
+          "8": {
+            "class_type": "CreateVideo",
+            "inputs": {
+              "images": [
+                "7",
+                0
+              ],
+              "fps": 16.0
+            }
+          },
+          "9": {
+            "class_type": "SaveVideo",
+            "inputs": {
+              "video": [
+                "8",
+                0
+              ],
+              "filename_prefix": "garment-proof-596902eba58649698405a773572709c3/mask",
+              "format": "mp4",
+              "format.codec": "h264",
+              "format.codec.encoding": "auto"
+            }
+          },
+          "24": {
+            "class_type": "InvertMask",
+            "inputs": {
+              "mask": [
+                "6",
+                0
+              ]
+            }
+          },
+          "25": {
+            "class_type": "MaskToImage",
+            "inputs": {
+              "mask": [
+                "24",
+                0
+              ]
+            }
+          },
+          "26": {
+            "class_type": "ImageCompositeMasked",
+            "inputs": {
+              "destination": [
+                "2",
+                0
+              ],
+              "source": [
+                "25",
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "resize_source": false,
+              "mask": [
+                "6",
+                0
+              ]
+            }
+          },
+          "10": {
+            "class_type": "UNETLoader",
+            "inputs": {
+              "unet_name": "wan2.1_vace_14B_fp16.safetensors",
+              "weight_dtype": "fp8_e4m3fn"
+            }
+          },
+          "11": {
+            "class_type": "ModelSamplingSD3",
+            "inputs": {
+              "model": [
+                "10",
+                0
+              ],
+              "shift": 5.0
+            }
+          },
+          "12": {
+            "class_type": "CLIPLoader",
+            "inputs": {
+              "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+              "type": "wan"
+            }
+          },
+          "13": {
+            "class_type": "VAELoader",
+            "inputs": {
+              "vae_name": "wan_2.1_vae.safetensors"
+            }
+          },
+          "14": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "12",
+                0
+              ],
+              "text": "Three colorful cartoon monkeys play on the front of a black shirt as an animated design printed on the fabric. One monkey waves its arms, one hops and one swings its tail. Their poses visibly change over time. Realistic fabric folds and original lighting."
+            }
+          },
+          "15": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "clip": [
+                "12",
+                0
+              ],
+              "text": "flicker, distorted clothing, extra limbs, changed face, changed hands, text, watermark"
+            }
+          },
+          "16": {
+            "class_type": "WanVaceToVideo",
+            "inputs": {
+              "positive": [
+                "14",
+                0
+              ],
+              "negative": [
+                "15",
+                0
+              ],
+              "vae": [
+                "13",
+                0
+              ],
+              "width": 512,
+              "height": 288,
+              "length": 49,
+              "batch_size": 1,
+              "strength": 1.0,
+              "control_video": [
+                "26",
+                0
+              ],
+              "control_masks": [
+                "6",
+                0
+              ]
+            }
+          },
+          "17": {
+            "class_type": "KSampler",
+            "inputs": {
+              "model": [
+                "11",
+                0
+              ],
+              "positive": [
+                "16",
+                0
+              ],
+              "negative": [
+                "16",
+                1
+              ],
+              "latent_image": [
+                "16",
+                2
+              ],
+              "seed": 421,
+              "steps": 20,
+              "cfg": 6.0,
+              "sampler_name": "uni_pc",
+              "scheduler": "simple",
+              "denoise": 1.0
+            }
+          },
+          "18": {
+            "class_type": "TrimVideoLatent",
+            "inputs": {
+              "samples": [
+                "17",
+                0
+              ],
+              "trim_amount": [
+                "16",
+                3
+              ]
+            }
+          },
+          "19": {
+            "class_type": "VAEDecode",
+            "inputs": {
+              "samples": [
+                "18",
+                0
+              ],
+              "vae": [
+                "13",
+                0
+              ]
+            }
+          },
+          "20": {
+            "class_type": "ImageCompositeMasked",
+            "inputs": {
+              "destination": [
+                "2",
+                0
+              ],
+              "source": [
+                "19",
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "resize_source": false,
+              "mask": [
+                "6",
+                0
+              ]
+            }
+          },
+          "21": {
+            "class_type": "CreateVideo",
+            "inputs": {
+              "images": [
+                "20",
+                0
+              ],
+              "fps": 16.0,
+              "audio": [
+                "2",
+                1
+              ]
+            }
+          },
+          "22": {
+            "class_type": "SaveVideo",
+            "inputs": {
+              "video": [
+                "21",
+                0
+              ],
+              "filename_prefix": "garment-proof-596902eba58649698405a773572709c3/replacement",
+              "format": "mp4",
+              "format.codec": "h264",
+              "format.codec.encoding": "auto"
+            }
+          }
+        },
+        {
+          "client_id": "garment-proof-596902eba58649698405a773572709c3",
+          "create_time": 1790970878147
+        },
+        [
+          "9",
+          "22"
+        ]
+      ],
+      "outputs": {
+        "9": {
+          "images": [
+            {
+              "filename": "mask_00001_.mp4",
+              "subfolder": "garment-proof-596902eba58649698405a773572709c3",
+              "type": "output"
+            }
+          ],
+          "animated": [
+            true
+          ]
+        },
+        "22": {
+          "images": [
+            {
+              "filename": "replacement_00001_.mp4",
+              "subfolder": "garment-proof-596902eba58649698405a773572709c3",
+              "type": "output"
+            }
+          ],
+          "animated": [
+            true
+          ]
+        },
+        "1": {
+          "images": [
+            {
+              "filename": "obtv-garment-proof-source.mp4",
+              "subfolder": "",
+              "type": "input"
+            }
+          ],
+          "animated": [
+            true
+          ]
+        }
+      },
+      "status": {
+        "status_str": "success",
+        "completed": true,
+        "messages": [
+          [
+            "execution_start",
+            {
+              "prompt_id": "8ee5f871-067c-4d99-9c42-92960603f591",
+              "timestamp": 1790970878148
+            }
+          ],
+          [
+            "execution_cached",
+            {
+              "nodes": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "24",
+                "25",
+                "26",
+                "10",
+                "11",
+                "12",
+                "13",
+                "15"
+              ],
+              "prompt_id": "8ee5f871-067c-4d99-9c42-92960603f591",
+              "timestamp": 1790970878150
+            }
+          ],
+          [
+            "execution_success",
+            {
+              "prompt_id": "8ee5f871-067c-4d99-9c42-92960603f591",
+              "timestamp": 1790970927076
+            }
+          ]
+        ]
+      },
+      "meta": {
+        "9": {
+          "node_id": "9",
+          "display_node": "9",
+          "parent_node": null,
+          "real_node_id": "9"
+        },
+        "22": {
+          "node_id": "22",
+          "display_node": "22",
+          "parent_node": null,
+          "real_node_id": "22"
+        },
+        "1": {
+          "node_id": "1",
+          "display_node": "1",
+          "parent_node": null,
+          "real_node_id": "1"
+        }
+      }
+    }
+  }
+}

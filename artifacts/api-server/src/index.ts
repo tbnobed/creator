@@ -1,5 +1,6 @@
 import app from "./app";
 import { resumeActiveGenerations } from "./lib/generation-service";
+import { resumeGarmentJobs } from "./lib/garment-service";
 import { startServerHealthChecks } from "./lib/server-health";
 import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
@@ -24,6 +25,7 @@ if (Number.isNaN(port) || port <= 0) {
 async function start(): Promise<void> {
   await ensureStudioSeed();
   await resumeActiveGenerations();
+  await resumeGarmentJobs();
   await startLongFormOrchestrator();
   await resumeImageStudioJobs();
   await resumeCharacterImageJobs();

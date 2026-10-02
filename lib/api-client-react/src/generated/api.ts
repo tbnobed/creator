@@ -40,6 +40,12 @@ import type {
   ComfyServer,
   ConnectionTest,
   DashboardSummary,
+  GarmentInspectRequest,
+  GarmentJob,
+  GarmentJobRef,
+  GarmentJobSubmitRequest,
+  GarmentSource,
+  GarmentWorker,
   GenerationCapability,
   GenerationInput,
   GenerationJob,
@@ -7101,4 +7107,341 @@ export function useListVideoCleanupJobs<TData = Awaited<ReturnType<typeof listVi
 
 
 
+
+export const getListGarmentWorkersUrl = () => {
+
+
+
+
+  return `/api/garment-studio/workers`
+}
+
+export const listGarmentWorkers = async ( options?: Parameters<typeof customFetch>[1]): Promise<GarmentWorker[]> => {
+
+  return customFetch<GarmentWorker[]>(getListGarmentWorkersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGarmentWorkersQueryKey = () => {
+    return [
+    `/api/garment-studio/workers`
+    ] as const;
+    }
+
+
+export const getListGarmentWorkersQueryOptions = <TData = Awaited<ReturnType<typeof listGarmentWorkers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGarmentWorkers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGarmentWorkersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGarmentWorkers>>> = ({ signal }) => listGarmentWorkers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGarmentWorkers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGarmentWorkersQueryResult = NonNullable<Awaited<ReturnType<typeof listGarmentWorkers>>>
+export type ListGarmentWorkersQueryError = ErrorType<unknown>
+
+
+
+export function useListGarmentWorkers<TData = Awaited<ReturnType<typeof listGarmentWorkers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGarmentWorkers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGarmentWorkersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getInspectGarmentSourceUrl = () => {
+
+
+
+
+  return `/api/garment-studio/inspect`
+}
+
+export const inspectGarmentSource = async (garmentInspectRequest: GarmentInspectRequest, options?: Parameters<typeof customFetch>[1]): Promise<GarmentSource> => {
+
+  return customFetch<GarmentSource>(getInspectGarmentSourceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(garmentInspectRequest)
+  }
+);}
+
+
+
+
+
+export const getInspectGarmentSourceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectGarmentSource>>, TError,{data: BodyType<GarmentInspectRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inspectGarmentSource>>, TError,{data: BodyType<GarmentInspectRequest>}, TContext> => {
+
+const mutationKey = ['inspectGarmentSource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inspectGarmentSource>>, {data: BodyType<GarmentInspectRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  inspectGarmentSource(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InspectGarmentSourceMutationResult = NonNullable<Awaited<ReturnType<typeof inspectGarmentSource>>>
+    export type InspectGarmentSourceMutationBody = BodyType<GarmentInspectRequest>
+    export type InspectGarmentSourceMutationError = ErrorType<unknown>
+
+    export const useInspectGarmentSource = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectGarmentSource>>, TError,{data: BodyType<GarmentInspectRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inspectGarmentSource>>,
+        TError,
+        {data: BodyType<GarmentInspectRequest>},
+        TContext
+      > => {
+      return useMutation(getInspectGarmentSourceMutationOptions(options));
+    }
+
+export const getListGarmentJobsUrl = () => {
+
+
+
+
+  return `/api/garment-studio/jobs`
+}
+
+export const listGarmentJobs = async ( options?: Parameters<typeof customFetch>[1]): Promise<GarmentJob[]> => {
+
+  return customFetch<GarmentJob[]>(getListGarmentJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGarmentJobsQueryKey = () => {
+    return [
+    `/api/garment-studio/jobs`
+    ] as const;
+    }
+
+
+export const getListGarmentJobsQueryOptions = <TData = Awaited<ReturnType<typeof listGarmentJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGarmentJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGarmentJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGarmentJobs>>> = ({ signal }) => listGarmentJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGarmentJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGarmentJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listGarmentJobs>>>
+export type ListGarmentJobsQueryError = ErrorType<unknown>
+
+
+
+export function useListGarmentJobs<TData = Awaited<ReturnType<typeof listGarmentJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGarmentJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGarmentJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitGarmentJobUrl = () => {
+
+
+
+
+  return `/api/garment-studio/jobs`
+}
+
+export const submitGarmentJob = async (garmentJobSubmitRequest: GarmentJobSubmitRequest, options?: Parameters<typeof customFetch>[1]): Promise<GarmentJobRef> => {
+
+  return customFetch<GarmentJobRef>(getSubmitGarmentJobUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(garmentJobSubmitRequest)
+  }
+);}
+
+
+
+
+
+export const getSubmitGarmentJobMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitGarmentJob>>, TError,{data: BodyType<GarmentJobSubmitRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitGarmentJob>>, TError,{data: BodyType<GarmentJobSubmitRequest>}, TContext> => {
+
+const mutationKey = ['submitGarmentJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitGarmentJob>>, {data: BodyType<GarmentJobSubmitRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitGarmentJob(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitGarmentJobMutationResult = NonNullable<Awaited<ReturnType<typeof submitGarmentJob>>>
+    export type SubmitGarmentJobMutationBody = BodyType<GarmentJobSubmitRequest>
+    export type SubmitGarmentJobMutationError = ErrorType<unknown>
+
+    export const useSubmitGarmentJob = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitGarmentJob>>, TError,{data: BodyType<GarmentJobSubmitRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitGarmentJob>>,
+        TError,
+        {data: BodyType<GarmentJobSubmitRequest>},
+        TContext
+      > => {
+      return useMutation(getSubmitGarmentJobMutationOptions(options));
+    }
+
+export const getCancelGarmentJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/garment-studio/jobs/${id}/cancel`
+}
+
+export const cancelGarmentJob = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<GarmentJobRef> => {
+
+  return customFetch<GarmentJobRef>(getCancelGarmentJobUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelGarmentJobMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelGarmentJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelGarmentJob>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelGarmentJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelGarmentJob>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelGarmentJob(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelGarmentJobMutationResult = NonNullable<Awaited<ReturnType<typeof cancelGarmentJob>>>
+
+    export type CancelGarmentJobMutationError = ErrorType<unknown>
+
+    export const useCancelGarmentJob = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelGarmentJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelGarmentJob>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelGarmentJobMutationOptions(options));
+    }
 

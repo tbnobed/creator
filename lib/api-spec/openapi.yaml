@@ -32,6 +32,8 @@ tags:
     description: Long-form video planning and orchestration
   - name: image-studio
     description: Durable image generation jobs and asset library
+  - name: garment-studio
+    description: Local GPU garment replacement and animated artwork proofs
   - name: spending
     description: Estimated paid-provider spending policy and ledger
 paths:
@@ -1740,6 +1742,71 @@ paths:
               schema:
                 type: array
                 items: {$ref: "#/components/schemas/VideoCleanupJob"}
+  /garment-studio/workers:
+    get:
+      operationId: listGarmentWorkers
+      tags: [garment-studio]
+      responses:
+        "200":
+          description: Local GPU workers able to run garment jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/GarmentWorker"}
+  /garment-studio/inspect:
+    post:
+      operationId: inspectGarmentSource
+      tags: [garment-studio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/GarmentInspectRequest"}
+      responses:
+        "200":
+          description: Verified source clip
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GarmentSource"}
+  /garment-studio/jobs:
+    get:
+      operationId: listGarmentJobs
+      tags: [garment-studio]
+      responses:
+        "200":
+          description: Tenant garment jobs, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/GarmentJob"}
+    post:
+      operationId: submitGarmentJob
+      tags: [garment-studio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/GarmentJobSubmitRequest"}
+      responses:
+        "200":
+          description: Durable job, including idempotent duplicate submissions
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GarmentJobRef"}
+  /garment-studio/jobs/{id}/cancel:
+    post:
+      operationId: cancelGarmentJob
+      tags: [garment-studio]
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Cancellation recorded
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GarmentJobRef"}
 components:
   parameters:
     Id:
@@ -1749,6 +1816,69 @@ components:
       schema:
         type: string
   schemas:
+    GarmentWorker:
+      type: object
+      required: [id, name, ready, busy, reason]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        ready: {type: boolean}
+        busy: {type: boolean}
+        reason: {type: [string, "null"]}
+    GarmentInspectRequest:
+      type: object
+      required: [sourceStorageKey]
+      properties:
+        sourceStorageKey: {type: string}
+    GarmentSource:
+      type: object
+      required: [sourceStorageKey, mediaUrl, durationSeconds, width, height]
+      properties:
+        sourceStorageKey: {type: string}
+        mediaUrl: {type: string}
+        durationSeconds: {type: number}
+        width: {type: number}
+        height: {type: number}
+    GarmentMode:
+      type: string
+      enum: [replace-garment, animate-artwork]
+    GarmentJobSubmitRequest:
+      type: object
+      required: [requestId, sourceStorageKey, workerId, mode, prompt, targetGarment, startSeconds, durationSeconds, seed]
+      properties:
+        requestId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+        sourceStorageKey: {type: string}
+        referenceStorageKey: {type: string}
+        artworkSource: {type: string, enum: [existing, upload]}
+        targetGarment: {type: string, minLength: 1, maxLength: 160}
+        workerId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+        mode: {$ref: "#/components/schemas/GarmentMode"}
+        prompt: {type: string, maxLength: 600}
+        startSeconds: {type: number, minimum: 0}
+        durationSeconds: {type: number, minimum: 0.5, maximum: 3}
+        seed: {type: number, minimum: 0, maximum: 2147483647, multipleOf: 1}
+    GarmentJobRef:
+      type: object
+      required: [jobId]
+      properties:
+        jobId: {type: string}
+    GarmentJobStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, cancelled]
+    GarmentJob:
+      type: object
+      required: [id, title, status, stage, sourceUrl, maskUrl, outputUrl, error, createdAt, mode]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        status: {$ref: "#/components/schemas/GarmentJobStatus"}
+        stage: {type: [string, "null"]}
+        sourceUrl: {type: string}
+        maskUrl: {type: [string, "null"]}
+        outputUrl: {type: [string, "null"]}
+        error: {type: [string, "null"]}
+        createdAt: {type: string, format: date-time}
+        mode: {$ref: "#/components/schemas/GarmentMode"}
     VideoCleanupInspectRequest:
       type: object
       required: [sourceStorageKey]

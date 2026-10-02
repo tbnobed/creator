@@ -27,6 +27,7 @@ const ProjectDetailPage = lazy(() => import("@/pages/projects/[id]"));
 const NewProjectPage = lazy(() => import("@/pages/projects/new"));
 const AccountPage = lazy(() => import("@/pages/account"));
 const VideoCleanupPage = lazy(() => import("@/pages/video-cleanup"));
+const GarmentStudioPage = lazy(() => import("@/pages/garment-studio"));
 const SpendingPage = lazy(() => import("@/pages/spending"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -75,6 +76,7 @@ function StudioRouter() {
               <Route path="/account" component={AccountPage} />
               <Route path="/spending" component={SpendingPage} />
               <Route path="/video-cleanup" component={VideoCleanupPage} />
+              <Route path="/garment-studio" component={GarmentStudioPage} />
               <Route path="/servers">
                 <AuthGuard requireSiteAdmin><ServersPage /></AuthGuard>
               </Route>
@@ -123,6 +125,7 @@ function AppRoutes() {
             <Route path="/account" component={StudioRouter} />
             <Route path="/spending" component={StudioRouter} />
             <Route path="/video-cleanup" component={StudioRouter} />
+            <Route path="/garment-studio" component={StudioRouter} />
             <Route path="/servers" component={StudioRouter} />
             <Route path="/workflows" component={StudioRouter} />
             <Route path="/admin" component={StudioRouter} />

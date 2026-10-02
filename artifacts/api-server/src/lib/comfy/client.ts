@@ -144,6 +144,10 @@ export class ComfyUIClient {
     return this.request<{ queue_running?: unknown[]; queue_pending?: unknown[] }>("/queue");
   }
 
+  getObjectInfo() {
+    return this.request<Record<string, { input: { required: Record<string, unknown[]> } }>>("/object_info", { timeoutMs: 30_000 });
+  }
+
   async getHistory(promptId?: string): Promise<Record<string, unknown>> {
     const pathname = promptId
       ? `/history/${encodeURIComponent(promptId)}`

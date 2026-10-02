@@ -18,6 +18,7 @@ import spendingRouter from "./spending";
 import videoLibraryRouter from "./video-library";
 import referenceLibraryRouter from "./reference-library";
 import videoCleanupRouter from "./video-cleanup";
+import garmentStudioRouter from "./garment-studio";
 import { requireAuth, requireTenant } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -37,6 +38,7 @@ router.use(generationsRouter);
 router.use(videoLibraryRouter);
 router.use(referenceLibraryRouter);
 router.use(videoCleanupRouter);
+router.use(garmentStudioRouter);
 router.use(generationReferenceMediaRouter);
 router.use(referenceVideosRouter);
 router.use(longFormProjectsRouter);

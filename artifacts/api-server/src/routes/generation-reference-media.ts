@@ -1,6 +1,7 @@
 import express, { Router, type IRouter } from "express";
 import { UploadGenerationReferenceMediaResponse } from "@workspace/api-zod";
 import { mediaStorage } from "../lib/storage-service";
+import { referenceImageType } from "../lib/reference-image-type";
 
 const router: IRouter = Router();
 const acceptedTypes = [
@@ -17,7 +18,7 @@ router.post(
   "/generations/reference-media",
   express.raw({ type: acceptedTypes, limit: "200mb" }),
   async (req, res): Promise<void> => {
-    const mimeType = req.headers["content-type"]?.split(";")[0]?.trim().toLowerCase() ?? "";
+    let mimeType = req.headers["content-type"]?.split(";")[0]?.trim().toLowerCase() ?? "";
     if (!acceptedTypes.includes(mimeType)) {
       res.status(415).json({ error: "Unsupported reference media MIME type" });
       return;
@@ -27,6 +28,14 @@ router.post(
       return;
     }
     try {
+      if (mimeType.startsWith("image/")) {
+        const actual = referenceImageType(req.body);
+        if (!actual) {
+          res.status(400).json({error:"This file is not a recognized JPEG, PNG or WebP image. Export it as PNG and upload it again."});
+          return;
+        }
+        mimeType = actual;
+      }
       const storageKey = await mediaStorage.storeGenerationReferenceMedia(
         mimeType,
         req.body,

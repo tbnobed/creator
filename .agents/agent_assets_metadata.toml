@@ -56,3 +56,73 @@ mtime_ms = 1789520793105
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/9504f7c2-4618-46a8-af0c-24bb86c5d4b8/82bdfd85-7d70-415c-8e1d-ffe45c97b811"
 storage_version_token = "1789520870252248"
 content_type = "text/plain"
+
+[[outputs]]
+id = "KJu__Q08HZgEdqtJ9XfCQ"
+uri = "file://reports/garment-proof-2026-10-02/comparison.mp4"
+type = "video"
+title = "Local garment replacement — before and after"
+description = "3-second, 512×288 draft using your orange-shirt reference. Original source audio retained; not a full-resolution or full-length result."
+logical_id = "893dae17-5ffb-4383-90bd-1b720dd3d4e0"
+content_hash = "sha256:3dac39bd6a11d408e414c273d8b4fd7f290bbab1ae566dae29fd6c2ee539d67f"
+size = 292410
+mtime_ms = 1790971014959
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/893dae17-5ffb-4383-90bd-1b720dd3d4e0/ae2f6ab0-5d23-469e-9a69-5d81e6a3b4db"
+storage_version_token = "1790971105162094"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "a3pfUqpv5t1Rn8UFE8RrZ"
+uri = "file://reports/garment-proof-2026-10-02/obtv-monkeys-cleared.mp4"
+type = "video"
+title = "Monkey artwork test — animation not achieved"
+description = "The corrected workflow adds shirt artwork, but this test does not demonstrate monkeys playing. Not accepted as the requested animation."
+logical_id = "7ec52f04-56b7-4445-a4b3-ad1cbe794f04"
+content_hash = "sha256:749d1f917ebf1751807f1315198882f2895040169485ecd815645808f3f60624"
+size = 180347
+mtime_ms = 1790970932000
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/7ec52f04-56b7-4445-a4b3-ad1cbe794f04/3d641825-f00b-4edf-a363-fe6f31aff096"
+storage_version_token = "1790971105845950"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "aNmrl0vzJ4vIqDNIUlEhP"
+uri = "file://reports/garment-proof-2026-10-02/animated-print.mp4"
+type = "video"
+title = "Animated monkey print — tracked shirt proof"
+description = "Three-second local draft: two cartoon monkeys hop and wave while playing with a bouncing ball. Shirt-motion tracking and source audio preserved. Basic motion tracking, not full fabric-fold deformation; not connected to the app yet."
+logical_id = "30e48a26-46b9-4cde-bcb6-8d04abdf3854"
+content_hash = "sha256:7de3eed3808258cb4beb7f7c9b4860eb9b0f12daf58280cbd762ba403524842f"
+size = 232916
+mtime_ms = 1790973172036
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/30e48a26-46b9-4cde-bcb6-8d04abdf3854/73769086-6022-438a-b82c-56838eb8091f"
+storage_version_token = "1790973254144280"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "JH3tCs1j4db45kPGXsAlO"
+uri = "file://reports/garment-proof-2026-10-02/fabric-comparison.mp4"
+type = "video"
+title = "Shirt print — previous vs revised"
+description = "Side-by-side comparison. The revision uses local motion deformation and inherits the shirt’s shadows and texture instead of uniformly lit, rigid artwork. Short draft; fold depth is approximated."
+logical_id = "4322034a-49b8-4e0c-b9a8-5931b3dd1bc1"
+content_hash = "sha256:b62171d55f28b6ca39052c364d5f3113080e31b5a41a907aaacc8cc5c20811d9"
+size = 378974
+mtime_ms = 1790973460864
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/4322034a-49b8-4e0c-b9a8-5931b3dd1bc1/8fbc8b3a-f4db-4e43-bfd8-c57322904abd"
+storage_version_token = "1790973495383775"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "F_BvuEtZQmBOyFTJ_Vuww"
+uri = "file://reports/garment-proof-2026-10-02/fabric-print.mp4"
+type = "video"
+title = "Revised fabric-print draft"
+description = "Animated monkeys with local cloth-motion tracking and matte fabric shading. Original audio retained unchanged. Not yet validated for deep folds or large body turns."
+logical_id = "13850755-17e4-4c57-8c2b-a18f60348411"
+content_hash = "sha256:f83fd8cbb1ac77373d1402e1877bec068439b5a90505c141359c4f5f782051bc"
+size = 228871
+mtime_ms = 1790973416084
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/13850755-17e4-4c57-8c2b-a18f60348411/529f97b4-1f02-48aa-bb10-67ab13c0fae7"
+storage_version_token = "1790973495883677"
+content_type = "video/mp4"
