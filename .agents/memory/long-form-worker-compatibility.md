@@ -21,6 +21,12 @@ Treat execution success, media integrity, and visual correctness as separate val
 
 **How to apply:** Inspect generated frames before approving capabilities or automatic dispatch. Record codec checks and visual acceptance separately; do not turn a short thermal smoke-test pass into a quality or sustained-capacity claim.
 
+Do not qualify Wan 2.2 TI2V 5B using arbitrary low-resolution drafts.
+
+**Why:** On the Blackwell host, a controlled 512×288 test produced corrupted colors while the otherwise identical 1280×704 test produced recognizable, consistent frames. This distinguishes that failure from installation or GPU health.
+
+**How to apply:** Test at a known working model resolution before blaming a worker; keep lower-resolution configurations unqualified until separately proven. Do not apply this observation to VACE or other Wan architectures without their own tests.
+
 Comfy V3 autogrowing inputs must be validated against their expanded names, not only their parent input name.
 
 **Why:** Live metadata advertises a required `values` input for math expressions, while valid Wan and LTX graphs supply `values.a` and `values.b`. A naive required-key check falsely reports those working graph nodes as incomplete.

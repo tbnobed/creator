@@ -9,6 +9,12 @@ Never infer a ComfyUI worker's startup interpreter or restart mechanism from its
 
 **How to apply:** Require an empty ComfyUI queue, prefer the installation's venv when present, preserve the existing command flags, use the registered systemd unit when one exists, and wait for `/system_stats` before considering the restart complete.
 
+Do not assume historical ComfyUI VRAM flags still exist on newer workers.
+
+**Why:** The Blackwell server's installed build rejects `--normalvram`; its default memory policy starts successfully without that flag.
+
+**How to apply:** Check the installed CLI help before creating services. Pin each worker to a physical GPU UUID and validate the device returned by its own endpoint.
+
 For authenticated model downloads, never place bearer tokens in remote command arguments or curl `--header` arguments. Feed authorization through curl configuration on stdin so process listings and diagnostic output cannot reveal the credential.
 
 **Why:** Remote process inspection can surface complete command arguments even when the initiating shell command referenced only an environment variable.

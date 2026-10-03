@@ -1,0 +1,21 @@
+[Unit]
+Description=OBTV secondary GPU ComfyUI worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=comfyui
+Group=comfyui
+WorkingDirectory=/opt/ComfyUI
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/srv/comfyui/obtv-deps
+EnvironmentFile=/etc/obtv-secondary-gpu
+ExecStart=/opt/ComfyUI/venv/bin/python /opt/ComfyUI/main.py --listen 127.0.0.1 --port 8189 --input-directory /srv/comfyui/5090/input --output-directory /srv/comfyui/5090/output --temp-directory /srv/comfyui/5090/temp --user-directory /srv/comfyui/5090/user
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=120
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
