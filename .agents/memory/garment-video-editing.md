@@ -52,3 +52,9 @@ VACE center-crops its reference input to the video aspect ratio. Portrait garmen
 **Why:** A portrait product photo fed directly into widescreen VACE conditioning loses its upper and lower design; correct upload handling does not prevent this model-side crop.
 
 **How to apply:** Preserve the complete reference with aspect-preserving padding before worker upload. Test all four image edges, and keep artwork motion separate from garment replacement instructions. This prevents cropping; it is not proof of accurate generative transfer.
+
+Garment runtime failures can be API-image packaging failures, not worker outages.
+
+**Why:** Adding a required script without shipping it in the external API image blocked every worker despite passing workspace tests.
+
+**How to apply:** Check packaged scripts whenever runtime requirements change. Distinguish API-host dependencies from worker readiness, and verify the external deployment separately from this workspace.

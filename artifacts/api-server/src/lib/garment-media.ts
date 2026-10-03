@@ -33,15 +33,23 @@ export function garmentScript(name: string) {
     if (existsSync(file)) return file;
     directory = path.dirname(directory);
   }
-  throw new GarmentError(503, "Garment processing scripts are missing from this installation.");
+  throw new GarmentError(503, `App server is missing ${name}. Rebuild the API image with the current garment scripts.`);
 }
 
 export async function checkGarmentRuntime() {
   garmentScript("garment-reference.py");
   garmentScript("garment-print-proof.py");
   garmentScript("garment-proof.py");
-  await execute("python", ["-c", "import cv2, numpy, PIL"], { timeout: 15_000, maxBuffer: 4096 });
-  await execute("ffmpeg", ["-version"], { timeout: 10_000, maxBuffer: 16384 });
+  try {
+    await execute("python", ["-c", "import cv2, numpy, PIL"], { timeout: 15_000, maxBuffer: 4096 });
+  } catch {
+    throw new GarmentError(503, "App server Python image runtime is unavailable. The API image needs Python, OpenCV, NumPy and Pillow; this is not a GPU worker error.");
+  }
+  try {
+    await execute("ffmpeg", ["-version"], { timeout: 10_000, maxBuffer: 16384 });
+  } catch {
+    throw new GarmentError(503, "App server FFmpeg is unavailable. Rebuild the API image with FFmpeg; this is not a GPU worker error.");
+  }
 }
 
 export async function prepareGarmentSource(bytes: Buffer, start: number, duration: number) {

@@ -26,6 +26,7 @@ RUN apt-get update \
 COPY --from=build --chown=obtv:obtv /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY --from=build --chown=obtv:obtv /app/lib/db/drizzle ./lib/db/drizzle
 COPY --from=build --chown=obtv:obtv /app/scripts/garment-proof.py ./scripts/garment-proof.py
+COPY --from=build --chown=obtv:obtv /app/scripts/garment-reference.py ./scripts/garment-reference.py
 COPY --from=build --chown=obtv:obtv /app/scripts/garment-print-proof.py ./scripts/garment-print-proof.py
 COPY --from=build --chown=obtv:obtv /app/deployment/start-api.sh ./deployment/start-api.sh
 

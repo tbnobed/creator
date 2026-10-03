@@ -67,7 +67,9 @@ async function workerReady(server: typeof comfyServersTable.$inferSelect) {
 export async function listGarmentWorkers() {
   const servers = await db.select().from(comfyServersTable).where(liveWorker());
   let runtimeError: string | null = null;
-  try { await checkGarmentRuntime(); } catch { runtimeError = "Local processing runtime is missing Python image dependencies, scripts or FFmpeg."; }
+  try { await checkGarmentRuntime(); } catch (error) {
+    runtimeError = error instanceof GarmentError ? error.message : "App server garment runtime check failed.";
+  }
   return Promise.all(servers.map(async server => ({id:server.id,name:server.displayName,
     ...(runtimeError ? {ready:false,busy:false,reason:runtimeError} : await workerReady(server))})));
 }

@@ -10,6 +10,17 @@ spec.loader.exec_module(module)
 
 
 class ReferenceTests(unittest.TestCase):
+    def test_api_image_packages_every_required_garment_script(self):
+        root = pathlib.Path(__file__).resolve().parent.parent
+        import re
+        runtime = (root / "artifacts/api-server/src/lib/garment-media.ts").read_text()
+        dockerfile = (root / "deployment/Dockerfile.api").read_text()
+        scripts = set(re.findall(r'garmentScript\("([^"]+)"\)', runtime))
+        self.assertIn("garment-reference.py", scripts)
+        for script in scripts:
+            self.assertTrue((root / "scripts" / script).is_file())
+            self.assertIn(f"/app/scripts/{script} ./scripts/{script}", dockerfile)
+
     def test_portrait_and_landscape_keep_all_four_edges(self):
         for size in [(200, 400), (800, 200)]:
             with self.subTest(size=size), tempfile.TemporaryDirectory() as directory:
