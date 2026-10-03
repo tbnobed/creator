@@ -50,3 +50,9 @@ Assess sustained real-workload temperature behavior separately from the earlier 
 **Why:** On 2026-10-01 the operator reported an hour of video generation with both H100s holding around 79°C at 250 W caps after disabling the custom cutoffs. This is user-reported sustained workload evidence, not an independently monitored stability certification. The earlier 70°C test abort should not be described as proof that these workloads cannot run.
 
 **How to apply:** Retain that distinction when discussing cooling or operational readiness. Do not generalize the reported result to every workload or to memory temperatures, throttling, or output quality that were not measured.
+
+Stable H100 temperatures near 79°C do not establish cooling headroom or unthrottled performance.
+
+**Why:** Read-only monitoring on 2026-10-03 found both dual-H100 cards continuously busy but predominantly thermally throttled, even with power draw below their enforced 250 W caps. A steady temperature can reflect the driver reducing clocks to hold that temperature.
+
+**How to apply:** Check live thermal and power-limit event reasons alongside clocks and power before recommending a higher cap. Address airflow first when thermal throttling dominates; neither clock ratios nor power-cap ratios directly measure render-time loss.
