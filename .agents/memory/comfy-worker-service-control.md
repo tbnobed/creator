@@ -15,6 +15,12 @@ Do not assume historical ComfyUI VRAM flags still exist on newer workers.
 
 **How to apply:** Check the installed CLI help before creating services. Pin each worker to a physical GPU UUID and validate the device returned by its own endpoint.
 
+The operator requested that Blackwell worker access not be restricted to only the OBTV API server's IP.
+
+**Why:** The user explicitly said, “do not restrict access to just this ip.”
+
+**How to apply:** Do not introduce a single-source-IP allowlist for these workers. Keep router forwarding unchanged unless separately authorized; unrestricted source access on a trusted network does not authorize public exposure.
+
 For authenticated model downloads, never place bearer tokens in remote command arguments or curl `--header` arguments. Feed authorization through curl configuration on stdin so process listings and diagnostic output cannot reveal the credential.
 
 **Why:** Remote process inspection can surface complete command arguments even when the initiating shell command referenced only an environment variable.
