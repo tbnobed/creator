@@ -14,3 +14,18 @@ Use native HTTP/HTTPS streaming, not fetch, for this deployment's media proxy.
 **Why:** Catching rejected fetch promises and stream errors did not stop the Undici assertion: it was thrown from an internal socket callback outside that error boundary. A pass-through proxy also must not silently decode compressed bytes while retaining wire headers.
 
 **How to apply:** Preserve raw bytes, content encoding, ranges, and multiple cookies. Maintain backpressure and client-abort cleanup. Include concurrent slow-consumer tests with upstream socket closure; ordinary successful requests and small truncation tests alone missed the production failure.
+
+For prompt AI, align the effective reverse-proxy location's read timeout with
+the longer API and browser deadlines. A model task cancelled after an API
+`request aborted` event is not evidence that the model crashed.
+
+**Why:** Self-hosted logs showed a successful check at 69 seconds, but polish
+lost its downstream connection at exactly 90 seconds and Ollama cancelled
+the matching task. The served browser allowed 190 seconds. This narrowed the
+failure to the downstream path; identifying NPM specifically still requires
+its error log or effective configuration.
+
+**How to apply:** Verify the deployed browser deadline and actual proxy route,
+then inspect timeout inheritance at that location. Filter AI requests before
+tailing logs: routine health checks and gallery polls otherwise hide the
+failure even when requesting a wide time window.

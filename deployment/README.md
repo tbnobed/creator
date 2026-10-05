@@ -133,6 +133,40 @@ The API waits for the model health check before starting. Rendering and GPU
 scheduling use the separate ComfyUI workers and do not consume the two local
 AI CPU cores.
 
+#### Reverse-proxy timeout for prompt assistance
+
+Local CPU inference can exceed 90 seconds. The API allows 180 seconds of model
+processing, and the browser allows 190 seconds. The reverse proxy must not
+close the connection sooner. In Nginx Proxy Manager, configure the effective
+location handling `/api/prompt-guidance/` (the `/api` custom location, or `/`
+when requests pass through the web container) with:
+
+```nginx
+proxy_read_timeout 210s;
+proxy_send_timeout 210s;
+```
+
+Replace existing timeout directives in that location instead of duplicating
+them. A server-level setting can be overridden by a location-level value.
+Validate and save/reload the proxy configuration through its normal management
+interface. This does not require rebuilding the app or restarting Ollama.
+
+An API log showing `request aborted`, a null status, and approximately
+90000 ms, followed by Ollama cancelling the matching task, establishes a
+downstream disconnection—not necessarily an inference crash. Check the proxy
+error log for `upstream timed out` to identify which hop ended the request.
+Longer proxy timeouts do not make inference faster or remove the API's
+180-second limit.
+
+For focused diagnostics, filter before limiting output so periodic health
+checks do not hide the relevant request:
+
+```sh
+docker compose logs --no-color --since=2h --tail=all api prompt-ai 2>&1 \
+  | grep -Ei -B 2 -A 4 'prompt-guidance|/api/chat|prompt_ai_failed|error|timed out|timeout|panic|out of memory|killed' \
+  | tail -n 200
+```
+
 ### MiniMax H3 workflow bootstrap
 
 The deployment seed includes these active `r2v` variants:
