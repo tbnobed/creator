@@ -14,3 +14,9 @@ For isolated UI checks that intentionally mock authenticated API responses, bloc
 **Why:** A page-level route mocked the session successfully while a generation-list request still reached the real API and returned 401, making the UI appear broken. Context-level interception with service workers blocked made the mock delete interaction deterministic.
 
 **How to apply:** Keep mocked browser checks separate from real authenticated-origin verification. Intercept every intended API route, assert the mutation was called, and never interpret a passing mock as proof of actual account permissions.
+
+When Playwright's downloaded Chromium cannot load Linux shared libraries in this workspace, use an installed Nix Chromium wrapper rather than repeatedly downloading browsers.
+
+**Why:** The downloaded headless shell lacked libglib at launch; the system-packaged Chromium wrapper provided its runtime libraries and ran the same isolated UI checks successfully.
+
+**How to apply:** Discover the currently installed wrapper and pass its executable path to the test runner. Do not hardcode a Nix store hash as a permanent project dependency.

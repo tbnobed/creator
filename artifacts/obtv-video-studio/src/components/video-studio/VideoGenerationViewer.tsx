@@ -2,6 +2,7 @@ import * as React from "react";
 import { type GenerationJob } from "@workspace/api-client-react";
 import { useUndoableVideoDelete } from "@/components/video-studio/UndoableDelete";
 import { generationEditDestination } from "@/lib/generation-edit";
+import { displayDuration } from "@/lib/studio-display";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ export function VideoGenerationViewer({
   const job = selectedIndex >= 0 ? jobs[selectedIndex] : null;
   const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   const isActive = job ? ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status) : false;
   const hasPrevious = selectedIndex > 0;
   const hasNext = selectedIndex >= 0 && selectedIndex < jobs.length - 1;
@@ -57,6 +59,7 @@ export function VideoGenerationViewer({
   React.useEffect(() => {
     setCopyState("idle");
     setDeleteError(null);
+    setConfirmDelete(false);
   }, [selectedJobId]);
 
   React.useEffect(() => {
@@ -67,7 +70,7 @@ export function VideoGenerationViewer({
       const target = event.target;
       if (target instanceof HTMLElement && (
         target.isContentEditable ||
-        target.closest("video, audio, input, textarea, select, [contenteditable], [role='slider']")
+        target.closest("input, textarea, select, [contenteditable], [role='slider']")
       )) return;
       if (event.key === "ArrowLeft" && hasPrevious) {
         event.preventDefault();
@@ -118,7 +121,7 @@ export function VideoGenerationViewer({
                 {job.title || "Untitled generation"}
               </DialogTitle>
               <DialogDescription id="video-generation-viewer-description" className="mt-1">
-                {job.status} generation{jobs.length > 1 ? ` · ${selectedIndex + 1} of ${jobs.length}` : ""}
+                {job.status.charAt(0) + job.status.slice(1).toLowerCase()} generation{jobs.length > 1 ? ` · ${selectedIndex + 1} of ${jobs.length} in this view` : ""}
               </DialogDescription>
             </div>
           </div>
@@ -195,7 +198,7 @@ export function VideoGenerationViewer({
                   <Metadata label="Model" value={job.providerModelId || job.workflowName || "Not specified"} />
                   <Metadata label="Quality" value={job.qualityPreset} />
                   <Metadata label="Resolution" value={`${job.width} × ${job.height}`} />
-                  <Metadata label="Duration" value={`${job.durationSeconds} sec`} />
+                  <Metadata label="Duration" value={displayDuration(job.durationSeconds)} />
                   <Metadata label="Frame rate" value={`${job.fps} fps`} />
                   <Metadata label="Seed" value={job.seed == null ? "Random" : String(job.seed)} />
                   <Metadata label="Created" value={new Date(job.createdAt).toLocaleString()} />
@@ -238,19 +241,23 @@ export function VideoGenerationViewer({
                     {editDestination.kind === "long-form" ? "Edit shot" : "Edit & Regenerate"}
                   </Button>
                 )}
+              </div>
+              {!isActive && <div className="space-y-2 border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground">{confirmDelete ? "Delete this generation? You can undo immediately afterward." : "Delete requires confirmation."}</p>
+                {confirmDelete && <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Keep generation</Button>}
                 {!isActive && (
                   <Button
                     variant="outline"
                     className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => void deleteCurrentGeneration()}
+                    onClick={() => confirmDelete ? void deleteCurrentGeneration() : setConfirmDelete(true)}
                     disabled={undoableDelete.pending}
                     data-testid="button-delete-generation"
                   >
                     <Trash2 className="size-4" />
-                    {undoableDelete.pending ? "Deleting..." : "Delete"}
+                    {undoableDelete.pending ? "Deleting..." : confirmDelete ? "Confirm delete" : "Delete…"}
                   </Button>
                 )}
-              </div>
+              </div>}
               {(deleteError || undoableDelete.error) && <p className="text-xs text-destructive" role="alert">{deleteError || undoableDelete.error}</p>}
               {editDestination?.kind === "invalid" && (
                 <p className="text-xs text-destructive" role="alert">{editDestination.reason} Editing is unavailable until the parent shot can be resolved.</p>

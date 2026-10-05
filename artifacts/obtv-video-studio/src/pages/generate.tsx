@@ -13,6 +13,8 @@ import {
 import { Page } from "@/components/layout/page";
 import { BatchCountPicker, BatchReceipts, type BatchReceipt } from "@/components/video-studio/BatchReceipts";
 import { VideoGenerationViewer } from "@/components/video-studio/VideoGenerationViewer";
+import { GenerationThumbnail } from "@/components/video-studio/GenerationThumbnail";
+import { displayDuration as formatDuration, localOutputSize } from "@/lib/studio-display";
 import { SeedanceReferences, emptySeedanceMedia, normalizeSeedanceMedia, type SeedanceMedia } from "@/components/video-studio/SeedanceReferences";
 import { safeStorageRemove, safeStorageSet } from "@/lib/media-file";
 import { VideoOutputControls } from "@/components/video-studio/VideoOutputControls";
@@ -245,6 +247,8 @@ export default function GeneratePage() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [acceptedJobId, setAcceptedJobId] = useState<string | null>(null);
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const promptInputRef = useRef<HTMLTextAreaElement>(null);
+  const returnToPrompt = (event: Event) => { event.preventDefault(); promptInputRef.current?.focus(); };
   const [setupOpen, setSetupOpen] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const submissionInFlight = useRef(false);
@@ -632,17 +636,14 @@ export default function GeneratePage() {
               <span className="flex size-8 items-center justify-center rounded-[9px] bg-[linear-gradient(135deg,#FF1F62,#8B2BE2)] text-white"><Film className="size-[18px]" strokeWidth={2.5} /></span>
               <span className="text-[15px] font-semibold tracking-[-0.04em]">Video Studio</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden text-[11px] text-[#77797d] lg:inline">Your workspace / All projects</span>
-              <Link href="/generations" className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#353638] px-3 text-xs text-[#c2c3c2] hover:bg-[#292a2d] hover:text-[#f5f5f1]">Queue & history <ArrowUpRight className="size-3.5" /></Link>
-            </div>
           </div>
 
           <section aria-labelledby="recent-creations-heading" className="order-2 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#101113]">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 pb-4 pt-6 md:px-8 md:pt-7">
               <div>
                 <div className="mb-1 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-[#e59ac1]"><span className="size-1.5 rounded-full bg-primary" /> Your work</div>
-                <h2 id="recent-creations-heading" className="text-[23px] font-semibold tracking-[-0.045em] sm:text-[28px]">Creations <span className="ml-1 align-middle text-sm font-normal tracking-normal text-[#77797d]">{recentGenerations?.totalItems ?? ""}</span></h2>
+                <h2 id="recent-creations-heading" className="text-[23px] font-semibold tracking-[-0.045em] sm:text-[28px]">Creations</h2>
+                <p className="text-sm text-[#b9b9c0]">{galleryFilter === "all" ? `Showing ${recentJobs.length} of ${recentGenerations?.totalItems ?? 0}` : `${recentJobs.length} ${galleryFilter === "active" ? "in progress" : "completed"} in the latest ${recentGenerations?.items.length ?? 0} creations`}</p>
               </div>
               <div className="flex items-center gap-1 rounded-lg border border-[#303135] bg-[#1b1c1e] p-1" role="group" aria-label="Filter recent generations">
                 {(["all", "completed", "active"] as const).map((filter) => (
@@ -680,27 +681,18 @@ export default function GeneratePage() {
                     data-testid={`button-open-studio-generation-${job.id}`}
                   >
                     {job.status === "COMPLETED" && job.outputUrl ? (
-                      <video
-                        src={job.outputUrl}
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                        onMouseEnter={(event) => { void event.currentTarget.play().catch(() => undefined); }}
-                        onMouseLeave={(event) => { event.currentTarget.pause(); event.currentTarget.currentTime = 0; }}
-                      />
+                      <GenerationThumbnail key={job.outputUrl} src={job.outputUrl} />
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_52%_42%,#3a253a_0%,#25202b_38%,#1b1b20_75%)]">
                         <div className="flex size-14 items-center justify-center rounded-full border border-[#73546d] bg-[#3b2b3d]/60"><Clapperboard className={`size-6 ${job.status === "FAILED" ? "text-destructive" : "text-[#e2b5d2]"}`} /></div>
                         <span className="text-[10px] uppercase tracking-[0.15em] text-[#a2a8a0]">{job.status.toLowerCase()}</span>
                       </div>
                     )}
-                    <div className="absolute left-3 top-3 rounded-md border border-white/15 bg-[#161717]/70 px-2 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md">{job.provider === "FAL" ? "fal.ai" : "Local GPU"}</div>
+                    <time dateTime={job.createdAt} className="absolute left-3 top-3 rounded-md border border-white/15 bg-[#161717]/90 px-2 py-1 text-xs font-medium text-white">{new Date(job.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>
                     <div className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full bg-[#161717]/70 text-white opacity-0 transition-opacity group-hover:opacity-100"><ArrowUpRight className="size-3.5" /></div>
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0d0f0e] via-[#0d0f0e]/85 to-transparent px-3.5 pb-4 pt-16">
-                      <p className="line-clamp-2 text-[13px] font-medium leading-snug text-[#f2f2ef]">{job.prompt || "Untitled generation"}</p>
-                      <p className="mt-2 flex items-center gap-1.5 text-[10px] text-[#b3b5ae]"><Clock3 className="size-3" />{job.durationSeconds}s <span className="mx-1 size-0.5 rounded-full bg-[#777]" />{job.status.toLowerCase()}</p>
+                      <p className="line-clamp-2 text-sm font-medium leading-snug text-[#f2f2ef]">{job.title || job.prompt || "Untitled generation"}</p>
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-[#d1d2cd]"><Clock3 className="size-3" />{formatDuration(job.durationSeconds)} <span className="mx-1 size-0.5 rounded-full bg-[#777]" />{job.status.toLowerCase()}</p>
                     </div>
                   </button>
                 ))}
@@ -721,7 +713,7 @@ export default function GeneratePage() {
           </section>
 
           <Sheet open={assetsOpen} onOpenChange={setAssetsOpen}>
-          <SheetContent side="right" aria-describedby={undefined} className="z-[55] flex h-full w-full max-w-[580px] flex-col gap-0 border-l border-[#383b37] bg-[#191b1b] p-0 text-[#eeeee9] shadow-2xl sm:max-w-[580px] [&>button]:hidden">
+          <SheetContent onCloseAutoFocus={returnToPrompt} side="right" aria-describedby={undefined} className="z-[55] flex h-full w-full max-w-[580px] flex-col gap-0 border-l border-[#383b37] bg-[#191b1b] p-0 text-[#eeeee9] shadow-2xl sm:max-w-[580px] [&>button]:hidden">
             <div className="flex shrink-0 items-center justify-between border-b border-[#343735] px-5 py-4 sm:px-7">
                <div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e497c5]">Scene direction</p><SheetTitle className="mt-1 text-xl font-semibold tracking-tight text-inherit">Cast & references</SheetTitle></div>
               <button type="button" onClick={() => setAssetsOpen(false)} aria-label="Close scene assets" className="flex size-9 items-center justify-center rounded-lg border border-[#3c3d3d] hover:bg-[#303333]"><X className="size-4" /></button>
@@ -910,7 +902,7 @@ export default function GeneratePage() {
             <div className="mx-auto max-w-[1060px]">
               <div className="mb-2 flex items-center justify-between px-1">
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-[#f0e6ee]"><Sparkles className="size-3.5 text-primary" /> Create a video <span className="hidden font-normal text-[#a79baa] sm:inline">/ Describe your shot</span></div>
-                <span className="font-mono text-[10px] text-[#888d84]">{prompt.length} characters</span>
+                <span className="font-mono text-xs text-[#bfc2bb]">{prompt.length} characters</span>
               </div>
               {acceptedJobId && (
                 <div role="status" data-testid="status-render-accepted" className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#8b426b] bg-[#382538] px-3 py-2 text-xs text-[#ffe8f4]">
@@ -924,6 +916,7 @@ export default function GeneratePage() {
               <div className="overflow-hidden rounded-xl border border-[#514453] bg-[#28232b] shadow-[0_10px_32px_#0004] focus-within:border-primary">
                 <Textarea
                   value={prompt}
+                  ref={promptInputRef}
                   onChange={e => setPrompt(e.target.value)}
                   className="min-h-[66px] max-h-[18vh] resize-y rounded-none border-0 bg-transparent px-4 py-3 text-[13px] leading-relaxed text-[#f0f1eb] shadow-none placeholder:text-[#8f958b] focus-visible:ring-0 sm:min-h-[82px] sm:px-5 sm:py-4 sm:text-sm"
                   placeholder="Describe your scene, subject, lighting, and movement. What happens in this shot?"
@@ -935,15 +928,15 @@ export default function GeneratePage() {
                     <Plus className="size-3.5 text-primary" /> Scene assets{editingSourceOnly ? activeReferenceCount ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{activeReferenceCount}</span> : null : selectedChars.length || selectedSetting || hasReferenceVideo || (seedanceFull && (extraCount || seedanceMedia.start || seedanceMedia.end)) ? <span className="rounded bg-[#55334c] px-1.5 py-0.5 text-[9px] text-[#ffe1f1]">{selectedChars.length + Number(Boolean(selectedSetting)) + Number(!isCloudProvider && hasReferenceVideo) + (seedanceFull ? extraCount + Number(Boolean(seedanceMedia.start)) + Number(Boolean(seedanceMedia.end)) : 0)}</span> : null}
                   </button>
                   <span className="h-4 w-px bg-[#474b43]" />
-                  <button type="button" onClick={() => setSetupOpen(true)} className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium text-[#d4c8d3] hover:bg-[#3c303e] hover:text-white" data-testid="button-render-setup"><SlidersHorizontal className="size-3.5 shrink-0" /> {isCloudProvider ? selectedFalModel.label : <span data-testid="text-current-local-model">Local GPU · {cloneRestorationPending ? "Loading original model…" : localModelName}</span>} <ChevronDown className="size-3 shrink-0" /></button>
+                  <button type="button" onClick={() => setSetupOpen(true)} className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-[#e3d5e2] hover:bg-[#3c303e] hover:text-white" data-testid="button-render-setup"><SlidersHorizontal className="size-3.5 shrink-0" /> Render setup · {isCloudProvider ? selectedFalModel.label : <span data-testid="text-current-local-model">{cloneRestorationPending ? "Loading original model…" : localModelName}</span>} <ChevronDown className="size-3 shrink-0" /></button>
                   <span className="hidden h-4 w-px bg-[#474b43] sm:block" />
-                  <button type="button" onClick={() => setSetupOpen(true)} className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-[#b8a8b8] hover:bg-[#3c303e] hover:text-white sm:inline-flex">{seedanceSelected ? `${aspectInherited ? "source" : aspectRatio} · ${modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : "720p"}` : isCloudProvider ? "Provider output" : `${width} × ${height}`} <span className="text-[#756678]">/</span> {durationIsAutomatic ? "Auto duration" : `${displayDuration}s`}</button>
+                  <span className="hidden min-h-8 items-center gap-1.5 px-2.5 text-xs text-[#d0c2d0] sm:inline-flex">{seedanceSelected ? `${aspectInherited ? "source" : aspectRatio} · ${modelCapabilities.resolutions?.includes(outputResolution) ? outputResolution : "720p"}` : isCloudProvider ? "Provider output" : localOutputSize(width, height, capabilitiesForMode.map(cap => cap.modelFamily))} <span>/</span> {durationIsAutomatic ? "Auto duration" : formatDuration(displayDuration)}</span>
                   <div className="ml-auto flex items-center gap-2">
-                    <button type="button" onClick={() => setComposerExpanded((value) => !value)} aria-expanded={composerExpanded} className="flex size-8 items-center justify-center rounded-md text-[#c3b5c5] hover:bg-[#3c303e]" aria-label={composerExpanded ? "Hide shot controls" : "Show shot controls"} data-testid="button-shot-controls"><Layers3 className="size-4" /></button>
+                    <button type="button" onClick={() => setComposerExpanded(true)} aria-expanded={composerExpanded} className="flex min-h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs text-[#e0d0e2] hover:bg-[#3c303e]" data-testid="button-shot-controls"><Layers3 className="size-4" /> Shot direction</button>
                     {isCloudProvider && <BatchCountPicker value={batchCount} onChange={setBatchCount} disabled={batchSubmitting} />}
                     <Button
                       onClick={handleGenerate}
-                      disabled={batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || cloneRestorationPending || !prompt || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
+                      disabled={batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || cloneRestorationPending || !prompt.trim() || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
                       className="h-8 rounded-md bg-[linear-gradient(90deg,#FF1F62,#8B2BE2)] px-3 text-[11px] font-semibold text-white hover:brightness-110 disabled:bg-none disabled:bg-[#514551] disabled:text-[#a8a0aa] sm:px-5"
                       data-testid="button-generate-video"
                     >
@@ -952,9 +945,12 @@ export default function GeneratePage() {
                   </div>
                 </div>
                 {pipelineError && <p role="alert" data-testid="status-local-pipeline-error" className="px-4 pb-3 text-xs text-rose-200">{pipelineError}</p>}
+                {!prompt.trim() && <p className="px-4 pb-3 text-sm text-[#d6c9d6]">Add a scene description to enable Generate.</p>}
               </div>
 
-              {composerExpanded && <div className="mt-2 max-h-[40vh] overflow-y-auto rounded-xl border border-[#483649] bg-[#252027]">
+              <Sheet open={composerExpanded} onOpenChange={setComposerExpanded}>
+              <SheetContent onCloseAutoFocus={returnToPrompt} aria-describedby={undefined} className="z-[55] w-full overflow-y-auto bg-[#252027] sm:max-w-xl">
+              <SheetTitle className="mb-4">Shot direction</SheetTitle>
               <details open className="rounded-xl">
                 <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Shot direction <span className="ml-2 text-[11px] font-normal text-muted-foreground">Dialogue, camera, motion & exclusions</span></summary>
                 <div className="space-y-4 border-t border-border/60 p-4">
@@ -990,12 +986,13 @@ export default function GeneratePage() {
                     </div>
                   </div>
                   <div className="space-y-2 pt-2">
-                    <Label className="text-muted-foreground text-sm">Negative Prompt</Label>
+                    <Label className="text-foreground text-sm">Negative prompt · active exclusions</Label>
+                    <p className="text-xs text-muted-foreground">This is saved text, not a placeholder. Clear it to render without exclusions on models that support this input.</p>
                     {isCloudProvider && !promptControls.negativePrompt && <p className="text-[11px] text-[#e7c89c]" data-testid="text-negative-prompt-unsupported">{cloudModelName}{referenceImagesActive ? " reference mode" : ""} has no negative prompt input; this text stays in the draft but is not sent.</p>}
                     <Textarea
                       value={negativePrompt}
                       onChange={e => setNegativePrompt(e.target.value)}
-                      className="h-16 bg-secondary/5 text-xs text-muted-foreground border-border/50"
+                      className="h-24 bg-secondary/20 text-sm text-foreground border-border"
                     />
                   </div>
                 </div>
@@ -1018,7 +1015,8 @@ export default function GeneratePage() {
                 hasReference={!isCloudProvider && hasReferenceVideo}
               />
               </div>
-              </div>}
+              </SheetContent>
+              </Sheet>
               <BatchReceipts receipts={batchReceipts} onDismiss={() => setBatchReceipts([])} />
               {mediaError && <p role="alert" data-testid="status-seedance-media-validation" className="mt-2 px-1 text-xs text-rose-300">{mediaError}</p>}
               <p className="mt-2 px-1 text-[10px] text-[#a7a09f]">Draft saved automatically.{seedanceSelected ? ` Seedance native audio: ${effectiveNativeAudio ? "on" : "off"}${resolvedDialogueForVoice && !effectiveNativeAudio ? " — dialogue will not be audible" : ""}.` : " Quoted speech becomes exact dialogue on supported local workflows."}{isCloudProvider ? estimatedFalCost === null ? durationIsAutomatic ? " Cloud chooses Edit duration (up to 30s); conservative max-cost reservation." : " Cloud cost estimate unavailable; billed usage depends on media inputs." : ` Estimated cloud cost: $${estimatedFalCost.toFixed(2)}.` : ""}</p>
@@ -1034,7 +1032,7 @@ export default function GeneratePage() {
         />
 
         <Sheet open={setupOpen} onOpenChange={setSetupOpen}>
-        <SheetContent side="right" aria-describedby={undefined} className="z-[55] flex h-full w-full max-w-[480px] flex-col gap-0 border-l border-[#383b37] bg-[#191b1b] p-0 text-[#eeeee9] shadow-2xl sm:max-w-[480px] [&>button]:hidden">
+        <SheetContent onCloseAutoFocus={returnToPrompt} side="right" aria-describedby={undefined} className="z-[55] flex h-full w-full max-w-[480px] flex-col gap-0 border-l border-[#383b37] bg-[#191b1b] p-0 text-[#eeeee9] shadow-2xl sm:max-w-[480px] [&>button]:hidden">
           <div className="flex shrink-0 items-center justify-between border-b border-[#343735] px-5 py-4 sm:px-7">
              <div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e497c5]">Output controls</p><SheetTitle className="mt-1 text-xl font-semibold tracking-tight text-inherit">Render setup</SheetTitle></div>
             <button type="button" onClick={() => setSetupOpen(false)} aria-label="Close render setup" className="flex size-9 items-center justify-center rounded-lg border border-[#3c3d3d] hover:bg-[#303333]"><X className="size-4" /></button>
@@ -1060,7 +1058,8 @@ export default function GeneratePage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Pipeline</Label>
+                  <Label>Model / workflow</Label>
+                  {!isCloudProvider && <p className="text-xs text-muted-foreground">Model: {localModelName}. Workflow: {generationMode}. Output: {localOutputSize(width, height, capabilitiesForMode.map(cap => cap.modelFamily))}.</p>}
                   <Select value={generationMode} onValueChange={(value) => {
                     modelSelection.current.selectExplicitly(cloneJobId);
                     setGenerationMode(value);
@@ -1069,7 +1068,7 @@ export default function GeneratePage() {
                       <SelectValue placeholder="Select mode" />
                     </SelectTrigger>
                     <SelectContent className="z-[70]">
-                      {availableModes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      {availableModes.map(m => <SelectItem key={m} value={m}>{[...new Set((capabilities ?? []).filter(cap => cap.generationMode === m).map(cap => cap.modelFamily))].join(" / ")} · {m}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   {isCloudProvider && <p className="text-[10px] text-muted-foreground">Cloud pipeline follows the selected model.</p>}
@@ -1345,7 +1344,7 @@ export default function GeneratePage() {
                     </span>
                   </div>
                   {seedanceReferenceMode && <div className="flex justify-between" data-testid="text-preflight-reference-images"><span>Image budget:</span><span className={referenceBudget.overImageLimit ? "text-destructive" : "text-foreground"}>{referenceBudget.imageCount}/{referenceBudget.imageLimit} · {referenceBudget.primaryImages} from cast & set</span></div>}
-                  <div className="flex justify-between"><span>Prompt:</span> <span className={prompt.length > 5 ? "text-foreground" : "text-destructive"}>{prompt.length > 5 ? "Ready" : "Too short"}</span></div>
+                  <div className="flex justify-between"><span>Prompt:</span> <span>{prompt.trim() ? "Ready" : "Add a scene description"}</span></div>
                 </div>
                 {mediaError && <p role="alert" data-testid="status-preflight-reference-error" className="mb-4 rounded-md border border-rose-400/40 bg-rose-400/10 p-2 text-xs text-rose-200">{mediaError}</p>}
 
@@ -1357,7 +1356,8 @@ export default function GeneratePage() {
                     || Boolean(mediaError)
                     || cloneRestorationPending
                     || Boolean(pipelineError)
-                    || !prompt
+                    || !prompt.trim()
+                    || batchSubmitting
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)
                     || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo)

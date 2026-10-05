@@ -32,6 +32,7 @@ const emptyFields: PromptFields = { subject: "", action: "", composition: "", se
 
 export function PromptGuidancePanel(props: Props) {
   const [fields, setFields] = useState<PromptFields>(emptyFields);
+  const [builtDraft, setBuiltDraft] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<{
     result: PromptPolishResult;
     snapshot: string;
@@ -51,7 +52,7 @@ export function PromptGuidancePanel(props: Props) {
     requiresReference: props.requiresReference,
     hasReference: props.hasReference,
   }), [props]);
-  const score = readinessScore(issues);
+  const score = props.prompt.trim() ? readinessScore(issues) : 0;
   const currentSnapshot = JSON.stringify({
     prompt: props.prompt,
     cameraInstructions: props.cameraInstructions,
@@ -105,7 +106,7 @@ export function PromptGuidancePanel(props: Props) {
   const updateField = (name: keyof PromptFields, value: string) => setFields(current => ({ ...current, [name]: value }));
   const assemble = () => {
     const built = buildPrompt(fields);
-    if (built) props.onPromptChange(built);
+    if (built) setBuiltDraft(built);
   };
   const requestPolish = () => {
     const snapshot = currentSnapshot;
@@ -155,7 +156,7 @@ export function PromptGuidancePanel(props: Props) {
             <span className="flex items-center gap-2"><Wand2 className="size-4 text-primary" /> Prompt Builder & Live AI Check</span>
           </AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <p className="text-xs text-muted-foreground">The AI reviews your current shot after you pause editing. Build from visual ingredients or keep writing directly in the main prompt.</p>
+            <p className="text-sm text-muted-foreground">The main prompt is what gets rendered. These fields create a preview; they never replace your writing until you explicitly apply it.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {([
                 ["subject", "Subject", "Who or what is the focus?"],
@@ -172,16 +173,25 @@ export function PromptGuidancePanel(props: Props) {
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" onClick={assemble} disabled={!Object.values(fields).some(Boolean)}>
-                <Wand2 className="mr-2 size-3.5" /> Build prompt
+              <Button type="button" size="sm" onClick={assemble} disabled={!Object.values(fields).some(value => value.trim())}>
+                <Wand2 className="mr-2 size-3.5" /> Preview built prompt
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => setFields(emptyFields)}>
+              <Button type="button" size="sm" variant="ghost" disabled={!Object.values(fields).some(Boolean)} onClick={() => { setFields(emptyFields); setBuiltDraft(null); }}>
                 <RotateCcw className="mr-2 size-3.5" /> Clear fields
               </Button>
               <Button type="button" size="sm" variant="secondary" onClick={requestPolish} disabled={!props.prompt.trim() || polish.isPending}>
                 {polish.isPending ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Sparkles className="mr-2 size-3.5" />} Polish with AI
               </Button>
             </div>
+            {builtDraft && <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+              <p className="text-sm font-semibold">Built prompt preview</p>
+              <p className="whitespace-pre-wrap text-sm">{builtDraft}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" onClick={() => { props.onPromptChange(builtDraft); setBuiltDraft(null); }}>Replace main prompt</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => { props.onPromptChange([props.prompt.trim(), builtDraft].filter(Boolean).join("\n\n")); setBuiltDraft(null); }}>Append to main prompt</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setBuiltDraft(null)}>Discard</Button>
+              </div>
+            </div>}
             {polish.isError && <p className="text-xs text-destructive">{(polish.error as Error).message || "AI polish failed. Your prompt was not changed."}</p>}
 
             <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-3">

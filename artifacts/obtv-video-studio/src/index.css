@@ -5,6 +5,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Studio metadata should remain readable without browser zoom. */
+.studio-page [class~="text-[10px]"],
+.studio-page [class~="text-[11px]"],
+[role="dialog"] [class~="text-[10px]"],
+[role="dialog"] [class~="text-[11px]"] {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* Release focus immediately rather than retaining it during a closing slide. */
+[role="dialog"][data-state="closed"] {
+  animation: none !important;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

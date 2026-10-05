@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import {
   Eraser,
   Shirt,
@@ -24,6 +24,28 @@ import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const moreRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const dismiss = (event: Event) => {
+      const menu = moreRef.current;
+      if (!menu?.open) return;
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        menu.open = false;
+        menu.querySelector("summary")?.focus();
+      } else if (event.type === "scroll" || !menu.contains(event.target as Node)) {
+        menu.open = false;
+      }
+    };
+    document.addEventListener("keydown", dismiss);
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("scroll", dismiss, true);
+    return () => {
+      document.removeEventListener("keydown", dismiss);
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("scroll", dismiss, true);
+    };
+  }, []);
   const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.png`;
 
   const { data: health } = useHealthCheck();
@@ -32,6 +54,7 @@ export function Shell({ children }: { children: ReactNode }) {
   // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
+    if (moreRef.current) moreRef.current.open = false;
   }, [location]);
 
   const links = [
@@ -97,12 +120,14 @@ export function Shell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-          <details className="group relative">
+          <details ref={moreRef} className="group relative">
             <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
               <Menu className="size-4" /> More
             </summary>
             <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-border bg-card p-2 shadow-2xl">
-              {secondaryDesktopLinks.map((link) => (
+              {["Create", "Manage"].map((group) => <div key={group}>
+              <p className="px-3 pb-1 pt-3 text-xs font-semibold text-foreground">{group}</p>
+              {secondaryDesktopLinks.filter(link => (["/settings", "/servers", "/workflows", "/admin", "/spending"].includes(link.href)) === (group === "Manage")).map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -112,8 +137,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   <link.icon className="size-4" />{link.label}
                 </Link>
               ))}
-              <div className="my-2 border-t border-border/70" />
-              <InstallAppPrompt compact />
+              </div>)}
             </div>
           </details>
         </nav>

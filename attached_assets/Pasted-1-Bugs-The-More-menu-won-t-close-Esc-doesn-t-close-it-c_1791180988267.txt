@@ -1,0 +1,35 @@
+1. Bugs
+
+The More menu won't close. Esc doesn't close it, clicking elsewhere on the page doesn't either, and it stays open while you scroll. It covers the gallery until you click "More" again.
+Thumbnails load as blank grey cards. Several cards near the bottom were empty for a second or two, with no loading placeholder. One card also went blank when the Render setup panel opened.
+Typing can get lost after closing a panel. After closing Render setup with Esc, my first text didn't land in the prompt box.
+
+2. Numbers that don't match
+
+The header says Creations 76, but the grid stops at 24 and then shows "View all generations". The viewer then says "3 of 24", and the 76 doesn't change when you switch filters. The count should match what's shown, or say "showing 24 of 76".
+The composer chip says 1280×720, but the finished video is 1280×704.
+The chip says MiniMax H3, but Render setup shows Pipeline r2v. Users can't tell which model will actually run.
+Durations are formatted three ways: "20s", "11.91s" and "10.11s". Rounding to whole seconds would be cleaner.
+Prompt readiness shows 65% with an empty prompt, next to a red warning. A blank prompt should show 0%, or no score at all.
+
+3. The composer is too heavy and too unclear
+
+Opening Shot direction takes about 60% of the screen. The gallery shrinks to a thin strip, and you get three scroll areas inside each other (page, gallery, composer). A side panel or a modal would keep the gallery usable.
+There are two ways to write a prompt: the main text box and the Prompt Builder fields (Subject, Action, Composition…). It isn't clear which one wins, or whether "Build prompt" overwrites what you typed.
+The toolbar buttons move. Shot direction opens upward and pushes the toolbar up, so a second click can land on the wrong control.
+Two buttons open settings, and their labels don't say what they open. The model chip opens "Render setup" and the layers icon opens "Shot direction". Text labels would fix this.
+The Negative Prompt is pre-filled with "ugly, distorted, blurry…" in grey placeholder-style text. It looks empty, but it's sent with every render.
+Disabled buttons don't look disabled.
+"Send to render" keeps its full gradient while it's disabled. The only explanation is a small red "Too short" line.
+"Build prompt" is greyed out but still pink, while "Clear fields" looks more active than the main action.
+
+4. Navigation and layout
+
+The More menu mixes two kinds of items with no grouping. Creative tools (Reference Video, Video Cleanup, Garment Studio, Long-Form, Characters) sit alongside admin pages (Settings, GPU Servers, Workflows, Admin, Spending). It also offers "Add to Home Screen", which doesn't make sense on desktop. Splitting it into "Create" and "Manage" sections would help.
+There are three links to Queue & History: the top nav, the sub-header button, and "View all generations". The sub-header also has a separate path line ("Your workspace / All projects").
+The cards are hard to tell apart. Many share the same opening words ("Continue the AI agent workflow…", "Shot 18…"), and cards show no date or time. Every card has the same "Local GPU" badge, which takes space without adding anything. A short title or a timestamp would help.
+The generation viewer:
+Arrow keys don't move to the previous or next video.
+Delete sits right under Edit & Regenerate, with no confirmation hint and no space between them.
+The subtitle reads "COMPLETED generation" in all caps.
+Small, faint text: the badges, the card details ("20s · completed"), the character counter and the footer hint are 10–11px and low-contrast on the dark background.
