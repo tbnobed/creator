@@ -1,0 +1,33 @@
+I submitted three renders and all three finished. The videos look good, but going through the full create → wait → review flow turned up some real problems.
+
+What I made (all Local GPU · MiniMax H3)
+
+Render	How I made it	Settings	Result
+Lighthouse at dusk	Typed in the main prompt box	1280×720, 4s	1280×736, 4.46s, done in about 4 min
+Potter at the wheel	Prompt Builder fields plus a Camera Movement in Shot direction	1280×720, 4s	1280×736, done in about 5 min
+Wheat field at sunrise	Render setup panel, using "Send to render"	720×1280 (9:16), 6s	736×1280, 6s, done in about 7 min
+
+Serious problems found while generating
+
+Shot direction settings carry over to the next render without you seeing them. The "slow push-in" I set for the potter was added to the wheat-field render too. The wheat prompt asked for a "slow lateral tracking shot", so the two camera instructions conflict. The Shot direction panel had collapsed after the first submit, so nothing on screen showed the old setting was still active.
+Cards in the gallery don't update by themselves. The wheat card said "running" for several minutes after the job had finished. It only switched to "completed" once I opened it. Nothing tells you when a render is done: no notification, no sound, no message.
+Raw server errors are shown to users. Clicking "Polish with AI" showed "HTTP 429 Too Many Requests: AI polish is busy." The AI live check was still stuck on "Reviewing the current draft…" after more than 40 seconds, and the Polish button stayed clickable even though it couldn't work yet.
+The progress readout contradicts itself. One job said "QUEUED – waiting in the queue – 99% complete", then dropped to "RUNNING – 5%". There's no ETA, no position in the queue, and no Cancel button. It also shows internal text like "ComfyUI node 138".
+The output size never matches what you pick. 720 becomes 736 every time, in both orientations. If the system rounds sizes up, the menu should show the actual numbers.
+
+Other problems
+
+Build prompt just glues the fields together. The result reads "an elderly potter…. shapes a clay bowl…. medium close-up." It doesn't fix capitalisation or sentence flow. The final prompt also always starts with "Live-action, cinematic", even when you ask for a "painterly" look.
+Prompt readiness only looks at the main box. It stayed at 65% while all six builder fields were filled in. It jumped to 96% only after Build prompt copied them over.
+The duration slider is hard to use. Its track is tiny. When I clicked near it, focus stayed on the Resolution menu, and my arrow keys changed the resolution to 1920×1080 instead of the duration.
+The Render setup summary is incomplete. It lists the target and duration but not the resolution or model, which are the settings most likely to change the result.
+"Edit & Regenerate" restores your settings, but the viewer stays open. Its banner ("Editing a copy of this generation") appears at the top of the page, far from the composer. There's no way to leave edit mode, and the banner stayed after I cleared the prompt.
+Old messages and contradictory details stay on screen.
+The "Render accepted" message stays visible indefinitely.
+The filter jumps back to All after you submit.
+The details panel lists the model as "(A100)" while the server shown is "H100 2" or "RTX 6000".
+The Negative Prompt may not be sent. It didn't appear in the compiled prompt. It might be sent separately, but nothing on screen confirms it's used.
+
+What works well: the "Render accepted" message with its Open job link appears right away, and the viewer opening automatically on a queued job is a good touch. The 9:16 output displays properly. Settings you pick in Render setup stay selected for your next render, which is handy, though it's easy to forget they've changed.
+
+The three new videos are now at the top of your Creations, and I've left the composer cleared. The "Editing a copy" banner is still showing because I couldn't find a way to dismiss it.

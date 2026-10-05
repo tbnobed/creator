@@ -660,7 +660,7 @@ function compileMiniMaxH3StandardPrompt(
     .map((character) => `<Subject ${characters.indexOf(character) + 1}>`)
     .join(", ");
   const timeline = [
-    "[Shot 1] Live-action, cinematic.",
+    "[Shot 1]",
     characterPlacement
       ? `${characterPlacement} ${referencedCharacters.length === 1 ? "appears" : "appear"} with ${referencedCharacters.length === 1 ? "the referenced identity" : "their referenced identities"} fully preserved.`
       : "",
@@ -780,7 +780,7 @@ function compileMiniMaxH3ReferenceVideoPrompt(
     .map((character) => `<Subject ${characters.indexOf(character) + 1}>`)
     .join(", ");
   const timeline = [
-    "[Shot 1] Live-action, cinematic.",
+    "[Shot 1]",
     characterPlacement
       ? `${characterPlacement} ${referencedCharacters.length === 1 ? "appears" : "appear"} with ${referencedCharacters.length === 1 ? "the referenced identity" : "their referenced identities"} fully preserved.`
       : "",

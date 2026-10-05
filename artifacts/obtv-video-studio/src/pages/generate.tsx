@@ -189,9 +189,9 @@ export default function GeneratePage() {
     { page: 1, pageSize: 24 },
     { query: {
       queryKey: getListGenerationsQueryKey({ page: 1, pageSize: 24 }),
-      refetchInterval: (query) => query.state.data?.items.some(
-        (job) => ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status),
-      ) ? 5_000 : 30_000,
+      refetchInterval: 5_000,
+      refetchIntervalInBackground: true,
+      refetchOnWindowFocus: true,
     } },
   );
   const {
@@ -246,6 +246,22 @@ export default function GeneratePage() {
   const [galleryFilter, setGalleryFilter] = useState<"all" | "completed" | "active">("all");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [acceptedJobId, setAcceptedJobId] = useState<string | null>(null);
+  const previousStatuses = useRef(new globalThis.Map<string, string>());
+  const [completionNotice, setCompletionNotice] = useState("");
+  useEffect(() => {
+    for (const job of recentGenerations?.items ?? []) {
+      const previous = previousStatuses.current.get(job.id);
+      if (previous && previous !== job.status && ["COMPLETED", "FAILED"].includes(job.status)) {
+        setCompletionNotice(`${job.title || job.prompt.slice(0, 60) || "Your render"} — ${job.status === "COMPLETED" ? "ready to review" : "failed. Open the job for details"}.`);
+      }
+      previousStatuses.current.set(job.id, job.status);
+    }
+  }, [recentGenerations]);
+  useEffect(() => {
+    if (!acceptedJobId) return;
+    const timer = window.setTimeout(() => setAcceptedJobId(null), 15000);
+    return () => window.clearTimeout(timer);
+  }, [acceptedJobId]);
   const [assetsOpen, setAssetsOpen] = useState(false);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
   const returnToPrompt = (event: Event) => { event.preventDefault(); promptInputRef.current?.focus(); };
@@ -577,7 +593,6 @@ export default function GeneratePage() {
       setSetupOpen(false);
       setAssetsOpen(false);
       setComposerExpanded(false);
-      setGalleryFilter("all");
       // Clear the clone URL without unmounting the studio and losing the accepted-job receipt.
       if (cloneJobId) window.history.replaceState(window.history.state, "", "/studio");
       void refetchRecent().then((refreshed) => {
@@ -913,6 +928,12 @@ export default function GeneratePage() {
                   </span>
                 </div>
               )}
+              {completionNotice && <div role="status" className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-secondary p-3 text-sm"><span>{completionNotice}</span><button type="button" aria-label="Dismiss completion notice" onClick={() => setCompletionNotice("")}><X className="size-4" /></button></div>}
+              {cloneJobId && <div className="mb-2 flex items-center justify-between gap-3 text-sm"><span>Editing a copy of this generation</span><Button variant="outline" size="sm" onClick={() => setLocation("/studio")}>Exit edit mode</Button></div>}
+              {(cameraInstructions.trim() || motionInstructions.trim() || dialogue.trim()) && <div className="mb-2 rounded-lg border border-primary/30 p-3 text-sm">
+                <p>Active shot direction: {[cameraInstructions && `Camera: ${cameraInstructions}`, motionInstructions && `Motion: ${motionInstructions}`, dialogue && `Dialogue: ${dialogue}`].filter(Boolean).join(" · ")}</p>
+                <Button variant="ghost" size="sm" onClick={() => { setCameraInstructions(""); setMotionInstructions(""); setDialogue(""); }}>Clear shot direction</Button>
+              </div>}
               <div className="overflow-hidden rounded-xl border border-[#514453] bg-[#28232b] shadow-[0_10px_32px_#0004] focus-within:border-primary">
                 <Textarea
                   value={prompt}
@@ -1025,7 +1046,7 @@ export default function GeneratePage() {
         </div>
 
         <VideoGenerationViewer
-          jobs={recentJobs}
+          jobs={selectedJobId && !recentJobs.some(job => job.id === selectedJobId) ? recentGenerations?.items ?? [] : recentJobs}
           selectedJobId={selectedJobId}
           onSelectJob={setSelectedJobId}
           onClose={() => setSelectedJobId(null)}
@@ -1212,7 +1233,7 @@ export default function GeneratePage() {
                             key={`${option.width}x${option.height}`}
                             value={`${option.width}x${option.height}`}
                           >
-                            {option.label}
+                            {localOutputSize(option.width, option.height, capabilitiesForMode.map(cap => cap.modelFamily))}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1240,11 +1261,10 @@ export default function GeneratePage() {
                     </Select> :
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-4">{duration}s</span>
-                      <Slider
-                        value={[duration]}
-                        onValueChange={v => setDuration(v[0])}
+                      <input type="range" aria-label="Video duration in seconds" className="h-10 min-w-0 flex-1 accent-primary"
+                        value={duration}
+                        onChange={event => setDuration(Number(event.target.value))}
                         min={1} max={30} step={1}
-                        className="flex-1"
                       />
                     </div>}
                   </div>}
@@ -1318,13 +1338,16 @@ export default function GeneratePage() {
               <div className="mt-6 pt-4 border-t border-border/50">
                 <div className="text-xs font-mono text-muted-foreground space-y-1 mb-4 bg-background/50 p-3 rounded border border-border/50">
                   <div className="flex justify-between">
-                     <span>Target:</span>
+                    <span>Target:</span>
                      <span className="text-foreground">{isCloudProvider ? "Cloud" : "Local"}</span>
                    </div>
                   <div className="flex justify-between">
                     <span>Duration:</span>
                     <span className="text-foreground" data-testid="text-preflight-duration">{durationIsAutomatic ? "Cloud auto · up to 30s" : `${displayDuration}s${seedance25 ? " · Seedance 2.5 (4–30s)" : referenceImagesActive && modelCapabilities.referenceImageDurations ? " · fixed by reference images" : ""}`}</span>
                   </div>
+                  <div className="flex justify-between gap-3"><span>Model:</span><span>{isCloudProvider ? selectedFalModel.label : localModelName}</span></div>
+                  <div className="flex justify-between gap-3"><span>Output:</span><span>{isCloudProvider ? `${aspectInherited ? "Source aspect" : aspectRatio} · ${outputResolution}` : localOutputSize(width, height, capabilitiesForMode.map(cap => cap.modelFamily))}</span></div>
+                  <p>Negative prompt: {negativePrompt.trim() ? isCloudProvider && !promptControls.negativePrompt ? "Not supported by this model; not sent." : "Included as a separate conditioning field." : "None."}</p>
                    <div className="flex justify-between">
                     <span>Cast:</span>
                     <span className={selectedChars.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "text-foreground" : "text-destructive"}>

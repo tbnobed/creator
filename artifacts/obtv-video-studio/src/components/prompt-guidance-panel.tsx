@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Lightbulb, Loader2, RotateCcw, Sparkles, Wand2, X } from "lucide-react";
-import { useCheckPrompt, usePolishPrompt, type PromptCheckResult, type PromptPolishResult } from "@workspace/api-client-react";
+import { useCheckPrompt, usePolishPrompt, checkPrompt, polishPrompt, type PromptCheckResult, type PromptPolishResult } from "@workspace/api-client-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -40,8 +40,15 @@ export function PromptGuidancePanel(props: Props) {
   } | null>(null);
   const [aiReview, setAiReview] = useState<{ result: PromptCheckResult; snapshot: string } | null>(null);
   const [aiCheckError, setAiCheckError] = useState("");
-  const polish = usePolishPrompt();
-  const check = useCheckPrompt();
+  const [cooldown, setCooldown] = useState(false);
+  const busyMessage = "AI assistance is temporarily busy or took too long. Your writing is safe. Please try again shortly.";
+  useEffect(() => {
+    if (!cooldown) return;
+    const timer = window.setTimeout(() => setCooldown(false), 30000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
+  const polish = usePolishPrompt({ mutation: { retry: false, mutationFn: ({ data }) => polishPrompt(data, { signal: AbortSignal.timeout(25000) }), onError: () => setCooldown(true) } });
+  const check = useCheckPrompt({ mutation: { retry: false, mutationFn: ({ data }) => checkPrompt(data, { signal: AbortSignal.timeout(25000) }), onError: () => setCooldown(true) } });
   const latestSnapshot = useRef("");
   const issues = useMemo(() => analyzePrompt({
     prompt: props.prompt,
@@ -67,7 +74,7 @@ export function PromptGuidancePanel(props: Props) {
   const suggestionIsStale = Boolean(suggestion && suggestion.snapshot !== currentSnapshot);
 
   const requestCheck = () => {
-    if (!props.prompt.trim() || check.isPending) return;
+    if (!props.prompt.trim() || check.isPending || cooldown || polish.isPending) return;
     const snapshot = currentSnapshot;
     setAiCheckError("");
     check.mutate({
@@ -87,7 +94,7 @@ export function PromptGuidancePanel(props: Props) {
       },
       onError: error => {
         if (latestSnapshot.current === snapshot) {
-          setAiCheckError(error instanceof Error ? error.message : "AI prompt check failed.");
+          setAiCheckError(busyMessage);
         }
       },
     });
@@ -109,6 +116,7 @@ export function PromptGuidancePanel(props: Props) {
     if (built) setBuiltDraft(built);
   };
   const requestPolish = () => {
+    if (cooldown || polish.isPending || check.isPending) return;
     const snapshot = currentSnapshot;
     polish.mutate({
       data: {
@@ -157,6 +165,7 @@ export function PromptGuidancePanel(props: Props) {
           </AccordionTrigger>
           <AccordionContent className="space-y-4">
             <p className="text-sm text-muted-foreground">The main prompt is what gets rendered. These fields create a preview; they never replace your writing until you explicitly apply it.</p>
+            {Object.values(fields).some(value => value.trim()) && <p className="text-sm">Builder draft readiness: {readinessScore(analyzePrompt({ prompt: buildPrompt(fields) }))}%. Apply the preview to use this draft. The main prompt score is separate.</p>}
             <div className="grid gap-3 sm:grid-cols-2">
               {([
                 ["subject", "Subject", "Who or what is the focus?"],
@@ -179,7 +188,7 @@ export function PromptGuidancePanel(props: Props) {
               <Button type="button" size="sm" variant="ghost" disabled={!Object.values(fields).some(Boolean)} onClick={() => { setFields(emptyFields); setBuiltDraft(null); }}>
                 <RotateCcw className="mr-2 size-3.5" /> Clear fields
               </Button>
-              <Button type="button" size="sm" variant="secondary" onClick={requestPolish} disabled={!props.prompt.trim() || polish.isPending}>
+              <Button type="button" size="sm" variant="secondary" onClick={requestPolish} disabled={!props.prompt.trim() || polish.isPending || check.isPending || cooldown}>
                 {polish.isPending ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Sparkles className="mr-2 size-3.5" />} Polish with AI
               </Button>
             </div>
@@ -192,7 +201,7 @@ export function PromptGuidancePanel(props: Props) {
                 <Button type="button" size="sm" variant="ghost" onClick={() => setBuiltDraft(null)}>Discard</Button>
               </div>
             </div>}
-            {polish.isError && <p className="text-xs text-destructive">{(polish.error as Error).message || "AI polish failed. Your prompt was not changed."}</p>}
+            {(polish.isError || cooldown) && <p role="status" className="text-sm text-muted-foreground">{busyMessage}</p>}
 
             <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -202,7 +211,7 @@ export function PromptGuidancePanel(props: Props) {
                     {check.isPending ? "Reviewing the current draft..." : aiReview ? "Review complete for the current draft." : "Review starts automatically after you pause."}
                   </p>
                 </div>
-                <Button type="button" size="sm" variant="outline" onClick={requestCheck} disabled={!props.prompt.trim() || check.isPending}>
+                <Button type="button" size="sm" variant="outline" onClick={requestCheck} disabled={!props.prompt.trim() || check.isPending || polish.isPending || cooldown}>
                   {check.isPending ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Sparkles className="mr-2 size-3.5" />} Check now
                 </Button>
               </div>

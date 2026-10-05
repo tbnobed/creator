@@ -19,14 +19,17 @@ const SUBJECT_WORDS = /\b(person|character|woman|man|child|presenter|host|guest|
 const SPEECH_WORDS = /\b(narration|narrator|voice[- ]?over|dialogue|speaks?|talks?|says?|reads?|announces?)\b/i;
 
 export function buildPrompt(fields: PromptFields): string {
+  const clean = (value: string) => value.trim().replace(/[.!?…]+$/, "");
   return [
-    fields.subject.trim(),
-    fields.action.trim(),
+    [clean(fields.subject), clean(fields.action)].filter(Boolean).join(" "),
     fields.composition.trim(),
     fields.setting.trim() && `Set in ${fields.setting.trim()}`,
     fields.lighting.trim() && `Lighting: ${fields.lighting.trim()}`,
     fields.style.trim() && `Visual style: ${fields.style.trim()}`,
-  ].filter(Boolean).join(". ").replace(/\.\./g, ".").replace(/([^.!?])$/, "$1.");
+  ].filter(Boolean).map(value => {
+    const sentence = clean(value);
+    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  }).join(". ").replace(/([^.!?])$/, "$1.");
 }
 
 export function analyzePrompt(input: {

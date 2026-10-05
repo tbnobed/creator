@@ -3,6 +3,12 @@ name: MiniMax H3 prompt and audio rules
 description: Native full-reference prompt grammar and the distinction between semantic gibberish and sampler distortion.
 ---
 
+Do not force a live-action or cinematic style into every H3 prompt.
+
+**Why:** The creator reported that a painterly request was contradicted by the compiled prompt's default style. Style must come from authored direction, not an unconditional workflow prefix.
+
+**How to apply:** Preserve the H3 section structure while leaving visual style to the user.
+
 MiniMax H3 full-reference workflows should use the official six-section schema: `subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, `overall_soundscape`, and `non_diegetic_music`. Give speakers stable IDs and put exact speech alone inside `<d>[Language] ...</d>`.
 
 **Why:** Generic headings and prose such as “beneath the narration” provide no exact utterance for the joint video/audio model. Separately, older ComfyUI audio/video sampling and early Turbo LoRA workflows can produce distorted audio even with a correct prompt.

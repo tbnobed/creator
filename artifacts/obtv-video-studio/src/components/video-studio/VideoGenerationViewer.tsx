@@ -1,5 +1,5 @@
 import * as React from "react";
-import { type GenerationJob } from "@workspace/api-client-react";
+import { type GenerationJob, useCancelGeneration } from "@workspace/api-client-react";
 import { useUndoableVideoDelete } from "@/components/video-studio/UndoableDelete";
 import { generationEditDestination } from "@/lib/generation-edit";
 import { displayDuration } from "@/lib/studio-display";
@@ -41,6 +41,7 @@ export function VideoGenerationViewer({
 }: VideoGenerationViewerProps) {
   const [, setLocation] = useLocation();
   const undoableDelete = useUndoableVideoDelete();
+  const cancel = useCancelGeneration();
   const selectedIndex = jobs.findIndex((job) => job.id === selectedJobId);
   const job = selectedIndex >= 0 ? jobs[selectedIndex] : null;
   const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
@@ -58,6 +59,7 @@ export function VideoGenerationViewer({
 
   React.useEffect(() => {
     setCopyState("idle");
+    cancel.reset();
     setDeleteError(null);
     setConfirmDelete(false);
   }, [selectedJobId]);
@@ -152,10 +154,12 @@ export function VideoGenerationViewer({
                     ) : (
                       <div className="space-y-2 text-sm text-muted-foreground" role="status">
                         <p>{job.status === "QUEUED" ? "This generation is waiting in the queue." : `This generation is ${job.status.toLowerCase()}.`}</p>
-                        {job.progress != null && (
-                          <p>{Math.round(job.progress * 100)}% complete</p>
+                        {job.status === "RUNNING" && job.progress != null && (
+                          <p>{Math.round(job.progress * 100)}% of current processing stage</p>
                         )}
-                        {job.currentNode && <p className="break-words font-mono text-xs">{sanitizeProviderMessage(job.currentNode)}</p>}
+                        <p>Queue position and completion estimate are not available.</p>
+                        {isActive && <Button variant="outline" disabled={cancel.isPending || cancel.isSuccess} onClick={() => cancel.mutate({ id: job.id })}>{cancel.isSuccess ? "Cancellation requested" : cancel.isPending ? "Cancelling…" : "Cancel render"}</Button>}
+                        {cancel.isError && <p role="alert">Could not cancel this render. Please try again.</p>}
                       </div>
                     )}
                   </div>
@@ -195,7 +199,7 @@ export function VideoGenerationViewer({
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
                   <Metadata label="Status" value={job.status} />
                   <Metadata label="Provider" value={job.provider === "FAL" ? "Cloud" : "Local GPU / Comfy"} />
-                  <Metadata label="Model" value={job.providerModelId || job.workflowName || "Not specified"} />
+                  <Metadata label="Model / workflow" value={job.providerModelId || job.workflowName?.replace(/\s*\((?:A100|H100|RTX[^)]*)\)/gi, "") || "Not specified"} />
                   <Metadata label="Quality" value={job.qualityPreset} />
                   <Metadata label="Resolution" value={`${job.width} × ${job.height}`} />
                   <Metadata label="Duration" value={displayDuration(job.durationSeconds)} />
@@ -234,7 +238,7 @@ export function VideoGenerationViewer({
                 {!isTopazVideo(job) && editDestination?.kind !== "invalid" && editDestination && job.status !== "RUNNING" && job.status !== "QUEUED" && job.status !== "UPLOADING" && job.status !== "DOWNLOADING" && (
                   <Button
                     variant="outline"
-                    onClick={() => setLocation(editDestination.path)}
+                    onClick={() => { onClose(); setLocation(editDestination.path); }}
                     data-testid={editDestination.kind === "long-form" ? "button-edit-long-form-shot" : "button-edit-generation"}
                   >
                     <Pencil className="size-4" />
