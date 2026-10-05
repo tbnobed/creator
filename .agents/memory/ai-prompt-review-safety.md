@@ -14,3 +14,9 @@ Keep browser timeouts longer than the local model's deadline and cancel upstream
 **Why:** A short browser timeout left the server processing for minutes, making subsequent requests fail as busy. The creator saw silent polish attempts, repeated errors, and stalled live checks.
 
 **How to apply:** Coordinate check/polish requests, retain one error location, explain disabled actions, and verify actual model responses separately from mocked UI tests.
+
+The creator tests this feature on a self-hosted app, not the Replit preview. Missing development AI configuration does not establish that the self-hosted service is unconfigured.
+
+**Why:** The creator explicitly identified the self-hosted deployment as the location of the reported failures.
+
+**How to apply:** Verify the JavaScript actually served by that deployment before attributing behavior to workspace changes. Inspect its lazy-loaded prompt panel, not only the main bundle. Keep server access authenticated and distinguish source fixes from changes installed on the host.
