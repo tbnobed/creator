@@ -59,6 +59,12 @@ Assess sustained real-workload temperature behavior separately from the earlier 
 
 Stable H100 temperatures near 79°C do not establish cooling headroom or unthrottled performance.
 
+The operator reported installing additional fans on the first H100 on 2026-10-05. Do not assume this eliminated thermal throttling.
+
+**Why:** Read-only monitoring during an existing render still detected NVIDIA software thermal slowdown as the first GPU warmed up, despite the additional fans. An initial cool sample had no thermal flags.
+
+**How to apply:** Observe warm-up under the actual workload and compare thermal-counter deltas, not just the first sample. Distinguish thermal slowdown from the separate 250 W power cap; do not raise that cap as a cooling fix.
+
 **Why:** Read-only monitoring on 2026-10-03 found both dual-H100 cards continuously busy but predominantly thermally throttled, even with power draw below their enforced 250 W caps. A steady temperature can reflect the driver reducing clocks to hold that temperature.
 
 **How to apply:** Check live thermal and power-limit event reasons alongside clocks and power before recommending a higher cap. Address airflow first when thermal throttling dominates; neither clock ratios nor power-cap ratios directly measure render-time loss.
