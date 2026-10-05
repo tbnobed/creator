@@ -1,0 +1,55 @@
+
+ create mode 100644 artifacts/api-server/src/routes/prompt-guidance.test.ts
+[+] Building 22.7s (14/27)
+ => [internal] load local bake definitions                                                                                                                                 0.0s
+ => => reading from stdin 969B                                                                                                                                             0.0s
+ => [web internal] load build definition from Dockerfile.web                                                                                                               0.0s
+ => => transferring dockerfile: 1.01kB                                                                                                                                     0.0s
+ => [api internal] load build definition from Dockerfile.api                                                                                                               0.0s
+ => => transferring dockerfile: 1.54kB                                                                                                                                     0.0s
+ => [api internal] load metadata for docker.io/library/node:24-bookworm-slim                                                                                               0.3s
+ => [web internal] load .dockerignore                                                                                                                                      0.0s
+ => => transferring context: 200B                                                                                                                                          0.0s
+ => [web build 1/8] FROM docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6                                   0.0s
+ => => resolve docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6                                             0.0s
+ => [api internal] load build context                                                                                                                                      0.1s
+ => => transferring context: 253.48kB                                                                                                                                      0.1s
+ => CACHED [web build 2/8] WORKDIR /app                                                                                                                                    0.0s
+ => CACHED [web build 3/8] RUN corepack enable && corepack prepare pnpm@10.26.1 --activate                                                                                 0.0s
+ => [api build 4/8] COPY . .                                                                                                                                               0.4s
+ => [api build 5/8] RUN pnpm install --frozen-lockfile                                                                                                                     4.8s
+ => [api build 6/8] RUN pnpm exec tsc --build --force                                                                                                                      9.1s
+ => ERROR [api build 7/8] RUN pnpm --filter @workspace/api-server run typecheck                                                                                            7.6s
+ => CANCELED [web build 7/8] RUN pnpm --filter @workspace/obtv-video-studio run typecheck                                                                                  7.8s
+------
+ > [api build 7/8] RUN pnpm --filter @workspace/api-server run typecheck:
+0.872
+0.872 > @workspace/api-server@0.0.0 typecheck /app/artifacts/api-server
+0.872 > tsc -p tsconfig.json --noEmit
+0.872
+7.430 src/routes/prompt-guidance.test.ts(34,18): error TS2571: Object is of type 'unknown'.
+7.430 src/routes/prompt-guidance.test.ts(37,18): error TS2571: Object is of type 'unknown'.
+7.503 /app/artifacts/api-server:
+7.503  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+7.503 Exit status 2
+------
+[+] up 0/2
+ ⠙ Image creator-api Building                                                                                                                                              22.8s
+ ⠙ Image creator-web Building                                                                                                                                              22.8s
+Dockerfile.api:9
+
+--------------------
+
+   7 |     RUN pnpm install --frozen-lockfile
+
+   8 |     RUN pnpm exec tsc --build --force
+
+   9 | >>> RUN pnpm --filter @workspace/api-server run typecheck
+
+  10 |     RUN pnpm --filter @workspace/api-server run build
+
+  11 |
+
+--------------------
+
+target api: failed to solve: process "/bin/sh -c pnpm --filter @workspace/api-server run typecheck" did not complete successfully: exit code: 2

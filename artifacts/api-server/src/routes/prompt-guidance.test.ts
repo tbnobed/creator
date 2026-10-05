@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
+import { CheckPromptResponse, PolishPromptResponse } from "@workspace/api-zod";
 import router from "./prompt-guidance";
 
 test("local AI check and polish return validated results; disconnect aborts model work and frees its slot", async () => {
@@ -31,10 +32,10 @@ test("local AI check and polish return validated results; disconnect aborts mode
   try {
     const check = await originalFetch(`${base}/prompt-guidance/check`, options);
     assert.equal(check.status, 200);
-    assert.equal((await check.json()).summary, "Clear shot.");
+    assert.equal(CheckPromptResponse.parse(await check.json()).summary, "Clear shot.");
     const polish = await originalFetch(`${base}/prompt-guidance/polish`, options);
     assert.equal(polish.status, 200);
-    assert.equal((await polish.json()).prompt, "A bird flies over a field.");
+    assert.equal(PolishPromptResponse.parse(await polish.json()).prompt, "A bird flies over a field.");
     slow = true;
     const controller = new AbortController();
     const pending = originalFetch(`${base}/prompt-guidance/check`, { ...options, signal: controller.signal }).catch(() => null);
