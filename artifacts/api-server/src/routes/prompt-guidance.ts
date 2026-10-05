@@ -20,7 +20,7 @@ function getAiProvider(): { baseUrl: string; model: string } | null {
 function acquire(clientId: string): { ok: true; release: () => void } | { ok: false; status: number; error: string } {
   const now = Date.now();
   const previous = clients.get(clientId);
-  const client = !previous || now - previous.startedAt >= WINDOW_MS
+  const client = !previous || (now - previous.startedAt >= WINDOW_MS && previous.active === 0)
     ? { startedAt: now, count: 0, active: 0 }
     : previous;
   clients.set(clientId, client);
@@ -54,11 +54,12 @@ async function callLocalModel(
   provider: { baseUrl: string; model: string },
   messages: Array<{ role: "system" | "user"; content: string }>,
   maxTokens: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/api/chat`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    signal: AbortSignal.timeout(180_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000),
     body: JSON.stringify({
       model: provider.model,
       stream: false,
@@ -82,6 +83,8 @@ async function callLocalModel(
 }
 
 router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
+  const controller = new AbortController();
+  res.on("close", () => { if (!res.writableEnded) controller.abort(); });
   const input = PolishPromptBody.safeParse(req.body);
   if (!input.success) {
     res.status(400).json({ error: input.error.message });
@@ -115,7 +118,7 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
     const content = await callLocalModel(provider, [
       { role: "system", content: instructions },
       { role: "user", content: JSON.stringify(input.data) },
-    ], 900);
+    ], 900, controller.signal);
     res.json(PolishPromptResponse.parse(extractJson(content)));
   } catch (error) {
     res.status(502).json({
@@ -129,6 +132,8 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
 });
 
 router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
+  const controller = new AbortController();
+  res.on("close", () => { if (!res.writableEnded) controller.abort(); });
   const input = PolishPromptBody.safeParse(req.body);
   if (!input.success) {
     res.status(400).json({ error: input.error.message });
@@ -161,7 +166,7 @@ router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
     const content = await callLocalModel(provider, [
       { role: "system", content: instructions },
       { role: "user", content: JSON.stringify(input.data) },
-    ], 350);
+    ], 350, controller.signal);
     res.json(CheckPromptResponse.parse(extractJson(content)));
   } catch (error) {
     res.status(502).json({

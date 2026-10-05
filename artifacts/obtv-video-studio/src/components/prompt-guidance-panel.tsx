@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { AlertTriangle, CheckCircle2, Lightbulb, Loader2, RotateCcw, Sparkles, Wand2, X } from "lucide-react";
 import { useCheckPrompt, usePolishPrompt, checkPrompt, polishPrompt, type PromptCheckResult, type PromptPolishResult } from "@workspace/api-client-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { analyzePrompt, buildPrompt, readinessScore, type PromptFields } from "@/lib/prompt-guidance";
 
 type Props = {
@@ -31,6 +32,10 @@ type Props = {
 const emptyFields: PromptFields = { subject: "", action: "", composition: "", setting: "", lighting: "", style: "" };
 
 export function PromptGuidancePanel(props: Props) {
+  const fieldPrefix = useId();
+  const suggestionRef = useRef<HTMLDivElement>(null);
+  const [polishNotice, setPolishNotice] = useState("");
+  const [liveEnabled, setLiveEnabled] = useState(false);
   const [fields, setFields] = useState<PromptFields>(emptyFields);
   const [builtDraft, setBuiltDraft] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<{
@@ -41,14 +46,30 @@ export function PromptGuidancePanel(props: Props) {
   const [aiReview, setAiReview] = useState<{ result: PromptCheckResult; snapshot: string } | null>(null);
   const [aiCheckError, setAiCheckError] = useState("");
   const [cooldown, setCooldown] = useState(false);
-  const busyMessage = "AI assistance is temporarily busy or took too long. Your writing is safe. Please try again shortly.";
+  const checkController = useRef<AbortController | null>(null);
+  const polishController = useRef<AbortController | null>(null);
+  const lastCheckSnapshot = useRef("");
+  useEffect(() => () => {
+    checkController.current?.abort();
+    polishController.current?.abort();
+  }, []);
+  const errorMessage = (error: unknown) => (error as { status?: number })?.status === 503
+    ? "Local AI is not configured or unavailable. Your prompt is unchanged; the local AI service needs to be connected."
+    : "AI assistance is temporarily busy or took too long. Your writing is safe. Please try again shortly.";
   useEffect(() => {
     if (!cooldown) return;
     const timer = window.setTimeout(() => setCooldown(false), 30000);
     return () => window.clearTimeout(timer);
   }, [cooldown]);
-  const polish = usePolishPrompt({ mutation: { retry: false, mutationFn: ({ data }) => polishPrompt(data, { signal: AbortSignal.timeout(25000) }), onError: () => setCooldown(true) } });
-  const check = useCheckPrompt({ mutation: { retry: false, mutationFn: ({ data }) => checkPrompt(data, { signal: AbortSignal.timeout(25000) }), onError: () => setCooldown(true) } });
+  const polish = usePolishPrompt({ mutation: { retry: false, mutationFn: ({ data }) => {
+    polishController.current = new AbortController();
+    return polishPrompt(data, { signal: AbortSignal.any([polishController.current.signal, AbortSignal.timeout(190000)]) });
+  }, onError: error => { setCooldown(true); setPolishNotice(""); setAiCheckError(errorMessage(error)); } } });
+  const check = useCheckPrompt({ mutation: { retry: false, mutationFn: ({ data }) => {
+    checkController.current = new AbortController();
+    return checkPrompt(data, { signal: AbortSignal.any([checkController.current.signal, AbortSignal.timeout(190000)]) });
+  }, onError: error => { setCooldown(true); setAiCheckError(errorMessage(error)); } } });
+  const disabledReason = !props.prompt.trim() ? "Write a main prompt first." : cooldown ? "AI is cooling down after an error. Try again in 30 seconds." : polish.isPending ? "Polishing your prompt. Local AI can take up to three minutes." : check.isPending ? "A prompt review is in progress. Local AI can take up to three minutes." : "";
   const latestSnapshot = useRef("");
   const issues = useMemo(() => analyzePrompt({
     prompt: props.prompt,
@@ -76,6 +97,7 @@ export function PromptGuidancePanel(props: Props) {
   const requestCheck = () => {
     if (!props.prompt.trim() || check.isPending || cooldown || polish.isPending) return;
     const snapshot = currentSnapshot;
+    lastCheckSnapshot.current = snapshot;
     setAiCheckError("");
     check.mutate({
       data: {
@@ -94,7 +116,7 @@ export function PromptGuidancePanel(props: Props) {
       },
       onError: error => {
         if (latestSnapshot.current === snapshot) {
-          setAiCheckError(busyMessage);
+          setAiCheckError(errorMessage(error));
         }
       },
     });
@@ -106,9 +128,10 @@ export function PromptGuidancePanel(props: Props) {
       setAiCheckError("");
       return;
     }
-    const timer = window.setTimeout(requestCheck, 900);
+    if (!liveEnabled || check.isPending || polish.isPending || cooldown || lastCheckSnapshot.current === currentSnapshot) return;
+    const timer = window.setTimeout(requestCheck, 1800);
     return () => window.clearTimeout(timer);
-  }, [currentSnapshot]);
+  }, [currentSnapshot, liveEnabled, check.isPending, polish.isPending, cooldown]);
 
   const updateField = (name: keyof PromptFields, value: string) => setFields(current => ({ ...current, [name]: value }));
   const assemble = () => {
@@ -117,6 +140,8 @@ export function PromptGuidancePanel(props: Props) {
   };
   const requestPolish = () => {
     if (cooldown || polish.isPending || check.isPending) return;
+    setAiCheckError("");
+    setPolishNotice("Polishing your prompt. Your original stays unchanged until you accept the suggestion.");
     const snapshot = currentSnapshot;
     polish.mutate({
       data: {
@@ -130,7 +155,9 @@ export function PromptGuidancePanel(props: Props) {
         shotKind: props.shotKind,
       },
     }, {
-      onSuccess: result => setSuggestion({
+      onSuccess: result => {
+        setPolishNotice("Polish complete. Review the suggestion below, then choose which changes to apply.");
+        setSuggestion({
         result,
         snapshot,
         selected: {
@@ -141,7 +168,9 @@ export function PromptGuidancePanel(props: Props) {
           dialogue: props.shotKind !== "B-ROLL",
           continuityNote: true,
         },
-      }),
+        });
+        window.setTimeout(() => suggestionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 0);
+      },
     });
   };
   const acceptSuggestion = () => {
@@ -154,6 +183,7 @@ export function PromptGuidancePanel(props: Props) {
     if (selected.dialogue) props.onDialogueChange?.(result.dialogue);
     if (selected.continuityNote) props.onContinuityChange?.(result.continuityNote);
     setSuggestion(null);
+    setPolishNotice("Selected changes applied to your prompt.");
   };
 
   return (
@@ -165,8 +195,8 @@ export function PromptGuidancePanel(props: Props) {
           </AccordionTrigger>
           <AccordionContent className="space-y-4">
             <p className="text-sm text-muted-foreground">The main prompt is what gets rendered. These fields create a preview; they never replace your writing until you explicitly apply it.</p>
-            {Object.values(fields).some(value => value.trim()) && <p className="text-sm">Builder draft readiness: {readinessScore(analyzePrompt({ prompt: buildPrompt(fields) }))}%. Apply the preview to use this draft. The main prompt score is separate.</p>}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <p className="h-6 text-sm">Builder readiness: {Object.values(fields).some(value => value.trim()) ? readinessScore(analyzePrompt({ prompt: buildPrompt(fields), cameraInstructions: props.cameraInstructions, motionInstructions: props.motionInstructions })) : 0}% · Not yet applied</p>
+            <div className="grid gap-3">
               {([
                 ["subject", "Subject", "Who or what is the focus?"],
                 ["action", "Action", "What happens in this shot?"],
@@ -176,8 +206,8 @@ export function PromptGuidancePanel(props: Props) {
                 ["style", "Visual style", "Cinematic realism, commercial..."],
               ] as const).map(([name, label, placeholder]) => (
                 <div className="space-y-1.5" key={name}>
-                  <Label className="text-xs">{label}</Label>
-                  <Input value={fields[name]} onChange={event => updateField(name, event.target.value)} placeholder={placeholder} className="h-9 bg-background/40 text-sm" />
+                  <Label htmlFor={`${fieldPrefix}-${name}`} className="text-sm">{label}</Label>
+                  <Textarea id={`${fieldPrefix}-${name}`} value={fields[name]} onChange={event => updateField(name, event.target.value)} placeholder={placeholder} className="h-16 min-h-16 resize-none bg-background/40 text-sm" />
                 </div>
               ))}
             </div>
@@ -188,9 +218,9 @@ export function PromptGuidancePanel(props: Props) {
               <Button type="button" size="sm" variant="ghost" disabled={!Object.values(fields).some(Boolean)} onClick={() => { setFields(emptyFields); setBuiltDraft(null); }}>
                 <RotateCcw className="mr-2 size-3.5" /> Clear fields
               </Button>
-              <Button type="button" size="sm" variant="secondary" onClick={requestPolish} disabled={!props.prompt.trim() || polish.isPending || check.isPending || cooldown}>
+              <Tooltip><TooltipTrigger asChild><span tabIndex={0} aria-label={disabledReason || "Create a suggestion to review before applying."}><Button type="button" size="sm" variant="secondary" onClick={requestPolish} disabled={Boolean(disabledReason)}>
                 {polish.isPending ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Sparkles className="mr-2 size-3.5" />} Polish with AI
-              </Button>
+              </Button></span></TooltipTrigger><TooltipContent className="z-[80] max-w-72">{disabledReason || "Create a suggestion to review before applying."}</TooltipContent></Tooltip>
             </div>
             {builtDraft && <div className="space-y-3 rounded-lg border border-border bg-background p-3">
               <p className="text-sm font-semibold">Built prompt preview</p>
@@ -201,22 +231,24 @@ export function PromptGuidancePanel(props: Props) {
                 <Button type="button" size="sm" variant="ghost" onClick={() => setBuiltDraft(null)}>Discard</Button>
               </div>
             </div>}
-            {(polish.isError || cooldown) && <p role="status" className="text-sm text-muted-foreground">{busyMessage}</p>}
+            <div role="status" className="text-sm text-muted-foreground">
+              {aiCheckError || polishNotice || disabledReason}
+            </div>
 
             <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/[0.04] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="size-4 text-primary" /> AI live check</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {check.isPending ? "Reviewing the current draft..." : aiReview ? "Review complete for the current draft." : "Review starts automatically after you pause."}
+                    {check.isPending ? "Reviewing the current draft. Local AI may take up to three minutes…" : aiReview?.snapshot === currentSnapshot ? "Review complete for the current draft." : "Choose Check now, or enable automatic checking."}
                   </p>
                 </div>
-                <Button type="button" size="sm" variant="outline" onClick={requestCheck} disabled={!props.prompt.trim() || check.isPending || polish.isPending || cooldown}>
+                <Tooltip><TooltipTrigger asChild><span tabIndex={0} aria-label={disabledReason || "Review the main prompt"}><Button type="button" size="sm" variant="outline" onClick={requestCheck} disabled={Boolean(disabledReason)}>
                   {check.isPending ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Sparkles className="mr-2 size-3.5" />} Check now
-                </Button>
+                </Button></span></TooltipTrigger><TooltipContent className="z-[80] max-w-72">{disabledReason || "Review the main prompt"}</TooltipContent></Tooltip>
               </div>
-              {aiCheckError && <p className="text-xs text-destructive">{aiCheckError}</p>}
-              {aiReview && (
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={liveEnabled} onChange={event => setLiveEnabled(event.target.checked)} /> Check automatically after typing</label>
+              {aiReview && aiReview.snapshot === currentSnapshot && (
                 <div className="space-y-3 border-t border-border/50 pt-3">
                   <p className="text-xs leading-relaxed text-foreground/90">{aiReview.result.summary}</p>
                   {aiReview.result.strengths.length > 0 && (
@@ -247,7 +279,7 @@ export function PromptGuidancePanel(props: Props) {
             </div>
 
             {suggestion && (
-              <div className="space-y-3 rounded-lg border border-primary/30 bg-background/70 p-3">
+              <div ref={suggestionRef} className="space-y-3 rounded-lg border border-primary/30 bg-background/70 p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold">AI suggestion — review before accepting</p>
                   <Button type="button" variant="ghost" size="icon" className="size-7" onClick={() => setSuggestion(null)}><X className="size-4" /></Button>

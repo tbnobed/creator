@@ -78,7 +78,7 @@ export function analyzePrompt(input: {
   }
   if (prompt.length > 1200) issues.push({ level: "tip", message: "This prompt is long. Shorter, prioritized direction is often more reliable." });
   if (!input.cameraInstructions?.trim()) issues.push({ level: "tip", message: "Add camera framing or movement for more predictable composition." });
-  if (!input.motionInstructions?.trim()) issues.push({ level: "tip", message: "Add motion behavior to improve temporal consistency." });
+  if (!input.motionInstructions?.trim() && !input.cameraInstructions?.trim() && !/\b(pan|tracking|dolly|push[- ]in|orbit|zoom|static|locked[- ]off)\b/i.test(prompt)) issues.push({ level: "tip", message: "Add motion behavior to improve temporal consistency." });
   return issues;
 }
 

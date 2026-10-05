@@ -248,11 +248,14 @@ export default function GeneratePage() {
   const [acceptedJobId, setAcceptedJobId] = useState<string | null>(null);
   const previousStatuses = useRef(new globalThis.Map<string, string>());
   const [completionNotice, setCompletionNotice] = useState("");
+  const [completedJobId, setCompletedJobId] = useState<string | null>(null);
   useEffect(() => {
     for (const job of recentGenerations?.items ?? []) {
       const previous = previousStatuses.current.get(job.id);
       if (previous && previous !== job.status && ["COMPLETED", "FAILED"].includes(job.status)) {
-        setCompletionNotice(`${job.title || job.prompt.slice(0, 60) || "Your render"} — ${job.status === "COMPLETED" ? "ready to review" : "failed. Open the job for details"}.`);
+        setCompletedJobId(job.id);
+        setAcceptedJobId(null);
+        setCompletionNotice(`${job.prompt.slice(0, 60) || job.title || "Your render"} — ${job.status === "COMPLETED" ? "ready to review" : "failed"}.`);
       }
       previousStatuses.current.set(job.id, job.status);
     }
@@ -649,7 +652,7 @@ export default function GeneratePage() {
           <div className="order-1 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#303135] bg-[#161719] px-4 py-3 md:px-8">
             <div className="flex items-center gap-2.5">
               <span className="flex size-8 items-center justify-center rounded-[9px] bg-[linear-gradient(135deg,#FF1F62,#8B2BE2)] text-white"><Film className="size-[18px]" strokeWidth={2.5} /></span>
-              <span className="text-[15px] font-semibold tracking-[-0.04em]">Video Studio</span>
+              <h1 className="text-[15px] font-semibold tracking-[-0.04em]">Video Studio</h1>
             </div>
           </div>
 
@@ -706,7 +709,7 @@ export default function GeneratePage() {
                     <time dateTime={job.createdAt} className="absolute left-3 top-3 rounded-md border border-white/15 bg-[#161717]/90 px-2 py-1 text-xs font-medium text-white">{new Date(job.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>
                     <div className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full bg-[#161717]/70 text-white opacity-0 transition-opacity group-hover:opacity-100"><ArrowUpRight className="size-3.5" /></div>
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0d0f0e] via-[#0d0f0e]/85 to-transparent px-3.5 pb-4 pt-16">
-                      <p className="line-clamp-2 text-sm font-medium leading-snug text-[#f2f2ef]">{job.title || job.prompt || "Untitled generation"}</p>
+                      <p className="line-clamp-2 text-sm font-medium leading-snug text-[#f2f2ef]">{job.prompt || job.title || "Untitled generation"}</p>
                       <p className="mt-2 flex items-center gap-1.5 text-xs text-[#d1d2cd]"><Clock3 className="size-3" />{formatDuration(job.durationSeconds)} <span className="mx-1 size-0.5 rounded-full bg-[#777]" />{job.status.toLowerCase()}</p>
                     </div>
                   </button>
@@ -919,6 +922,7 @@ export default function GeneratePage() {
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-[#f0e6ee]"><Sparkles className="size-3.5 text-primary" /> Create a video <span className="hidden font-normal text-[#a79baa] sm:inline">/ Describe your shot</span></div>
                 <span className="font-mono text-xs text-[#bfc2bb]">{prompt.length} characters</span>
               </div>
+              <div className="mb-2 h-12 overflow-y-auto rounded-lg text-sm" role="region" aria-label="Render notices and active direction" tabIndex={0}>
               {acceptedJobId && (
                 <div role="status" data-testid="status-render-accepted" className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#8b426b] bg-[#382538] px-3 py-2 text-xs text-[#ffe8f4]">
                   <span>Render accepted. It will appear in your creations above.</span>
@@ -928,18 +932,19 @@ export default function GeneratePage() {
                   </span>
                 </div>
               )}
-              {completionNotice && <div role="status" className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-secondary p-3 text-sm"><span>{completionNotice}</span><button type="button" aria-label="Dismiss completion notice" onClick={() => setCompletionNotice("")}><X className="size-4" /></button></div>}
+              {completionNotice && <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-secondary p-2 text-sm"><span className="min-w-0 truncate">{completionNotice}</span><Link className="shrink-0 underline" href={`/generations/${completedJobId}`}>Review render</Link><button type="button" aria-label="Dismiss completion notice" onClick={() => setCompletionNotice("")}><X className="size-4" /></button></div>}
               {cloneJobId && <div className="mb-2 flex items-center justify-between gap-3 text-sm"><span>Editing a copy of this generation</span><Button variant="outline" size="sm" onClick={() => setLocation("/studio")}>Exit edit mode</Button></div>}
-              {(cameraInstructions.trim() || motionInstructions.trim() || dialogue.trim()) && <div className="mb-2 rounded-lg border border-primary/30 p-3 text-sm">
-                <p>Active shot direction: {[cameraInstructions && `Camera: ${cameraInstructions}`, motionInstructions && `Motion: ${motionInstructions}`, dialogue && `Dialogue: ${dialogue}`].filter(Boolean).join(" · ")}</p>
+              {(cameraInstructions.trim() || motionInstructions.trim() || dialogue.trim()) && <div className="flex items-center gap-2 rounded-lg border border-primary/30 px-2 text-sm">
+                <button type="button" onClick={() => setComposerExpanded(true)} className="min-w-0 flex-1 truncate text-left underline">Active shot direction: {[cameraInstructions && `Camera: ${cameraInstructions}`, motionInstructions && `Motion: ${motionInstructions}`, dialogue && `Dialogue: ${dialogue}`].filter(Boolean).join(" · ")}</button>
                 <Button variant="ghost" size="sm" onClick={() => { setCameraInstructions(""); setMotionInstructions(""); setDialogue(""); }}>Clear shot direction</Button>
               </div>}
+              </div>
               <div className="overflow-hidden rounded-xl border border-[#514453] bg-[#28232b] shadow-[0_10px_32px_#0004] focus-within:border-primary">
                 <Textarea
                   value={prompt}
                   ref={promptInputRef}
                   onChange={e => setPrompt(e.target.value)}
-                  className="min-h-[66px] max-h-[18vh] resize-y rounded-none border-0 bg-transparent px-4 py-3 text-[13px] leading-relaxed text-[#f0f1eb] shadow-none placeholder:text-[#8f958b] focus-visible:ring-0 sm:min-h-[82px] sm:px-5 sm:py-4 sm:text-sm"
+                  className="h-[66px] min-h-[66px] resize-none rounded-none border-0 bg-transparent px-4 py-3 text-[13px] leading-relaxed text-[#f0f1eb] shadow-none placeholder:text-[#8f958b] focus-visible:ring-0 sm:h-[82px] sm:px-5 sm:py-4 sm:text-sm"
                   placeholder="Describe your scene, subject, lighting, and movement. What happens in this shot?"
                   aria-label="Describe your video shot"
                   data-testid="input-video-prompt"
@@ -970,10 +975,10 @@ export default function GeneratePage() {
               </div>
 
               <Sheet open={composerExpanded} onOpenChange={setComposerExpanded}>
-              <SheetContent onCloseAutoFocus={returnToPrompt} aria-describedby={undefined} className="z-[55] w-full overflow-y-auto bg-[#252027] sm:max-w-xl">
-              <SheetTitle className="mb-4">Shot direction</SheetTitle>
+              <SheetContent onCloseAutoFocus={returnToPrompt} aria-describedby={undefined} className="z-[55] w-full overflow-y-auto bg-[#252027] sm:max-w-xl [&>button]:hidden">
+              <div className="mb-4 flex items-center justify-between"><SheetTitle className="text-xl">Shot direction</SheetTitle><button type="button" onClick={() => setComposerExpanded(false)} aria-label="Close shot direction" className="flex size-9 items-center justify-center rounded-lg border border-[#3c3d3d] hover:bg-[#303333]"><X className="size-4" /></button></div>
               <details open className="rounded-xl">
-                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Shot direction <span className="ml-2 text-[11px] font-normal text-muted-foreground">Dialogue, camera, motion & exclusions</span></summary>
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Dialogue, camera, motion & exclusions</summary>
                 <div className="space-y-4 border-t border-border/60 p-4">
                   <div className="space-y-2">
                     <Label>Exact Dialogue Override</Label>
@@ -986,7 +991,7 @@ export default function GeneratePage() {
                         : "Optional. Leave blank to extract quoted speech from the main prompt."}
                     />
                   </div>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
                       <Label>Camera Movement</Label>
                       <Input
@@ -1233,7 +1238,7 @@ export default function GeneratePage() {
                             key={`${option.width}x${option.height}`}
                             value={`${option.width}x${option.height}`}
                           >
-                            {localOutputSize(option.width, option.height, capabilitiesForMode.map(cap => cap.modelFamily))}
+                            {localOutputSize(option.width, option.height, capabilitiesForMode.map(cap => cap.modelFamily))} · {option.width > option.height ? "16:9" : option.width < option.height ? "9:16" : "1:1"}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1317,6 +1322,7 @@ export default function GeneratePage() {
                   <Label htmlFor="voice-cloning" className="font-medium text-xs">Clone Character voice</Label>
                   <Switch
                     id="voice-cloning"
+                    aria-label="Clone character voice"
                     checked={voiceCloningEnabled}
                     onCheckedChange={setVoiceCloningEnabled}
                     disabled={!canEnableVoiceCloning && !voiceCloningEnabled}
