@@ -10,6 +10,7 @@ test("local AI check and polish return validated results; disconnect aborts mode
   process.env.PROMPT_AI_BASE_URL = "http://prompt-ai.test";
   let slow = false;
   let aborted = false;
+  let invalid = false;
   globalThis.fetch = async (url, options) => {
     if (!String(url).startsWith("http://prompt-ai.test")) return originalFetch(url, options);
     if (slow) {
@@ -18,6 +19,9 @@ test("local AI check and polish return validated results; disconnect aborts mode
       });
     }
     const input = JSON.parse(String(options?.body));
+    assert.equal(input.format.type, "object");
+    assert.ok(input.format.required.length > 0);
+    if (invalid) return new Response(JSON.stringify({ message: { content: '{"prompt":' } }));
     const polish = input.messages[0].content.includes("prompt editor");
     return new Response(JSON.stringify({ message: { content: JSON.stringify(polish
       ? { prompt: "A bird flies over a field.", cameraInstructions: "", motionInstructions: "", negativePrompt: "", dialogue: "", continuityNote: "" }
@@ -46,6 +50,10 @@ test("local AI check and polish return validated results; disconnect aborts mode
     assert.equal(aborted, true);
     slow = false;
     assert.equal((await originalFetch(`${base}/prompt-guidance/polish`, options)).status, 200);
+    invalid = true;
+    const malformed = await originalFetch(`${base}/prompt-guidance/polish`, options);
+    assert.equal(malformed.status, 502);
+    assert.deepEqual(await malformed.json(), { code: "AI_INVALID_RESPONSE", error: "Local AI returned an invalid or incomplete response." });
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) delete process.env.PROMPT_AI_BASE_URL;

@@ -14,3 +14,9 @@ Use the authored prompt to identify gallery shots; a generated title may only co
 **Why:** The creator reported that model-name titles made similar shots indistinguishable.
 
 **How to apply:** Preserve meaningful shot identification when changing card metadata or completion feedback.
+
+Active shot direction must remain visible separately from scrollable notifications after submitting a render.
+
+**Why:** The creator reported that a fixed-height shared box hid carried-over direction behind the acceptance notice. A scrollbar is not sufficient disclosure of settings that affect the next render.
+
+**How to apply:** Reserve separate stationary space for persistent settings and verify visibility with acceptance and completion notices present.

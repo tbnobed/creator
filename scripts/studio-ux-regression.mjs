@@ -57,6 +57,11 @@ try {
   await page.getByTestId("button-render-setup").click();
   await expect(page.getByTestId("select-generation-pipeline")).toContainText("MiniMax H3");
   await expect(page.getByRole("switch", { name: "Clone character voice" })).toHaveCount(1);
+  await page.getByRole("combobox", { name: "Resolution", exact: true }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(prompt).toBeFocused();
   await page.keyboard.type("Original draft");
@@ -66,7 +71,11 @@ try {
   await expect(page.getByRole("dialog")).toBeVisible();
   const after = await page.getByTestId("button-shot-controls").boundingBox();
   if (before.y !== after.y) throw new Error("Shot direction moved the toolbar");
-  await page.getByPlaceholder("e.g. slow pan right, tracking shot...").fill("Slow lateral tracking shot");
+  await page.getByText("Camera Movement", { exact: true }).click();
+  await expect(page.getByLabel("Camera Movement", { exact: true })).toBeFocused();
+  await page.keyboard.type("Slow lateral tracking shot");
+  await page.getByText("Motion Dynamics", { exact: true }).click();
+  await expect(page.getByLabel("Motion Dynamics", { exact: true })).toBeFocused();
   await expect(page.getByText("Add motion behavior to improve temporal consistency.", { exact: true })).toHaveCount(0);
   await page.getByText("Prompt Builder & Live AI Check", { exact: true }).click();
   await page.getByText("Subject", { exact: true }).click();
@@ -83,7 +92,7 @@ try {
   await expect(page.getByText("Test check", { exact: true })).toBeVisible();
   failAi = true;
   await page.getByRole("button", { name: "Check now" }).click();
-  await expect(page.getByText("AI assistance is temporarily busy or took too long. Your writing is safe. Please try again shortly.", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Local AI is busy or its request limit was reached. Wait before retrying. Your original prompt is unchanged.", { exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Polish with AI" })).toBeDisabled();
   await page.getByLabel("AI is cooling down after an error. Try again in 30 seconds.", { exact: true }).first().focus();
   await expect(page.getByRole("tooltip")).toContainText("cooling down");
@@ -93,6 +102,12 @@ try {
   await expect(prompt).toHaveValue("Original draft");
   await page.getByRole("button", { name: "Append to main prompt" }).click();
   await expect(prompt).toHaveValue(/Original draft\n\n.*blue bird/i);
+  await expect(page.getByRole("status").filter({ hasText: "Applied to main prompt" })).toBeVisible();
+  await page.getByRole("button", { name: "Preview built prompt" }).click();
+  await page.getByRole("button", { name: "Replace main prompt" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Applied to main prompt" })).toBeVisible();
+  await page.getByLabel("Action", { exact: true }).fill("flies");
+  await expect(page.getByRole("status").filter({ hasText: "Changed since application" })).toBeVisible();
   await page.mouse.move(5, 5);
   await page.getByRole("heading", { name: "Shot direction", exact: true }).click();
   await expect(page.getByRole("tooltip")).toHaveCount(0);
@@ -112,6 +127,12 @@ try {
   jobs[23].status = "COMPLETED";
   await expect(page.getByRole("link", { name: "Review render" })).toHaveAttribute("href", "/generations/ux-23", { timeout: 15000 });
   await expect(page.getByRole("status").filter({ hasText: "ready to review" })).toContainText("A red teapot");
+  await expect(page.getByRole("button", { name: /Active shot direction:/ })).toBeInViewport();
+  // Acceptance must not scroll persistent direction out of view.
+  await page.getByRole("region", { name: "Render notices", exact: true }).evaluate(el => {
+    el.innerHTML = '<div role="status">Render accepted. It will appear in your creations above.</div>'.repeat(4);
+  });
+  await expect(page.getByRole("button", { name: /Active shot direction:/ })).toBeInViewport();
   await page.getByTestId("button-open-studio-generation-ux-0").click();
   await expect(page.getByText("Completed generation · 1 of 24 in this view")).toBeVisible();
   await page.locator("video[controls]").focus();

@@ -6,6 +6,33 @@ const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 6;
 const MAX_GLOBAL_CONCURRENCY = 4;
 const clients = new Map<string, { startedAt: number; count: number; active: number }>();
+const polishFormat = {
+  type: "object",
+  properties: Object.fromEntries(["prompt", "cameraInstructions", "motionInstructions", "negativePrompt", "dialogue", "continuityNote"].map(key => [key, { type: "string" }])),
+  required: ["prompt", "cameraInstructions", "motionInstructions", "negativePrompt", "dialogue", "continuityNote"],
+  additionalProperties: false,
+};
+const checkFormat = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    strengths: { type: "array", items: { type: "string" }, maxItems: 3 },
+    issues: { type: "array", maxItems: 3, items: {
+      type: "object", properties: { severity: { type: "string", enum: ["error", "warning", "tip"] }, message: { type: "string" }, fix: { type: "string" } },
+      required: ["severity", "message", "fix"], additionalProperties: false,
+    } },
+  },
+  required: ["summary", "strengths", "issues"], additionalProperties: false,
+};
+
+function aiFailure(error: unknown, operation: string, startedAt: number) {
+  const name = error instanceof Error ? error.name : "";
+  const code = name === "TimeoutError" ? "AI_TIMEOUT"
+    : name === "SyntaxError" || name === "ZodError" ? "AI_INVALID_RESPONSE" : "AI_UPSTREAM_ERROR";
+  // Do not log creator prompts, generated text, or provider URLs.
+  console.warn(JSON.stringify({ event: "prompt_ai_failed", operation, code, elapsedMs: Date.now() - startedAt, errorType: name }));
+  return { code, error: code === "AI_TIMEOUT" ? "Local AI processing timed out." : code === "AI_INVALID_RESPONSE" ? "Local AI returned an invalid or incomplete response." : "Local AI service request failed." };
+}
 let globalActive = 0;
 
 function getAiProvider(): { baseUrl: string; model: string } | null {
@@ -55,6 +82,7 @@ async function callLocalModel(
   messages: Array<{ role: "system" | "user"; content: string }>,
   maxTokens: number,
   signal?: AbortSignal,
+  format: object = polishFormat,
 ): Promise<string> {
   const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/api/chat`, {
     method: "POST",
@@ -63,7 +91,8 @@ async function callLocalModel(
     body: JSON.stringify({
       model: provider.model,
       stream: false,
-      format: "json",
+      format,
+      keep_alive: "30m",
       options: {
         temperature: 0.1,
         num_ctx: 2048,
@@ -84,6 +113,7 @@ async function callLocalModel(
 
 router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
   const controller = new AbortController();
+  const startedAt = Date.now();
   res.on("close", () => { if (!res.writableEnded) controller.abort(); });
   const input = PolishPromptBody.safeParse(req.body);
   if (!input.success) {
@@ -121,11 +151,8 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
     ], 900, controller.signal);
     res.json(PolishPromptResponse.parse(extractJson(content)));
   } catch (error) {
-    res.status(502).json({
-      error: error instanceof Error
-        ? `AI polish failed: ${error.message}`
-        : "AI polish failed. Your original prompt was not changed.",
-    });
+    const failure = aiFailure(error, "polish", startedAt);
+    if (!res.destroyed) res.status(failure.code === "AI_TIMEOUT" ? 504 : 502).json(failure);
   } finally {
     permit.release();
   }
@@ -133,6 +160,7 @@ router.post("/prompt-guidance/polish", async (req, res): Promise<void> => {
 
 router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
   const controller = new AbortController();
+  const startedAt = Date.now();
   res.on("close", () => { if (!res.writableEnded) controller.abort(); });
   const input = PolishPromptBody.safeParse(req.body);
   if (!input.success) {
@@ -157,7 +185,8 @@ router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
     "Check for contradictions between the prompt, camera, motion, dialogue, shot type, and generation mode.",
     "Check whether the visual action is physically plausible, whether speech is explicit and timed, and whether B-roll is incorrectly assigned dialogue.",
     "Respect creator intent. Do not invent characters, brands, dialogue, or requirements.",
-    "Return only JSON with exactly: summary (string), strengths (array of short strings), issues (array of up to 8 objects).",
+    "Return only JSON with exactly: summary (one short sentence), strengths (up to 3 short strings), issues (up to 3 objects). Keep each finding and fix under 20 words.",
+    "This is text-only review. Never imply that you verified or can guarantee the generated video's lighting, timing, visual quality, or adherence to the prompt.",
     "Each issue must have severity (error, warning, or tip), message (specific finding), and fix (specific next action).",
     "Return an empty issues array when there are no meaningful concerns. Do not praise generic qualities.",
   ].join(" ");
@@ -166,14 +195,11 @@ router.post("/prompt-guidance/check", async (req, res): Promise<void> => {
     const content = await callLocalModel(provider, [
       { role: "system", content: instructions },
       { role: "user", content: JSON.stringify(input.data) },
-    ], 350, controller.signal);
+    ], 600, controller.signal, checkFormat);
     res.json(CheckPromptResponse.parse(extractJson(content)));
   } catch (error) {
-    res.status(502).json({
-      error: error instanceof Error
-        ? `AI prompt check failed: ${error.message}`
-        : "AI prompt check failed.",
-    });
+    const failure = aiFailure(error, "check", startedAt);
+    if (!res.destroyed) res.status(failure.code === "AI_TIMEOUT" ? 504 : 502).json(failure);
   } finally {
     permit.release();
   }

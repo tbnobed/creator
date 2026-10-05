@@ -269,6 +269,17 @@ export default function GeneratePage() {
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
   const returnToPrompt = (event: Event) => { event.preventDefault(); promptInputRef.current?.focus(); };
   const [setupOpen, setSetupOpen] = useState(false);
+  useEffect(() => {
+    if (!setupOpen) return;
+    const closeSetupOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || document.querySelector('[role="listbox"][data-state="open"], [role="menu"][data-state="open"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSetupOpen(false);
+    };
+    window.addEventListener("keydown", closeSetupOnEscape, true);
+    return () => window.removeEventListener("keydown", closeSetupOnEscape, true);
+  }, [setupOpen]);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const submissionInFlight = useRef(false);
   const [batchCount, setBatchCount] = useState(1);
@@ -922,7 +933,7 @@ export default function GeneratePage() {
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-[#f0e6ee]"><Sparkles className="size-3.5 text-primary" /> Create a video <span className="hidden font-normal text-[#a79baa] sm:inline">/ Describe your shot</span></div>
                 <span className="font-mono text-xs text-[#bfc2bb]">{prompt.length} characters</span>
               </div>
-              <div className="mb-2 h-12 overflow-y-auto rounded-lg text-sm" role="region" aria-label="Render notices and active direction" tabIndex={0}>
+              <div className="mb-2 h-12 overflow-y-auto rounded-lg text-sm" role="region" aria-label="Render notices" tabIndex={0}>
               {acceptedJobId && (
                 <div role="status" data-testid="status-render-accepted" className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#8b426b] bg-[#382538] px-3 py-2 text-xs text-[#ffe8f4]">
                   <span>Render accepted. It will appear in your creations above.</span>
@@ -934,10 +945,12 @@ export default function GeneratePage() {
               )}
               {completionNotice && <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-secondary p-2 text-sm"><span className="min-w-0 truncate">{completionNotice}</span><Link className="shrink-0 underline" href={`/generations/${completedJobId}`}>Review render</Link><button type="button" aria-label="Dismiss completion notice" onClick={() => setCompletionNotice("")}><X className="size-4" /></button></div>}
               {cloneJobId && <div className="mb-2 flex items-center justify-between gap-3 text-sm"><span>Editing a copy of this generation</span><Button variant="outline" size="sm" onClick={() => setLocation("/studio")}>Exit edit mode</Button></div>}
-              {(cameraInstructions.trim() || motionInstructions.trim() || dialogue.trim()) && <div className="flex items-center gap-2 rounded-lg border border-primary/30 px-2 text-sm">
+              </div>
+              <div className="mb-2 flex h-10 items-center" aria-label="Persistent shot direction">
+              {(cameraInstructions.trim() || motionInstructions.trim() || dialogue.trim()) ? <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-primary/30 px-2 text-sm">
                 <button type="button" onClick={() => setComposerExpanded(true)} className="min-w-0 flex-1 truncate text-left underline">Active shot direction: {[cameraInstructions && `Camera: ${cameraInstructions}`, motionInstructions && `Motion: ${motionInstructions}`, dialogue && `Dialogue: ${dialogue}`].filter(Boolean).join(" · ")}</button>
                 <Button variant="ghost" size="sm" onClick={() => { setCameraInstructions(""); setMotionInstructions(""); setDialogue(""); }}>Clear shot direction</Button>
-              </div>}
+              </div> : <span className="text-xs text-muted-foreground">No additional shot direction</span>}
               </div>
               <div className="overflow-hidden rounded-xl border border-[#514453] bg-[#28232b] shadow-[0_10px_32px_#0004] focus-within:border-primary">
                 <Textarea
@@ -981,8 +994,9 @@ export default function GeneratePage() {
                 <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Dialogue, camera, motion & exclusions</summary>
                 <div className="space-y-4 border-t border-border/60 p-4">
                   <div className="space-y-2">
-                    <Label>Exact Dialogue Override</Label>
+                    <Label htmlFor="shot-dialogue">Exact Dialogue Override</Label>
                     <Textarea
+                      id="shot-dialogue"
                       value={dialogue}
                       onChange={event => setDialogue(event.target.value)}
                       className="h-24 bg-secondary/10 border-primary/30 focus-visible:ring-primary text-base placeholder:text-muted-foreground/50"
@@ -993,8 +1007,9 @@ export default function GeneratePage() {
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <Label>Camera Movement</Label>
+                      <Label htmlFor="shot-camera">Camera Movement</Label>
                       <Input
+                        id="shot-camera"
                         value={cameraInstructions}
                         onChange={e => setCameraInstructions(e.target.value)}
                         className="bg-secondary/20"
@@ -1002,8 +1017,9 @@ export default function GeneratePage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Motion Dynamics</Label>
+                      <Label htmlFor="shot-motion">Motion Dynamics</Label>
                       <Input
+                        id="shot-motion"
                         value={motionInstructions}
                         onChange={e => setMotionInstructions(e.target.value)}
                         className="bg-secondary/20"
@@ -1012,10 +1028,11 @@ export default function GeneratePage() {
                     </div>
                   </div>
                   <div className="space-y-2 pt-2">
-                    <Label className="text-foreground text-sm">Negative prompt · active exclusions</Label>
+                    <Label htmlFor="shot-negative" className="text-foreground text-sm">Negative prompt · active exclusions</Label>
                     <p className="text-xs text-muted-foreground">This is saved text, not a placeholder. Clear it to render without exclusions on models that support this input.</p>
                     {isCloudProvider && !promptControls.negativePrompt && <p className="text-[11px] text-[#e7c89c]" data-testid="text-negative-prompt-unsupported">{cloudModelName}{referenceImagesActive ? " reference mode" : ""} has no negative prompt input; this text stays in the draft but is not sent.</p>}
                     <Textarea
+                      id="shot-negative"
                       value={negativePrompt}
                       onChange={e => setNegativePrompt(e.target.value)}
                       className="h-24 bg-secondary/20 text-sm text-foreground border-border"
@@ -1229,7 +1246,7 @@ export default function GeneratePage() {
                       const [w, h] = v.split("x").map(Number);
                       setWidth(w); setHeight(h);
                     }}>
-                      <SelectTrigger className="bg-secondary/20">
+                      <SelectTrigger aria-label="Resolution" className="bg-secondary/20">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="z-[70]">

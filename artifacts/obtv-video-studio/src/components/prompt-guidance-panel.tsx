@@ -38,6 +38,7 @@ export function PromptGuidancePanel(props: Props) {
   const [liveEnabled, setLiveEnabled] = useState(false);
   const [fields, setFields] = useState<PromptFields>(emptyFields);
   const [builtDraft, setBuiltDraft] = useState<string | null>(null);
+  const [appliedDraft, setAppliedDraft] = useState<{ fields: string; prompt: string } | null>(null);
   const [suggestion, setSuggestion] = useState<{
     result: PromptPolishResult;
     snapshot: string;
@@ -53,9 +54,16 @@ export function PromptGuidancePanel(props: Props) {
     checkController.current?.abort();
     polishController.current?.abort();
   }, []);
-  const errorMessage = (error: unknown) => (error as { status?: number })?.status === 503
-    ? "Local AI is not configured or unavailable. Your prompt is unchanged; the local AI service needs to be connected."
-    : "AI assistance is temporarily busy or took too long. Your writing is safe. Please try again shortly.";
+  const errorMessage = (error: unknown) => {
+    const failure = error as { status?: number; data?: { code?: string } };
+    const suffix = " Your original prompt is unchanged.";
+    if (failure?.status === 429) return "Local AI is busy or its request limit was reached. Wait before retrying." + suffix;
+    if (failure?.status === 503) return "Local AI is not configured or unavailable. Check the prompt-ai service." + suffix;
+    if (failure?.data?.code === "AI_INVALID_RESPONSE") return "Local AI returned an incomplete or invalid response. Check the API logs for AI_INVALID_RESPONSE." + suffix;
+    if (failure?.data?.code === "AI_TIMEOUT") return "Local AI exceeded its three-minute processing limit. Check the prompt-ai service load." + suffix;
+    if (failure?.status === 504 || failure?.status === 502 && !failure?.data?.code) return "The server or reverse proxy ended the AI request. Check API and proxy logs and their timeout settings." + suffix;
+    return "The AI request failed. Check the API and prompt-ai logs for the cause." + suffix;
+  };
   useEffect(() => {
     if (!cooldown) return;
     const timer = window.setTimeout(() => setCooldown(false), 30000);
@@ -138,6 +146,13 @@ export function PromptGuidancePanel(props: Props) {
     const built = buildPrompt(fields);
     if (built) setBuiltDraft(built);
   };
+  const applyBuiltDraft = (append: boolean) => {
+    if (!builtDraft) return;
+    const nextPrompt = append ? [props.prompt.trim(), builtDraft].filter(Boolean).join("\n\n") : builtDraft;
+    setAppliedDraft({ fields: buildPrompt(fields) === builtDraft ? JSON.stringify(fields) : "", prompt: nextPrompt });
+    props.onPromptChange(nextPrompt);
+    setBuiltDraft(null);
+  };
   const requestPolish = () => {
     if (cooldown || polish.isPending || check.isPending) return;
     setAiCheckError("");
@@ -195,7 +210,7 @@ export function PromptGuidancePanel(props: Props) {
           </AccordionTrigger>
           <AccordionContent className="space-y-4">
             <p className="text-sm text-muted-foreground">The main prompt is what gets rendered. These fields create a preview; they never replace your writing until you explicitly apply it.</p>
-            <p className="h-6 text-sm">Builder readiness: {Object.values(fields).some(value => value.trim()) ? readinessScore(analyzePrompt({ prompt: buildPrompt(fields), cameraInstructions: props.cameraInstructions, motionInstructions: props.motionInstructions })) : 0}% · Not yet applied</p>
+            <p className="h-12 text-sm" role="status">Builder readiness: {Object.values(fields).some(value => value.trim()) ? readinessScore(analyzePrompt({ prompt: buildPrompt(fields), cameraInstructions: props.cameraInstructions, motionInstructions: props.motionInstructions })) : 0}% · {appliedDraft?.fields === JSON.stringify(fields) && appliedDraft.prompt === props.prompt ? "Applied to main prompt" : appliedDraft ? "Changed since application" : "Not yet applied"}</p>
             <div className="grid gap-3">
               {([
                 ["subject", "Subject", "Who or what is the focus?"],
@@ -215,7 +230,7 @@ export function PromptGuidancePanel(props: Props) {
               <Button type="button" size="sm" onClick={assemble} disabled={!Object.values(fields).some(value => value.trim())}>
                 <Wand2 className="mr-2 size-3.5" /> Preview built prompt
               </Button>
-              <Button type="button" size="sm" variant="ghost" disabled={!Object.values(fields).some(Boolean)} onClick={() => { setFields(emptyFields); setBuiltDraft(null); }}>
+              <Button type="button" size="sm" variant="ghost" disabled={!Object.values(fields).some(Boolean)} onClick={() => { setFields(emptyFields); setBuiltDraft(null); setAppliedDraft(null); }}>
                 <RotateCcw className="mr-2 size-3.5" /> Clear fields
               </Button>
               <Tooltip><TooltipTrigger asChild><span tabIndex={0} aria-label={disabledReason || "Create a suggestion to review before applying."}><Button type="button" size="sm" variant="secondary" onClick={requestPolish} disabled={Boolean(disabledReason)}>
@@ -226,8 +241,8 @@ export function PromptGuidancePanel(props: Props) {
               <p className="text-sm font-semibold">Built prompt preview</p>
               <p className="whitespace-pre-wrap text-sm">{builtDraft}</p>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" onClick={() => { props.onPromptChange(builtDraft); setBuiltDraft(null); }}>Replace main prompt</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => { props.onPromptChange([props.prompt.trim(), builtDraft].filter(Boolean).join("\n\n")); setBuiltDraft(null); }}>Append to main prompt</Button>
+                <Button type="button" size="sm" onClick={() => applyBuiltDraft(false)}>Replace main prompt</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => applyBuiltDraft(true)}>Append to main prompt</Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => setBuiltDraft(null)}>Discard</Button>
               </div>
             </div>}
@@ -248,6 +263,7 @@ export function PromptGuidancePanel(props: Props) {
                 </Button></span></TooltipTrigger><TooltipContent className="z-[80] max-w-72">{disabledReason || "Review the main prompt"}</TooltipContent></Tooltip>
               </div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={liveEnabled} onChange={event => setLiveEnabled(event.target.checked)} /> Check automatically after typing</label>
+              <p className="text-xs text-muted-foreground">Text review only: checks for contradictions in your instructions. It cannot predict lighting, timing, or prompt adherence in the generated video. Review the actual render before accepting it.</p>
               {aiReview && aiReview.snapshot === currentSnapshot && (
                 <div className="space-y-3 border-t border-border/50 pt-3">
                   <p className="text-xs leading-relaxed text-foreground/90">{aiReview.result.summary}</p>
@@ -272,7 +288,7 @@ export function PromptGuidancePanel(props: Props) {
                       ))}
                     </div>
                   ) : (
-                    <p className="flex gap-2 text-xs text-emerald-500"><CheckCircle2 className="size-3.5 shrink-0" /> AI found no meaningful conflicts in this draft.</p>
+                    <p className="flex gap-2 text-xs text-emerald-500"><CheckCircle2 className="size-3.5 shrink-0" /> No text conflicts detected. Render accuracy has not been checked.</p>
                   )}
                 </div>
               )}
