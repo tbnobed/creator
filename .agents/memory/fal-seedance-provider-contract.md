@@ -33,6 +33,12 @@ Seedance 2.5 editing needs a 4–30-second master, not merely a video that passe
 
 **How to apply:** Validate the requested editing window before media preparation, then validate the actual prepared master duration with editing-specific rules before inference. Leave short general-purpose references allowed. Sources: https://fal.ai/learn/tools/seedance-2-5-workflows, https://fal.ai/learn/devs/how-to-use-seedance-2-5, https://www.segmind.com/models/seedance-2.5/api.
 
+Valid Seedance editing parameters do not guarantee acceptance of real-person footage.
+
+**Why:** A duration-corrected five-second clothing edit was explicitly rejected because its inputs might contain real-person likenesses or private information. This is a provider content restriction, not a private-file read failure. It does not establish that every human image will be rejected.
+
+**How to apply:** Surface the provider's reason and do not spend on repeat submissions or transport changes to overcome this rejection. Consider an alternative model whose documented editing use case permits the intended footage, retaining its normal safety checks and requiring new paid-submission approval. Do not call the Seedance clothing-edit proof successful merely because duration validation was fixed.
+
 Treat requested MOV as an output-container conversion, not a Fal model parameter.
 
 **Why:** The comparison repository exposes MOV but Fal's checked schema does not. Remuxing a completed MP4 preserves encoded audio/video without another paid inference. A remux failure must retain the provider request and its spending state rather than generating again.
