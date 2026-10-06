@@ -5,12 +5,14 @@ import { createAndSubmitGeneration } from "./generation-service";
 import { assertGarmentKey, GarmentError } from "./garment-media";
 import { mediaStorage } from "./storage-service";
 import { prepareReplacementSource, replacementPrompt, validateReplacementRange } from "./video-replacement-media";
+import type { PixelAnimation } from "./artwork-animation-service";
 
 // Keep this shared with request-contract tests: the Seedance adapter rejects
 // fixed seeds, even though the legacy local garment API requires a seed field.
 export const replacementSampling = { seedMode: "RANDOM" } as const;
 
 export type ReplacementSubmission = {
+  pixelAnimation?: PixelAnimation;
   requestId: string; tenantId: string; userId: string;
   provider?: "LOCAL" | "FAL"; model?: "seedance-2.5" | "kling-o3-edit"; confirmPaid?: boolean;
   sourceStorageKey: string; referenceStorageKey?: string; workerId?: string;

@@ -346,7 +346,7 @@ function RangeBar({ total, start, duration }: { total: number; start: number; du
   );
 }
 
-function ResultPanel({ job, sourceUrl, start, onCancel }: { job: GarmentWorkbenchProps["job"]; sourceUrl?: string; start: number; onCancel: (id: string) => void }) {
+export function ResultPanel({ job, sourceUrl, start, onCancel }: { job: GarmentWorkbenchProps["job"]; sourceUrl?: string; start: number; onCancel: (id: string) => void }) {
   if (!job) {
     return (
       <section className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">

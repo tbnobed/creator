@@ -8,13 +8,14 @@ import {
   useListGarmentJobs,
   getListGarmentJobsQueryKey,
   useCancelGarmentJob,
+  useReuseArtworkSource,
 } from "@workspace/api-client-react";
 import type { GarmentJob as ApiGarmentJob } from "@workspace/api-client-react";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
-import { CloudReplacementWorkbench, CLOUD_MODEL, GarmentWorkbench, isActiveJob, usesReference } from "@/components/garment-studio";
-import type { CloudSubmitRequest, GarmentProvider, GarmentReference, GarmentSource, GarmentSubmitRequest } from "@/components/garment-studio";
-import { AlertTriangle, Cloud, Cpu, FlaskConical, RotateCcw, Shirt, Sparkles, Wand2 } from "lucide-react";
+import { CloudReplacementWorkbench, GarmentWorkbench, PreserveArtworkWorkbench, isActiveJob, usesReference } from "@/components/garment-studio";
+import type { PreserveSubmitRequest, CloudSubmitRequest, GarmentProvider, GarmentReference, GarmentSource, GarmentSubmitRequest } from "@/components/garment-studio";
+import { AlertTriangle, Cloud, Cpu, Lock, FlaskConical, RotateCcw, Shirt, Sparkles, Wand2 } from "lucide-react";
 
 import { prepareReferenceImage } from "@/components/garment-studio/reference-image";
 
@@ -61,12 +62,17 @@ export default function GarmentStudioPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [provider, setProvider] = useState<GarmentProvider>("LOCAL");
+  const [preserve, setPreserve] = useState(false);
+  const [plate, setPlate] = useState<GarmentReference | null>(null);
+  const [plateUploading, setPlateUploading] = useState(false);
+  const [usingResult, setUsingResult] = useState(false);
   const inFlight = useRef(false);
   const requestId = useRef<string | null>(null);
 
   const inspect = useInspectGarmentSource();
   const submit = useSubmitGarmentJob();
   const cancel = useCancelGarmentJob();
+  const reuse = useReuseArtworkSource();
 
   const jobsQuery = useListGarmentJobs({
     query: {
@@ -148,6 +154,55 @@ export default function GarmentStudioPage() {
     });
   }
 
+  async function handlePlate(file: File) {
+    if (plateUploading) return;
+    setError(null);
+    setPlateUploading(true);
+    try {
+      const normalized = await prepareReferenceImage(file);
+      const up = await uploadReferenceMedia(normalized);
+      rotateRequest();
+      setPlate({ storageKey: up.storageKey, mediaUrl: up.mediaUrl || URL.createObjectURL(file), name: file.name });
+    } catch (cause) {
+      setError(errorText(cause, "Plate upload failed."));
+    } finally {
+      setPlateUploading(false);
+    }
+  }
+
+  /** Re-inspects a finished job's output server-side; the server resolves storage by job id only. */
+  async function handleUseResult(jobId: string) {
+    if (usingResult) return;
+    setError(null);
+    setUsingResult(true);
+    try {
+      const inspected = await reuse.mutateAsync({ data: { jobId } });
+      setPlate(null);
+      setSource({ ...inspected });
+      requestId.current = null;
+    } catch (cause) {
+      setError(errorText(cause, "Could not use that result as a source."));
+    } finally {
+      setUsingResult(false);
+    }
+  }
+
+  async function handlePreserveSubmit(req: PreserveSubmitRequest) {
+    if (!source) return;
+    await send({
+      provider: "LOCAL",
+      mode: "animate-artwork",
+      artworkSource: "existing",
+      sourceStorageKey: source.sourceStorageKey,
+      prompt: req.prompt,
+      targetGarment: req.targetGarment,
+      startSeconds: req.startSeconds,
+      durationSeconds: req.durationSeconds,
+      seed: req.seed,
+      pixelAnimation: req.pixelAnimation,
+    });
+  }
+
   type SubmitBody = Omit<Parameters<typeof submit.mutateAsync>[0]["data"], "requestId">;
 
   async function send(body: SubmitBody) {
@@ -197,22 +252,51 @@ export default function GarmentStudioPage() {
         title="Video Replacement"
         description="Replace people, clothing, objects or other visible items in a clip. Choose a local experiment or a paid cloud edit."
       />
-      <div role="radiogroup" aria-label="Provider" className="mb-6 grid gap-2 sm:grid-cols-2" data-testid="provider-selector">
+      <div role="radiogroup" aria-label="Workflow" className="mb-6 grid gap-2 sm:grid-cols-3" data-testid="provider-selector">
         {([
           ["LOCAL", "Local GPU", "Free experiments on your own workers. Garment swap and artwork animation.", Cpu],
+          ["PRESERVE", "Preserve artwork", "Move original print pixels. No AI redraw, no charges.", Lock],
           ["FAL", "Cloud · Seedance 2.5", "Paid video editing. Replace any visible item. Confirmed per run.", Cloud],
-        ] as const).map(([value, label, hint, Icon]) => (
-          <button key={value} type="button" role="radio" aria-checked={provider === value}
-            disabled={sending || isActiveJob(selected)}
-            onClick={() => { if (value === provider) return; setProvider(value); setReference(null); setError(null); requestId.current = null; }}
-            className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-50 ${provider === value ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-secondary"}`}
-            data-testid={`button-provider-${value.toLowerCase()}`}>
-            <Icon className={`mt-0.5 size-5 shrink-0 ${provider === value ? "text-primary" : "text-muted-foreground"}`} />
-            <span><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
-          </button>
-        ))}
+        ] as const).map(([value, label, hint, Icon]) => {
+          const current = preserve ? "PRESERVE" : provider;
+          const on = current === value;
+          return (
+            <button key={value} type="button" role="radio" aria-checked={on}
+              disabled={sending || isActiveJob(selected)}
+              onClick={() => {
+                if (on) return;
+                setPreserve(value === "PRESERVE");
+                setProvider(value === "FAL" ? "FAL" : "LOCAL");
+                setReference(null); setPlate(null); setError(null); requestId.current = null;
+              }}
+              className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-50 ${on ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-secondary"}`}
+              data-testid={`button-provider-${value.toLowerCase()}`}>
+              <Icon className={`mt-0.5 size-5 shrink-0 ${on ? "text-primary" : "text-muted-foreground"}`} />
+              <span><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
+            </button>
+          );
+        })}
       </div>
-      {provider === "LOCAL" && (<>
+      {preserve && (
+        <PreserveArtworkWorkbench
+          source={source}
+          job={selected}
+          loading={uploading || sending || cancel.isPending}
+          error={error}
+          onUpload={(f) => { setPlate(null); handleUpload(f); }}
+          onSubmit={handlePreserveSubmit}
+          onCancel={handleCancel}
+          plate={plate}
+          plateUploading={plateUploading}
+          onPlateUpload={handlePlate}
+          onPlateClear={() => { setPlate(null); rotateRequest(); }}
+          onUseResult={handleUseResult}
+          usingResult={usingResult}
+          onInputChange={rotateRequest}
+          anyActiveJob={jobs.some(isActiveJob)}
+        />
+      )}
+      {!preserve && provider === "LOCAL" && (<>
       <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs leading-relaxed" data-testid="text-garment-experimental">
         <FlaskConical className="mt-0.5 size-4 shrink-0 text-primary" />
         <p><span className="font-semibold">Experimental local generation.</span> Outputs need human review; complex motion is not guaranteed. Each run produces a short draft proof of at most 49 frames (about 3 seconds) from the window you pick. There is no cloud fallback: if no local worker is ready, nothing runs.</p>
@@ -239,7 +323,7 @@ export default function GarmentStudioPage() {
         onArtworkSourceChange={() => rotateRequest()}
       />
       </>)}
-      {provider === "FAL" && (
+      {!preserve && provider === "FAL" && (
         <CloudReplacementWorkbench
           source={source}
           job={selected}

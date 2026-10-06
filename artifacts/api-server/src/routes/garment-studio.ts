@@ -1,9 +1,16 @@
 import { Router, type IRouter } from "express";
-import { InspectGarmentSourceBody, SubmitGarmentJobBody } from "@workspace/api-zod";
+import { InspectGarmentSourceBody, SubmitGarmentJobBody, ReuseArtworkSourceBody } from "@workspace/api-zod";
+import { reuseArtworkSource } from "../lib/artwork-animation-service";
 import { cancelGarment, inspectGarment, listGarmentJobs, listGarmentWorkers, submitGarment } from "../lib/garment-service";
 import { GarmentError } from "../lib/garment-media";
 
 const router: IRouter = Router();
+router.post("/garment-studio/artwork-source", async (req, res) => {
+  const body = ReuseArtworkSourceBody.strict().safeParse(req.body);
+  if (!body.success) { res.status(400).json({error: "Select a completed video."}); return; }
+  try { res.json(await reuseArtworkSource(req.context!.tenant!.id, body.data.jobId)); }
+  catch (error) { respond(error, res); }
+});
 function respond(error: unknown, res: import("express").Response) {
   res.status(error instanceof GarmentError ? error.statusCode : 500).json({
     error: error instanceof GarmentError ? error.message : "Video processing failed. Check the saved job before retrying.",

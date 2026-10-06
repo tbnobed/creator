@@ -1742,6 +1742,22 @@ paths:
               schema:
                 type: array
                 items: {$ref: "#/components/schemas/VideoCleanupJob"}
+  /garment-studio/artwork-source:
+    post:
+      operationId: reuseArtworkSource
+      tags: [garment-studio]
+      summary: Copy a completed workspace video into an editable source
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ArtworkSourceRequest"}
+      responses:
+        "200":
+          description: Inspected editable source
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GarmentSource"}
   /garment-studio/workers:
     get:
       operationId: listGarmentWorkers
@@ -1846,6 +1862,7 @@ components:
       type: object
       required: [requestId, sourceStorageKey, mode, prompt, targetGarment, startSeconds, durationSeconds, seed]
       properties:
+        pixelAnimation: {$ref: "#/components/schemas/PixelAnimation"}
         provider: {type: string, enum: [LOCAL, FAL]}
         model: {type: string, enum: [seedance-2.5, kling-o3-edit]}
         confirmPaid: {type: boolean}
@@ -1860,6 +1877,36 @@ components:
         startSeconds: {type: number, minimum: 0}
         durationSeconds: {type: number, minimum: 0.5, maximum: 15}
         seed: {type: number, minimum: 0, maximum: 2147483647, multipleOf: 1}
+    ArtworkSourceRequest:
+      type: object
+      required: [jobId]
+      properties:
+        jobId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+    ArtworkPoint:
+      type: object
+      required: [x, y]
+      properties:
+        x: {type: number, minimum: 0, maximum: 1}
+        y: {type: number, minimum: 0, maximum: 1}
+    ArtworkPolygon:
+      type: array
+      minItems: 3
+      maxItems: 128
+      items: {$ref: "#/components/schemas/ArtworkPoint"}
+    PixelAnimation:
+      type: object
+      required: [polygon, pivot, angleDegrees, cyclesPerSecond, inkThreshold]
+      properties:
+        polygon: {$ref: "#/components/schemas/ArtworkPolygon"}
+        pivot: {$ref: "#/components/schemas/ArtworkPoint"}
+        angleDegrees: {type: number, minimum: -35, maximum: 35}
+        cyclesPerSecond: {type: number, minimum: 0.2, maximum: 2}
+        inkThreshold: {type: number, minimum: 5, maximum: 100}
+        protectedPolygons:
+          type: array
+          maxItems: 8
+          items: {$ref: "#/components/schemas/ArtworkPolygon"}
+        cleanPlateStorageKey: {type: string}
     GarmentJobRef:
       type: object
       required: [jobId]

@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ArtworkSourceRequest,
   AttachLongFormShotStillBodyTwo,
   AuthConfig,
   AuthLoginInput,
@@ -7107,6 +7108,77 @@ export function useListVideoCleanupJobs<TData = Awaited<ReturnType<typeof listVi
 
 
 
+
+export const getReuseArtworkSourceUrl = () => {
+
+
+
+
+  return `/api/garment-studio/artwork-source`
+}
+
+/**
+ * @summary Copy a completed workspace video into an editable source
+ */
+export const reuseArtworkSource = async (artworkSourceRequest: ArtworkSourceRequest, options?: Parameters<typeof customFetch>[1]): Promise<GarmentSource> => {
+
+  return customFetch<GarmentSource>(getReuseArtworkSourceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(artworkSourceRequest)
+  }
+);}
+
+
+
+
+
+export const getReuseArtworkSourceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reuseArtworkSource>>, TError,{data: BodyType<ArtworkSourceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reuseArtworkSource>>, TError,{data: BodyType<ArtworkSourceRequest>}, TContext> => {
+
+const mutationKey = ['reuseArtworkSource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reuseArtworkSource>>, {data: BodyType<ArtworkSourceRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reuseArtworkSource(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReuseArtworkSourceMutationResult = NonNullable<Awaited<ReturnType<typeof reuseArtworkSource>>>
+    export type ReuseArtworkSourceMutationBody = BodyType<ArtworkSourceRequest>
+    export type ReuseArtworkSourceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Copy a completed workspace video into an editable source
+ */
+export const useReuseArtworkSource = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reuseArtworkSource>>, TError,{data: BodyType<ArtworkSourceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reuseArtworkSource>>,
+        TError,
+        {data: BodyType<ArtworkSourceRequest>},
+        TContext
+      > => {
+      return useMutation(getReuseArtworkSourceMutationOptions(options));
+    }
 
 export const getListGarmentWorkersUrl = () => {
 

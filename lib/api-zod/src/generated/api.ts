@@ -4420,6 +4420,25 @@ export const ListVideoCleanupJobsResponseItem = zod.object({
 export const ListVideoCleanupJobsResponse = zod.array(ListVideoCleanupJobsResponseItem)
 
 
+/**
+ * @summary Copy a completed workspace video into an editable source
+ */
+export const reuseArtworkSourceBodyJobIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const ReuseArtworkSourceBody = zod.object({
+  "jobId": zod.string().regex(reuseArtworkSourceBodyJobIdRegExp)
+})
+
+export const ReuseArtworkSourceResponse = zod.object({
+  "sourceStorageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "durationSeconds": zod.number(),
+  "width": zod.number(),
+  "height": zod.number()
+})
+
+
 export const ListGarmentWorkersResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -4460,6 +4479,41 @@ export const ListGarmentJobsResponseItem = zod.object({
 export const ListGarmentJobsResponse = zod.array(ListGarmentJobsResponseItem)
 
 
+export const submitGarmentJobBodyPixelAnimationPolygonItemXMin = 0;
+export const submitGarmentJobBodyPixelAnimationPolygonItemXMax = 1;
+
+export const submitGarmentJobBodyPixelAnimationPolygonItemYMin = 0;
+export const submitGarmentJobBodyPixelAnimationPolygonItemYMax = 1;
+
+export const submitGarmentJobBodyPixelAnimationPolygonMin = 3;
+export const submitGarmentJobBodyPixelAnimationPolygonMax = 128;
+
+export const submitGarmentJobBodyPixelAnimationPivotXMin = 0;
+export const submitGarmentJobBodyPixelAnimationPivotXMax = 1;
+
+export const submitGarmentJobBodyPixelAnimationPivotYMin = 0;
+export const submitGarmentJobBodyPixelAnimationPivotYMax = 1;
+
+export const submitGarmentJobBodyPixelAnimationAngleDegreesMin = -35;
+export const submitGarmentJobBodyPixelAnimationAngleDegreesMax = 35;
+
+export const submitGarmentJobBodyPixelAnimationCyclesPerSecondMin = 0.2;
+export const submitGarmentJobBodyPixelAnimationCyclesPerSecondMax = 2;
+
+export const submitGarmentJobBodyPixelAnimationInkThresholdMin = 5;
+export const submitGarmentJobBodyPixelAnimationInkThresholdMax = 100;
+
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemXMin = 0;
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemXMax = 1;
+
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemYMin = 0;
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemYMax = 1;
+
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsItemMin = 3;
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsItemMax = 128;
+
+export const submitGarmentJobBodyPixelAnimationProtectedPolygonsMax = 8;
+
 export const submitGarmentJobBodyRequestIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 export const submitGarmentJobBodyTargetGarmentMax = 160;
 
@@ -4478,6 +4532,24 @@ export const submitGarmentJobBodySeedMultipleOf = 1;
 
 
 export const SubmitGarmentJobBody = zod.object({
+  "pixelAnimation": zod.object({
+  "polygon": zod.array(zod.object({
+  "x": zod.number().min(submitGarmentJobBodyPixelAnimationPolygonItemXMin).max(submitGarmentJobBodyPixelAnimationPolygonItemXMax),
+  "y": zod.number().min(submitGarmentJobBodyPixelAnimationPolygonItemYMin).max(submitGarmentJobBodyPixelAnimationPolygonItemYMax)
+})).min(submitGarmentJobBodyPixelAnimationPolygonMin).max(submitGarmentJobBodyPixelAnimationPolygonMax),
+  "pivot": zod.object({
+  "x": zod.number().min(submitGarmentJobBodyPixelAnimationPivotXMin).max(submitGarmentJobBodyPixelAnimationPivotXMax),
+  "y": zod.number().min(submitGarmentJobBodyPixelAnimationPivotYMin).max(submitGarmentJobBodyPixelAnimationPivotYMax)
+}),
+  "angleDegrees": zod.number().min(submitGarmentJobBodyPixelAnimationAngleDegreesMin).max(submitGarmentJobBodyPixelAnimationAngleDegreesMax),
+  "cyclesPerSecond": zod.number().min(submitGarmentJobBodyPixelAnimationCyclesPerSecondMin).max(submitGarmentJobBodyPixelAnimationCyclesPerSecondMax),
+  "inkThreshold": zod.number().min(submitGarmentJobBodyPixelAnimationInkThresholdMin).max(submitGarmentJobBodyPixelAnimationInkThresholdMax),
+  "protectedPolygons": zod.array(zod.array(zod.object({
+  "x": zod.number().min(submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemXMin).max(submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemXMax),
+  "y": zod.number().min(submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemYMin).max(submitGarmentJobBodyPixelAnimationProtectedPolygonsItemItemYMax)
+})).min(submitGarmentJobBodyPixelAnimationProtectedPolygonsItemMin).max(submitGarmentJobBodyPixelAnimationProtectedPolygonsItemMax)).max(submitGarmentJobBodyPixelAnimationProtectedPolygonsMax).optional(),
+  "cleanPlateStorageKey": zod.string().optional()
+}).optional(),
   "provider": zod.enum(['LOCAL', 'FAL']).optional(),
   "model": zod.enum(['seedance-2.5', 'kling-o3-edit']).optional(),
   "confirmPaid": zod.boolean().optional(),

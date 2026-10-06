@@ -9,8 +9,10 @@ import type { GarmentJobSubmitRequestArtworkSource } from './garmentJobSubmitReq
 import type { GarmentJobSubmitRequestModel } from './garmentJobSubmitRequestModel';
 import type { GarmentJobSubmitRequestProvider } from './garmentJobSubmitRequestProvider';
 import type { GarmentMode } from './garmentMode';
+import type { PixelAnimation } from './pixelAnimation';
 
 export interface GarmentJobSubmitRequest {
+  pixelAnimation?: PixelAnimation;
   provider?: GarmentJobSubmitRequestProvider;
   model?: GarmentJobSubmitRequestModel;
   confirmPaid?: boolean;

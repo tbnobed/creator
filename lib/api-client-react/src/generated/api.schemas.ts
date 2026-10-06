@@ -59,7 +59,50 @@ export const GarmentJobSubmitRequestArtworkSource = {
   upload: 'upload',
 } as const;
 
+export interface ArtworkPoint {
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  x: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  y: number;
+}
+
+/**
+ * @minItems 3
+ * @maxItems 128
+ */
+export type ArtworkPolygon = ArtworkPoint[];
+
+export interface PixelAnimation {
+  polygon: ArtworkPolygon;
+  pivot: ArtworkPoint;
+  /**
+     * @minimum -35
+     * @maximum 35
+     */
+  angleDegrees: number;
+  /**
+     * @minimum 0.2
+     * @maximum 2
+     */
+  cyclesPerSecond: number;
+  /**
+     * @minimum 5
+     * @maximum 100
+     */
+  inkThreshold: number;
+  /** @maxItems 8 */
+  protectedPolygons?: ArtworkPolygon[];
+  cleanPlateStorageKey?: string;
+}
+
 export interface GarmentJobSubmitRequest {
+  pixelAnimation?: PixelAnimation;
   provider?: GarmentJobSubmitRequestProvider;
   model?: GarmentJobSubmitRequestModel;
   confirmPaid?: boolean;
@@ -90,6 +133,11 @@ export interface GarmentJobSubmitRequest {
      * @maximum 2147483647
      */
   seed: number;
+}
+
+export interface ArtworkSourceRequest {
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  jobId: string;
 }
 
 export interface GarmentJobRef {

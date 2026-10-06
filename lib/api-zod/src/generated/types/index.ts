@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './artworkPoint';
+export * from './artworkPolygon';
+export * from './artworkSourceRequest';
 export * from './attachLongFormShotStillBodyTwo';
 export * from './authConfig';
 export * from './authLoginInput';
@@ -126,6 +129,7 @@ export * from './longFormTimelineInput';
 export * from './paginatedGenerations';
 export * from './parameterMapping';
 export * from './pendingSpendingInvitation';
+export * from './pixelAnimation';
 export * from './promptCheckIssue';
 export * from './promptCheckIssueSeverity';
 export * from './promptCheckResult';

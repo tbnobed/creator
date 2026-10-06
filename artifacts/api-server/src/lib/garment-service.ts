@@ -9,6 +9,7 @@ import { probeVideoMediaProperties } from "./video-media-probe";
 import { assertGarmentKey, buildGarmentGraph, checkGarmentRuntime, GarmentError, garmentFrames, prepareGarmentSource, prepareGarmentReference, renderGarmentPrint } from "./garment-media";
 import { comfyServerLockKey, getAssignableWorker, liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { logger } from "./logger";
+import { cancelPixelAnimation, isPixelAnimation, startPixelAnimation, submitPixelAnimation } from "./artwork-animation-service";
 
 const operation = "garment-studio";
 const active = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
@@ -86,7 +87,7 @@ export async function listGarmentJobs(tenantId: string) {
     id:j.id,title:j.providerTaskMetadata.videoReplacement ? `Video replacement · ${(j.providerTaskMetadata.videoReplacement as {target:string}).target}` : j.title,
     mode:j.generationMode as ReplacementSubmission["mode"],
     provider:j.provider === "FAL" ? "FAL" : "LOCAL",
-    model:j.provider === "FAL" ? (j.providerTaskMetadata.model as string ?? "seedance-2.5") : "Wan VACE",
+    model:isPixelAnimation(j.providerTaskMetadata) ? "Original pixels · CPU" : j.provider === "FAL" ? (j.providerTaskMetadata.model as string ?? "seedance-2.5") : "Wan VACE",
     status:({UPLOADING:"queued",QUEUED:"queued",RUNNING:"running",DOWNLOADING:"running",COMPLETED:"succeeded",CANCELLED:"cancelled"} as Record<string,string>)[j.status]??"failed",
     stage:j.currentNode,sourceUrl:`/api/media/${(j.providerTaskMetadata.videoReplacement as {preparedKey?:string}|undefined)?.preparedKey ?? j.providerTaskMetadata.preparedKey ?? j.providerTaskMetadata.sourceStorageKey}`,
     maskUrl:typeof j.providerTaskMetadata.maskKey==="string"?`/api/media/${j.providerTaskMetadata.maskKey}`:null,
@@ -95,6 +96,7 @@ export async function listGarmentJobs(tenantId: string) {
   }));
 }
 export async function submitGarment(input: ReplacementSubmission) {
+  if (input.pixelAnimation) return submitPixelAnimation({...input, pixelAnimation: input.pixelAnimation});
   if (input.provider === "FAL") return submitPaidReplacement(input);
   if (input.mode === "replace-item" || input.model || input.confirmPaid) {
     throw new GarmentError(400, "General video replacement requires an explicitly selected cloud model.");
@@ -258,6 +260,7 @@ export async function cancelGarment(id: string, tenantId: string) {
   if(!active.includes(job.status)&&job.status!=="CANCELLED") throw new GarmentError(409,"Only active garment jobs can be cancelled.");
   await db.update(generationJobsTable).set({status:"CANCELLED",currentNode:null,errorMessage:"Cancellation requested."}).where(jobWhere(id));
   monitors.get(id)?.abort();
+  cancelPixelAnimation(id);
   if(job.comfyServerId&&job.comfyPromptId) {
     const [server]=await db.select().from(comfyServersTable).where(liveWorkerById(job.comfyServerId));
     if(server) {
@@ -275,6 +278,10 @@ export async function cancelGarment(id: string, tenantId: string) {
 export async function resumeGarmentJobs() {
   const rows=await db.select().from(generationJobsTable).where(inArray(generationJobsTable.status,[...active,"CANCELLED"]));
   for(const job of rows.filter(j=>j.providerTaskMetadata.operation===operation)) {
+    if (isPixelAnimation(job.providerTaskMetadata)) {
+      if (active.includes(job.status)) startPixelAnimation(job.id);
+      continue;
+    }
     if(job.status==="CANCELLED"&&job.comfyPromptId&&!job.providerTaskMetadata.cancellationConfirmed) {
       await cancelGarment(job.id,job.tenantId).catch(error=>logger.warn({err:error,jobId:job.id},"Garment cancellation remains unconfirmed"));
     } else if(job.comfyPromptId) startGarmentMonitor(job.id);

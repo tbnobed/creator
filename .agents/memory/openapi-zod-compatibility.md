@@ -8,3 +8,9 @@ OpenAPI integer, URI, and email formats currently produce Zod v4-only helpers th
 **Why:** The otherwise-valid API contract fails the shared library build because generated validators call unavailable `zod.int()`, `zod.url()`, and `zod.email()` helpers.
 
 **How to apply:** Before using a new OpenAPI numeric, URL, or email constraint in this workspace, run codegen and the shared library typecheck; keep stronger runtime validation in the route or domain service until the workspace upgrades its Zod dependency.
+
+Prefer named component schemas for request objects rather than inline object request bodies.
+
+**Why:** Orval can generate an identically named endpoint-body validator and body type in separate modules; the shared barrel then fails with duplicate-export errors.
+
+**How to apply:** Define a distinctly named request component and reference it from the operation, then regenerate both clients and validators.
