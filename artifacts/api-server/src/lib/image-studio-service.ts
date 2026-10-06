@@ -1,4 +1,5 @@
 import { assertOpaqueTopazSource, topazImageScale, TOPAZ_IMAGE_MODEL } from "./topaz-image";
+import { galleryAssetCondition, isEditorMaskName } from "./image-studio-asset-visibility";
 import {
   and,
   desc,
@@ -407,7 +408,10 @@ export async function listImageAssets(input: {
   favorite?: boolean;
   collection?: string;
 }): Promise<PresentedImageAsset[]> {
-  const conditions = [eq(imageStudioAssetsTable.tenantId, input.tenantId)];
+  const conditions = [
+    eq(imageStudioAssetsTable.tenantId, input.tenantId),
+    galleryAssetCondition(),
+  ];
   if (input.search) {
     const escaped = input.search.replace(/[\\%_]/g, "\\$&");
     conditions.push(sql`(${imageStudioAssetsTable.name} ILIKE ${`%${escaped}%`} OR ${imageStudioAssetsTable.id}::text ILIKE ${`%${escaped}%`})`);
@@ -1482,6 +1486,7 @@ export async function createUploadedAsset(input: {
     inspected.mimeType,
     input.bytes,
     input.tenantId,
+    isEditorMaskName(name) ? "mask" : "image",
   );
   try {
     const [asset] = await db

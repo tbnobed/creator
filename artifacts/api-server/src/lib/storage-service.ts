@@ -203,6 +203,7 @@ export class LocalMediaStorage {
     mimeType: string,
     bytes: Buffer,
     tenantId: string,
+    purpose: "image" | "mask" = "image",
   ): Promise<string> {
     if (!IMAGE_MIME_TYPES.has(mimeType)) throw new Error("Only JPEG, PNG, and WebP images are allowed");
     if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) {
@@ -210,7 +211,7 @@ export class LocalMediaStorage {
     }
     const key = tenantKey(
       tenantId,
-      `image-studio/${randomUUID()}${safeExtension(originalName, mimeType)}`,
+      `image-studio/${purpose === "mask" ? "mask-" : ""}${randomUUID()}${safeExtension(originalName, mimeType)}`,
     );
     const destination = resolveKey(key);
     await mkdir(path.dirname(destination), { recursive: true });

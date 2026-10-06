@@ -19,7 +19,7 @@ test("Image Studio deletion preserves references and tenant boundaries", {
   const root = await mkdtemp(path.join(tmpdir(), "obtv-image-delete-"));
   process.env.OBTV_MEDIA_ROOT = root;
   const { mediaStorage } = await import("./storage-service");
-  const { deleteImageAsset, getImageJob } = await import("./image-studio-service");
+  const { deleteImageAsset, getImageJob, createUploadedAsset, listImageAssets } = await import("./image-studio-service");
   const { default: router } = await import("../routes/image-studio");
   const { logger } = await import("./logger");
   const userId = `image-delete-test-${randomUUID()}`;
@@ -59,6 +59,41 @@ test("Image Studio deletion preserves references and tenant boundaries", {
   };
   try {
     await db.insert(usersTable).values({ id: userId, displayName: "Image deletion fixture" });
+    // Masks remain usable inputs but never appear in gallery/search results.
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+    const editorMask = await createUploadedAsset({
+      tenantId: owner.id, userId, name: `mask-${randomUUID()}.png`,
+      mimeType: "image/png", bytes: png,
+    });
+    assert.match(editorMask.storageKey, /\/image-studio\/mask-/);
+    // Renaming a new mask must not turn it into a gallery image.
+    await db.update(imageStudioAssetsTable).set({ name: "Renamed helper", favorite: true, collection: "Test" })
+      .where(eq(imageStudioAssetsTable.id, editorMask.id));
+    const legacyMask = await asset();
+    await db.update(imageStudioAssetsTable).set({ name: `mask-${randomUUID()}.png` })
+      .where(eq(imageStudioAssetsTable.id, legacyMask.id));
+    const outpaintMask = await asset();
+    await db.update(imageStudioAssetsTable).set({ name: `outpaint-mask-${randomUUID()}-1024x768.png` })
+      .where(eq(imageStudioAssetsTable.id, outpaintMask.id));
+    const renamedLegacyMask = await asset();
+    const maskJob = await job({ operation: "inpaint", maskAssetId: renamedLegacyMask.id });
+    const ordinary = await asset();
+    await db.update(imageStudioAssetsTable).set({ name: "mask-costume.png" })
+      .where(eq(imageStudioAssetsTable.id, ordinary.id));
+    const hiddenIds = [editorMask.id, legacyMask.id, outpaintMask.id, renamedLegacyMask.id];
+    const galleryResponse = await fetch(url);
+    assert.equal(galleryResponse.status, 200);
+    const gallery = await galleryResponse.json() as { assets: Array<{ id: string }> };
+    assert.ok(gallery.assets.some((item: { id: string }) => item.id === ordinary.id));
+    assert.ok(gallery.assets.every((item: { id: string }) => !hiddenIds.includes(item.id)));
+    for (const filter of [{ search: editorMask.id }, { search: "mask-" }, { favorite: true }, { collection: "Test" }]) {
+      const results = await listImageAssets({ tenantId: owner.id, ...filter });
+      assert.ok(results.every((item) => !hiddenIds.includes(item.id)));
+    }
+    assert.deepEqual(await mediaStorage.readBuffer(editorMask.storageKey), png);
+    assert.equal((await getImageJob(owner.id, maskJob.id))?.maskAssetId, renamedLegacyMask.id);
+    assert.equal(await deleteImageAsset(owner.id, editorMask.id), "deleted");
+    await assert.rejects(mediaStorage.readBuffer(editorMask.storageKey), { code: "ENOENT" });
     const source = await asset();
     assert.equal(await deleteImageAsset(other.id, source.id), "missing");
     assert.deepEqual(await mediaStorage.readBuffer(source.storageKey), bytes);
