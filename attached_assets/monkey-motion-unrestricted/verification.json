@@ -1,0 +1,21 @@
+{
+  "variant": "unrestricted",
+  "media": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1280,
+        "height": 720,
+        "duration": "5.041667"
+      },
+      {
+        "codec_type": "audio",
+        "duration": "5.013000"
+      }
+    ]
+  },
+  "sourceAudioSeconds": 5.0133125,
+  "outputAudioSeconds": 5.0133125,
+  "audioCorrelation": 0.9997707086677736
+}

@@ -23,9 +23,9 @@ The user chose replacing the garment like the Runway example rather than recolor
 
 Do not treat successful Kling O3 clothing replacement as proof of independently animated artwork.
 
-**Why:** A real reference-shirt edit produced the intended monkey-print garment, but a subsequent explicit arm-waving/head-turning/tail-curling instruction produced a visually near-unchanged print in source/output frame comparisons. A completed provider job does not establish instruction adherence.
+**Why:** A real reference-shirt edit produced the intended monkey-print garment. Strong preservation plus a still reference left the print essentially static. Removing those constraints redrew much of the art as gray outlines; targeting one monkey with explicit timed poses produced independent arm motion but replaced the original print with a large shaded cartoon. Motion and artwork fidelity are separate quality gates; successful inference proves neither.
 
-**How to apply:** Compare matched source and output frames for motion relative to the cloth, not just the actor moving. Classify an effectively static result as an unsuccessful animation test; do not repeat paid prompts without a concrete new hypothesis and authorization.
+**How to apply:** Compare matched source and output frames for motion relative to the cloth, original artwork identity/palette/texture, and believable fabric integration. Do not call a newly drawn moving cartoon a faithful print animation. Avoid repeating stronger-prompt/no-reference variations as untested fixes; require a concrete new control strategy and bounded spending authorization.
 
 The user chose “Animated shirt graphic”: a moving cartoon design that follows the shirt’s fabric and folds, not 3D-looking characters playing on its surface.
 

@@ -1,0 +1,8 @@
+{
+  "jobId": "a80634dc-04ac-45e4-987a-0b502aa3bced",
+  "prompt": "In @Video1, animate the large gray monkey printed at the center of the man's white shirt. At first its arms are raised; during seconds 1–2 lower both arms to its sides, during seconds 2–3 raise them overhead, and during seconds 3–5 wave one arm side to side twice. Make the change of pose obvious. This is a flat 2D cartoon animated inside the fabric print, never a three-dimensional creature. Keep its distressed gray ink texture, size and location. Its body and moving arms must bend with the cloth and inherit cloth shading and hand occlusion. Keep the other printed monkeys still. Keep the live-action man, his performance, shirt construction, background and camera as in the source. Only the gray monkey has NEW independent motion.",
+  "model": "kling-o3-edit",
+  "durationSeconds": 5,
+  "localAllowanceUsd": 1,
+  "referenceImages": 0
+}

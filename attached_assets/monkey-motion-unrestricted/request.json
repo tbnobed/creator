@@ -1,0 +1,8 @@
+{
+  "jobId": "15c7e05e-ecf7-4cc6-a0a6-aa4c16490bbb",
+  "prompt": "In @Video1, bring the colored monkey drawings on the man's shirt to life as clearly moving flat 2D printed cartoons. They independently dance: lower their raised arms, lift them again, wave side to side, turn their heads and swing their tails. Start this new motion immediately and continue throughout the five seconds. Their poses must visibly change independently of the man's movement. The original video shows static artwork; CHANGE that artwork into animated characters. Keep their original colored distressed ink style. They remain flat ink on the cloth, deforming with folds, shadows and hand occlusion, never floating or becoming 3D. Keep the man's face, live-action body movement, shirt construction, camera and background unchanged.",
+  "model": "kling-o3-edit",
+  "durationSeconds": 5,
+  "localAllowanceUsd": 1,
+  "referenceImages": 0
+}

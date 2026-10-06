@@ -154,3 +154,31 @@ mtime_ms = 1791325285075
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/768b1959-ba8e-41f2-875d-819ae92dbec5/2c330111-e5b4-4a52-8d6e-72b9eaeb3088"
 storage_version_token = "1791325410514961"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "Rz8HB9Al0ScJPIiqX92g7"
+uri = "file://attached_assets/monkey-motion-unrestricted/output.mp4"
+type = "video"
+title = "Test 1 — print changed to gray outlines"
+description = "Live five-second Kling O3 test without a still-image reference or source-action preservation wording. Artwork fidelity was not retained."
+logical_id = "32c7ccb4-416b-42e4-bced-3b25a7eef3de"
+content_hash = "sha256:3b0116b82aa250a0eeed533d7775b85b08f630a70fae4f4ae405a3562fbdc8df"
+size = 3381070
+mtime_ms = 1791326198707
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/32c7ccb4-416b-42e4-bced-3b25a7eef3de/cf7ea743-59c1-48a3-bda2-d2726c8b003c"
+storage_version_token = "1791326534623145"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "CzSc5XObEq2zxq3c_HtxP"
+uri = "file://attached_assets/monkey-motion-single/output.mp4"
+type = "video"
+title = "Test 2 — moving monkey, but altered artwork"
+description = "Live five-second Kling O3 test targeting one monkey. Independent arm motion is visible, but the original distressed print was replaced with a larger shaded cartoon. Original audio retained."
+logical_id = "9201df13-c761-42b5-be99-4d1444ac51c2"
+content_hash = "sha256:7bdc9149a18480cda3115ec807936d7468c4a0cd37ff6a04569b082244cf0e81"
+size = 3544770
+mtime_ms = 1791326419490
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/9201df13-c761-42b5-be99-4d1444ac51c2/bedbb8f2-ebd4-4fc8-8383-1d959836c8ae"
+storage_version_token = "1791326535218128"
+content_type = "video/mp4"
