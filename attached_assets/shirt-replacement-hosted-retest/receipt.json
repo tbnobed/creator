@@ -1,0 +1,11 @@
+{
+  "jobId": "b6d23acb-56c9-425d-8123-e96398db9fd4",
+  "model": "seedance-2.5",
+  "phase": "shirt replacement only",
+  "sourceWindow": {
+    "startSeconds": 2,
+    "durationSeconds": 3
+  },
+  "localReservationUsd": 12.89758,
+  "maxApprovedLocalEstimateUsd": 15
+}

@@ -7,8 +7,13 @@ import { quoteVideoSpend } from "../artifacts/api-server/src/lib/spending-pricin
 import { mediaStorage } from "../artifacts/api-server/src/lib/storage-service";
 import { submitPaidReplacement } from "../artifacts/api-server/src/lib/video-replacement-service";
 
-const jobId = "73f9888d-d493-4a28-91ee-df05a3eb7285";
-const folder = "attached_assets/shirt-replacement-proof";
+const hostedRetest = process.argv.includes("--hosted-retest");
+const jobId = hostedRetest
+  ? "b6d23acb-56c9-425d-8123-e96398db9fd4"
+  : "73f9888d-d493-4a28-91ee-df05a3eb7285";
+const folder = hostedRetest
+  ? "attached_assets/shirt-replacement-hosted-retest"
+  : "attached_assets/shirt-replacement-proof";
 const existing = async () => (await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, jobId)))[0];
 
 async function main() {

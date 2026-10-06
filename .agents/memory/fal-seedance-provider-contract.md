@@ -23,9 +23,9 @@ Keep tenant-private video/audio private when handing them to Fal. Fal CDN inputs
 
 For Seedance 2.5 editing, use private hosted image and video inputs with a read-access preflight, rather than mixing inline base64 images and hosted video.
 
-**Why:** A user-approved edit using mixed transports returned an unexplained upstream 422 despite passing documented media limits. Uniform hosted inputs remove a transport compatibility variable; this is not proof that base64 caused the rejection.
+**Why:** An approved edit returned the same unexplained upstream 422 with both inline-image and verified hosted-image inputs despite passing documented media limits. Uniform hosted inputs simplify access checks, but changing image transport did not resolve the rejection.
 
-**How to apply:** Keep other working Seedance modes unchanged. Verify signed access before inference, and do not describe an upstream rejection as fixed until an explicitly approved real render succeeds.
+**How to apply:** Keep other working Seedance modes unchanged. Verify signed access before inference, and do not describe an upstream rejection as fixed until an explicitly approved real render succeeds. Do not spend on further image-transport variations as though they were an untested fix; establish a specific provider-contract discrepancy first.
 
 Treat requested MOV as an output-container conversion, not a Fal model parameter.
 
