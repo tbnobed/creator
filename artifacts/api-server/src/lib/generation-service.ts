@@ -46,7 +46,7 @@ import {
   type FalModel,
   type FalQueueEndpoints,
 } from "./fal/client";
-import { uploadFalStorageFile } from "./fal/storage";
+import { uploadFalStorageFile, usesInlineSeedanceImages, verifyFalStorageRead } from "./fal/storage";
 import { FAL_MOV_FINALIZATION_ERROR, TOPAZ_FINALIZATION_ERROR, isRecoverableFalOutputFailure, remuxMp4ToMov } from "./fal/remux";
 import { measuredVideoJobMetrics, probeVideoMediaProperties } from "./video-media-probe";
 import { quoteVideoSpend } from "./spending-pricing";
@@ -1677,7 +1677,9 @@ async function createAndSubmitFalGeneration(
     if (model === "kling-v3-standard" && mimeType === "image/webp") throw new Error("Kling 3 reference images must be JPEG or PNG");
     const keyValue = process.env.FAL_KEY?.trim();
     if (!keyValue) throw new FalHttpError("FAL_KEY is not configured", null, false);
-    return uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-image", keyValue);
+    const url = await uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-image", keyValue);
+    if (model === "seedance-2.5" && input.seedanceTask === "editing") await verifyFalStorageRead(url);
+    return url;
   };
   const referenceVideoKeys = input.referenceVideoKeys ?? [];
   const referenceAudioKeys = input.referenceAudioKeys ?? [];
@@ -1701,7 +1703,7 @@ async function createAndSubmitFalGeneration(
   if (input.klingElements?.length && !input.startFrameKey) {
     throw new FalHttpError("Kling elements require a start frame", null, false);
   }
-  const imageUrls = model.startsWith("seedance") ? [
+  const imageUrls = usesInlineSeedanceImages(model, input.seedanceTask) ? [
     ...(referenceAssets.length ? await seedanceReferenceInput(referenceAssets) : []),
     ...await Promise.all([...continuityImages, ...explicitImages].map(async (key) => {
       const isPrivateUpload = key.includes("/generation-references/");
@@ -1745,7 +1747,9 @@ async function createAndSubmitFalGeneration(
     }
     const keyValue = process.env.FAL_KEY?.trim();
     if (!keyValue) throw new FalHttpError("FAL_KEY is not configured", null, false);
-    return uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-media", keyValue);
+    const url = await uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-media", keyValue);
+    if (model === "seedance-2.5" && input.seedanceTask === "editing") await verifyFalStorageRead(url);
+    return url;
   };
   const referenceVideoDuration = videoStats.reduce((total, video) => total + video.durationSeconds, 0);
   const referenceAudioDuration = audioStats.reduce((total, audio) => total + audio.durationSeconds, 0);

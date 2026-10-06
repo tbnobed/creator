@@ -21,6 +21,12 @@ Keep tenant-private video/audio private when handing them to Fal. Fal CDN inputs
 
 **How to apply:** Set a restrictive ACL on direct upload, sign a read-only URL for inference, and fail before paid submission if signing fails. Verify with synthetic media that an unsigned read is denied and a signed read works; do not test with tenant media or submit a paid render for this check.
 
+For Seedance 2.5 editing, use private hosted image and video inputs with a read-access preflight, rather than mixing inline base64 images and hosted video.
+
+**Why:** A user-approved edit using mixed transports returned an unexplained upstream 422 despite passing documented media limits. Uniform hosted inputs remove a transport compatibility variable; this is not proof that base64 caused the rejection.
+
+**How to apply:** Keep other working Seedance modes unchanged. Verify signed access before inference, and do not describe an upstream rejection as fixed until an explicitly approved real render succeeds.
+
 Treat requested MOV as an output-container conversion, not a Fal model parameter.
 
 **Why:** The comparison repository exposes MOV but Fal's checked schema does not. Remuxing a completed MP4 preserves encoded audio/video without another paid inference. A remux failure must retain the provider request and its spending state rather than generating again.

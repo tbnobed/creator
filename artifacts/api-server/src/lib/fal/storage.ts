@@ -3,6 +3,25 @@ import { FalHttpError } from "./client";
 const ACL_HEADER = "X-Fal-Object-Lifecycle-Preference";
 const SIGNED_READ_DURATION_SECONDS = 7 * 24 * 60 * 60;
 
+export function usesInlineSeedanceImages(model: string, task?: string): boolean {
+  return model.startsWith("seedance") && !(model === "seedance-2.5" && task === "editing");
+}
+
+/** Validate a private hosted input before inference can consume any spend. */
+export async function verifyFalStorageRead(url: string, fetcher: typeof fetch = fetch): Promise<void> {
+  const trusted = trustedFileUrl(url);
+  let response: Response;
+  try {
+    response = await fetcher(trusted, { method: "HEAD", signal: AbortSignal.timeout(30_000) });
+  } catch {
+    throw new FalHttpError("Cloud reference media cannot be read; no render was submitted", null, true);
+  }
+  const length = Number(response.headers.get("content-length"));
+  if (!response.ok || !Number.isFinite(length) || length <= 0) {
+    throw new FalHttpError(`Cloud reference media is unavailable or empty (${response.status}); no render was submitted`, response.status, false);
+  }
+}
+
 function trustedFileUrl(value: unknown): string {
   if (typeof value !== "string") throw new FalHttpError("Cloud returned an invalid reference media URL", null, false);
   let url: URL;

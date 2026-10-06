@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { uploadFalStorageFile } from "./storage";
+import { uploadFalStorageFile, verifyFalStorageRead, usesInlineSeedanceImages } from "./storage";
+
+test("Seedance editing uses hosted image inputs without changing other Seedance modes", () => {
+  assert.equal(usesInlineSeedanceImages("seedance-2.5", "editing"), false);
+  assert.equal(usesInlineSeedanceImages("seedance-2.5", "reference"), true);
+  assert.equal(usesInlineSeedanceImages("seedance-2.0", "reference"), true);
+});
+
+test("hosted input preflight fails closed without leaking signed URLs", async () => {
+  const url = "https://v3b.fal.media/files/b/test/source.mp4?signature=private";
+  await verifyFalStorageRead(url, async (_url, init) => {
+    assert.equal(init?.method, "HEAD");
+    return new Response(null, { status: 200, headers: { "content-length": "1234" } });
+  });
+  await assert.rejects(verifyFalStorageRead(url, async () => new Response(null, { status: 403 })), /unavailable or empty/);
+  await assert.rejects(verifyFalStorageRead(url, async () => new Response(null, { status: 200, headers: { "content-length": "0" } })), /unavailable or empty/);
+  await assert.rejects(verifyFalStorageRead("https://untrusted.example/file"), /untrusted/);
+});
 
 test("Fal storage uses restricted upload and returns only a signed read URL", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
