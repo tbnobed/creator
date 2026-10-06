@@ -12,9 +12,9 @@ import {
 import type { GarmentJob as ApiGarmentJob } from "@workspace/api-client-react";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
-import { GarmentWorkbench, isActiveJob, usesReference } from "@/components/garment-studio";
-import type { GarmentReference, GarmentSource, GarmentSubmitRequest } from "@/components/garment-studio";
-import { AlertTriangle, FlaskConical, RotateCcw, Shirt, Sparkles } from "lucide-react";
+import { CloudReplacementWorkbench, CLOUD_MODEL, GarmentWorkbench, isActiveJob, usesReference } from "@/components/garment-studio";
+import type { CloudSubmitRequest, GarmentProvider, GarmentReference, GarmentSource, GarmentSubmitRequest } from "@/components/garment-studio";
+import { AlertTriangle, Cloud, Cpu, FlaskConical, RotateCcw, Shirt, Sparkles, Wand2 } from "lucide-react";
 
 import { prepareReferenceImage } from "@/components/garment-studio/reference-image";
 
@@ -60,6 +60,7 @@ export default function GarmentStudioPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [provider, setProvider] = useState<GarmentProvider>("LOCAL");
   const inFlight = useRef(false);
   const requestId = useRef<string | null>(null);
 
@@ -114,7 +115,43 @@ export default function GarmentStudioPage() {
   }
 
   async function handleSubmit(req: GarmentSubmitRequest) {
-    if (!source || inFlight.current) return;
+    if (!source) return;
+    await send({
+      provider: "LOCAL",
+      sourceStorageKey: source.sourceStorageKey,
+      ...(usesReference(req.mode, req.artworkSource ?? "existing") && reference ? { referenceStorageKey: reference.storageKey } : {}),
+      ...(req.mode === "animate-artwork" ? { artworkSource: req.artworkSource ?? "existing" } : {}),
+      workerId: req.workerId,
+      mode: req.mode,
+      prompt: req.prompt,
+      targetGarment: req.targetGarment,
+      startSeconds: req.startSeconds,
+      durationSeconds: req.durationSeconds,
+      seed: req.seed,
+    });
+  }
+
+  async function handleCloudSubmit(req: CloudSubmitRequest) {
+    if (!source) return;
+    await send({
+      provider: "FAL",
+      model: CLOUD_MODEL,
+      confirmPaid: req.confirmPaid,
+      mode: "replace-item",
+      sourceStorageKey: source.sourceStorageKey,
+      ...(reference ? { referenceStorageKey: reference.storageKey } : {}),
+      prompt: req.prompt,
+      targetGarment: req.targetGarment,
+      startSeconds: req.startSeconds,
+      durationSeconds: req.durationSeconds,
+      seed: req.seed,
+    });
+  }
+
+  type SubmitBody = Omit<Parameters<typeof submit.mutateAsync>[0]["data"], "requestId">;
+
+  async function send(body: SubmitBody) {
+    if (inFlight.current) return;
     inFlight.current = true;
     setSending(true);
     setError(null);
@@ -122,19 +159,7 @@ export default function GarmentStudioPage() {
     requestId.current = id;
     try {
       const result = await submit.mutateAsync({
-        data: {
-          requestId: id,
-          sourceStorageKey: source.sourceStorageKey,
-          ...(usesReference(req.mode, req.artworkSource ?? "existing") && reference ? { referenceStorageKey: reference.storageKey } : {}),
-          ...(req.mode === "animate-artwork" ? { artworkSource: req.artworkSource ?? "existing" } : {}),
-          workerId: req.workerId,
-          mode: req.mode,
-          prompt: req.prompt,
-          targetGarment: req.targetGarment,
-          startSeconds: req.startSeconds,
-          durationSeconds: req.durationSeconds,
-          seed: req.seed,
-        },
+        data: { requestId: id, ...body },
       });
       requestId.current = null;
       setSelectedId(result.jobId);
@@ -169,9 +194,25 @@ export default function GarmentStudioPage() {
   return (
     <Page>
       <PageHeader
-        title="Garment Studio"
-        description="Swap any garment someone is wearing, or animate a print on it with your own motion instruction. Runs on your local GPU workers."
+        title="Video Replacement"
+        description="Replace people, clothing, objects or other visible items in a clip. Choose a local experiment or a paid cloud edit."
       />
+      <div role="radiogroup" aria-label="Provider" className="mb-6 grid gap-2 sm:grid-cols-2" data-testid="provider-selector">
+        {([
+          ["LOCAL", "Local GPU", "Free experiments on your own workers. Garment swap and artwork animation.", Cpu],
+          ["FAL", "Cloud · Seedance 2.5", "Paid video editing. Replace any visible item. Confirmed per run.", Cloud],
+        ] as const).map(([value, label, hint, Icon]) => (
+          <button key={value} type="button" role="radio" aria-checked={provider === value}
+            disabled={sending || isActiveJob(selected)}
+            onClick={() => { if (value === provider) return; setProvider(value); setReference(null); setError(null); requestId.current = null; }}
+            className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-50 ${provider === value ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-secondary"}`}
+            data-testid={`button-provider-${value.toLowerCase()}`}>
+            <Icon className={`mt-0.5 size-5 shrink-0 ${provider === value ? "text-primary" : "text-muted-foreground"}`} />
+            <span><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
+          </button>
+        ))}
+      </div>
+      {provider === "LOCAL" && (<>
       <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs leading-relaxed" data-testid="text-garment-experimental">
         <FlaskConical className="mt-0.5 size-4 shrink-0 text-primary" />
         <p><span className="font-semibold">Experimental local generation.</span> Outputs need human review; complex motion is not guaranteed. Each run produces a short draft proof of at most 49 frames (about 3 seconds) from the window you pick. There is no cloud fallback: if no local worker is ready, nothing runs.</p>
@@ -197,6 +238,23 @@ export default function GarmentStudioPage() {
         onInputChange={rotateRequest}
         onArtworkSourceChange={() => rotateRequest()}
       />
+      </>)}
+      {provider === "FAL" && (
+        <CloudReplacementWorkbench
+          source={source}
+          job={selected}
+          onUpload={handleUpload}
+          onSubmit={handleCloudSubmit}
+          onCancel={handleCancel}
+          loading={uploading || sending || cancel.isPending}
+          error={error}
+          reference={reference}
+          referenceUploading={refUploading}
+          onReferenceUpload={handleReference}
+          onReferenceClear={() => { setReference(null); rotateRequest(); }}
+          onInputChange={rotateRequest}
+        />
+      )}
 
       <section aria-labelledby="garment-jobs-heading" className="mt-8">
         <div className="mb-3 flex items-baseline justify-between">
@@ -210,7 +268,7 @@ export default function GarmentStudioPage() {
         ) : jobs.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-8 text-center">
             <Shirt className="mx-auto size-6 text-muted-foreground" />
-            <p className="mt-2 text-sm">No garment jobs yet</p>
+            <p className="mt-2 text-sm">No replacement jobs yet</p>
             <p className="mt-1 text-xs text-muted-foreground">Proofs you render are saved here and survive a reload.</p>
           </div>
         ) : (
@@ -223,11 +281,11 @@ export default function GarmentStudioPage() {
                   <button type="button" onClick={() => setSelectedId(j.id)}
                     className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${isSel ? "bg-primary/10" : "hover:bg-secondary"}`}
                     data-testid={`row-garment-job-${j.id}`}>
-                    {j.mode === "animate-artwork" ? <Sparkles className="size-4 shrink-0 text-muted-foreground" /> : <Shirt className="size-4 shrink-0 text-muted-foreground" />}
+                    {j.mode === "animate-artwork" ? <Sparkles className="size-4 shrink-0 text-muted-foreground" /> : j.mode === "replace-item" ? <Wand2 className="size-4 shrink-0 text-muted-foreground" /> : <Shirt className="size-4 shrink-0 text-muted-foreground" />}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{j.title}</span>
                       <span className="block truncate text-[11px] text-muted-foreground">
-                        {j.mode === "animate-artwork" ? "Animate artwork" : "Replace garment"} / {new Date(j.createdAt).toLocaleString()}
+                        {j.mode === "animate-artwork" ? "Animate artwork" : j.mode === "replace-item" ? "Replace item" : "Replace garment"} / {j.provider === "FAL" ? `Cloud${j.model ? ` · ${j.model}` : ""}` : "Local"} / {new Date(j.createdAt).toLocaleString()}
                         {j.stage && active ? ` / ${j.stage}` : ""}
                       </span>
                     </span>

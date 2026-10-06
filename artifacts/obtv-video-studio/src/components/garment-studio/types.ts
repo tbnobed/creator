@@ -1,4 +1,7 @@
 export type GarmentMode = "replace-garment" | "animate-artwork";
+/** All job modes, including the cloud-only generic replacement. */
+export type GarmentJobMode = GarmentMode | "replace-item";
+export type GarmentProvider = "LOCAL" | "FAL";
 
 /** Animate mode only: animate the artwork already printed on the target garment, or an uploaded design. */
 export type GarmentArtworkSource = "existing" | "upload";
@@ -33,7 +36,9 @@ export interface GarmentJob {
   sourceUrl?: string | null;
   title?: string;
   createdAt?: string;
-  mode?: GarmentMode;
+  mode?: GarmentJobMode;
+  provider?: GarmentProvider | null;
+  model?: string | null;
 }
 
 export interface GarmentReference {

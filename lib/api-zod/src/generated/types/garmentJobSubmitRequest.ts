@@ -6,9 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GarmentJobSubmitRequestArtworkSource } from './garmentJobSubmitRequestArtworkSource';
+import type { GarmentJobSubmitRequestModel } from './garmentJobSubmitRequestModel';
+import type { GarmentJobSubmitRequestProvider } from './garmentJobSubmitRequestProvider';
 import type { GarmentMode } from './garmentMode';
 
 export interface GarmentJobSubmitRequest {
+  provider?: GarmentJobSubmitRequestProvider;
+  model?: GarmentJobSubmitRequestModel;
+  confirmPaid?: boolean;
   /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
   requestId: string;
   sourceStorageKey: string;
@@ -20,7 +25,7 @@ export interface GarmentJobSubmitRequest {
      */
   targetGarment: string;
   /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
-  workerId: string;
+  workerId?: string;
   mode: GarmentMode;
   /** @maxLength 600 */
   prompt: string;
@@ -28,7 +33,7 @@ export interface GarmentJobSubmitRequest {
   startSeconds: number;
   /**
      * @minimum 0.5
-     * @maximum 3
+     * @maximum 15
      */
   durationSeconds: number;
   /**

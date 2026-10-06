@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { submitPaidReplacement, type ReplacementSubmission } from "./video-replacement-service";
+import { cancelGeneration } from "./generation-service";
 import { db, pool, comfyServersTable, generationJobsTable, type GenerationJob } from "@workspace/db";
 import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { mediaStorage } from "./storage-service";
@@ -23,7 +25,7 @@ const message = (error: unknown) => error instanceof Error ? error.message : "Lo
 async function getJob(id: string, tenantId?: string) {
   const [job] = await db.select().from(generationJobsTable).where(and(eq(generationJobsTable.id,id),
     ...(tenantId ? [eq(generationJobsTable.tenantId,tenantId)] : [])));
-  if (!job || job.providerTaskMetadata.operation !== operation) throw new GarmentError(404,"Garment job not found.");
+  if (!job || (job.providerTaskMetadata.operation !== operation && !job.providerTaskMetadata.videoReplacement)) throw new GarmentError(404,"Video replacement job not found.");
   return job;
 }
 async function source(tenantId: string, key: string) {
@@ -75,18 +77,33 @@ export async function listGarmentWorkers() {
 }
 export async function listGarmentJobs(tenantId: string) {
   const rows = await db.select().from(generationJobsTable).where(and(
-    eq(generationJobsTable.tenantId,tenantId),eq(generationJobsTable.providerModelId,operation)))
+    eq(generationJobsTable.tenantId,tenantId),or(
+      eq(generationJobsTable.providerModelId,operation),
+      sql`${generationJobsTable.providerTaskMetadata}->'videoReplacement' is not null`,
+    )))
     .orderBy(desc(generationJobsTable.createdAt)).limit(250);
-  return rows.filter(j=>j.providerTaskMetadata.operation===operation).map(j=>({
-    id:j.id,title:j.title,mode:j.generationMode as Submission["mode"],
+  return rows.filter(j=>j.providerTaskMetadata.operation===operation || j.providerTaskMetadata.videoReplacement).map(j=>({
+    id:j.id,title:j.providerTaskMetadata.videoReplacement ? `Video replacement · ${(j.providerTaskMetadata.videoReplacement as {target:string}).target}` : j.title,
+    mode:j.generationMode as ReplacementSubmission["mode"],
+    provider:j.provider === "FAL" ? "FAL" : "LOCAL",
+    model:j.provider === "FAL" ? "seedance-2.5" : "Wan VACE",
     status:({UPLOADING:"queued",QUEUED:"queued",RUNNING:"running",DOWNLOADING:"running",COMPLETED:"succeeded",CANCELLED:"cancelled"} as Record<string,string>)[j.status]??"failed",
-    stage:j.currentNode,sourceUrl:`/api/media/${j.providerTaskMetadata.preparedKey ?? j.providerTaskMetadata.sourceStorageKey}`,
+    stage:j.currentNode,sourceUrl:`/api/media/${(j.providerTaskMetadata.videoReplacement as {preparedKey?:string}|undefined)?.preparedKey ?? j.providerTaskMetadata.preparedKey ?? j.providerTaskMetadata.sourceStorageKey}`,
     maskUrl:typeof j.providerTaskMetadata.maskKey==="string"?`/api/media/${j.providerTaskMetadata.maskKey}`:null,
     outputUrl:j.status==="COMPLETED"&&j.outputStorageKey?`/api/media/${j.outputStorageKey}`:null,
     error:j.errorMessage,createdAt:j.createdAt.toISOString(),
   }));
 }
-export async function submitGarment(input: Submission) {
+export async function submitGarment(input: ReplacementSubmission) {
+  if (input.provider === "FAL") return submitPaidReplacement(input);
+  if (input.mode === "replace-item" || input.model || input.confirmPaid) {
+    throw new GarmentError(400, "General video replacement requires an explicitly selected cloud model.");
+  }
+  if (!input.workerId) throw new GarmentError(400, "Choose a local worker.");
+  return submitLocalGarment({ ...input, workerId: input.workerId, mode: input.mode });
+}
+
+async function submitLocalGarment(input: Submission) {
   assertGarmentKey(input.sourceStorageKey,input.tenantId);
   garmentFrames(input.durationSeconds);
   if (input.mode==="replace-garment") {
@@ -234,6 +251,10 @@ function startGarmentMonitor(id: string) {
 }
 export async function cancelGarment(id: string, tenantId: string) {
   const job=await getJob(id,tenantId);
+  if (job.provider === "FAL") {
+    await cancelGeneration(job.id);
+    return {jobId:id};
+  }
   if(!active.includes(job.status)&&job.status!=="CANCELLED") throw new GarmentError(409,"Only active garment jobs can be cancelled.");
   await db.update(generationJobsTable).set({status:"CANCELLED",currentNode:null,errorMessage:"Cancellation requested."}).where(jobWhere(id));
   monitors.get(id)?.abort();

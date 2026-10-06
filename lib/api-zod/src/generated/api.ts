@@ -4444,6 +4444,8 @@ export const InspectGarmentSourceResponse = zod.object({
 
 
 export const ListGarmentJobsResponseItem = zod.object({
+  "provider": zod.enum(['LOCAL', 'FAL']).optional(),
+  "model": zod.string().optional(),
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled']),
@@ -4453,7 +4455,7 @@ export const ListGarmentJobsResponseItem = zod.object({
   "outputUrl": zod.string().nullable(),
   "error": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "mode": zod.enum(['replace-garment', 'animate-artwork'])
+  "mode": zod.enum(['replace-garment', 'animate-artwork', 'replace-item'])
 })
 export const ListGarmentJobsResponse = zod.array(ListGarmentJobsResponseItem)
 
@@ -4467,7 +4469,7 @@ export const submitGarmentJobBodyPromptMax = 600;
 export const submitGarmentJobBodyStartSecondsMin = 0;
 
 export const submitGarmentJobBodyDurationSecondsMin = 0.5;
-export const submitGarmentJobBodyDurationSecondsMax = 3;
+export const submitGarmentJobBodyDurationSecondsMax = 15;
 
 export const submitGarmentJobBodySeedMin = 0;
 export const submitGarmentJobBodySeedMax = 2147483647;
@@ -4476,13 +4478,16 @@ export const submitGarmentJobBodySeedMultipleOf = 1;
 
 
 export const SubmitGarmentJobBody = zod.object({
+  "provider": zod.enum(['LOCAL', 'FAL']).optional(),
+  "model": zod.enum(['seedance-2.5']).optional(),
+  "confirmPaid": zod.boolean().optional(),
   "requestId": zod.string().regex(submitGarmentJobBodyRequestIdRegExp),
   "sourceStorageKey": zod.string(),
   "referenceStorageKey": zod.string().optional(),
   "artworkSource": zod.enum(['existing', 'upload']).optional(),
   "targetGarment": zod.string().min(1).max(submitGarmentJobBodyTargetGarmentMax),
-  "workerId": zod.string().regex(submitGarmentJobBodyWorkerIdRegExp),
-  "mode": zod.enum(['replace-garment', 'animate-artwork']),
+  "workerId": zod.string().regex(submitGarmentJobBodyWorkerIdRegExp).optional(),
+  "mode": zod.enum(['replace-garment', 'animate-artwork', 'replace-item']),
   "prompt": zod.string().max(submitGarmentJobBodyPromptMax),
   "startSeconds": zod.number().min(submitGarmentJobBodyStartSecondsMin),
   "durationSeconds": zod.number().min(submitGarmentJobBodyDurationSecondsMin).max(submitGarmentJobBodyDurationSecondsMax),

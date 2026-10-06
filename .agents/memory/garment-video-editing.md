@@ -3,6 +3,12 @@ name: Garment video editing goals
 description: Garment replacement and animated shirt content, not merely color adjustment.
 ---
 
+The user expanded this feature to Video Replacement: “we need to be able to use paid models … this should not be just a garment swap but a way to replace people object and all other items in a video.”
+
+**Why:** Garment-only editing is narrower than the intended product.
+
+**How to apply:** Offer explicit paid video editing for generic user-described targets, while retaining the experimental local garment/artwork tools. Never silently route local jobs to paid providers. Preserve source audio rather than replacing speech with generated audio; clearly disclose when provider-selected duration differs.
+
 The user chose replacing the garment like the Runway example rather than recoloring the existing shirt. They also said, “another example is that we will need to animate monkeys playing on the shirt.”
 
 **Why:** A hue adjustment does not satisfy the chosen garment-replacement scope or the animated-content use case.

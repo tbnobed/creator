@@ -62,7 +62,7 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/image-studio", label: "Image Studio", icon: Palette },
     { href: "/reference-video", label: "Reference Video", icon: Video },
     { href: "/video-cleanup", label: "Video Cleanup", icon: Eraser },
-    { href: "/garment-studio", label: "Garment Studio", icon: Shirt },
+    { href: "/garment-studio", label: "Video Replacement", icon: Shirt },
     { href: "/projects", label: "Long-Form", icon: Film },
     { href: "/characters", label: "Characters", icon: Users },
     { href: "/settings", label: "Settings", icon: Map },

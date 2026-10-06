@@ -5,10 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GarmentJobProvider } from './garmentJobProvider';
 import type { GarmentJobStatus } from './garmentJobStatus';
 import type { GarmentMode } from './garmentMode';
 
 export interface GarmentJob {
+  provider?: GarmentJobProvider;
+  model?: string;
   id: string;
   title: string;
   status: GarmentJobStatus;

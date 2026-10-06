@@ -12,4 +12,5 @@ export type GarmentMode = typeof GarmentMode[keyof typeof GarmentMode];
 export const GarmentMode = {
   'replace-garment': 'replace-garment',
   'animate-artwork': 'animate-artwork',
+  'replace-item': 'replace-item',
 } as const;

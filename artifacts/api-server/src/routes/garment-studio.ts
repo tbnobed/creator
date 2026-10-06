@@ -6,7 +6,7 @@ import { GarmentError } from "../lib/garment-media";
 const router: IRouter = Router();
 function respond(error: unknown, res: import("express").Response) {
   res.status(error instanceof GarmentError ? error.statusCode : 500).json({
-    error: error instanceof GarmentError ? error.message : "Local processing failed. Check the saved job before retrying.",
+    error: error instanceof GarmentError ? error.message : "Video processing failed. Check the saved job before retrying.",
   });
 }
 router.get("/garment-studio/workers",async (_req,res)=>{
@@ -23,8 +23,8 @@ router.get("/garment-studio/jobs",async(req,res)=>{
 });
 router.post("/garment-studio/jobs",async(req,res)=>{
   const body=SubmitGarmentJobBody.strict().safeParse(req.body);
-  if(!body.success) {res.status(400).json({error:"Invalid garment request, range, seed or worker."});return;}
-  if(!body.data.prompt.trim()) {res.status(400).json({error:"Describe the garment or how its artwork should move."});return;}
+  if(!body.success) {res.status(400).json({error:"Invalid video replacement request, range, seed or model."});return;}
+  if(!body.data.prompt.trim()) {res.status(400).json({error:"Describe what should be replaced or how the artwork should move."});return;}
   try {res.json(await submitGarment({...body.data,tenantId:req.context!.tenant!.id,userId:req.context!.user.id}));}
   catch(error) {respond(error,res);}
 });

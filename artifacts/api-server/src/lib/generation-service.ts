@@ -51,6 +51,7 @@ import { FAL_MOV_FINALIZATION_ERROR, TOPAZ_FINALIZATION_ERROR, isRecoverableFalO
 import { measuredVideoJobMetrics, probeVideoMediaProperties } from "./video-media-probe";
 import { quoteVideoSpend } from "./spending-pricing";
 import { reserveSpend, settleSpend } from "./spending-service";
+import { preserveReplacementAudio } from "./video-replacement-media";
 import { finalizeTopazOutput, type TopazPlan } from "./topaz-video";
 import { CLEANUP_FINALIZATION_ERROR, finalizeCleanupOutput, type CleanupPlan } from "./video-cleanup";
 
@@ -256,6 +257,16 @@ async function withServerSlotLock<T>(serverId: string, work: () => Promise<T>): 
 }
 
 export type GenerationRequest = {
+  /** Internal idempotency key for Video Replacement; not exposed by the composer API. */
+  jobId?: string;
+  videoReplacement?: {
+    fingerprint: string;
+    sourceStorageKey: string;
+    preparedKey: string;
+    target: string;
+    startSeconds: number;
+    durationSeconds: number;
+  };
   tenantId: string;
   createdByUserId: string;
   provider?: "COMFYUI" | "FAL";
@@ -303,6 +314,7 @@ export type GenerationRequest = {
 
 function composerRestoreMetadata(input: GenerationRequest): Record<string, unknown> {
   return {
+    ...(input.videoReplacement ? { videoReplacement: input.videoReplacement } : {}),
     composerRequest: {
       characterIds: input.characterIds ?? [],
       settingId: input.settingId ?? null,
@@ -1795,6 +1807,7 @@ async function createAndSubmitFalGeneration(
   applyFalSeedanceTask(normalized.input, model, modelId, input.seedanceTask);
   const audioMetadata = { nativeAudioEnabled: normalized.input.generate_audio };
   const [job] = await db.insert(generationJobsTable).values({
+    ...(input.jobId ? { id: input.jobId } : {}),
     tenantId: input.tenantId,
     createdByUserId: input.createdByUserId,
     title: characters[0]?.name && setting?.name
@@ -2038,6 +2051,19 @@ async function completeFalOutput(
     }
   };
   let outputProperties = await probeOutput(bytes);
+  if (metadata.videoReplacement) {
+    const replacement = metadata.videoReplacement as NonNullable<GenerationRequest["videoReplacement"]>;
+    try {
+      const source = await mediaStorage.readGenerationReferenceMedia(replacement.preparedKey);
+      bytes = await preserveReplacementAudio(bytes, source.bytes);
+      outputProperties = await probeOutput(bytes);
+      mimeType = "video/mp4";
+      outputName = `replacement-${requestId}.mp4`;
+    } catch (error) {
+      // Recover the accepted provider result; never launch another paid render.
+      throw new FalHttpError(`Video replacement audio finalization failed: ${error instanceof Error ? error.message : "unknown error"}`, null, true);
+    }
+  }
   if (metadata.operation === "video-cleanup") {
     try {
       const cleanup = metadata.cleanup as CleanupPlan & { sourceStorageKey: string };

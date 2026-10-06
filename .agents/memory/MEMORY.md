@@ -32,5 +32,5 @@
 - [Media proxy diagnosis](media-proxy-diagnosis.md) — API completion does not prove delivery; identify the actual NPM upstream and test proxy survival on interrupted transfers.
 - [Worker history preservation](worker-history-preservation.md) — Removing a fleet worker must preserve historical attribution and prevent new assignments.
 - [Video Cleanup contract](video-cleanup-contract.md) — Both camera modes use tracked short-shot removal; preserve source audio and distinguish local allowances from provider prices.
-- [Garment video editing](garment-video-editing.md) — User wants garment replacement, plus animated monkeys playing on the shirt—not recoloring alone.
+- [Video replacement](garment-video-editing.md) — Paid editing must cover people, objects, and clothing; keep local garment/artwork experiments separate.
 - [Image Studio safety](image-studio-safety.md) — Keep model choices per mode; distinguish app safety limits from native model capacity.

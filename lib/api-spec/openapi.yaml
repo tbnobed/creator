@@ -1841,11 +1841,14 @@ components:
         height: {type: number}
     GarmentMode:
       type: string
-      enum: [replace-garment, animate-artwork]
+      enum: [replace-garment, animate-artwork, replace-item]
     GarmentJobSubmitRequest:
       type: object
-      required: [requestId, sourceStorageKey, workerId, mode, prompt, targetGarment, startSeconds, durationSeconds, seed]
+      required: [requestId, sourceStorageKey, mode, prompt, targetGarment, startSeconds, durationSeconds, seed]
       properties:
+        provider: {type: string, enum: [LOCAL, FAL]}
+        model: {type: string, enum: [seedance-2.5]}
+        confirmPaid: {type: boolean}
         requestId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
         sourceStorageKey: {type: string}
         referenceStorageKey: {type: string}
@@ -1855,7 +1858,7 @@ components:
         mode: {$ref: "#/components/schemas/GarmentMode"}
         prompt: {type: string, maxLength: 600}
         startSeconds: {type: number, minimum: 0}
-        durationSeconds: {type: number, minimum: 0.5, maximum: 3}
+        durationSeconds: {type: number, minimum: 0.5, maximum: 15}
         seed: {type: number, minimum: 0, maximum: 2147483647, multipleOf: 1}
     GarmentJobRef:
       type: object
@@ -1869,6 +1872,8 @@ components:
       type: object
       required: [id, title, status, stage, sourceUrl, maskUrl, outputUrl, error, createdAt, mode]
       properties:
+        provider: {type: string, enum: [LOCAL, FAL]}
+        model: {type: string}
         id: {type: string}
         title: {type: string}
         status: {$ref: "#/components/schemas/GarmentJobStatus"}
