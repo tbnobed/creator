@@ -1739,7 +1739,7 @@ async function createAndSubmitFalGeneration(
     images: imageStats,
     videos: videoStats,
     audios: audioStats,
-  });
+  }, input.seedanceTask);
   const toFalMediaUrl = async (key: string) => {
     const { mimeType, bytes } = await mediaStorage.readGenerationReferenceMedia(key);
     if (!mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {

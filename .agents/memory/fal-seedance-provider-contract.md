@@ -27,6 +27,12 @@ For Seedance 2.5 editing, use private hosted image and video inputs with a read-
 
 **How to apply:** Keep other working Seedance modes unchanged. Verify signed access before inference, and do not describe an upstream rejection as fixed until an explicitly approved real render succeeds. Do not spend on further image-transport variations as though they were an untested fix; establish a specific provider-contract discrepancy first.
 
+Seedance 2.5 editing needs a 4–30-second master, not merely a video that passes the general 1.8–30.2-second reference-video limits. The replacement feature may impose its own lower maximum.
+
+**Why:** The unsuccessful paid proofs used three-second masters. Fal documents a 4–30-second output range and editing that follows the master duration; Segmind explicitly documents 4–30-second editing inputs for the same model. Transport-only changes did not fix these requests. The duration mismatch is established, but the generic Fal 422 does not prove it was the only rejection cause.
+
+**How to apply:** Validate the requested editing window before media preparation, then validate the actual prepared master duration with editing-specific rules before inference. Leave short general-purpose references allowed. Sources: https://fal.ai/learn/tools/seedance-2-5-workflows, https://fal.ai/learn/devs/how-to-use-seedance-2-5, https://www.segmind.com/models/seedance-2.5/api.
+
 Treat requested MOV as an output-container conversion, not a Fal model parameter.
 
 **Why:** The comparison repository exposes MOV but Fal's checked schema does not. Remuxing a completed MP4 preserves encoded audio/video without another paid inference. A remux failure must retain the provider request and its spending state rather than generating again.

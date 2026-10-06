@@ -22,7 +22,7 @@ test("saved cloud replacements are idempotent, tenant scoped, and visible with t
       model: "seedance-2.5", confirmPaid: true, mode: "replace-item",
       targetGarment: "The red car", prompt: "Replace it with a bicycle",
       sourceStorageKey: `tenants/${owners[0].id}/generation-references/${randomUUID()}.mp4`,
-      startSeconds: 0, durationSeconds: 3, seed: 1,
+      startSeconds: 0, durationSeconds: 4, seed: 1,
     };
     const fingerprint = createHash("sha256").update(JSON.stringify({ ...input, userId: undefined })).digest("hex");
     await db.insert(generationJobsTable).values({

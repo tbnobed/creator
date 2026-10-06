@@ -168,10 +168,20 @@ export type FalReferenceMediaStats = {
 
 const MiB = 1024 * 1024;
 
-export function validateFalReferenceMediaLimits(model: FalModel, stats: FalReferenceMediaStats): void {
+export function validateFalReferenceMediaLimits(model: FalModel, stats: FalReferenceMediaStats, task?: "reference" | "editing" | "extension"): void {
   const images = stats.images ?? [];
   const videos = stats.videos ?? [];
   const audios = stats.audios ?? [];
+  // General reference clips can be 1.8s. Editing instead preserves the master
+  // video's length, which must fit Seedance 2.5's 4–30s output range.
+  // https://www.segmind.com/models/seedance-2.5/api explicitly documents this
+  // editing-specific restriction, unlike the general reference-video schema.
+  if (model === "seedance-2.5" && task === "editing") {
+    const duration = videos[0]?.durationSeconds;
+    if (typeof duration !== "number" || !Number.isFinite(duration) || duration < 4 || duration > 30) {
+      throw new FalHttpError("Seedance 2.5 editing requires a source video of 4–30 seconds; shorter clips are supported only as general references", null, false);
+    }
+  }
   const assertSize = (size: number, maximum: number, description: string) => {
     if (!Number.isSafeInteger(size) || size <= 0 || size > maximum) {
       throw new FalHttpError(`${description} exceeds the provider's supported file size`, null, false);

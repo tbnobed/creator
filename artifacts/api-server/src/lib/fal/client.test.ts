@@ -34,6 +34,18 @@ const request = {
   seed: 42,
 };
 
+test("Seedance editing rejects short masters while general references retain their documented range", () => {
+  const video = { sizeBytes: 1024, durationSeconds: 3, width: 640, height: 360, fps: 24 };
+  assert.doesNotThrow(() => validateFalReferenceMediaLimits("seedance-2.5", {videos:[video]}, "reference"));
+  for (const durationSeconds of [1.8, 3, 3.99, 30.1, NaN]) {
+    assert.throws(() => validateFalReferenceMediaLimits("seedance-2.5", {videos:[{...video,durationSeconds}]}, "editing"), /4–30 seconds/);
+  }
+  for (const durationSeconds of [4, 5, 30]) {
+    assert.doesNotThrow(() => validateFalReferenceMediaLimits("seedance-2.5", {videos:[{...video,durationSeconds}]}, "editing"));
+  }
+  assert.throws(() => validateFalReferenceMediaLimits("seedance-2.5", {}, "editing"), /4–30 seconds/);
+});
+
 test("Veo and Omni enforce native 720p before any paid provider request", () => {
   for (const model of ["veo-3.1-fast", "gemini-omni-flash"] as const) {
     assert.throws(() => normalizeFalRequest(model, { ...request, seed: null, outputResolution: "1080p" }), /720p/);

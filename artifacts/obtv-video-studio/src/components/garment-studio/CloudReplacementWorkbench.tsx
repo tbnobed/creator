@@ -5,7 +5,7 @@ import { AlertTriangle, Cloud, Download, ImagePlus, Loader2, Square, Upload, Wan
 import type { GarmentJob, GarmentReference, GarmentSource } from "./types";
 import { ACCEPTED_UPLOAD, fileProblem, isActiveJob, MAX_PROMPT_CHARS, MAX_TARGET_CHARS } from "./validation";
 
-export const CLOUD_MIN_SECONDS = 2;
+export const CLOUD_MIN_SECONDS = 4;
 export const CLOUD_MAX_SECONDS = 15;
 export const CLOUD_MODEL = "seedance-2.5" as const;
 

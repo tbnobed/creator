@@ -50,6 +50,9 @@ try {
   await expect(run).toBeDisabled();
   await page.getByTestId("input-cloud-duration").fill("3");
   await consent.check();
+  await expect(run).toBeDisabled();
+  await page.getByTestId("input-cloud-duration").fill("4");
+  await consent.check();
   await run.click();
   await expect(page.getByText("Could not confirm the job was created.", { exact: false })).toBeVisible();
   await run.click();

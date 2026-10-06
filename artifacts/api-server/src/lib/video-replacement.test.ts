@@ -17,7 +17,7 @@ const request: ReplacementSubmission = {
   sourceStorageKey: `tenants/${tenant}/generation-references/33333333-3333-4333-8333-333333333333.mp4`,
   provider: "FAL", model: "seedance-2.5", confirmPaid: true, mode: "replace-item",
   targetGarment: "The person on the left", prompt: "Replace them with a robot",
-  startSeconds: 0, durationSeconds: 2, seed: 42,
+  startSeconds: 0, durationSeconds: 4, seed: 42,
 };
 
 test("paid replacement explicitly requires model, mode, and cost consent before media or provider access", () => {
@@ -26,6 +26,7 @@ test("paid replacement explicitly requires model, mode, and cost consent before 
     { confirmPaid: false }, { confirmPaid: undefined }, { model: undefined },
     { provider: "LOCAL" as const }, { mode: "animate-artwork" as const },
     { workerId: tenant }, { prompt: "" }, { targetGarment: "" },
+    { durationSeconds: 3 }, { durationSeconds: 3.99 }, { durationSeconds: 16 },
     { sourceStorageKey: request.sourceStorageKey.replace(tenant, request.requestId) },
   ]) assert.throws(() => validatePaidReplacement({ ...request, ...change }));
 });
@@ -48,7 +49,8 @@ test("replacement targets people, objects, and garments, with optional reference
   for (const [start, duration, total] of [[-1, 2, 5], [0, 1, 5], [0, 16, 30], [4, 2, 5], [NaN, 2, 5]]) {
     assert.throws(() => validateReplacementRange(start, duration, total));
   }
-  assert.doesNotThrow(() => validateReplacementRange(2, 3, 5));
+  assert.throws(() => validateReplacementRange(2, 3, 5), /at least 4 seconds/);
+  assert.doesNotThrow(() => validateReplacementRange(2, 4, 6));
 });
 
 test("real FFmpeg window preparation retains resolution/audio; finalization strips synthetic audio and keeps provider duration", async () => {
@@ -57,21 +59,21 @@ test("real FFmpeg window preparation retains resolution/audio; finalization stri
   try {
     const source = path.join(dir, "source.mp4"), silent = path.join(dir, "silent.mp4");
     await execute("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=640x360:r=30",
-      "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "4",
+      "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "6",
       "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-y", source]);
     await execute("ffmpeg", ["-v", "error", "-i", source, "-an", "-c:v", "copy", "-y", silent]);
-    const prepared = await prepareReplacementSource(await readFile(source), 1, 2);
+    const prepared = await prepareReplacementSource(await readFile(source), 1, 4);
     const props = await probeVideoMediaProperties(prepared);
     assert.equal(props.width, 640);
     assert.equal(props.height, 360);
     assert.equal(props.fps, 24);
     assert.equal(props.audioStreams, 1);
-    assert.ok(Math.abs(props.durationSeconds - 2) < .1);
+    assert.ok(Math.abs(props.durationSeconds - 4) < .1);
     const final = await preserveReplacementAudio(await readFile(silent), prepared);
     const finalProps = await probeVideoMediaProperties(final);
     assert.equal(finalProps.audioStreams, 1);
-    assert.ok(Math.abs(finalProps.durationSeconds - 4) < .1);
-    const noAudioSource = await prepareReplacementSource(await readFile(silent), 0, 2);
+    assert.ok(Math.abs(finalProps.durationSeconds - 6) < .1);
+    const noAudioSource = await prepareReplacementSource(await readFile(silent), 0, 4);
     const noSyntheticSpeech = await preserveReplacementAudio(await readFile(source), noAudioSource);
     assert.equal((await probeVideoMediaProperties(noSyntheticSpeech)).audioStreams, 0);
   } finally {

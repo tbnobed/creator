@@ -4,7 +4,7 @@ import { db, pool, generationJobsTable } from "@workspace/db";
 import { createAndSubmitGeneration } from "./generation-service";
 import { assertGarmentKey, GarmentError } from "./garment-media";
 import { mediaStorage } from "./storage-service";
-import { prepareReplacementSource, replacementPrompt } from "./video-replacement-media";
+import { prepareReplacementSource, replacementPrompt, validateReplacementRange } from "./video-replacement-media";
 
 // Keep this shared with request-contract tests: the Seedance adapter rejects
 // fixed seeds, even though the legacy local garment API requires a seed field.
@@ -24,6 +24,7 @@ export function validatePaidReplacement(input: ReplacementSubmission) {
     throw new GarmentError(400, "Choose Seedance 2.5 for cloud video replacement.");
   }
   if (input.confirmPaid !== true) throw new GarmentError(400, "Confirm paid cloud processing before submitting.");
+  validateReplacementRange(input.startSeconds, input.durationSeconds, input.startSeconds + input.durationSeconds);
   if (!input.prompt.trim() || input.prompt.length > 600 || !input.targetGarment.trim() || input.targetGarment.length > 160) {
     throw new GarmentError(400, "Describe the target and the replacement you want.");
   }

@@ -10,8 +10,8 @@ const execute = promisify(execFile);
 
 export function validateReplacementRange(start: number, duration: number, sourceDuration: number) {
   if (!Number.isFinite(start) || !Number.isFinite(duration) || !Number.isFinite(sourceDuration) || start < 0
-    || duration < 2 || duration > 15 || start + duration > sourceDuration + .001) {
-    throw new GarmentError(400, "Select a 2–15 second window entirely inside the source video.");
+    || duration < 4 || duration > 15 || start + duration > sourceDuration + .001) {
+    throw new GarmentError(400, "Select a 4–15 second window entirely inside the source video. Seedance editing requires at least 4 seconds.");
   }
 }
 
