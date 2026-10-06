@@ -72,8 +72,9 @@ test("Omni sends only documented text, aspect, and integer duration", () => {
   assert.throws(() => normalizeFalRequest("gemini-omni-flash", { ...request, seed: null, aspectRatio: "1:1" }), /16:9 or 9:16/);
 });
 
-test("every Cloud video model normalizes a text-only request without references", () => {
+test("text-generation models normalize text-only requests; the editor rejects fixed-seed text requests", () => {
   assert.deepEqual(Object.keys(falModels), [
+    "kling-o3-edit",
     "veo-3.1-fast",
     "gemini-omni-flash",
     "kling-v3-standard",
@@ -84,6 +85,10 @@ test("every Cloud video model normalizes a text-only request without references"
   ]);
 
   for (const model of Object.keys(falModels) as Array<keyof typeof falModels>) {
+    if (model === "kling-o3-edit") {
+      assert.throws(() => normalizeFalRequest(model, request), /Unsupported Kling O3/);
+      continue;
+    }
     const normalized = normalizeFalRequest(model, model === "gemini-omni-flash" ? { ...request, seed: null } : request);
 
     assert.equal(normalized.input.prompt, request.prompt, model);

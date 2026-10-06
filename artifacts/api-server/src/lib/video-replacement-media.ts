@@ -8,10 +8,10 @@ import { probeVideoMediaProperties } from "./video-media-probe";
 
 const execute = promisify(execFile);
 
-export function validateReplacementRange(start: number, duration: number, sourceDuration: number) {
+export function validateReplacementRange(start: number, duration: number, sourceDuration: number, model = "seedance-2.5") {
   if (!Number.isFinite(start) || !Number.isFinite(duration) || !Number.isFinite(sourceDuration) || start < 0
-    || duration < 4 || duration > 15 || start + duration > sourceDuration + .001) {
-    throw new GarmentError(400, "Select a 4–15 second window entirely inside the source video. Seedance editing requires at least 4 seconds.");
+    || duration < (model === "kling-o3-edit" ? 3 : 4) || duration > 15 || start + duration > sourceDuration + .001) {
+    throw new GarmentError(400, model === "kling-o3-edit" ? "Select a 3–15 second window entirely inside the source video." : "Select a 4–15 second window entirely inside the source video. Seedance editing requires at least 4 seconds.");
   }
 }
 
@@ -23,9 +23,12 @@ export function replacementPrompt(target: string, instruction: string, reference
     + "Preserve the source action and timing. Do not add cuts.";
 }
 
-export async function prepareReplacementSource(bytes: Buffer, start: number, duration: number) {
+export async function prepareReplacementSource(bytes: Buffer, start: number, duration: number, model = "seedance-2.5") {
   const props = await probeVideoMediaProperties(bytes);
-  validateReplacementRange(start, duration, props.durationSeconds);
+  if (model === "kling-o3-edit" && (!props.width || !props.height || Math.min(props.width, props.height) < 720 || Math.max(props.width, props.height) > 3840)) {
+    throw new GarmentError(400, "Kling O3 requires source video sides of 720–3840 pixels. Resize the source before submitting.");
+  }
+  validateReplacementRange(start, duration, props.durationSeconds, model);
   if (!props.width || !props.height || Math.min(props.width, props.height) < 300
     || Math.max(props.width, props.height) > 4096
     || props.width / props.height < .4 || props.width / props.height > 2.5) {

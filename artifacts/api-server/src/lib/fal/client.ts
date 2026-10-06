@@ -1,4 +1,5 @@
 export const falModels = {
+  "kling-o3-edit": "fal-ai/kling-video/o3/standard/video-to-video/edit",
   "veo-3.1-fast": "fal-ai/veo3.1/fast",
   "gemini-omni-flash": "google/gemini-omni-flash",
   "kling-v3-standard": "fal-ai/kling-video/v3/standard/text-to-video",
@@ -50,6 +51,7 @@ export function klingImageElements(
 export const TOPAZ_VIDEO_ENDPOINT = "fal-ai/topaz/upscale/video";
 export type FalQueueModel = FalModel | "topaz-upscale" | "video-cleanup";
 const falEndpointsByModel: Record<FalQueueModel, readonly string[]> = {
+  "kling-o3-edit": [falModels["kling-o3-edit"]],
   "video-cleanup": ["bria/video/erase/keypoints"],
   "topaz-upscale": [TOPAZ_VIDEO_ENDPOINT],
   "veo-3.1-fast": [falModels["veo-3.1-fast"], ...Object.values(falVeoImageModels)],
@@ -64,6 +66,16 @@ const falEndpointsByModel: Record<FalQueueModel, readonly string[]> = {
 export function falModelFromEndpoint(endpoint: string): FalQueueModel | undefined {
   return (Object.entries(falEndpointsByModel)
     .find(([, endpoints]) => endpoints.includes(endpoint))?.[0]) as FalQueueModel | undefined;
+}
+
+export function attachFalVideoReferences(input: Record<string, unknown>, model: FalModel, videos: string[], audios: string[]): void {
+  if (model === "kling-o3-edit") {
+    if (videos.length !== 1 || audios.length) throw new FalHttpError("Kling O3 editing requires exactly one source video and no audio references", null, false);
+    input.video_url = videos[0];
+  } else {
+    if (videos.length) input.video_urls = videos;
+    if (audios.length) input.audio_urls = audios;
+  }
 }
 
 export function selectFalGenerationEndpoint(
@@ -82,6 +94,10 @@ export function selectFalGenerationEndpoint(
   const audioCount = references.audioCount ?? 0;
   const hasFrames = Boolean(references.hasStartFrame || references.hasEndFrame);
   const hasLists = imageCount + videoCount + audioCount > 0;
+  if (model === "kling-o3-edit") {
+    if (videoCount !== 1 || imageCount > 4 || audioCount || hasFrames || references.task) throw new FalHttpError("Kling O3 editing requires one video, up to four images, and no frame/audio/Seedance settings", null, false);
+    return falModels[model];
+  }
   if (references.hasEndFrame && !references.hasStartFrame) {
     throw new FalHttpError("An end frame requires a start frame", null, false);
   }
@@ -214,6 +230,12 @@ export function validateFalReferenceMediaLimits(model: FalModel, stats: FalRefer
     }
   };
   for (const image of images) assertSize(image.sizeBytes, model === "veo-3.1-fast" ? 8 * MiB : 30 * MiB, "Reference image");
+  if (model === "kling-o3-edit") {
+    if (videos.length !== 1 || images.length > 4 || audios.length) throw new FalHttpError("Kling O3 editing requires one video and at most four images", null, false);
+    assertSize(videos[0].sizeBytes, 200 * MiB, "Kling O3 source");
+    assertDuration(videos[0].durationSeconds, 3, 15, "Kling O3 source");
+    assertVideoGeometry(videos[0], "Kling O3", {minimum:720, maximum:3840});
+  }
   for (const audio of audios) assertSize(audio.sizeBytes, 15 * MiB, "Reference audio");
 
   if (model === "seedance-2.0" || model === "seedance-2.0-mini" || model === "seedance-2.0-fast") {
@@ -424,6 +446,10 @@ export function normalizeFalRequest(
       seedanceTask?: "reference" | "editing" | "extension";
   },
 ): NormalizedFalRequest {
+  if (model === "kling-o3-edit") {
+    if (request.durationSeconds < 3 || request.durationSeconds > 15 || request.seed != null || request.negativePrompt || request.seedanceTask || request.startFrameUrl || request.endFrameUrl || request.aspectRatio) throw new FalHttpError("Unsupported Kling O3 editing settings", null, false);
+    return { ...request, frameCount: Math.round(request.durationSeconds * request.fps), input: {prompt:request.prompt, keep_audio:true} };
+  }
   const inferredAspect = aspectRatio(request.width, request.height);
   const aspect = model.startsWith("seedance") || request.aspectRatio
     ? request.aspectRatio ?? inferredAspect

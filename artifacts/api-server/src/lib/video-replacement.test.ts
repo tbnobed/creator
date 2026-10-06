@@ -10,6 +10,55 @@ import { validatePaidReplacement, replacementSampling, type ReplacementSubmissio
 import { prepareReplacementSource, preserveReplacementAudio, replacementPrompt, validateReplacementRange } from "./video-replacement-media";
 import { garmentFrames } from "./garment-media";
 import { probeVideoMediaProperties } from "./video-media-probe";
+import { normalizeFalRequest, selectFalGenerationEndpoint, falModelFromEndpoint, validateFalReferenceMediaLimits } from "./fal/client";
+import { quoteVideoSpend } from "./spending-pricing";
+import { attachFalVideoReferences, FalQueueClient } from "./fal/client";
+
+test("Kling queue submission, monitoring and cancellation use mocked provider responses only", {skip:!process.env.FAL_KEY}, async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{url:string;method:string;body?:unknown}> = [];
+  const base = "https://queue.fal.run/fal-ai/kling-video/requests/mock-only";
+  globalThis.fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    calls.push({url:String(url),method,body:init?.body ? JSON.parse(String(init.body)) : undefined});
+    if (method === "POST") return Response.json({request_id:"mock-only",status_url:base+"/status",response_url:base,cancel_url:base+"/cancel"});
+    if (String(url).endsWith("/status")) return Response.json({status:"COMPLETED"});
+    if (method === "PUT") return Response.json({});
+    return Response.json({video:{url:"https://v3b.fal.media/files/b/fixture/output.mp4"}});
+  };
+  try {
+    const input = normalizeFalRequest("kling-o3-edit", {prompt:"Replace shirt using @Image1 in @Video1",width:1280,height:720,durationSeconds:5,fps:24,qualityPreset:"STANDARD"}).input;
+    input.image_urls = ["https://v3b.fal.media/files/b/fixture/shirt.png"];
+    attachFalVideoReferences(input,"kling-o3-edit",["https://v3b.fal.media/files/b/fixture/source.mp4"],[]);
+    const client = new FalQueueClient("kling-o3-edit");
+    const receipt = await client.submit(input);
+    assert.equal(calls[0].url,"https://queue.fal.run/fal-ai/kling-video/o3/standard/video-to-video/edit");
+    assert.deepEqual(Object.keys(calls[0].body as object).sort(), ["image_urls","keep_audio","prompt","video_url"]);
+    assert.equal(input.keep_audio,true);
+    assert.equal((await client.status(receipt.endpoints)).status,"COMPLETED");
+    assert.ok((await client.result(receipt.endpoints)).video);
+    await client.cancel(receipt.endpoints);
+    assert.equal(calls.at(-1)?.method,"PUT");
+    assert.equal(calls.length,4);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("Kling edit contract, limits, recovery model and local allowance", async () => {
+  const model = "kling-o3-edit";
+  const endpoint = selectFalGenerationEndpoint(model, {videoCount:1,imageCount:1});
+  assert.equal(endpoint, "fal-ai/kling-video/o3/standard/video-to-video/edit");
+  assert.equal(falModelFromEndpoint(endpoint), model);
+  assert.throws(() => selectFalGenerationEndpoint(model), /one video/);
+  const normalized = normalizeFalRequest(model, {prompt:"Edit @Video1 with @Image1",width:1280,height:720,durationSeconds:5,fps:24,qualityPreset:"STANDARD"});
+  assert.deepEqual(normalized.input, {prompt:"Edit @Video1 with @Image1",keep_audio:true});
+  const stats = {videos:[{sizeBytes:1000,durationSeconds:3,width:1280,height:720,fps:24}]};
+  assert.doesNotThrow(() => validateFalReferenceMediaLimits(model, stats));
+  assert.throws(() => validateFalReferenceMediaLimits(model,{videos:[{...stats.videos[0],height:360}]}), /dimensions/);
+  assert.throws(() => validateFalReferenceMediaLimits(model,{videos:[{...stats.videos[0],durationSeconds:16}]}), /duration/);
+  assert.doesNotThrow(() => validatePaidReplacement({...request,model,durationSeconds:3}));
+  const quote = await quoteVideoSpend(endpoint,{duration:5,resolution:"720p"});
+  assert.ok(quote.estimatedUsd >= 1);
+});
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const request: ReplacementSubmission = {

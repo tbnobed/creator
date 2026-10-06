@@ -4479,7 +4479,7 @@ export const submitGarmentJobBodySeedMultipleOf = 1;
 
 export const SubmitGarmentJobBody = zod.object({
   "provider": zod.enum(['LOCAL', 'FAL']).optional(),
-  "model": zod.enum(['seedance-2.5']).optional(),
+  "model": zod.enum(['seedance-2.5', 'kling-o3-edit']).optional(),
   "confirmPaid": zod.boolean().optional(),
   "requestId": zod.string().regex(submitGarmentJobBodyRequestIdRegExp),
   "sourceStorageKey": zod.string(),

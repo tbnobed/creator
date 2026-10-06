@@ -9,6 +9,12 @@ The user expanded this feature to Video Replacement: “we need to be able to us
 
 **How to apply:** Offer explicit paid video editing for generic user-described targets, while retaining the experimental local garment/artwork tools. Never silently route local jobs to paid providers. Preserve source audio rather than replacing speech with generated audio; clearly disclose when provider-selected duration differs.
 
+Use Kling O3 Standard's dedicated video-editing endpoint as the first alternative to Seedance, not Kling 3 Standard text/image generation.
+
+**Why:** The documented O3 editor accepts an existing video, appearance-reference images, and source-audio retention, matching replacement requirements without requiring a Pro-tier feature.
+
+**How to apply:** Keep editing-only capability checks separate from text-to-video defaults. Treat the local per-second cost allowance as an estimate, not a provider bill. Adding or mock-testing the model does not authorize paid inference or establish output quality.
+
 The user chose replacing the garment like the Runway example rather than recoloring the existing shirt. They also said, “another example is that we will need to animate monkeys playing on the shirt.”
 
 **Why:** A hue adjustment does not satisfy the chosen garment-replacement scope or the animated-content use case.

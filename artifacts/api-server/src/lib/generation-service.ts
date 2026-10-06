@@ -18,6 +18,7 @@ import {
   type GenerationJob,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { attachFalVideoReferences } from "./fal/client";
 import { comfyServerLockKey, getAssignableWorker, liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
 import { hasRequiredTags } from "./comfy/scheduler";
@@ -1618,7 +1619,7 @@ async function createAndSubmitFalGeneration(
   if (model === "gemini-omni-flash" && input.seedMode === "FIXED") {
     throw new FalHttpError("Gemini Omni Flash does not support a fixed seed", null, false);
   }
-  if (input.outputFormat && !model.startsWith("seedance")) {
+  if (input.outputFormat && !model.startsWith("seedance") && model !== "kling-o3-edit") {
     throw new Error("Output format selection is available for Seedance only");
   }
   const outputDurationMetadata = falOutputDurationMetadata(model, input.seedanceTask);
@@ -1678,7 +1679,7 @@ async function createAndSubmitFalGeneration(
     const keyValue = process.env.FAL_KEY?.trim();
     if (!keyValue) throw new FalHttpError("FAL_KEY is not configured", null, false);
     const url = await uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-image", keyValue);
-    if (model === "seedance-2.5" && input.seedanceTask === "editing") await verifyFalStorageRead(url);
+    if ((model === "seedance-2.5" && input.seedanceTask === "editing") || model === "kling-o3-edit") await verifyFalStorageRead(url);
     return url;
   };
   const referenceVideoKeys = input.referenceVideoKeys ?? [];
@@ -1748,7 +1749,7 @@ async function createAndSubmitFalGeneration(
     const keyValue = process.env.FAL_KEY?.trim();
     if (!keyValue) throw new FalHttpError("FAL_KEY is not configured", null, false);
     const url = await uploadFalStorageFile(bytes, mimeType, key.split("/").at(-1) ?? "reference-media", keyValue);
-    if (model === "seedance-2.5" && input.seedanceTask === "editing") await verifyFalStorageRead(url);
+    if ((model === "seedance-2.5" && input.seedanceTask === "editing") || model === "kling-o3-edit") await verifyFalStorageRead(url);
     return url;
   };
   const referenceVideoDuration = videoStats.reduce((total, video) => total + video.durationSeconds, 0);
@@ -1890,8 +1891,7 @@ async function createAndSubmitFalGeneration(
     reserved = true;
     const videoUrls = await Promise.all(referenceVideoKeys.map(toFalMediaUrl));
     const audioUrls = await Promise.all(referenceAudioKeys.map(toFalMediaUrl));
-    if (videoUrls.length) normalized.input.video_urls = videoUrls;
-    if (audioUrls.length) normalized.input.audio_urls = audioUrls;
+    attachFalVideoReferences(normalized.input, model, videoUrls, audioUrls);
     const submissionIntentAt = new Date().toISOString();
     const [intentReady] = await db.update(generationJobsTable).set({
       providerTaskMetadata: {

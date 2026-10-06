@@ -86,7 +86,7 @@ export async function listGarmentJobs(tenantId: string) {
     id:j.id,title:j.providerTaskMetadata.videoReplacement ? `Video replacement · ${(j.providerTaskMetadata.videoReplacement as {target:string}).target}` : j.title,
     mode:j.generationMode as ReplacementSubmission["mode"],
     provider:j.provider === "FAL" ? "FAL" : "LOCAL",
-    model:j.provider === "FAL" ? "seedance-2.5" : "Wan VACE",
+    model:j.provider === "FAL" ? (j.providerTaskMetadata.model as string ?? "seedance-2.5") : "Wan VACE",
     status:({UPLOADING:"queued",QUEUED:"queued",RUNNING:"running",DOWNLOADING:"running",COMPLETED:"succeeded",CANCELLED:"cancelled"} as Record<string,string>)[j.status]??"failed",
     stage:j.currentNode,sourceUrl:`/api/media/${(j.providerTaskMetadata.videoReplacement as {preparedKey?:string}|undefined)?.preparedKey ?? j.providerTaskMetadata.preparedKey ?? j.providerTaskMetadata.sourceStorageKey}`,
     maskUrl:typeof j.providerTaskMetadata.maskKey==="string"?`/api/media/${j.providerTaskMetadata.maskKey}`:null,

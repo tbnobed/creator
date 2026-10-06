@@ -11,4 +11,5 @@ export type GarmentJobSubmitRequestModel = typeof GarmentJobSubmitRequestModel[k
 
 export const GarmentJobSubmitRequestModel = {
   'seedance-25': 'seedance-2.5',
+  'kling-o3-edit': 'kling-o3-edit',
 } as const;

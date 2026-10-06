@@ -94,6 +94,7 @@ const videoCatalog = {
   "fal-ai/veo3.1/fast/first-last-frame-to-video": { units: ["seconds"] },
   "fal-ai/veo3.1/fast/reference-to-video": { units: ["seconds"] },
   "fal-ai/kling-video/v3/standard/text-to-video": { units: ["seconds"] },
+  "fal-ai/kling-video/o3/standard/video-to-video/edit": { units: ["seconds"] },
   "fal-ai/kling-video/v3/standard/image-to-video": { units: ["seconds"] },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { units: ["1000 tokens"] },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { units: ["1000 tokens"] },
@@ -130,6 +131,8 @@ const localRateCard: Readonly<Record<string, Price>> = {
   "fal-ai/veo3.1/fast/first-last-frame-to-video": { unitPrice: 0.15, unit: "seconds" },
   "fal-ai/veo3.1/fast/reference-to-video": { unitPrice: 0.15, unit: "seconds" },
   "fal-ai/kling-video/v3/standard/text-to-video": { unitPrice: 0.14, unit: "seconds" },
+  // Conservative local allowance, not a synchronized provider billing rate.
+  "fal-ai/kling-video/o3/standard/video-to-video/edit": { unitPrice: 0.20, unit: "seconds" },
   "fal-ai/kling-video/v3/standard/image-to-video": { unitPrice: 0.14, unit: "seconds" },
   "bytedance/seedance-2.0/enterprise/mini/text-to-video": { unitPrice: 0.007, unit: "1000 tokens" },
   "bytedance/seedance-2.0/enterprise/v2/text-to-video": { unitPrice: 0.014, unit: "1000 tokens" },

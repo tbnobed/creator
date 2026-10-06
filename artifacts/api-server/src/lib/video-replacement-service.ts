@@ -12,7 +12,7 @@ export const replacementSampling = { seedMode: "RANDOM" } as const;
 
 export type ReplacementSubmission = {
   requestId: string; tenantId: string; userId: string;
-  provider?: "LOCAL" | "FAL"; model?: "seedance-2.5"; confirmPaid?: boolean;
+  provider?: "LOCAL" | "FAL"; model?: "seedance-2.5" | "kling-o3-edit"; confirmPaid?: boolean;
   sourceStorageKey: string; referenceStorageKey?: string; workerId?: string;
   mode: "replace-garment" | "animate-artwork" | "replace-item";
   artworkSource?: "existing" | "upload";
@@ -20,11 +20,11 @@ export type ReplacementSubmission = {
 };
 
 export function validatePaidReplacement(input: ReplacementSubmission) {
-  if (input.provider !== "FAL" || input.model !== "seedance-2.5" || input.mode !== "replace-item") {
-    throw new GarmentError(400, "Choose Seedance 2.5 for cloud video replacement.");
+  if (input.provider !== "FAL" || !["seedance-2.5", "kling-o3-edit"].includes(input.model ?? "") || input.mode !== "replace-item") {
+    throw new GarmentError(400, "Choose a supported cloud video replacement model.");
   }
   if (input.confirmPaid !== true) throw new GarmentError(400, "Confirm paid cloud processing before submitting.");
-  validateReplacementRange(input.startSeconds, input.durationSeconds, input.startSeconds + input.durationSeconds);
+  validateReplacementRange(input.startSeconds, input.durationSeconds, input.startSeconds + input.durationSeconds, input.model);
   if (!input.prompt.trim() || input.prompt.length > 600 || !input.targetGarment.trim() || input.targetGarment.length > 160) {
     throw new GarmentError(400, "Describe the target and the replacement you want.");
   }
@@ -54,12 +54,12 @@ export async function submitPaidReplacement(input: ReplacementSubmission) {
     }
     const original = await mediaStorage.readGenerationReferenceMedia(input.sourceStorageKey);
     if (original.bytes.length > 200 * 1024 * 1024) throw new GarmentError(400, "Use a video smaller than 200 MB.");
-    const prepared = await prepareReplacementSource(original.bytes, input.startSeconds, input.durationSeconds);
+    const prepared = await prepareReplacementSource(original.bytes, input.startSeconds, input.durationSeconds, input.model);
     const preparedKey = await mediaStorage.storeGenerationReferenceMedia("video/mp4", prepared, input.tenantId);
     try {
       const job = await createAndSubmitGeneration({
         jobId: input.requestId, tenantId: input.tenantId, createdByUserId: input.userId,
-        provider: "FAL", model: "seedance-2.5", seedanceTask: "editing",
+        provider: "FAL", model: input.model!, ...(input.model === "seedance-2.5" ? {seedanceTask: "editing" as const} : {}),
         generationMode: "replace-item", prompt: replacementPrompt(input.targetGarment, input.prompt, Boolean(input.referenceStorageKey)),
         referenceVideoKeys: [preparedKey],
         referenceImageKeys: input.referenceStorageKey ? [input.referenceStorageKey] : [],

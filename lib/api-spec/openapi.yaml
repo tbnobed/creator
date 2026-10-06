@@ -1847,7 +1847,7 @@ components:
       required: [requestId, sourceStorageKey, mode, prompt, targetGarment, startSeconds, durationSeconds, seed]
       properties:
         provider: {type: string, enum: [LOCAL, FAL]}
-        model: {type: string, enum: [seedance-2.5]}
+        model: {type: string, enum: [seedance-2.5, kling-o3-edit]}
         confirmPaid: {type: boolean}
         requestId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
         sourceStorageKey: {type: string}

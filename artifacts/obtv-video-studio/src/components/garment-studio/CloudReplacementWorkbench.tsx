@@ -10,6 +10,7 @@ export const CLOUD_MAX_SECONDS = 15;
 export const CLOUD_MODEL = "seedance-2.5" as const;
 
 export interface CloudSubmitRequest {
+  model: "seedance-2.5" | "kling-o3-edit";
   prompt: string;
   targetGarment: string;
   startSeconds: number;
@@ -35,12 +36,12 @@ export interface CloudReplacementWorkbenchProps {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-export function cloudRangeProblem(start: number, duration: number, total: number | undefined): string | null {
+export function cloudRangeProblem(start: number, duration: number, total: number | undefined, minimum = CLOUD_MIN_SECONDS): string | null {
   if (!total || !Number.isFinite(total)) return "Source duration is unknown.";
   if (!Number.isFinite(start) || !Number.isFinite(duration)) return "Start and length must be numbers.";
   if (start < 0) return "Start cannot be negative.";
-  if (total < CLOUD_MIN_SECONDS) return `Cloud editing needs a source of at least ${CLOUD_MIN_SECONDS}s.`;
-  if (duration < CLOUD_MIN_SECONDS) return `Source window must be at least ${CLOUD_MIN_SECONDS}s.`;
+  if (total < minimum) return `Cloud editing needs a source of at least ${minimum}s.`;
+  if (duration < minimum) return `Source window must be at least ${minimum}s.`;
   if (duration > CLOUD_MAX_SECONDS + 1e-6) return `Source window is capped at ${CLOUD_MAX_SECONDS}s.`;
   if (start + duration > total + 1e-3) return `Window ends at ${r2(start + duration)}s but the source is ${r2(total)}s.`;
   return null;
@@ -58,13 +59,15 @@ export function CloudReplacementWorkbench({
   const [start, setStart] = useState(0);
   const [duration, setDuration] = useState(5);
   const [confirmed, setConfirmed] = useState(false);
+  const [model, setModel] = useState<CloudSubmitRequest["model"]>("seedance-2.5");
+  const minimum = model === "kling-o3-edit" ? 3 : 4;
   const [fileError, setFileError] = useState("");
 
   const sourceKey = source ? `${source.mediaUrl}|${source.durationSeconds}` : "";
   useEffect(() => {
     if (!source) return;
     setStart(0);
-    setDuration(r2(Math.min(CLOUD_MAX_SECONDS, Math.max(CLOUD_MIN_SECONDS, source.durationSeconds))));
+    setDuration(r2(Math.min(CLOUD_MAX_SECONDS, Math.max(minimum, source.durationSeconds))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceKey]);
 
@@ -74,19 +77,20 @@ export function CloudReplacementWorkbench({
   useEffect(() => {
     setConfirmed(false);
     onInputChangeRef.current?.();
-  }, [target, prompt, start, duration, reference?.storageKey, source?.mediaUrl]);
+  }, [model, target, prompt, start, duration, reference?.storageKey, source?.mediaUrl]);
 
   const active = isActiveJob(job);
   useEffect(() => {
     if (active) setConfirmed(false);
   }, [active]);
-  const rangeErr = source ? cloudRangeProblem(start, duration, source.durationSeconds) : null;
+  const rangeErr = source ? cloudRangeProblem(start, duration, source.durationSeconds, minimum) : null;
   const t = target.trim();
   const p = prompt.trim();
   const blocker = loading || referenceUploading ? "Waiting for the current request to finish."
     : active ? "A job is already running. Cancel it or wait for it to finish."
       : !source ? "Upload a source clip first."
         : rangeErr ? rangeErr
+          : model === "kling-o3-edit" && (Math.min(source.width, source.height) < 720 || Math.max(source.width, source.height) > 3840) ? "Kling O3 requires video sides of 720–3840 pixels."
           : !t ? "Describe what to replace, e.g. the red car parked on the left."
             : t.length > MAX_TARGET_CHARS ? `Target is over ${MAX_TARGET_CHARS} characters.`
               : !p ? "Write the edit prompt."
@@ -103,7 +107,7 @@ export function CloudReplacementWorkbench({
   function preview(s: number) { const v = video.current; if (v) { v.pause(); v.currentTime = s; } }
   function submit() {
     if (blocker) return;
-    onSubmit({ prompt: p, targetGarment: t, startSeconds: start, durationSeconds: duration, seed: 0, confirmPaid: true });
+    onSubmit({ model, prompt: p, targetGarment: t, startSeconds: start, durationSeconds: duration, seed: 0, confirmPaid: true });
   }
 
   const fileInput = (
@@ -122,7 +126,7 @@ export function CloudReplacementWorkbench({
               {loading ? <Loader2 className="size-6 animate-spin text-primary" /> : <Upload className="size-6 text-primary" />}
             </div>
             <h2 className="mt-4 text-lg font-semibold">{loading ? "Uploading clip" : "Drop the clip you want to edit"}</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">MP4 or MOV. You will pick a source window of {CLOUD_MIN_SECONDS} to {CLOUD_MAX_SECONDS} seconds to send.</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">MP4 or MOV. You will pick a source window of {minimum} to {CLOUD_MAX_SECONDS} seconds to send.</p>
             {fileInput}
             <Button className="mt-5" disabled={loading} onClick={() => inputRef.current?.click()} data-testid="button-cloud-upload">Choose clip</Button>
             {fileError && <p role="alert" className="mt-4 text-sm text-destructive">{fileError}</p>}
@@ -231,7 +235,7 @@ export function CloudReplacementWorkbench({
         <section className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold">Source window</h2>
-            <span className="font-mono text-xs text-muted-foreground">{CLOUD_MIN_SECONDS}–{CLOUD_MAX_SECONDS}s</span>
+            <span className="font-mono text-xs text-muted-foreground">{minimum}–{CLOUD_MAX_SECONDS}s</span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="block text-xs"><span className="text-muted-foreground">Start (s)</span>
@@ -239,7 +243,7 @@ export function CloudReplacementWorkbench({
                 onChange={(e) => { const v = Number(e.target.value); setStart(v); preview(v); }}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 font-mono text-sm disabled:opacity-50" data-testid="input-cloud-start" /></label>
             <label className="block text-xs"><span className="text-muted-foreground">Length (s)</span>
-              <input type="number" value={duration} step={0.1} min={CLOUD_MIN_SECONDS} max={CLOUD_MAX_SECONDS} disabled={!source || active}
+              <input type="number" value={duration} step={0.1} min={minimum} max={CLOUD_MAX_SECONDS} disabled={!source || active}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 font-mono text-sm disabled:opacity-50" data-testid="input-cloud-duration" /></label>
           </div>
@@ -248,7 +252,14 @@ export function CloudReplacementWorkbench({
         </section>
 
         <section className="rounded-xl border border-primary/30 bg-card p-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold"><Cloud className="size-4 text-primary" />Paid cloud edit · Seedance 2.5</h2>
+          <h2 className="flex items-center gap-2 text-sm font-semibold"><Cloud className="size-4 text-primary" />Paid cloud edit</h2>
+          <label className="mt-3 block text-xs">Editing model
+            <select value={model} disabled={active || loading} onChange={e => setModel(e.target.value as CloudSubmitRequest["model"])} className="mt-1 w-full rounded border border-border bg-background p-2" data-testid="select-cloud-model">
+              <option value="seedance-2.5">Seedance 2.5</option>
+              <option value="kling-o3-edit">Kling O3 Standard · Video Edit</option>
+            </select>
+          </label>
+          <p className="mt-2 text-xs text-muted-foreground">{model === "kling-o3-edit" ? "3–15s source; each side 720–3840px. Provider acceptance and output quality are not guaranteed." : "4–15s source. Seedance may reject real-person footage under its likeness/privacy rules."}</p>
           <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
             <li>Your source window, prompt and optional image are sent to the cloud provider.</li>
             <li>The original clip’s audio is retained at its original timing. Any extra generated video may have no audio.</li>
@@ -257,7 +268,7 @@ export function CloudReplacementWorkbench({
           <label className="mt-3 flex cursor-pointer gap-2.5 rounded-lg border border-border bg-secondary/40 p-3 text-xs leading-relaxed">
             <input type="checkbox" checked={confirmed} disabled={active || !source} onChange={(e) => setConfirmed(e.target.checked)}
               className="mt-0.5 size-4 shrink-0 accent-[hsl(var(--primary))]" data-testid="checkbox-cloud-confirm-paid" />
-            <span>I understand this is a paid run. Billing covers the provider output duration, chosen automatically up to 30 seconds, plus source processing, and is subject to my workspace spending limits.</span>
+            <span>{model === "kling-o3-edit" ? "I approve a paid Kling O3 edit. The local allowance is $0.20 per source second, not a confirmed provider bill. Workspace spending limits apply." : "I understand this is a paid run. Billing covers the provider output duration, chosen automatically up to 30 seconds, plus source processing, and is subject to my workspace spending limits."}</span>
           </label>
           {error && (
             <p role="alert" className="mt-3 flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs">

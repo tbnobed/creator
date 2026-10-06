@@ -19,7 +19,7 @@ await context.route("**/api/**", async route => {
       requests.push(data);
       if (failOnce) { failOnce = false; status = 500; body = { error: "Simulated lost response" }; }
       else {
-        jobs = [{ id: data.requestId, provider: "FAL", model: "seedance-2.5", mode: "replace-item", title: "Object replacement",
+        jobs = [{ id: data.requestId, provider: "FAL", model: data.model, mode: "replace-item", title: "Object replacement",
           status: "queued", sourceUrl: "/api/media/test.mp4", maskUrl: null, outputUrl: null, error: null, stage: "Queued", createdAt: new Date().toISOString() }];
         body = { jobId: data.requestId };
       }
@@ -51,7 +51,8 @@ try {
   await page.getByTestId("input-cloud-duration").fill("3");
   await consent.check();
   await expect(run).toBeDisabled();
-  await page.getByTestId("input-cloud-duration").fill("4");
+  await page.getByTestId("select-cloud-model").selectOption("kling-o3-edit");
+  await expect(consent).not.toBeChecked();
   await consent.check();
   await run.click();
   await expect(page.getByText("Could not confirm the job was created.", { exact: false })).toBeVisible();
@@ -60,7 +61,7 @@ try {
   assert.equal(requests.length, 2);
   assert.equal(requests[0].requestId, requests[1].requestId);
   assert.equal(requests[0].provider, "FAL");
-  assert.equal(requests[0].model, "seedance-2.5");
+  assert.equal(requests[0].model, "kling-o3-edit");
   assert.equal(requests[0].mode, "replace-item");
   assert.equal(requests[0].confirmPaid, true);
   assert.equal(requests[0].workerId, undefined);

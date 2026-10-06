@@ -135,7 +135,7 @@ export default function GarmentStudioPage() {
     if (!source) return;
     await send({
       provider: "FAL",
-      model: CLOUD_MODEL,
+      model: req.model,
       confirmPaid: req.confirmPaid,
       mode: "replace-item",
       sourceStorageKey: source.sourceStorageKey,
