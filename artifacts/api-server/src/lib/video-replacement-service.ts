@@ -6,6 +6,10 @@ import { assertGarmentKey, GarmentError } from "./garment-media";
 import { mediaStorage } from "./storage-service";
 import { prepareReplacementSource, replacementPrompt } from "./video-replacement-media";
 
+// Keep this shared with request-contract tests: the Seedance adapter rejects
+// fixed seeds, even though the legacy local garment API requires a seed field.
+export const replacementSampling = { seedMode: "RANDOM" } as const;
+
 export type ReplacementSubmission = {
   requestId: string; tenantId: string; userId: string;
   provider?: "LOCAL" | "FAL"; model?: "seedance-2.5"; confirmPaid?: boolean;
@@ -60,7 +64,7 @@ export async function submitPaidReplacement(input: ReplacementSubmission) {
         referenceImageKeys: input.referenceStorageKey ? [input.referenceStorageKey] : [],
         durationSeconds: input.durationSeconds, width: 1280, height: 720, fps: 24,
         outputResolution: "720p", outputFormat: "mp4", nativeAudioEnabled: false,
-        qualityPreset: "STANDARD", seedMode: "FIXED", seed: input.seed,
+        qualityPreset: "STANDARD", ...replacementSampling,
         videoReplacement: {
           fingerprint, sourceStorageKey: input.sourceStorageKey, preparedKey,
           target: input.targetGarment, startSeconds: input.startSeconds, durationSeconds: input.durationSeconds,

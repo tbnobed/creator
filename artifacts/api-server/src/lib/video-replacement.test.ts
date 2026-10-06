@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { SubmitGarmentJobBody } from "@workspace/api-zod";
-import { validatePaidReplacement, type ReplacementSubmission } from "./video-replacement-service";
+import { validatePaidReplacement, replacementSampling, type ReplacementSubmission } from "./video-replacement-service";
 import { prepareReplacementSource, preserveReplacementAudio, replacementPrompt, validateReplacementRange } from "./video-replacement-media";
 import { garmentFrames } from "./garment-media";
 import { probeVideoMediaProperties } from "./video-media-probe";
@@ -31,6 +31,7 @@ test("paid replacement explicitly requires model, mode, and cost consent before 
 });
 
 test("API accepts cloud without a worker, retains local requests, rejects unknown models", () => {
+  assert.deepEqual(replacementSampling, { seedMode: "RANDOM" });
   const { tenantId, userId, ...body } = request;
   assert.equal(SubmitGarmentJobBody.strict().safeParse(body).success, true);
   assert.equal(SubmitGarmentJobBody.strict().safeParse({ ...body, model: "imaginary-editor" }).success, false);

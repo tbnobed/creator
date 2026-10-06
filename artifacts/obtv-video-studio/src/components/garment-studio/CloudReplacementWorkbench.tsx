@@ -57,7 +57,6 @@ export function CloudReplacementWorkbench({
   const [prompt, setPrompt] = useState("");
   const [start, setStart] = useState(0);
   const [duration, setDuration] = useState(5);
-  const [seed, setSeed] = useState(1234);
   const [confirmed, setConfirmed] = useState(false);
   const [fileError, setFileError] = useState("");
 
@@ -75,7 +74,7 @@ export function CloudReplacementWorkbench({
   useEffect(() => {
     setConfirmed(false);
     onInputChangeRef.current?.();
-  }, [target, prompt, start, duration, seed, reference?.storageKey, source?.mediaUrl]);
+  }, [target, prompt, start, duration, reference?.storageKey, source?.mediaUrl]);
 
   const active = isActiveJob(job);
   useEffect(() => {
@@ -104,7 +103,7 @@ export function CloudReplacementWorkbench({
   function preview(s: number) { const v = video.current; if (v) { v.pause(); v.currentTime = s; } }
   function submit() {
     if (blocker) return;
-    onSubmit({ prompt: p, targetGarment: t, startSeconds: start, durationSeconds: duration, seed, confirmPaid: true });
+    onSubmit({ prompt: p, targetGarment: t, startSeconds: start, durationSeconds: duration, seed: 0, confirmPaid: true });
   }
 
   const fileInput = (
@@ -245,11 +244,6 @@ export function CloudReplacementWorkbench({
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 font-mono text-sm disabled:opacity-50" data-testid="input-cloud-duration" /></label>
           </div>
           {rangeErr && <p role="alert" className="mt-2 text-xs text-destructive">{rangeErr}</p>}
-          <label className="mt-3 flex items-center justify-between gap-2 text-xs">
-            <span className="text-muted-foreground">Seed</span>
-            <input type="number" value={seed} disabled={active} onChange={(e) => setSeed(Math.trunc(Number(e.target.value) || 0))}
-              className="w-28 rounded-md border border-border bg-background px-2 py-1 text-right font-mono" data-testid="input-cloud-seed" />
-          </label>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">Only this window is sent. The output length is decided by the model and may differ from the window.</p>
         </section>
 

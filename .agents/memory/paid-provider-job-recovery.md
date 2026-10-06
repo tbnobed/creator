@@ -9,6 +9,12 @@ Persist the exact queue endpoints returned when a paid provider accepts a job. R
 
 **How to apply:** Validate provider-returned endpoints before storing them, add request deadlines, distinguish transient from permanent errors, protect terminal states with conditional updates, and retain a recovery path after the overall timeout.
 
+A Fal queue receipt and a COMPLETED queue status do not guarantee successful inference: retrieving the result can still return a structured HTTP 422 validation error.
+
+**Why:** A real Seedance editing proof was accepted into the queue but returned only a generic invalid-request error from its result endpoint.
+
+**How to apply:** Inspect the saved request's result without resubmitting. Preserve structured error messages without exposing signed URLs or input payloads. Do not infer either a successful render or a zero charge from queue status.
+
 Treat provider submission as an uncertain side effect until its receipt is persisted. Keep a tenant-scoped client request key across transport retries, and never automatically resubmit a job whose acceptance outcome is unknown.
 
 **Why:** A local idempotency key prevents duplicate application requests, but cannot guarantee exactly-once billing when the provider accepts work just before the API loses the response or crashes. Retrying such a submission can charge twice.

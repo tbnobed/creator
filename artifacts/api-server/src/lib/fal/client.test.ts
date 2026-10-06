@@ -16,7 +16,13 @@ import {
   normalizeFalRequest,
   selectFalGenerationEndpoint,
   validateFalReferenceMediaLimits,
+  sanitizeCloudDetail,
 } from "./client";
+
+test("structured provider errors preserve reasons without leaking input media URLs", () => {
+  assert.equal(sanitizeCloudDetail([{ msg: "Source rejected", input: { secret: "hidden" } }]), "Source rejected");
+  assert.equal(sanitizeCloudDetail({ detail: [{ message: "Cannot fetch https://example.com/private?token=secret" }] }), "Cannot fetch [provider URL]");
+});
 
 const request = {
   prompt: "A quiet landscape at sunrise.",

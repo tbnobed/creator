@@ -289,8 +289,21 @@ export class FalHttpError extends Error {
   }
 }
 
-function sanitizeCloudDetail(value: unknown): string {
-  return String(value)
+export function sanitizeCloudDetail(value: unknown): string {
+  const text = (detail: unknown, depth = 0): string => {
+    if (depth > 5) return "Provider validation failed";
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) return detail.map(item => text(item, depth + 1)).join("; ");
+    if (detail && typeof detail === "object") {
+      const record = detail as Record<string, unknown>;
+      // Never include input payloads, signed URLs, or arbitrary provider metadata.
+      const message = record.msg ?? record.message ?? record.detail ?? record.error ?? record.type;
+      return message === undefined ? "Provider validation failed" : text(message, depth + 1);
+    }
+    return String(detail);
+  };
+  return text(value).slice(0, 2000)
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[provider URL]")
     .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*fal\.(?:ai|run|media)[^\s"'<>]*/gi, "Cloud")
     .replace(/\bfal(?:\.ai)?\b/gi, "Cloud");
 }
