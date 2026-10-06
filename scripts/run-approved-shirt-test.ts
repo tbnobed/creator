@@ -1,4 +1,4 @@
-// One user-approved shirt replacement proof. No animation and no paid retry.
+// Separately approved replacement/animation proofs. One fixed job per approval; no paid retry.
 // Re-running this script monitors the same durable job rather than creating another.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { and, eq } from "../artifacts/api-server/node_modules/drizzle-orm/index.js";
@@ -9,14 +9,16 @@ import { submitPaidReplacement } from "../artifacts/api-server/src/lib/video-rep
 
 const hostedRetest = process.argv.includes("--hosted-retest");
 const durationRetest = process.argv.includes("--duration-retest");
-const klingTest = process.argv.includes("--kling-test");
+const animationTest = process.argv.includes("--animation-test");
+const klingTest = process.argv.includes("--kling-test") || animationTest;
+const startSeconds = animationTest ? 0 : 2;
 const model = klingTest ? "kling-o3-edit" : "seedance-2.5";
 const maxAllowance = klingTest ? 1.01 : 15;
 const durationSeconds = durationRetest || klingTest ? 5 : 3;
-const jobId = klingTest ? "a0f5c762-bd61-4a52-b183-6e10c3417c2d" : durationRetest ? "7a805c6d-2d3d-4624-95ba-d4227cbd925a" : hostedRetest
+const jobId = animationTest ? "641a73f1-1e7d-42d9-a6f8-d85ba894043f" : klingTest ? "a0f5c762-bd61-4a52-b183-6e10c3417c2d" : durationRetest ? "7a805c6d-2d3d-4624-95ba-d4227cbd925a" : hostedRetest
   ? "b6d23acb-56c9-425d-8123-e96398db9fd4"
   : "73f9888d-d493-4a28-91ee-df05a3eb7285";
-const folder = klingTest ? "attached_assets/shirt-replacement-kling-proof" : durationRetest ? "attached_assets/shirt-replacement-duration-retest" : hostedRetest
+const folder = animationTest ? "attached_assets/shirt-animation-kling-proof" : klingTest ? "attached_assets/shirt-replacement-kling-proof" : durationRetest ? "attached_assets/shirt-replacement-duration-retest" : hostedRetest
   ? "attached_assets/shirt-replacement-hosted-retest"
   : "attached_assets/shirt-replacement-proof";
 const existing = async () => (await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, jobId)))[0];
@@ -43,7 +45,7 @@ async function main() {
     if (quote.estimatedUsd > maxAllowance) throw new Error("Local estimate exceeds this test's allowance.");
     console.log(JSON.stringify({ phase: "preflight", model, localReservationUsd: quote.estimatedUsd, maxApprovedLocalEstimateUsd: maxAllowance }));
     const sourceStorageKey = await mediaStorage.storeGenerationReferenceMedia(
-      "video/quicktime", await readFile("attached_assets/Orange_shirt_1791306138579.mov"), owner.tenantId,
+      animationTest ? "video/mp4" : "video/quicktime", await readFile(animationTest ? "attached_assets/shirt-replacement-kling-proof/shirt-replacement.mp4" : "attached_assets/Orange_shirt_1791306138579.mov"), owner.tenantId,
     );
     const referenceStorageKey = await mediaStorage.storeGenerationReferenceMedia(
       "image/png", await readFile("attached_assets/Monkeys_1791306027820.png"), owner.tenantId,
@@ -51,13 +53,15 @@ async function main() {
     const result = await submitPaidReplacement({
       ...owner, requestId: jobId, provider: "FAL", model, confirmPaid: true,
       sourceStorageKey, referenceStorageKey, mode: "replace-item",
-      targetGarment: "Only the black polo shirt worn by the seated man with glasses",
-      prompt: `Replace his black polo with the white short-sleeved button-up shirt in the reference image. Match its collar, button placket, pocket and large distressed monkey print in mustard yellow, rust orange, olive and gray. Fit naturally to his seated body, with realistic cloth folds, shadows and hand occlusion. The monkeys remain static printed artwork in this first pass. Preserve his face, glasses, hair, skin, hands, trousers, chair, background and performance. Keep the same shot and approximately ${durationSeconds === 5 ? "five" : "three"}-second timing.`,
-      startSeconds: 2, durationSeconds, seed: 1791306027,
+      targetGarment: animationTest ? "Only the colored monkey graphics printed on his white shirt" : "Only the black polo shirt worn by the seated man with glasses",
+      prompt: animationTest
+        ? "Animate only the monkey illustrations already printed on his shirt: clearly wave their arms, turn their heads and curl their tails playfully throughout the shot. Retain the reference artwork's distressed flat mustard, rust, olive and gray ink style. Each monkey stays within its original print region, deforming with the fabric folds, shadows, weave and hand occlusion. No floating stickers, raised figures, new monkeys or 3D objects. Preserve the shirt, collar, buttons, person, face, hands, background, camera and original performance. Keep motion confined to the printed artwork."
+        : `Replace his black polo with the white short-sleeved button-up shirt in the reference image. Match its collar, button placket, pocket and large distressed monkey print in mustard yellow, rust orange, olive and gray. Fit naturally to his seated body, with realistic cloth folds, shadows and hand occlusion. The monkeys remain static printed artwork in this first pass. Preserve his face, glasses, hair, skin, hands, trousers, chair, background and performance. Keep the same shot and approximately ${durationSeconds === 5 ? "five" : "three"}-second timing.`,
+      startSeconds, durationSeconds, seed: 1791306027,
     });
     await writeFile(`${folder}/receipt.json`, JSON.stringify({
-      jobId: result.jobId, model, phase: "shirt replacement only",
-      sourceWindow: { startSeconds: 2, durationSeconds },
+      jobId: result.jobId, model, phase: animationTest ? "printed monkey animation" : "shirt replacement only",
+      sourceWindow: { startSeconds, durationSeconds },
       localReservationUsd: quote.estimatedUsd, maxApprovedLocalEstimateUsd: maxAllowance,
     }, null, 2));
   }
@@ -68,7 +72,7 @@ async function main() {
     const state = JSON.stringify({ jobId, status: job.status, stage: job.currentNode });
     if (state !== previous) { console.log(state); previous = state; }
     if (job.status === "COMPLETED" && job.outputStorageKey) {
-      const output = `${folder}/shirt-replacement.mp4`;
+      const output = `${folder}/${animationTest ? "animated-shirt" : "shirt-replacement"}.mp4`;
       await writeFile(output, await mediaStorage.readBuffer(job.outputStorageKey));
       const replacement = job.providerTaskMetadata.videoReplacement as { preparedKey: string };
       await writeFile(`${folder}/original-window.mp4`, (await mediaStorage.readGenerationReferenceMedia(replacement.preparedKey)).bytes);

@@ -21,6 +21,12 @@ The user chose replacing the garment like the Runway example rather than recolor
 
 **How to apply:** Evaluate garment replacement and animated shirt content separately. Do not present still-image model availability, simple recoloring, or object removal as proof that either video workflow works.
 
+Do not treat successful Kling O3 clothing replacement as proof of independently animated artwork.
+
+**Why:** A real reference-shirt edit produced the intended monkey-print garment, but a subsequent explicit arm-waving/head-turning/tail-curling instruction produced a visually near-unchanged print in source/output frame comparisons. A completed provider job does not establish instruction adherence.
+
+**How to apply:** Compare matched source and output frames for motion relative to the cloth, not just the actor moving. Classify an effectively static result as an unsuccessful animation test; do not repeat paid prompts without a concrete new hypothesis and authorization.
+
 The user chose “Animated shirt graphic”: a moving cartoon design that follows the shirt’s fabric and folds, not 3D-looking characters playing on its surface.
 
 **Why:** The user explicitly selected this treatment.

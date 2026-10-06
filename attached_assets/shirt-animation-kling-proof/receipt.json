@@ -1,0 +1,11 @@
+{
+  "jobId": "641a73f1-1e7d-42d9-a6f8-d85ba894043f",
+  "model": "kling-o3-edit",
+  "phase": "printed monkey animation",
+  "sourceWindow": {
+    "startSeconds": 0,
+    "durationSeconds": 5
+  },
+  "localReservationUsd": 1,
+  "maxApprovedLocalEstimateUsd": 1.01
+}

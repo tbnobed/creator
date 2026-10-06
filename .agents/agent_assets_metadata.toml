@@ -140,3 +140,17 @@ mtime_ms = 1791323560696
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/cf4e77ca-9d2d-4a6f-bfd7-f38bf369db26/d894d56e-8a72-4843-bd32-6479110be5b8"
 storage_version_token = "1791323633257386"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "EQtg0GzqQWOFiyEZTZimK"
+uri = "file://attached_assets/shirt-animation-kling-proof/animated-shirt.mp4"
+type = "video"
+title = "Monkey-animation test — print remains mostly static"
+description = "Five-second 720p Kling O3 result with source audio retained. Rendering completed, but matched-frame review did not show convincing independent monkey animation."
+logical_id = "768b1959-ba8e-41f2-875d-819ae92dbec5"
+content_hash = "sha256:2a9291136f0f17e3d694f75d7daa5967f4eb4eb7cdc45c92087aa0e03e334c4c"
+size = 3461048
+mtime_ms = 1791325285075
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/768b1959-ba8e-41f2-875d-819ae92dbec5/2c330111-e5b4-4a52-8d6e-72b9eaeb3088"
+storage_version_token = "1791325410514961"
+content_type = "video/mp4"
