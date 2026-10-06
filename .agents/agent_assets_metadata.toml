@@ -126,3 +126,17 @@ mtime_ms = 1790973416084
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/13850755-17e4-4c57-8c2b-a18f60348411/529f97b4-1f02-48aa-bb10-67ab13c0fae7"
 storage_version_token = "1790973495883677"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "t4cOhDI_EXPdDhTkTSeae"
+uri = "file://attached_assets/shirt-replacement-kling-proof/shirt-replacement.mp4"
+type = "video"
+title = "Kling O3 — monkey-shirt replacement"
+description = "Completed five-second 720p paid replacement test with original audio preserved. Shirt graphics are not animated yet."
+logical_id = "cf4e77ca-9d2d-4a6f-bfd7-f38bf369db26"
+content_hash = "sha256:b31117b1c5df18e36ad0c16f4ba4f0a9a28848067c99e6939ff872e687c0d78b"
+size = 4006205
+mtime_ms = 1791323560696
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/cf4e77ca-9d2d-4a6f-bfd7-f38bf369db26/d894d56e-8a72-4843-bd32-6479110be5b8"
+storage_version_token = "1791323633257386"
+content_type = "video/mp4"

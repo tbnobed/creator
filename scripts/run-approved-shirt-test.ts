@@ -9,11 +9,14 @@ import { submitPaidReplacement } from "../artifacts/api-server/src/lib/video-rep
 
 const hostedRetest = process.argv.includes("--hosted-retest");
 const durationRetest = process.argv.includes("--duration-retest");
-const durationSeconds = durationRetest ? 5 : 3;
-const jobId = durationRetest ? "7a805c6d-2d3d-4624-95ba-d4227cbd925a" : hostedRetest
+const klingTest = process.argv.includes("--kling-test");
+const model = klingTest ? "kling-o3-edit" : "seedance-2.5";
+const maxAllowance = klingTest ? 1.01 : 15;
+const durationSeconds = durationRetest || klingTest ? 5 : 3;
+const jobId = klingTest ? "a0f5c762-bd61-4a52-b183-6e10c3417c2d" : durationRetest ? "7a805c6d-2d3d-4624-95ba-d4227cbd925a" : hostedRetest
   ? "b6d23acb-56c9-425d-8123-e96398db9fd4"
   : "73f9888d-d493-4a28-91ee-df05a3eb7285";
-const folder = durationRetest ? "attached_assets/shirt-replacement-duration-retest" : hostedRetest
+const folder = klingTest ? "attached_assets/shirt-replacement-kling-proof" : durationRetest ? "attached_assets/shirt-replacement-duration-retest" : hostedRetest
   ? "attached_assets/shirt-replacement-hosted-retest"
   : "attached_assets/shirt-replacement-proof";
 const existing = async () => (await db.select().from(generationJobsTable).where(eq(generationJobsTable.id, jobId)))[0];
@@ -33,12 +36,12 @@ async function main() {
       .where(eq(usersTable.siteRole, "SITE_ADMIN"));
     if (owners.length !== 1) throw new Error("Cannot unambiguously resolve the operator workspace.");
     const owner = owners[0];
-    const quote = await quoteVideoSpend("bytedance/seedance-2.5/reference-to-video", {
-      duration: 30, resolution: "720p", width: 1800, height: 720,
-      referenceVideoDuration: durationSeconds, referenceImageCount: 1, audio: false,
+    const quote = await quoteVideoSpend(klingTest ? "fal-ai/kling-video/o3/standard/video-to-video/edit" : "bytedance/seedance-2.5/reference-to-video", {
+      duration: klingTest ? durationSeconds : 30, resolution: "720p", width: 1800, height: 720,
+      referenceVideoDuration: durationSeconds, referenceImageCount: 1, generateAudio: false,
     });
-    if (quote.estimatedUsd > 15) throw new Error("Local estimate exceeds the approved $15 allowance.");
-    console.log(JSON.stringify({ phase: "preflight", localReservationUsd: quote.estimatedUsd, maxApprovedLocalEstimateUsd: 15 }));
+    if (quote.estimatedUsd > maxAllowance) throw new Error("Local estimate exceeds this test's allowance.");
+    console.log(JSON.stringify({ phase: "preflight", model, localReservationUsd: quote.estimatedUsd, maxApprovedLocalEstimateUsd: maxAllowance }));
     const sourceStorageKey = await mediaStorage.storeGenerationReferenceMedia(
       "video/quicktime", await readFile("attached_assets/Orange_shirt_1791306138579.mov"), owner.tenantId,
     );
@@ -46,16 +49,16 @@ async function main() {
       "image/png", await readFile("attached_assets/Monkeys_1791306027820.png"), owner.tenantId,
     );
     const result = await submitPaidReplacement({
-      ...owner, requestId: jobId, provider: "FAL", model: "seedance-2.5", confirmPaid: true,
+      ...owner, requestId: jobId, provider: "FAL", model, confirmPaid: true,
       sourceStorageKey, referenceStorageKey, mode: "replace-item",
       targetGarment: "Only the black polo shirt worn by the seated man with glasses",
-      prompt: `Replace his black polo with the white short-sleeved button-up shirt in the reference image. Match its collar, button placket, pocket and large distressed monkey print in mustard yellow, rust orange, olive and gray. Fit naturally to his seated body, with realistic cloth folds, shadows and hand occlusion. The monkeys remain static printed artwork in this first pass. Preserve his face, glasses, hair, skin, hands, trousers, chair, background and performance. Keep the same shot and approximately ${durationRetest ? "five" : "three"}-second timing.`,
+      prompt: `Replace his black polo with the white short-sleeved button-up shirt in the reference image. Match its collar, button placket, pocket and large distressed monkey print in mustard yellow, rust orange, olive and gray. Fit naturally to his seated body, with realistic cloth folds, shadows and hand occlusion. The monkeys remain static printed artwork in this first pass. Preserve his face, glasses, hair, skin, hands, trousers, chair, background and performance. Keep the same shot and approximately ${durationSeconds === 5 ? "five" : "three"}-second timing.`,
       startSeconds: 2, durationSeconds, seed: 1791306027,
     });
     await writeFile(`${folder}/receipt.json`, JSON.stringify({
-      jobId: result.jobId, model: "seedance-2.5", phase: "shirt replacement only",
+      jobId: result.jobId, model, phase: "shirt replacement only",
       sourceWindow: { startSeconds: 2, durationSeconds },
-      localReservationUsd: quote.estimatedUsd, maxApprovedLocalEstimateUsd: 15,
+      localReservationUsd: quote.estimatedUsd, maxApprovedLocalEstimateUsd: maxAllowance,
     }, null, 2));
   }
   let previous = "";

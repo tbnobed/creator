@@ -1,0 +1,11 @@
+{
+  "jobId": "a0f5c762-bd61-4a52-b183-6e10c3417c2d",
+  "model": "kling-o3-edit",
+  "phase": "shirt replacement only",
+  "sourceWindow": {
+    "startSeconds": 2,
+    "durationSeconds": 5
+  },
+  "localReservationUsd": 1,
+  "maxApprovedLocalEstimateUsd": 1.01
+}
