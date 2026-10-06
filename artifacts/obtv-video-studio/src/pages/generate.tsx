@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { localVideoDurationLimit } from "@workspace/api-zod";
 import { Link, useLocation, useSearch } from "wouter";
 import { 
   useListCharacters, 
@@ -311,6 +312,10 @@ export default function GeneratePage() {
   const isCloudProvider = provider === "FAL";
   const pipelineError = isCloudProvider ? null : localPipelineError(generationMode, capabilities);
   const localModelName = [...new Set(capabilitiesForMode.map((cap) => cap.modelFamily))].join(" / ") || generationMode;
+  const localDurationMax = Math.min(...(capabilitiesForMode.length ? capabilitiesForMode.map(cap => localVideoDurationLimit(cap.modelFamily, fps)) : [5]));
+  useEffect(() => {
+    if (!isCloudProvider) setDuration(value => Math.min(value, localDurationMax));
+  }, [isCloudProvider, localDurationMax]);
   const referenceVideoHref = `/reference-video?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`;
   const inferredDialogue = extractQuotedDialogue(prompt);
   const resolvedDialogueForVoice = dialogue.trim() || inferredDialogue?.dialogue || "";
@@ -1286,10 +1291,11 @@ export default function GeneratePage() {
                       <input type="range" aria-label="Video duration in seconds" className="h-10 min-w-0 flex-1 accent-primary"
                         value={duration}
                         onChange={event => setDuration(Number(event.target.value))}
-                        min={1} max={30} step={1}
+                        min={1} max={localDurationMax} step={1}
                       />
                     </div>}
                   </div>}
+                  {!isCloudProvider && <p className="col-span-2 text-xs text-muted-foreground">Single-clip limit for {localModelName}: {localDurationMax} seconds at {fps} fps. Use multiple shots for longer videos.</p>}
                   {durationIsAutomatic && <p className="col-span-2 rounded-md border border-[#67445d] bg-[#30232f] p-3 text-xs text-[#ead0df]">Cloud chooses Edit output duration (up to 30s); conservative max-cost reservation. Duration cannot be set for this task.</p>}
                   {!isCloudProvider && <div className="space-y-2">
                     <Label>Framerate</Label>

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { spawn } from "node:child_process";
+import { localVideoDurationLimit } from "@workspace/api-zod";
 import {
   characterAssetsTable,
   charactersTable,
@@ -1397,6 +1398,10 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     throw new Error("No active imported API workflow is configured for this generation mode");
   }
   const isLtx25Workflow = workflow.modelFamily.trim().toLowerCase() === "ltx 2.5";
+  const durationLimit = localVideoDurationLimit(workflow.modelFamily, input.fps);
+  if (input.durationSeconds > durationLimit) {
+    throw new Error(`${workflow.modelFamily} supports up to ${durationLimit} seconds per clip in this app at ${input.fps} fps.`);
+  }
   const isMiniMaxH3Workflow = workflow.modelFamily.trim().toLowerCase() === "minimax h3";
   const apiWorkflow = workflow.apiWorkflow;
   if (!apiWorkflow) {

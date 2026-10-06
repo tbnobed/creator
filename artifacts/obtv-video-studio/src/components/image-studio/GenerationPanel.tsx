@@ -130,7 +130,9 @@ export function GenerationPanel({
   const models = modelsData?.models || [];
   const createJob = useCreateJob();
   const { toast } = useToast();
-  const [modelId, setModelId] = useState("");
+  const [modeModels, setModeModels] = useState<Partial<Record<WorkspaceMode, string>>>({});
+  const modelId = modeModels[mode] || "";
+  const setModelId = (id: string) => setModeModels(current => ({ ...current, [mode]: id }));
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
   const [dimensions, setDimensions] = useState({ width: 1024, height: 1024 });
@@ -184,7 +186,7 @@ export function GenerationPanel({
       );
       const nextModel = sameProviderModel
         || (operationRequiresCloud ? availableModels.find((model) => model.provider === "CLOUD") : undefined)
-        || (!selectedModel && !modelSelectionCleared.current ? initialLocalModel || availableModels[0] : undefined);
+        || (!selectedModel ? initialLocalModel || (mode !== "generate" ? availableModels[0] : undefined) : undefined);
       modelSelectionCleared.current = !nextModel;
       setModelId(nextModel?.id || "");
     }
@@ -251,6 +253,13 @@ export function GenerationPanel({
   const operationSource = mode === "outpaint" ? preparedOutpaintAsset : activeAsset;
   const localEditDimensions = mode === "edit" && activeModel?.provider === "LOCAL";
   const showDimensionControls = mode === "generate" || localEditDimensions;
+  const maxDimension = activeModel?.provider === "LOCAL" ? 2048 : 4096;
+  const dimensionsValid = !showDimensionControls || [dimensions.width, dimensions.height].every(
+    value => Number.isInteger(value) && value >= 256 && value <= maxDimension && value % 16 === 0,
+  );
+  const promptValid = ["upscale", "remove-background"].includes(mode) || Boolean(prompt.trim());
+  const esrganSizeValid = modelId !== "cloud-esrgan-upscale" || !activeAsset
+    || activeAsset.width * activeAsset.height * upscaleFactor ** 2 <= 24_000_000;
   const localEditDimensionsValid = !localEditDimensions
     || (isValidLocalEditDimension(dimensions.width) && isValidLocalEditDimension(dimensions.height));
   const submittedReferences = mode === "generate"
@@ -286,6 +295,10 @@ export function GenerationPanel({
     && !tooManyReferences
     && !localReferenceOverflow
     && localEditDimensionsValid
+    && dimensionsValid
+    && promptValid
+    && esrganSizeValid
+    && (activeModel.provider !== "CLOUD" || cloudConfirmed)
     && topazSizeValid,
   );
 
@@ -415,13 +428,15 @@ export function GenerationPanel({
             <button
               key={item}
               type="button"
+              aria-label={item.replace("-", " ")}
+              aria-pressed={mode === item}
               onClick={() => setMode(item)}
               className={`flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium ${
                 mode === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
               }`}
             >
               {MODE_ICONS[item]}
-              <span className="truncate capitalize">{item.replace("-", " ")}</span>
+              <span className="whitespace-normal capitalize leading-tight">{item.replace("-", " ")}</span>
             </button>
           ))}
         </div>
@@ -583,23 +598,26 @@ export function GenerationPanel({
             <div className="grid grid-cols-2 gap-2">
               <Input
                 type="number"
-                min={localEditDimensions ? LOCAL_EDIT_MIN_DIMENSION : 1}
-                max={localEditDimensions ? LOCAL_EDIT_MAX_DIMENSION : 32768}
-                step={localEditDimensions ? LOCAL_EDIT_DIMENSION_STEP : 1}
+                min={256}
+                max={maxDimension}
+                step={16}
                 aria-label="Width"
                 value={dimensions.width}
                 onChange={(event) => setDimensions((value) => ({ ...value, width: Number(event.target.value) }))}
               />
               <Input
                 type="number"
-                min={localEditDimensions ? LOCAL_EDIT_MIN_DIMENSION : 1}
-                max={localEditDimensions ? LOCAL_EDIT_MAX_DIMENSION : 32768}
-                step={localEditDimensions ? LOCAL_EDIT_DIMENSION_STEP : 1}
+                min={256}
+                max={maxDimension}
+                step={16}
                 aria-label="Height"
                 value={dimensions.height}
                 onChange={(event) => setDimensions((value) => ({ ...value, height: Number(event.target.value) }))}
               />
             </div>
+            <p role={dimensionsValid ? undefined : "alert"} className={`text-xs ${dimensionsValid ? "text-muted-foreground" : "text-destructive"}`}>
+              Use whole numbers from 256 to {maxDimension}, divisible by 16.
+            </p>
             {localEditDimensions && (
               <p
                 data-testid="text-local-edit-dimensions-help"
@@ -631,9 +649,10 @@ export function GenerationPanel({
               <p>Topaz Standard V2 • PNG • No cropping or face reconstruction. Original stays unchanged; the result is a separate library image linked to this job and source.</p>
               <p>Opaque images only. Transparency-bearing inputs are rejected before paid submission.</p>
               {!activeModel && <p role="alert" className="text-destructive">Topaz is unavailable. Configure Fal Cloud credentials to enable it.</p>}
-              {!topazSizeValid && <p role="alert" className="text-destructive">Select a supported 2× or 4× size, up to 96 MP and 32768 pixels per edge.</p>}
+              {activeAsset && !topazSizeValid && <p role="alert" className="text-destructive">Select a supported 2× or 4× size, up to 96 MP and 32768 pixels per edge.</p>}
               {activeAsset && topazSizeValid && <p className="font-semibold text-primary">Estimated cost: ${topazEstimate.toFixed(2)} USD. Local estimate, not a provider invoice.</p>}
             </div>}
+            {modelId === "cloud-esrgan-upscale" && <p role={esrganSizeValid ? undefined : "alert"} className={`text-xs ${esrganSizeValid ? "text-muted-foreground" : "text-destructive"}`}>Real-ESRGAN output is limited to 24 megapixels in this app to keep downloads bounded. Choose a smaller scale or source.</p>}
           </div>
         )}
 
@@ -688,10 +707,10 @@ export function GenerationPanel({
         )}
 
         <div className="space-y-4">
-          <div className="space-y-2">
+          {(activeModel?.maxImages || 1) > 1 && <div className="space-y-2">
             <div className="flex justify-between"><Label>Number of images</Label><span className="text-xs text-primary">{count}</span></div>
             <Slider value={[count]} min={1} max={activeModel?.maxImages || 1} step={1} onValueChange={([value]) => setCount(value)} />
-          </div>
+          </div>}
           {activeModel?.supportsSeed && (
             <div className="space-y-2">
               <Label>Seed <span className="text-[10px] text-muted-foreground">optional</span></Label>

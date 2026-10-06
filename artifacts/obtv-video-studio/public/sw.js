@@ -1,4 +1,4 @@
-const CACHE_NAME = "obtv-creator-ai-shell-v1";
+const CACHE_NAME = "obtv-creator-ai-shell-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -18,6 +18,12 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
+  // Never intercept API, media, range requests, or static assets. Only the
+  // document navigation has an app-shell offline fallback.
+  const pathname = new URL(event.request.url).pathname;
+  if (event.request.mode !== "navigate" || pathname.endsWith("/api") || pathname.includes("/api/")
+    || /\.(mp4|mov|webm|mp3|wav|png|jpe?g|webp|gif)$/i.test(pathname)
+    || event.request.headers.has("range")) return;
 
   event.respondWith(
     fetch(event.request)

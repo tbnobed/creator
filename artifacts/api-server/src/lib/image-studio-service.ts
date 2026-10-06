@@ -293,7 +293,9 @@ export function inspectImage(
 export function presentImageAsset(asset: ImageStudioAsset): PresentedImageAsset {
   return {
     id: asset.id,
-    name: asset.name,
+    name: asset.jobId && /_\d{5}_\.(png|jpe?g|webp)$/i.test(asset.name)
+      ? asset.name.replace(/(\.[^.]+)$/, `-${asset.id.slice(0, 8)}$1`)
+      : asset.name,
     url: `/api/media/${asset.storageKey}`,
     storageKey: asset.storageKey,
     mimeType: asset.mimeType,
@@ -408,7 +410,7 @@ export async function listImageAssets(input: {
   const conditions = [eq(imageStudioAssetsTable.tenantId, input.tenantId)];
   if (input.search) {
     const escaped = input.search.replace(/[\\%_]/g, "\\$&");
-    conditions.push(ilike(imageStudioAssetsTable.name, `%${escaped}%`));
+    conditions.push(sql`(${imageStudioAssetsTable.name} ILIKE ${`%${escaped}%`} OR ${imageStudioAssetsTable.id}::text ILIKE ${`%${escaped}%`})`);
   }
   if (input.favorite !== undefined) {
     conditions.push(eq(imageStudioAssetsTable.favorite, input.favorite));
@@ -657,6 +659,9 @@ async function loadInputAssets(
     );
   }
   if (input.operation === "upscale" && source) {
+    if (input.modelId === "cloud-esrgan-upscale" && input.width * input.height > 24_000_000) {
+      throw new ImageStudioRequestError("Real-ESRGAN output exceeds this app's 24 megapixel download safety limit. Choose a smaller scale or source.", 400);
+    }
     const widthScale = input.width / source.width;
     const heightScale = input.height / source.height;
     if (
@@ -726,7 +731,7 @@ async function handleCompleted(
       }
       const safeName = job.modelId === TOPAZ_IMAGE_MODEL
         ? `Topaz upscaled ${inspected.width} × ${inspected.height}`
-        : image.name.trim().slice(0, 255) || `${job.modelName} ${index + 1}`;
+        : `${job.modelName} - ${job.id} - ${index + 1}.${inspected.mimeType === "image/jpeg" ? "jpg" : inspected.mimeType === "image/webp" ? "webp" : "png"}`.slice(0, 255);
       const storageKey = await mediaStorage.storeImageStudioImage(
         safeName,
         inspected.mimeType,

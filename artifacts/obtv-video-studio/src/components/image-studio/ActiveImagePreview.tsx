@@ -44,6 +44,7 @@ export function ActiveImagePreview({
   const [editName, setEditName] = useState("");
   const [collection, setCollection] = useState("");
   const [outpaintPadding, setOutpaintPadding] = useState(256);
+  const [brushSize, setBrushSize] = useState(40);
   const previousPadding = useRef(outpaintPadding);
   const maskCanvasRef = useRef<PaintMaskCanvasRef>(null);
   const [isUploadingMask, setIsUploadingMask] = useState(false);
@@ -256,6 +257,7 @@ export function ActiveImagePreview({
                 width={asset.width}
                 height={asset.height}
                 mode={mode}
+                brushSize={brushSize}
                 outpaintPadding={outpaintPadding}
                 onDirty={invalidateMask}
               />
@@ -282,6 +284,11 @@ export function ActiveImagePreview({
         </div>
         {(mode === "inpaint" || mode === "outpaint") && (
           <div className="flex items-center gap-2">
+            {mode === "inpaint" && <label className="flex items-center gap-2 text-xs">
+              Brush {brushSize}px
+              <input aria-label="Brush size" type="range" min={4} max={200} step={2} value={brushSize}
+                onChange={event => setBrushSize(Number(event.target.value))} className="w-24 accent-primary" />
+            </label>}
             {mode === "outpaint" && (
               <select
                 aria-label="Outpaint padding"
