@@ -182,3 +182,31 @@ mtime_ms = 1791326419490
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/9201df13-c761-42b5-be99-4d1444ac51c2/bedbb8f2-ebd4-4fc8-8383-1d959836c8ae"
 storage_version_token = "1791326535218128"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "9IpytHecYi2wapzEvmRCg"
+uri = "file://attached_assets/existing-print-wave-proof/comparison.mp4"
+type = "video"
+title = "Original artwork test — source versus animated arm"
+description = "Zoomed five-second comparison. Left: source. Right: the original monkey’s arm animated locally, with a paid clean-fabric patch beneath it. Prototype; attachment and cleanup still need refinement."
+logical_id = "2b3afc4b-753d-46ad-ada2-1aa64cbfa5cb"
+content_hash = "sha256:036ed58d101af010b530b33d20386202ed9f152aa733f713ff3d681621e001ab"
+size = 1573274
+mtime_ms = 1791327553617
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/2b3afc4b-753d-46ad-ada2-1aa64cbfa5cb/d7631dc8-5dbf-4edb-b589-e60712412084"
+storage_version_token = "1791327608291903"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "GV1-yPNtPHZHtUmBI4mIX"
+uri = "file://attached_assets/existing-print-wave-proof/existing-monkey-wave.mp4"
+type = "video"
+title = "Original monkey artwork — small arm-wave proof"
+description = "Full-frame 720p proof using existing ink pixels rather than a generated replacement monkey. Original audio retained. One paid fabric-image edit; no new paid video render."
+logical_id = "c30aaa2a-fa98-4730-a40a-346850409dc4"
+content_hash = "sha256:3ac14358b2dc3735c0fda2063116624ffd7b31972d254623d169a348da4624e9"
+size = 2386428
+mtime_ms = 1791327550997
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/c30aaa2a-fa98-4730-a40a-346850409dc4/669810ff-227f-419e-bac9-2da35bdbfece"
+storage_version_token = "1791327608850948"
+content_type = "video/mp4"

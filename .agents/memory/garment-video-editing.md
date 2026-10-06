@@ -27,6 +27,12 @@ Do not treat successful Kling O3 clothing replacement as proof of independently 
 
 **How to apply:** Compare matched source and output frames for motion relative to the cloth, original artwork identity/palette/texture, and believable fabric integration. Do not call a newly drawn moving cartoon a faithful print animation. Avoid repeating stronger-prompt/no-reference variations as untested fixes; require a concrete new control strategy and bounded spending authorization.
 
+Test identity-preserving pixel animation on a fully visible limb away from garment hardware before attempting an occluded limb.
+
+**Why:** A button embedded visually in the printed arm leaves missing artwork when that arm moves. Local removal can smear neighboring ink into the cloth; even a paid clean-fabric image can redraw the placket in a different position. Reusing that image without separating hardware produces duplicated seams rather than a clean repair.
+
+**How to apply:** Treat original ink, restored cloth, and original buttons/seams as separate layers. A paid fabric plate is only a bounded background repair, not a replacement for the garment or a source of new artwork. Require local color matching and an inspected attachment before extending the motion or duration.
+
 The user chose “Animated shirt graphic”: a moving cartoon design that follows the shirt’s fabric and folds, not 3D-looking characters playing on its surface.
 
 **Why:** The user explicitly selected this treatment.

@@ -1,0 +1,30 @@
+{
+  "frames": 121,
+  "fps": 24.0,
+  "originalPixelsOutsideMaskUnchanged": true,
+  "maxEditedPixels": 4355,
+  "maxArmRotationDegrees": 18.0,
+  "newArtworkGenerated": false,
+  "usesPaidFabricPlate": true,
+  "limitations": [
+    "local dense flow is approximate",
+    "skin-color occlusion mask is specific to this proof",
+    "restored fabric is estimated, not ground truth"
+  ],
+  "sourceAudioPacketsUnchanged": true,
+  "media": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1280,
+        "height": 720,
+        "duration": "5.041667"
+      },
+      {
+        "codec_type": "audio",
+        "duration": "5.013000"
+      }
+    ]
+  }
+}
