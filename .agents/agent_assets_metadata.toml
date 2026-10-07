@@ -210,3 +210,17 @@ mtime_ms = 1791327550997
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/c30aaa2a-fa98-4730-a40a-346850409dc4/669810ff-227f-419e-bac9-2da35bdbfece"
 storage_version_token = "1791327608850948"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "FMIVn2E01f9Zf9ViNNZR5"
+uri = "file://attached_assets/git-export/creator-pending.bundle"
+type = "unspecified"
+title = "Pending commits — Git bundle"
+description = "Verified Git bundle containing all 16 pending commits on main. Download size: approximately 59 MB. Import into a clone of the existing GitHub repository."
+logical_id = "652b4a45-5be3-4ab6-8cea-94b1b3f7726f"
+content_hash = "sha256:6eafcc1090f6f3d3f71c57308ac7938dda3ebc7da6088f21ae93a583ca26964f"
+size = 61766236
+mtime_ms = 1791354567988
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/652b4a45-5be3-4ab6-8cea-94b1b3f7726f/8f71a446-b0d2-4d34-8c7f-b7e336cc8675"
+storage_version_token = "1791354579190524"
+content_type = "application/octet-stream"
