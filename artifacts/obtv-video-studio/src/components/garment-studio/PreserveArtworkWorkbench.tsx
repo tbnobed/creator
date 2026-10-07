@@ -5,12 +5,14 @@ import { ResultPanel } from "./GarmentWorkbench";
 import { isActiveJob } from "./validation";
 import type { GarmentReference, GarmentSource } from "./types";
 import {
-  ANGLE_LIMIT, CPS_MAX, CPS_MIN, INK_MAX, INK_MIN, MAX_PROTECTED, PIXEL_MAX_SECONDS, PIXEL_MIN_SECONDS, POLY_MAX,
+  MAX_PROTECTED, PIXEL_MAX_SECONDS, PIXEL_MIN_SECONDS, POLY_MAX,
   clamp01, pixelSubmitBlocker, roundPoly,
 } from "./pixel-validation";
 import type { Pt } from "./pixel-validation";
+import { DEFAULT_TARGET, DEFAULT_TITLE, MOTION_PRESETS, effectiveTarget, effectiveTitle, guide, presetFor } from "./guided-steps";
+import { AdvancedPanel, StepRail } from "./PreserveParts";
 import {
-  AlertTriangle, Check, Crosshair, Eye, EyeOff, ImagePlus, Loader2, Lock, Pause, Pentagon, Play, Recycle, RotateCcw, ShieldCheck, Trash2, Undo2, Upload, X,
+  AlertTriangle, ArrowRight, Check, Crosshair, Film, Loader2, Pause, Pentagon, Play, Recycle, ShieldCheck, Sparkles, Trash2, Undo2, Upload,
 } from "lucide-react";
 
 export interface PreserveSubmitRequest {
@@ -47,6 +49,8 @@ interface Props {
   onInputChange: () => void;
   /** True while ANY garment job is queued/running, not just the selected one. */
   anyActiveJob?: boolean;
+  /** Most recent finished job that can be reused as a starting video. */
+  recentResult?: ApiGarmentJob | null;
 }
 
 type Tool = "outline" | "pivot" | "protect";
@@ -59,10 +63,9 @@ function tracePath(ctx: CanvasRenderingContext2D, poly: Pt[], w: number, h: numb
 }
 
 export function PreserveArtworkWorkbench({
-  source, job, loading, error, onUpload, onSubmit, onCancel, plate, plateUploading, onPlateUpload, onPlateClear, onUseResult, usingResult, onInputChange, anyActiveJob = false,
+  source, job, loading, error, onUpload, onSubmit, onCancel, plate, plateUploading, onPlateUpload, onPlateClear, onUseResult, usingResult, onInputChange, anyActiveJob = false, recentResult = null,
 }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
-  const plateInput = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLCanvasElement | null>(null);
@@ -259,6 +262,12 @@ export function PreserveArtworkWorkbench({
     return () => cancelAnimationFrame(rafRef.current);
   }, [draw, previewing, frameVersion, inkUnavailable]);
 
+  // Guide the tool automatically: after the outline closes, the next click places the attachment point.
+  useEffect(() => {
+    if (closed && !pivot) setTool((t) => (t === "outline" ? "pivot" : t));
+    if (!closed) setTool((t) => (t === "pivot" ? "outline" : t));
+  }, [closed, pivot]);
+
   const touched = useCallback(() => { setReviewed(false); onInputChangeRef.current(); }, []);
 
   /** Places a normalized point with the current tool. pxW/pxH convert the close-snap radius to screen pixels. */
@@ -326,19 +335,24 @@ export function PreserveArtworkWorkbench({
   }
 
   const active = isActiveJob(job);
+  const jobRunning = active || anyActiveJob;
   const busy = loading || plateUploading || usingResult;
+  const title2 = effectiveTitle(title);
   const blocker = pixelSubmitBlocker({
     hasSource: Boolean(source) && frameState === "ready", polygon, closed, pivot, protectedPolygons: protectedPolys,
     pendingProtectPoints: draftProtect.length,
-    start, duration, total, angle, cps, ink, reviewed, title, busy, activeJob: active || anyActiveJob,
+    start, duration, total, angle, cps, ink, reviewed, title: title2, busy, activeJob: jobRunning,
   });
-  const canUseResult = job && job.status === "succeeded" && Boolean(job.outputUrl) && !active && !anyActiveJob;
+  const canUseResult = job && job.status === "succeeded" && Boolean(job.outputUrl) && !jobRunning;
+  const g = guide({ hasSource: Boolean(source), frameReady: frameState === "ready", points: polygon.length, closed, hasPivot: Boolean(pivot), reviewed });
+  const preset = presetFor(angle, cps);
+  const step3Ready = closed && Boolean(pivot) && frameState === "ready";
 
   function submit() {
     if (blocker || !pivot) return;
     onSubmit({
-      prompt: title.trim(),
-      targetGarment: targetGarment.trim() || "printed artwork",
+      prompt: title2,
+      targetGarment: effectiveTarget(targetGarment),
       startSeconds: start,
       durationSeconds: duration,
       seed: 0,
@@ -355,227 +369,200 @@ export function PreserveArtworkWorkbench({
   }
 
   const selectionStatus = !closed
-    ? polygon.length ? `Outline open: ${polygon.length} point${polygon.length === 1 ? "" : "s"}` : "No outline yet"
-    : `Outline closed: ${polygon.length} points`;
+    ? polygon.length ? `Selection open: ${polygon.length} dot${polygon.length === 1 ? "" : "s"}` : "No selection yet"
+    : `Selection finished: ${polygon.length} dots`;
+
+  const fileField = (
+    <input ref={fileInput} type="file" accept="video/mp4,video/quicktime,.mp4,.mov" className="sr-only" aria-label="Choose source video"
+      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onUpload(f); }} />
+  );
+  const showResult = Boolean(job);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]" data-testid="preserve-workbench">
-      <div className="min-w-0 space-y-6">
-        <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs leading-relaxed" data-testid="text-preserve-explainer">
-          <Lock className="mt-0.5 size-4 shrink-0 text-primary" />
-          <p>
-            <span className="font-semibold">Preserve artwork moves your original print pixels; nothing is redrawn by AI.</span>{" "}
-            You outline one rigid part of the print and it swings around a pivot within a bounded angle. Local optical flow follows visible cloth motion, but cannot reliably reconstruct hidden artwork:
-            choose a stretch where the artwork stays fully visible, flat, and away from folds and hands. Gaps uncovered by the motion are filled by
-            local cloth inpainting, which can smear on patterned fabric; an optional clean-cloth plate gives the best restoration.
-            Runs locally on the server and never incurs provider charges.
-          </p>
-        </div>
+    <div className="space-y-5" data-testid="preserve-workbench">
+      <StepRail step={g.step} />
 
-        {!source ? (
-          <section aria-labelledby="preserve-upload-heading"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onUpload(f); }}
-            className="rounded-xl border-2 border-dashed border-border bg-card p-8 text-center md:p-14">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10">
-              {loading ? <Loader2 className="size-6 animate-spin text-primary" /> : <Upload className="size-6 text-primary" />}
+      {!source ? (
+        <section aria-labelledby="preserve-upload-heading"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onUpload(f); }}
+          className="grid gap-6 rounded-2xl border-2 border-dashed border-primary/30 bg-card p-6 md:grid-cols-[1fr_auto] md:items-center md:p-10">
+          <div>
+            <h2 id="preserve-upload-heading" className="text-xl font-semibold tracking-tight">{usingResult ? "Loading that video" : loading ? "Uploading your video" : "Choose a video"}</h2>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground" data-testid="text-preserve-explainer">
+              Make one part of any visible artwork swing back and forth, using the original pixels. Drop an MP4 or MOV here.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button size="lg" disabled={busy} onClick={() => fileInput.current?.click()} data-testid="button-preserve-upload">
+                {loading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}Upload video
+              </Button>
+              {recentResult && (
+                <Button size="lg" variant="secondary" disabled={busy || jobRunning} onClick={() => onUseResult(recentResult.id)} data-testid="button-preserve-use-recent">
+                  {usingResult ? <Loader2 className="size-4 animate-spin" /> : <Recycle className="size-4" />}Continue from "{recentResult.title}"
+                </Button>
+              )}
             </div>
-            <h2 id="preserve-upload-heading" className="mt-4 text-lg font-semibold">{loading ? "Uploading clip" : "Drop a clip with the printed artwork"}</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">MP4 or MOV. You render a window of up to {PIXEL_MAX_SECONDS} seconds; output is normalized to at most 720p.</p>
-            <input ref={fileInput} type="file" accept="video/mp4,video/quicktime,.mp4,.mov" className="sr-only" aria-label="Choose source video"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onUpload(f); }} />
-            <Button className="mt-5" disabled={loading} onClick={() => fileInput.current?.click()} data-testid="button-preserve-upload">Choose clip</Button>
-          </section>
-        ) : (
-          <section aria-labelledby="preserve-editor-heading" className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="preserve-editor-heading" className="text-sm font-semibold">Frame at {start.toFixed(2)}s</h2>
-              <span className="font-mono text-xs text-muted-foreground">{source.width}x{source.height} / {source.durationSeconds.toFixed(2)}s</span>
+            {fileField}
+            {error && <p role="alert" className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs" data-testid="text-preserve-error">{error}</p>}
+          </div>
+          <div className="hidden size-28 items-center justify-center rounded-full bg-primary/10 md:flex" aria-hidden="true">
+            <Film className="size-10 text-primary" />
+          </div>
+        </section>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section aria-labelledby="preserve-editor-heading" className="min-w-0 rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-start gap-3 rounded-xl border-l-4 border-primary bg-primary/10 px-4 py-3" aria-live="polite" data-testid="text-next-action">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{g.step}</span>
+              <div className="min-w-0">
+                <h2 id="preserve-editor-heading" className="text-base font-semibold leading-tight">{g.action}</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground" data-testid="text-tool-help">
+                  {tool === "protect" ? `Keeping still: click around text or details that must not move, then Close area (max ${MAX_PROTECTED}).` : g.detail}
+                </p>
+              </div>
             </div>
 
-            <div role="radiogroup" aria-label="Editing tool" className="mb-3 flex flex-wrap gap-1.5">
+            <div role="radiogroup" aria-label="What your next click does" className="mb-3 flex flex-wrap items-center gap-1.5">
               {([
-                ["outline", "Moving part", Pentagon],
-                ["pivot", "Pivot", Crosshair],
-                ["protect", "Protect", ShieldCheck],
-              ] as const).map(([value, label, Icon]) => (
-                <button key={value} type="button" role="radio" aria-checked={tool === value} disabled={previewing}
+                ["outline", "1. Select moving part", Pentagon, true],
+                ["pivot", "2. Attachment point", Crosshair, closed],
+                ...(tool === "protect" ? [["protect", "Keep still", ShieldCheck, true] as const] : []),
+              ] as const).map(([value, label, Icon, enabled]) => (
+                <button key={value} type="button" role="radio" aria-checked={tool === value} disabled={previewing || !enabled}
                   onClick={() => setTool(value)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${tool === value ? "border-primary bg-primary/15 text-primary" : "border-border hover:bg-secondary"}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 ${tool === value ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}
                   data-testid={`button-tool-${value}`}>
                   <Icon className="size-3.5" />{label}
                 </button>
               ))}
+              <span className="ml-auto font-mono text-[11px] text-muted-foreground" data-testid="text-selection-status" aria-live="polite">
+                {selectionStatus} / {pivot ? "attachment set" : "no attachment"}{protectedPolys.length ? ` / ${protectedPolys.length} kept still` : ""}
+              </span>
             </div>
 
             <div className="rounded-lg bg-black/60">
-            <div className="relative mx-auto overflow-hidden" style={{ maxWidth: `min(100%, calc(60dvh * ${dims.w / dims.h}))` }}>
-              <canvas ref={canvasRef} width={dims.w} height={dims.h}
-                onPointerDown={handlePointer}
-                onKeyDown={handleKey}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                tabIndex={0}
-                role="application"
-                aria-roledescription="frame editor"
-                aria-label={`Still frame editor. Tool: ${tool}. ${selectionStatus}. ${pivot ? "Pivot placed." : "No pivot."} Arrow keys move the cursor (Shift for larger steps), Enter places a point, Backspace undoes.`}
-                aria-describedby="preserve-cursor-readout"
-                className={`block h-auto w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${previewing ? "cursor-default" : "cursor-crosshair"}`}
-                data-testid="canvas-preserve-editor" />
-              {frameState !== "ready" && (
-                <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" data-testid="status-preserve-frame">
-                  {frameState === "error" ? <span className="flex items-center gap-1.5 text-destructive"><AlertTriangle className="size-3.5" />Could not read this frame.</span>
-                    : <span className="flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" />Seeking to {start.toFixed(2)}s</span>}
-                </div>
-              )}
-              {previewing && (
-                <span className="absolute left-2 top-2 rounded-md bg-background/85 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-primary" data-testid="badge-outline-preview">
-                  Outline preview / approximation / no tracking
-                </span>
-              )}
-            </div>
+              <div className="relative mx-auto overflow-hidden" style={{ maxWidth: `min(100%, calc(60dvh * ${dims.w / dims.h}))` }}>
+                <canvas ref={canvasRef} width={dims.w} height={dims.h}
+                  onPointerDown={handlePointer}
+                  onKeyDown={handleKey}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  tabIndex={0}
+                  role="application"
+                  aria-roledescription="frame editor"
+                  aria-label={`Still frame editor. Next: ${g.action}. ${selectionStatus}. ${pivot ? "Attachment point placed." : "No attachment point."} Arrow keys move the cursor (Shift for larger steps), Enter places a dot, Backspace undoes.`}
+                  aria-describedby="preserve-cursor-readout"
+                  className={`block h-auto w-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${previewing ? "cursor-default" : "cursor-crosshair"}`}
+                  data-testid="canvas-preserve-editor" />
+                {frameState !== "ready" && (
+                  <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" data-testid="status-preserve-frame">
+                    {frameState === "error" ? <span className="flex items-center gap-1.5 text-destructive"><AlertTriangle className="size-3.5" />Could not read this frame.</span>
+                      : <span className="flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" />Loading frame at {start.toFixed(2)}s</span>}
+                  </div>
+                )}
+                {previewing && (
+                  <span className="absolute left-2 top-2 rounded-md bg-background/85 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-primary" data-testid="badge-outline-preview">
+                    Motion sketch / still frame only
+                  </span>
+                )}
+              </div>
               <video ref={videoRef} src={source.mediaUrl} muted playsInline preload="auto" className="hidden" aria-hidden="true" />
             </div>
-            <p id="preserve-cursor-readout" className="mt-1 font-mono text-[10px] text-muted-foreground" aria-live="polite" data-testid="text-cursor-readout">
+            <p id="preserve-cursor-readout" className="sr-only" aria-live="polite" data-testid="text-cursor-readout">
               Keyboard cursor x {cursor.x.toFixed(3)} / y {cursor.y.toFixed(3)}
             </p>
 
-            <p className="mt-2 text-[11px] text-muted-foreground" data-testid="text-tool-help">
-              {tool === "outline" && (closed ? "Outline closed. Undo reopens it." : "Click or tap around the part that should move. Click the first point (or Close) to finish.")}
-              {tool === "pivot" && "Click the hinge point the part rotates around, e.g. a shoulder or wrist joint in the print."}
-              {tool === "protect" && `Outline buttons, seams or text that must never move (max ${MAX_PROTECTED}). Click the first point to close each.`}
-            </p>
-
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="mr-auto font-mono text-[11px] text-muted-foreground" data-testid="text-selection-status" aria-live="polite">
-                {selectionStatus} / {pivot ? "pivot set" : "no pivot"} / {protectedPolys.length} protected
-              </span>
-              <Button variant="ghost" size="sm" onClick={undo} disabled={previewing} data-testid="button-preserve-undo"><Undo2 className="size-3.5" />Undo</Button>
               {tool === "outline" && !closed && (
-                <Button variant="secondary" size="sm" disabled={polygon.length < 3 || previewing} onClick={() => { setClosed(true); touched(); }} data-testid="button-preserve-close">
-                  <Check className="size-3.5" />Close outline
+                <Button size="sm" disabled={polygon.length < 3 || previewing} onClick={() => { setClosed(true); touched(); }} data-testid="button-preserve-close">
+                  <Check className="size-3.5" />Finish selection
                 </Button>
               )}
-              {tool === "protect" && draftProtect.length > 0 && (
-                <Button variant="secondary" size="sm" disabled={draftProtect.length < 3} onClick={closeProtect} data-testid="button-protect-close"><Check className="size-3.5" />Close area</Button>
+              {tool === "protect" && (
+                <>
+                  <Button size="sm" variant="secondary" disabled={draftProtect.length < 3} onClick={closeProtect} data-testid="button-protect-close"><Check className="size-3.5" />Close area</Button>
+                  <Button size="sm" variant="ghost" disabled={draftProtect.length > 0} onClick={() => setTool(closed ? (pivot ? "outline" : "pivot") : "outline")} data-testid="button-protect-done">Done</Button>
+                </>
               )}
-              <Button variant="ghost" size="sm" onClick={() => { resetSelection(); onInputChangeRef.current(); }} data-testid="button-preserve-reset"><Trash2 className="size-3.5" />Reset all</Button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-              <Button size="sm" variant={previewing ? "secondary" : "default"} disabled={!closed || !pivot || frameState !== "ready"}
-                onClick={() => setPreviewing((p) => !p)} data-testid="button-outline-preview">
-                {previewing ? <><Pause className="size-3.5" />Stop outline preview</> : <><Play className="size-3.5" />Outline motion preview</>}
-              </Button>
-              <Button size="sm" variant="ghost" disabled={!closed || previewing || inkUnavailable} onClick={() => setShowInk((s) => !s)} aria-pressed={showInk} data-testid="button-toggle-ink">
-                {showInk ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showInk ? "Hide ink" : "Show ink"}
-              </Button>
-              <span className="text-[11px] text-muted-foreground">
-                Preview rotates the selected still pixels only. It is not the final fabric result; Render saves a real clip.
-              </span>
-            </div>
-            {inkUnavailable && <p className="mt-2 text-[11px] text-muted-foreground">Ink highlight is unavailable for this media in the browser; the server still applies the threshold.</p>}
-
-            <div className="mt-4 flex justify-end">
-              <Button variant="ghost" size="sm" disabled={loading || active} onClick={() => fileInput.current?.click()} data-testid="button-preserve-replace"><Upload className="size-3.5" />Use a different clip</Button>
-              <input ref={fileInput} type="file" accept="video/mp4,video/quicktime,.mp4,.mov" className="sr-only" aria-label="Replace source video"
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onUpload(f); }} />
+              <Button variant="ghost" size="sm" onClick={undo} disabled={previewing} data-testid="button-preserve-undo"><Undo2 className="size-3.5" />Undo</Button>
+              <Button variant="ghost" size="sm" disabled={previewing} onClick={() => { resetSelection(); onInputChangeRef.current(); }} data-testid="button-preserve-reset"><Trash2 className="size-3.5" />Start over</Button>
+              <Button variant="ghost" size="sm" className="ml-auto" disabled={busy || jobRunning} onClick={() => fileInput.current?.click()} data-testid="button-preserve-replace"><Upload className="size-3.5" />Different video</Button>
+              {fileField}
             </div>
           </section>
-        )}
 
-        <ResultPanel job={job} sourceUrl={job?.sourceUrl ?? source?.mediaUrl ?? undefined} start={job?.sourceUrl ? 0 : start} onCancel={onCancel} />
-        {canUseResult && job && (
-          <div className="-mt-3 flex justify-end">
-            <Button variant="secondary" size="sm" disabled={busy || active} onClick={() => onUseResult(job.id)} data-testid="button-use-result-source">
-              {usingResult ? <Loader2 className="size-3.5 animate-spin" /> : <Recycle className="size-3.5" />}Use result as source
+          <aside aria-labelledby="preserve-step3-heading" className={`h-fit rounded-2xl border bg-card p-4 transition-opacity ${step3Ready ? "border-primary/40" : "border-border opacity-60"}`}>
+            <h2 id="preserve-step3-heading" className="flex items-center gap-2 text-sm font-semibold"><span className="flex size-5 items-center justify-center rounded-full bg-secondary text-[11px]">3</span>Preview and save</h2>
+            {!step3Ready && <p className="mt-2 text-xs text-muted-foreground" data-testid="text-step3-locked">Unlocks after you select the moving part and its attachment point.</p>}
+
+            <fieldset className="mt-4" disabled={!step3Ready}>
+              <legend className="text-xs text-muted-foreground">How much movement</legend>
+              <div role="radiogroup" aria-label="Motion level" className="mt-2 grid grid-cols-3 gap-1.5">
+                {MOTION_PRESETS.map((p) => (
+                  <button key={p.id} type="button" role="radio" aria-checked={preset === p.id}
+                    onClick={() => { setAngle(p.angle); setCps(p.cps); touched(); }}
+                    className={`rounded-lg border px-2 py-2 text-left transition-colors disabled:cursor-not-allowed ${preset === p.id ? "border-primary bg-primary/10" : "border-border hover:bg-secondary"}`}
+                    data-testid={`button-preset-${p.id}`}>
+                    <span className="block text-xs font-semibold">{p.label}</span>
+                    <span className="block text-[10px] text-muted-foreground">{p.id === "gentle" ? "Small movement" : p.id === "normal" ? "Medium movement" : "Larger movement"}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">{preset ? MOTION_PRESETS.find((p) => p.id === preset)?.hint : "Custom values from Advanced"}. A back-and-forth swing only.</p>
+            </fieldset>
+
+            <Button size="sm" variant={previewing ? "secondary" : "outline"} className="mt-4 w-full" disabled={!step3Ready}
+              onClick={() => setPreviewing((p) => !p)} data-testid="button-outline-preview">
+              {previewing ? <><Pause className="size-3.5" />Stop sketch</> : <><Play className="size-3.5" />Play motion sketch</>}
             </Button>
-          </div>
-        )}
-      </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">The sketch moves the still frame only. The real video follows the clip.</p>
 
-      <aside className="space-y-4">
-        <section aria-labelledby="preserve-window-heading" className="rounded-xl border border-border bg-card p-4">
-          <h2 id="preserve-window-heading" className="text-sm font-semibold">Window</h2>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <label className="text-xs">
-              <span className="text-muted-foreground">Start (s)</span>
-              <input type="number" min={0} step={0.05} value={startDraft} disabled={!source || previewing}
-                onChange={(e) => setStartDraft(e.target.value)}
-                onBlur={(e) => commitStart(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") commitStart((e.target as HTMLInputElement).value); }}
-                className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-sm" data-testid="input-preserve-start" />
+            <label className="mt-4 flex items-start gap-2 rounded-lg border border-border p-3 text-xs">
+              <input type="checkbox" checked={reviewed} disabled={!step3Ready} onChange={(e) => setReviewed(e.target.checked)} className="mt-0.5 accent-[hsl(var(--primary))]" data-testid="checkbox-preserve-reviewed" />
+              <span><span className="font-semibold">Looks right.</span> The selection and attachment point are where I want them.</span>
             </label>
-            <label className="text-xs">
-              <span className="text-muted-foreground">Length (s)</span>
-              <input type="number" min={PIXEL_MIN_SECONDS} max={PIXEL_MAX_SECONDS} step={0.1} value={duration} disabled={!source}
-                onChange={(e) => { setDuration(Number(e.target.value)); onInputChangeRef.current(); }}
-                className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-sm" data-testid="input-preserve-duration" />
-            </label>
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">Changing the start loads a new frame and clears the outline, pivot, protected areas and plate.</p>
-        </section>
 
-        <section aria-labelledby="preserve-motion-heading" className="rounded-xl border border-border bg-card p-4">
-          <h2 id="preserve-motion-heading" className="text-sm font-semibold">Motion</h2>
-          <Slider label="Swing angle" value={angle} min={-ANGLE_LIMIT} max={ANGLE_LIMIT} step={1} unit="°" onChange={(v) => { setAngle(v); onInputChangeRef.current(); }} testId="slider-angle" />
-          <Slider label="Speed" value={cps} min={CPS_MIN} max={CPS_MAX} step={0.1} unit=" cycles/s" onChange={(v) => { setCps(v); onInputChangeRef.current(); }} testId="slider-cps" />
-          <Slider label="Ink threshold" value={ink} min={INK_MIN} max={INK_MAX} step={1} unit="" onChange={(v) => { setInk(v); onInputChangeRef.current(); }} testId="slider-ink" />
-          <p className="mt-2 text-[11px] text-muted-foreground">Rotation is a bounded back-and-forth swing. It cannot follow text instructions or perform actions. Raise the threshold if cloth texture is highlighted as ink.</p>
-        </section>
+            {error && <p role="alert" className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs" data-testid="text-preserve-error">{error}</p>}
+            <Button size="lg" className="mt-3 w-full" disabled={Boolean(blocker)} onClick={submit} data-testid="button-preserve-render">
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}{jobRunning ? "Creating video..." : "Create video"}
+              {!jobRunning && !loading && <ArrowRight className="size-4" />}
+            </Button>
+            {blocker && step3Ready && <p className="mt-2 text-[11px] text-muted-foreground" data-testid="text-preserve-blocker">{blocker}</p>}
+            <p className="mt-2 text-[11px] text-muted-foreground" data-testid="text-preserve-limits">
+              Free, runs locally. Up to {PIXEL_MAX_SECONDS}s, 720p. Works best when the artwork stays flat and unblocked.
+            </p>
+          </aside>
+        </div>
+      )}
 
-        <section aria-labelledby="preserve-plate-heading" className="rounded-xl border border-border bg-card p-4">
-          <h2 id="preserve-plate-heading" className="text-sm font-semibold">Clean-cloth plate <span className="font-normal text-muted-foreground">(optional)</span></h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">A full-frame image of the same shot at {start.toFixed(2)}s with the artwork removed. Must match the source aspect ratio.</p>
-          {plate ? (
-            <div className="mt-3 flex items-center gap-3">
-              <img src={plate.mediaUrl} alt="Uploaded clean plate" className="h-12 w-20 rounded object-cover" />
-              <span className="min-w-0 flex-1 truncate text-xs" data-testid="text-plate-name">{plate.name}</span>
-              <Button variant="ghost" size="icon" aria-label="Remove clean plate" onClick={onPlateClear} data-testid="button-plate-clear"><X className="size-4" /></Button>
+      {showResult && job && (
+        <div className="space-y-2">
+          <ResultPanel job={job} sourceUrl={job.sourceUrl ?? source?.mediaUrl ?? undefined} start={job.sourceUrl ? 0 : start} onCancel={onCancel} />
+          {canUseResult && (
+            <div className="flex justify-end">
+              <Button variant="secondary" size="sm" disabled={busy || active} onClick={() => onUseResult(job.id)} data-testid="button-use-result-source">
+                {usingResult ? <Loader2 className="size-3.5 animate-spin" /> : <Recycle className="size-3.5" />}Animate another part of this result
+              </Button>
             </div>
-          ) : (
-            <Button variant="secondary" size="sm" className="mt-3" disabled={!source || plateUploading} onClick={() => plateInput.current?.click()} data-testid="button-plate-upload">
-              {plateUploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}Upload plate
-            </Button>
           )}
-          <input ref={plateInput} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label="Choose clean plate image"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onPlateUpload(f); }} />
-        </section>
+        </div>
+      )}
 
-        <section aria-labelledby="preserve-render-heading" className="rounded-xl border border-border bg-card p-4">
-          <h2 id="preserve-render-heading" className="text-sm font-semibold">Render</h2>
-          <label className="mt-3 block text-xs">
-            <span className="text-muted-foreground">Title</span>
-            <input value={title} maxLength={120} onChange={(e) => { setTitle(e.target.value); onInputChangeRef.current(); }} placeholder="Left arm of jacket mascot swings"
-              className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" data-testid="input-preserve-title" />
-          </label>
-          <label className="mt-3 block text-xs">
-            <span className="text-muted-foreground">Target / artwork note</span>
-            <input value={targetGarment} maxLength={160} onChange={(e) => { setTargetGarment(e.target.value); onInputChangeRef.current(); }} placeholder="e.g. printed artwork on a jacket, bag, or vehicle"
-              className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" data-testid="input-preserve-target" />
-          </label>
-          <label className="mt-4 flex items-start gap-2 text-xs">
-            <input type="checkbox" checked={reviewed} disabled={!closed || !pivot} onChange={(e) => setReviewed(e.target.checked)} className="mt-0.5 accent-[hsl(var(--primary))]" data-testid="checkbox-preserve-reviewed" />
-            <span>I reviewed the frame: the artwork is fully visible, the outline and pivot are correct, and protected areas are covered.</span>
-          </label>
-          {error && <p role="alert" className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs" data-testid="text-preserve-error">{error}</p>}
-          <Button className="mt-4 w-full" disabled={Boolean(blocker)} onClick={submit} data-testid="button-preserve-render">
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}Render preserved clip
-          </Button>
-          {blocker && <p className="mt-2 text-[11px] text-muted-foreground" data-testid="text-preserve-blocker">{blocker}</p>}
-          <p className="mt-2 text-[11px] text-muted-foreground">Local render, no provider charges. The saved clip appears in history and survives reloads.</p>
-        </section>
-      </aside>
+      {source && (
+        <AdvancedPanel
+          start={start} startDraft={startDraft} setStartDraft={setStartDraft} commitStart={commitStart}
+          duration={duration} onDuration={(v) => { setDuration(v); touched(); }}
+          angle={angle} onAngle={(v) => { setAngle(v); touched(); }}
+          cps={cps} onCps={(v) => { setCps(v); touched(); }}
+          ink={ink} onInk={(v) => { setInk(v); touched(); }}
+          showInk={showInk} onToggleInk={() => setShowInk((s) => !s)} inkUnavailable={inkUnavailable} closed={closed}
+          previewing={previewing}
+          protectCount={protectedPolys.length} protecting={tool === "protect"} onProtect={() => setTool("protect")}
+          plate={plate} plateUploading={plateUploading} onPlateUpload={onPlateUpload} onPlateClear={onPlateClear}
+          title={title} onTitle={(v) => { setTitle(v); onInputChangeRef.current(); }} titlePlaceholder={DEFAULT_TITLE}
+          target={targetGarment} onTarget={(v) => { setTargetGarment(v); onInputChangeRef.current(); }} targetPlaceholder={DEFAULT_TARGET}
+        />
+      )}
     </div>
-  );
-}
-
-function Slider({ label, value, min, max, step, unit, onChange, testId }: { label: string; value: number; min: number; max: number; step: number; unit: string; onChange: (v: number) => void; testId: string }) {
-  return (
-    <label className="mt-3 block text-xs">
-      <span className="flex justify-between"><span className="text-muted-foreground">{label}</span><span className="font-mono">{value}{unit}</span></span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full accent-[hsl(var(--primary))]" data-testid={testId} />
-    </label>
   );
 }

@@ -9,6 +9,12 @@ The user expanded this feature to Video Replacement: “we need to be able to us
 
 **How to apply:** Offer explicit paid video editing for generic user-described targets, while retaining the experimental local garment/artwork tools. Never silently route local jobs to paid providers. Preserve source audio rather than replacing speech with generated audio; clearly disclose when provider-selected duration differs.
 
+Keep the primary replacement/artwork workflow understandable without video-processing knowledge.
+
+**Why:** The user called the artwork screen “way to complicated to understand how to use” when it presented dense explanations, engine choices, and technical motion/restoration controls together before uploading.
+
+**How to apply:** Guide the next action in plain language, use sensible defaults, and disclose specialist controls only when requested. Preserve access to those controls without making them mandatory reading or configuration.
+
 Use Kling O3 Standard's dedicated video-editing endpoint as the first alternative to Seedance, not Kling 3 Standard text/image generation.
 
 **Why:** The documented O3 editor accepts an existing video, appearance-reference images, and source-audio retention, matching replacement requirements without requiring a Pro-tier feature.

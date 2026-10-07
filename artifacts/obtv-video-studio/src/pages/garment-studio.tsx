@@ -254,9 +254,9 @@ export default function GarmentStudioPage() {
       />
       <div role="radiogroup" aria-label="Workflow" className="mb-6 grid gap-2 sm:grid-cols-3" data-testid="provider-selector">
         {([
-          ["LOCAL", "Local GPU", "Experimental garment, person or object replacement and artwork animation.", Cpu],
-          ["PRESERVE", "Preserve artwork", "Move original print pixels. No AI redraw, no charges.", Lock],
-          ["FAL", "Cloud models", "Paid video editing. Replace a garment, person or object. Confirmed per run.", Cloud],
+          ["PRESERVE", "Animate artwork", "Make part of visible artwork move. Local, free.", Lock],
+          ["FAL", "Replace something", "Swap clothing, a person or an object. Paid, confirmed per run.", Cloud],
+          ["LOCAL", "Local experiments", "Experimental local generation. Free, needs a GPU worker.", Cpu],
         ] as const).map(([value, label, hint, Icon]) => {
           const current = preserve ? "PRESERVE" : provider;
           const on = current === value;
@@ -280,7 +280,8 @@ export default function GarmentStudioPage() {
       {preserve && (
         <PreserveArtworkWorkbench
           source={source}
-          job={selected}
+          job={selectedId || isActiveJob(selected) ? selected : null}
+          recentResult={source ? null : jobs.find((j) => j.status === "succeeded" && Boolean(j.outputUrl)) ?? null}
           loading={uploading || sending || cancel.isPending}
           error={error}
           onUpload={(f) => { setPlate(null); handleUpload(f); }}
@@ -340,11 +341,11 @@ export default function GarmentStudioPage() {
         />
       )}
 
-      <section aria-labelledby="garment-jobs-heading" className="mt-8">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 id="garment-jobs-heading" className="text-sm font-semibold">Saved jobs</h2>
+      <details open={!preserve || undefined} className="group mt-8" data-testid="details-garment-history">
+        <summary className="mb-3 flex cursor-pointer list-none items-baseline justify-between [&::-webkit-details-marker]:hidden" data-testid="button-garment-history">
+          <h2 id="garment-jobs-heading" className="text-sm font-semibold">Saved jobs <span className="font-normal text-muted-foreground group-open:hidden">(show)</span></h2>
           <span className="font-mono text-[11px] text-muted-foreground">{jobs.length} total</span>
-        </div>
+        </summary>
         {jobsQuery.isLoading ? (
           <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-secondary/60" />)}</div>
         ) : jobsQuery.isError ? (
@@ -380,7 +381,7 @@ export default function GarmentStudioPage() {
             })}
           </ul>
         )}
-      </section>
+      </details>
     </Page>
   );
 }
