@@ -5,6 +5,12 @@ description: Safely restarts heterogeneous remote ComfyUI installations without 
 
 Never infer a ComfyUI worker's startup interpreter or restart mechanism from its current executable path alone. Discover the running process, its command line, available venvs, queue state, and service manager before restarting it.
 
+During GPU-loss recovery, hold worker startup across the reboot until physical GPU and MIG validation completes; do not rely on temporary firewall rules surviving reboot.
+
+**Why:** Boot-enabled workers can accept portal retries before recovery checks, even when the live portal's administrative connection is unavailable.
+
+**How to apply:** Use a temporary persistent service-start condition, verify hardware and assigned profiles, then test through loopback with external intake blocked before restoring normal startup and intake. Keep the reserved slice unassigned.
+
 Both dual-H100 ComfyUI workers should start automatically at boot.
 
 **Why:** On 2026-10-05, after a reboot left both workers stopped, the operator explicitly selected “Start now and enable at boot.”

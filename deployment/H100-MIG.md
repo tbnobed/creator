@@ -46,6 +46,23 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Recovery verification, 2026-10-07
+
+After GPU 0 reported Xid 79 and fatal PCIe link loss, an authorized host reboot
+restored both GPUs and the expected four MIG instances. Worker startup was held
+across reboot, then all three services were verified before intake was restored.
+GPU 0 passed an isolated 30-second CUDA matrix workload at 29–32°C without a
+new PCIe error or thermal slowdown. This was a limited recovery check, not a
+full video render or proof that the underlying fault is fixed.
+
+Failure evidence is preserved privately at
+`/var/backups/obtv-h100-recovery/20261007T215045Z/`.
+The affected worker's saved log shows H3 completion at 21:43:29 UTC,
+LTX loading at 21:47:37, a latent-upscaler load at 21:48:19, and PCIe failure
+at 21:48:22. That establishes timing, not the root cause.
+
+### Portal configuration status
+
 The workspace database did not contain the dual-H100 worker records, and the
 operator did not identify the live portal/database. Its worker records were
 therefore not changed. Do not interpret host setup as completed portal migration.
