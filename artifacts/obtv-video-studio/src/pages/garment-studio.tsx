@@ -254,9 +254,9 @@ export default function GarmentStudioPage() {
       />
       <div role="radiogroup" aria-label="Workflow" className="mb-6 grid gap-2 sm:grid-cols-3" data-testid="provider-selector">
         {([
-          ["LOCAL", "Local GPU", "Free experiments on your own workers. Garment swap and artwork animation.", Cpu],
+          ["LOCAL", "Local GPU", "Experimental garment, person or object replacement and artwork animation.", Cpu],
           ["PRESERVE", "Preserve artwork", "Move original print pixels. No AI redraw, no charges.", Lock],
-          ["FAL", "Cloud · Seedance 2.5", "Paid video editing. Replace any visible item. Confirmed per run.", Cloud],
+          ["FAL", "Cloud models", "Paid video editing. Replace a garment, person or object. Confirmed per run.", Cloud],
         ] as const).map(([value, label, hint, Icon]) => {
           const current = preserve ? "PRESERVE" : provider;
           const on = current === value;
@@ -369,7 +369,7 @@ export default function GarmentStudioPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{j.title}</span>
                       <span className="block truncate text-[11px] text-muted-foreground">
-                        {j.mode === "animate-artwork" ? "Animate artwork" : j.mode === "replace-item" ? "Replace item" : "Replace garment"} / {j.provider === "FAL" ? `Cloud${j.model ? ` · ${j.model}` : ""}` : "Local"} / {new Date(j.createdAt).toLocaleString()}
+                        {j.mode === "animate-artwork" ? "Animate artwork" : "Replace target"} / {j.provider === "FAL" ? `Cloud${j.model ? ` · ${j.model}` : ""}` : "Local"} / {new Date(j.createdAt).toLocaleString()}
                         {j.stage && active ? ` / ${j.stage}` : ""}
                       </span>
                     </span>

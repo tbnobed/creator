@@ -109,7 +109,7 @@ async function submitLocalGarment(input: Submission) {
   assertGarmentKey(input.sourceStorageKey,input.tenantId);
   garmentFrames(input.durationSeconds);
   if (input.mode==="replace-garment") {
-    if (!input.referenceStorageKey) throw new GarmentError(400,"Upload a target garment reference image.");
+    if (!input.referenceStorageKey) throw new GarmentError(400,"Upload a replacement reference image.");
     assertGarmentKey(input.referenceStorageKey,input.tenantId,true);
   }
   const fingerprint = createHash("sha256").update(JSON.stringify({...input,userId:undefined})).digest("hex");
@@ -118,8 +118,8 @@ async function submitLocalGarment(input: Submission) {
     if (existing.tenantId!==input.tenantId || existing.providerTaskMetadata.fingerprint!==fingerprint) throw new GarmentError(409,"Request ID belongs to different processing.");
     return {jobId:existing.id};
   }
-  if (!input.prompt.trim()) throw new GarmentError(400,"Describe the garment or how its artwork should move.");
-  if (!input.targetGarment.trim() || input.targetGarment.length > 160) throw new GarmentError(400,"Identify the garment to edit.");
+  if (!input.prompt.trim()) throw new GarmentError(400,"Describe the replacement or how the artwork should move.");
+  if (!input.targetGarment.trim() || input.targetGarment.length > 160) throw new GarmentError(400,"Identify the garment, person or object to edit.");
   if (input.mode === "animate-artwork") {
     if (input.artworkSource === "upload") {
       if (!input.referenceStorageKey) throw new GarmentError(400,"Upload the artwork you want to animate.");
@@ -141,7 +141,7 @@ async function submitLocalGarment(input: Submission) {
     if (!state.ready || state.busy) throw new GarmentError(409,state.reason??"Worker unavailable.");
     const [job] = await db.insert(generationJobsTable).values({
       id:input.requestId,tenantId:input.tenantId,createdByUserId:input.userId,comfyServerId:server.id,
-      title:input.mode==="replace-garment"?"Garment replacement draft":"Animated artwork draft",
+      title:input.mode==="replace-garment"?`Replacement · ${input.targetGarment}`:"Animated artwork draft",
       status:"UPLOADING",provider:"COMFYUI",providerModelId:operation,prompt:input.prompt,compiledPrompt:input.prompt,
       generationMode:input.mode,qualityPreset:"DRAFT",width:512,height:288,fps:16,
       frameCount:garmentFrames(input.durationSeconds),durationSeconds:garmentFrames(input.durationSeconds)/16,seed:input.seed,
@@ -175,7 +175,7 @@ async function submitLocalGarment(input: Submission) {
     // Persist even if cancellation raced with submission; recover cancellation on restart.
     await db.update(generationJobsTable).set({comfyPromptId:receipt.prompt_id}).where(eq(generationJobsTable.id,job.id));
     const [queued] = await db.update(generationJobsTable).set({status:"QUEUED",queuedAt:new Date(),
-      currentNode:input.mode==="animate-artwork"?"Animating artwork from your instructions":"Tracking and replacing garment"}).where(jobWhere(job.id)).returning();
+      currentNode:input.mode==="animate-artwork"?"Animating artwork from your instructions":"Tracking and replacing selected target"}).where(jobWhere(job.id)).returning();
     if (queued) startGarmentMonitor(job.id); else await cancelGarment(job.id,input.tenantId);
     return {jobId:job.id};
   } catch(error) {

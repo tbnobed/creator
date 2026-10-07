@@ -9,7 +9,7 @@ import {
 } from "./validation";
 
 const MODES: { value: GarmentMode; label: string; hint: string; example: string; Icon: typeof Shirt }[] = [
-  { value: "replace-garment", label: "Replace garment", hint: "Swap a garment for a new one", example: "Orange linen button-down, open collar, rolled sleeves", Icon: Shirt },
+  { value: "replace-garment", label: "Replace target", hint: "Replace a garment, person or object", example: "Replace the selected target with the reference. Match the scene lighting and preserve its motion.", Icon: Shirt },
   { value: "animate-artwork", label: "Animate artwork", hint: "Bring a print to life", example: "Make the printed characters wave and play with a ball", Icon: Sparkles },
 ];
 
@@ -105,7 +105,7 @@ export function GarmentWorkbench({
             <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10">
               {loading ? <Loader2 className="size-6 animate-spin text-primary" /> : <Upload className="size-6 text-primary" />}
             </div>
-            <h2 id="garment-upload-heading" className="mt-4 text-lg font-semibold">{loading ? "Uploading clip" : "Drop a clip of someone wearing the garment"}</h2>
+            <h2 id="garment-upload-heading" className="mt-4 text-lg font-semibold">{loading ? "Uploading clip" : "Drop a clip containing the target to replace"}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               MP4 or MOV. Longer clips are fine; you will pick a window of up to {PROOF_MAX_SECONDS} seconds to process.
             </p>
@@ -150,23 +150,23 @@ export function GarmentWorkbench({
             ))}
           </div>
           <label htmlFor="garment-target" className="mt-4 flex items-baseline justify-between text-xs font-medium">
-            <span>Target garment</span>
+            <span>Target to replace or animate</span>
             <span className="text-[10px] font-medium uppercase tracking-wide text-primary">Required</span>
           </label>
           <input id="garment-target" type="text" value={targetGarment} disabled={active} maxLength={MAX_TARGET_CHARS + 20}
             onChange={(e) => setTargetGarment(e.target.value)}
-            placeholder="e.g. jacket worn by the person on the left, dress, trousers"
+            placeholder="e.g. the red jacket, person on the left, chair, or parked car"
             className="mt-1.5 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm disabled:opacity-50"
             data-testid="input-garment-target" />
           <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-            <span>Which piece of clothing, and whose, if there are several people.</span>
+            <span>Identify one garment, person or object by position and appearance.</span>
             <span className={`font-mono ${targetGarment.length > MAX_TARGET_CHARS ? "text-destructive" : ""}`}>{targetGarment.length}/{MAX_TARGET_CHARS}</span>
           </div>
           {mode === "animate-artwork" && (
             <div className="mt-4">
               <span id="garment-artsrc-heading" className="text-xs font-medium">Which artwork?</span>
               <div role="radiogroup" aria-labelledby="garment-artsrc-heading" className="mt-1.5 grid grid-cols-2 gap-1 rounded-lg bg-secondary/60 p-1">
-                {([["existing", "On the garment", "No upload needed"], ["upload", "Upload a design", "JPEG, PNG or WebP"]] as const).map(([v, l, h]) => (
+                {([["existing", "On the target", "No upload needed"], ["upload", "Upload a design", "JPEG, PNG or WebP"]] as const).map(([v, l, h]) => (
                   <button key={v} type="button" role="radio" aria-checked={artworkSource === v} disabled={active} onClick={() => setArtworkSource(v)}
                     className={`rounded-md px-2.5 py-1.5 text-left transition-colors disabled:opacity-50 ${artworkSource === v ? "bg-card shadow-sm ring-1 ring-primary/40" : "hover:bg-card/60"}`}
                     data-testid={`button-garment-artwork-source-${v}`}>
@@ -178,7 +178,7 @@ export function GarmentWorkbench({
             </div>
           )}
           <label htmlFor="garment-prompt" className="mt-4 flex items-baseline justify-between text-xs font-medium">
-            <span>{mode === "replace-garment" ? "Describe the new garment" : "Describe the motion"}</span>
+            <span>{mode === "replace-garment" ? "Describe the replacement" : "Describe the motion"}</span>
             <span className="text-[10px] font-medium uppercase tracking-wide text-primary">Required</span>
           </label>
           <Textarea
@@ -199,7 +199,7 @@ export function GarmentWorkbench({
           {needsRef && (
             <div className="mt-4">
               <div className="flex items-baseline justify-between">
-                <span className="text-xs font-medium">{mode === "replace-garment" ? "Garment reference image" : "Artwork to animate"}</span>
+                <span className="text-xs font-medium">{mode === "replace-garment" ? "Replacement reference image" : "Artwork to animate"}</span>
                 <span className="text-[10px] font-medium uppercase tracking-wide text-primary">Required</span>
               </div>
               {reference ? (
@@ -212,7 +212,7 @@ export function GarmentWorkbench({
                 <Button variant="secondary" size="sm" className="mt-1.5 w-full" disabled={active || referenceUploading || !onReferenceUpload}
                   onClick={() => refInput.current?.click()} data-testid="button-garment-reference-upload">
                   {referenceUploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
-                  {referenceUploading ? "Uploading image" : mode === "replace-garment" ? "Add a photo of the garment" : "Upload artwork (JPEG, PNG, WebP)"}
+                  {referenceUploading ? "Uploading image" : mode === "replace-garment" ? "Add a replacement reference image" : "Upload artwork (JPEG, PNG, WebP)"}
                 </Button>
               )}
               <input ref={refInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only"
@@ -220,8 +220,8 @@ export function GarmentWorkbench({
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onReferenceUpload?.(f); }} />
               <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 {mode === "replace-garment"
-                  ? "The full reference guides garment shape and print. Describe only changes you want, such as an orange fabric background. For moving prints, use Animate artwork after checking the replacement."
-                  : "Any design works. It is placed on the target garment inside the garment mask and animated following your instruction."}
+                  ? "The reference guides the replacement's appearance and details. Describe the changes you want. For artwork motion, use Animate artwork after checking the replacement."
+                  : "Your design is placed inside the selected target mask and animated following your instruction. Review the result for fidelity."}
               </p>
             </div>
           )}
@@ -237,8 +237,8 @@ export function GarmentWorkbench({
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground" data-testid="text-garment-artwork-note">
             {mode === "replace-garment"
-              ? "The target garment is segmented, regenerated frame by frame, and composited back. Pixels outside the mask are kept from the source."
-              : "Experimental local generative animation (VACE) inside the garment mask. Your instruction is passed to the model as written; simple motion works best and complex actions are not guaranteed. Review every output before using it."}
+              ? "The selected target is tracked, regenerated frame by frame, and composited back. Pixels outside the mask are kept from the source."
+              : "Experimental local generative animation (VACE) inside the target mask. Your instruction is passed to the model as written; simple motion works best and complex actions are not guaranteed. Review every output before using it."}
           </p>
         </section>
 

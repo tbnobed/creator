@@ -55,8 +55,8 @@ test("submit blocker ordering", () => {
   assert.match(submitBlocker({ ...base, prompt: "  " })!, /Describe/);
   assert.match(submitBlocker({ ...base, job: { id: "j", status: "running" } })!, /already running/);
   assert.equal(submitBlocker({ ...base, job: { id: "j", status: "failed" } }), null);
-  assert.match(submitBlocker({ ...rep, targetGarment: "  " })!, /Name the garment/);
-  assert.match(submitBlocker({ ...art, targetGarment: "" })!, /Name the garment/);
+  assert.match(submitBlocker({ ...rep, targetGarment: "  " })!, /Name the target/);
+  assert.match(submitBlocker({ ...art, targetGarment: "" })!, /Name the target/);
   assert.match(submitBlocker({ ...art, targetGarment: "x".repeat(161) })!, /160/);
   assert.equal(submitBlocker({ ...art, targetGarment: "x".repeat(160) }), null);
   assert.ok(isActiveJob({ id: "j", status: "queued" }));

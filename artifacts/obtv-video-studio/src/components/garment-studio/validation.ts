@@ -69,11 +69,11 @@ export function submitBlocker(input: {
   const w = workerProblem(input.worker);
   if (w) return w;
   const t = (input.targetGarment ?? "").trim();
-  if (!t) return "Name the garment to edit, e.g. jacket worn by the person on the left.";
-  if (t.length > MAX_TARGET_CHARS) return `Target garment is over ${MAX_TARGET_CHARS} characters.`;
+  if (!t) return "Name the target to edit: a garment, person or object.";
+  if (t.length > MAX_TARGET_CHARS) return `Target is over ${MAX_TARGET_CHARS} characters.`;
   const p = input.prompt.trim();
-  if (!p) return input.mode === "animate-artwork" ? "Describe how the artwork should move." : "Describe the garment.";
-  if (input.mode === "replace-garment" && !input.hasReference) return "Add a reference image of the garment. Replacement requires one.";
+  if (!p) return input.mode === "animate-artwork" ? "Describe how the artwork should move." : "Describe the replacement.";
+  if (input.mode === "replace-garment" && !input.hasReference) return "Add a replacement reference image. Local replacement requires one.";
   if (input.mode === "animate-artwork" && input.artworkSource === "upload" && !input.hasReference) return "Upload the artwork image to animate, or switch to the artwork already on the garment.";
   if (p.length > MAX_PROMPT_CHARS) return `Prompt is over ${MAX_PROMPT_CHARS} characters.`;
   return rangeProblem(input.start, input.duration, input.source.durationSeconds);

@@ -41,11 +41,11 @@ The user chose “Animated shirt graphic”: a moving cartoon design that follow
 
 The monkey scene is an example, not a fixed product mode. Users must be able to choose existing or uploaded artwork and supply their own motion instructions.
 
-The target garment must also be user-selected, not hard-coded to a shirt.
+The replacement target must be user-selected, never hard-coded to a shirt: any garment, person or item. This applies to local and paid replacement paths.
 
-**Why:** The user explicitly rejected the hard-coded “Monkey print” feature and the hard-coded shirt segmentation target.
+**Why:** The user explicitly rejected the hard-coded “Monkey print” feature and repeated that replacement must cover any garment, person or item. Preserving the original person's identity in a generic replacement prompt conflicts with replacing that person.
 
-**How to apply:** Carry the chosen garment, artwork and instructions through segmentation and the real renderer. Never silently substitute a shirt target or canned monkey animation.
+**How to apply:** Carry the chosen target, artwork and instructions through segmentation and the real renderer. Preserve non-target subjects, not the selected target's old appearance. Never silently substitute a shirt target or canned monkey animation.
 
 The printed artwork must look like part of the cloth, not just an animation positioned over it.
 

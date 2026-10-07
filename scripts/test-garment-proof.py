@@ -42,17 +42,30 @@ class GarmentGraphTests(unittest.TestCase):
     def test_target_has_no_silent_default(self):
         with self.assertRaisesRegex(ValueError, "Identify"):
             module.workflow("source.mp4", "test", "Orange linen")
-        for target in ["dress", "trousers", "jacket worn by the person on the left"]:
+        for target in ["dress", "trousers", "jacket worn by the person on the left", "person on the right", "wooden chair", "parked car"]:
             graph = module.workflow("source.mp4", "test", "Orange linen", target=target)
+            self.assertEqual(graph["4"]["inputs"]["text"], target)
+
+    def test_replacement_reference_is_not_clothing_or_identity_locked(self):
+        for target in ["red dress", "person on the left", "wooden chair", "parked car"]:
+            graph = module.workflow("source.mp4", "test", "Use the reference appearance", reference="reference.png", target=target)
+            positive = graph["14"]["inputs"]["text"]
+            negative = graph["15"]["inputs"]["text"]
+            self.assertIn(target, positive)
+            self.assertIn("all non-target people and objects unchanged", positive)
+            self.assertNotIn("Keep the original person", positive)
+            self.assertNotIn("selected garment", positive)
+            self.assertNotIn("changed face", negative)
+            self.assertNotIn("changed hands", negative)
             self.assertEqual(graph["4"]["inputs"]["text"], target)
 
     def test_reference_fidelity_and_requested_override_reach_model(self):
         graph = module.workflow("source.mp4", "test", "orange background", reference="design.png", target="jacket")
         text = graph["14"]["inputs"]["text"]
         self.assertIn("orange background", text)
-        self.assertIn("motif size, repetition and placement", text)
-        self.assertIn("bare skin", text)
-        self.assertIn("missing reference pattern", graph["15"]["inputs"]["text"])
+        self.assertIn("patterns or markings, including their size and placement", text)
+        self.assertIn("Explicit instructions override conflicting reference details", text)
+        self.assertIn("missing reference details", graph["15"]["inputs"]["text"])
 
     def test_artwork_does_not_inherit_replacement_instructions(self):
         for reference in [None, "design.png"]:

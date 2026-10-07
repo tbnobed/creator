@@ -12,25 +12,26 @@ import urllib.request
 import uuid
 
 
-def replacement_prompt(instruction):
+def replacement_prompt(instruction, target):
     return (
-        "Replace the selected garment with the garment shown in the reference image. "
-        "The reference is authoritative for garment construction, collar, closures, sleeve length, "
-        "printed motifs, motif size, repetition and placement. Transfer the complete design, "
-        "not a few small logos or an approximation. The white surrounding canvas is not fabric. "
-        "Apply only the following requested changes to that reference garment: "
+        f"Replace only the selected target: {target.strip()}. "
+        "Use the reference image for the replacement's appearance, identity, shape, construction, "
+        "materials, colors, and any patterns or markings, including their size and placement. "
+        "Transfer the complete requested design, not a few logos or an approximation. "
+        "Do not transfer the reference image's surrounding background. "
+        "Follow these replacement instructions: "
         f"{instruction.strip()}\n"
-        "Keep every other reference detail unchanged. An explicit requested fabric color overrides "
-        "the reference base color, not the printed design. Fit the garment naturally to the wearer, "
-        "with fabric folds, lighting and occlusion. If shorter sleeves expose an arm inside the edit "
-        "region, show anatomically consistent bare skin, not white sleeves or a second garment. "
-        "Keep the original person, pose, hands and camera motion. Maintain the same design across frames."
+        "Explicit instructions override conflicting reference details. Match the source perspective, "
+        "lighting, motion and occlusion. Preserve source action and timing. "
+        "Keep the camera, background and all non-target people and objects unchanged. "
+        "When the target is a person, apply the requested identity and appearance changes to that "
+        "person rather than preserving their old appearance. Maintain consistency across frames."
     )
 
 
 def workflow(filename, prefix, prompt, seed=421, reference=None, target=None, artwork=False):
     if not target or not target.strip():
-        raise ValueError("Identify the garment to edit.")
+        raise ValueError("Identify the garment, person or object to replace.")
     graph = {}
 
     def node(key, kind, **inputs):
@@ -40,9 +41,9 @@ def workflow(filename, prefix, prompt, seed=421, reference=None, target=None, ar
     video = node(1, "LoadVideo", file=filename)
     frames = node(2, "GetVideoComponents", video=video)
     sam = node(3, "CheckpointLoaderSimple", ckpt_name="sam3.1_multiplex_fp16.safetensors")
-    shirt = node(4, "CLIPTextEncode", clip=["3", 1], text=target)
+    target_conditioning = node(4, "CLIPTextEncode", clip=["3", 1], text=target)
     track = node(5, "SAM3_VideoTrack", images=frames, model=sam,
-                 conditioning=shirt, detection_threshold=0.5, max_objects=1, detect_interval=1)
+                 conditioning=target_conditioning, detection_threshold=0.5, max_objects=1, detect_interval=1)
     mask = node(6, "SAM3_TrackToMask", track_data=track, object_indices="0")
     # Preserve the mask as a diagnostic output before judging rendered quality.
     mask_image = node(7, "MaskToImage", mask=mask)
@@ -60,10 +61,10 @@ def workflow(filename, prefix, prompt, seed=421, reference=None, target=None, ar
     clip = node(12, "CLIPLoader", clip_name="umt5_xxl_fp8_e4m3fn_scaled.safetensors", type="wan")
     vae = node(13, "VAELoader", vae_name="wan_2.1_vae.safetensors")
     positive = node(14, "CLIPTextEncode", clip=clip,
-                    text=replacement_prompt(prompt) if reference and not artwork else prompt)
+                    text=replacement_prompt(prompt, target) if reference and not artwork else prompt)
     negative = node(15, "CLIPTextEncode", clip=clip,
-                    text="flicker, distorted clothing, extra limbs, changed face, changed hands, watermark"
-                    + (", invented undershirt, duplicate sleeves, missing reference pattern, tiny substitute logos, changing print"
+                    text="flicker, distorted geometry, duplicated target, unwanted changes outside the target, watermark"
+                    + (", missing reference details, inconsistent replacement appearance"
                        if reference and not artwork else ""))
     node(16, "WanVaceToVideo", positive=positive, negative=negative, vae=vae,
          width=512, height=288, length=49, batch_size=1, strength=1,
@@ -75,7 +76,7 @@ def workflow(filename, prefix, prompt, seed=421, reference=None, target=None, ar
                    sampler_name="uni_pc", scheduler="simple", denoise=1)
     trimmed = node(18, "TrimVideoLatent", samples=samples, trim_amount=["16", 3])
     decoded = node(19, "VAEDecode", samples=trimmed, vae=vae)
-    # Only replace pixels inside the tracked shirt. Outside pixels are source frames.
+    # Only replace pixels inside the user-selected tracked target. Outside pixels are source frames.
     merged = node(20, "ImageCompositeMasked", destination=frames, source=decoded,
                   x=0, y=0, resize_source=False, mask=mask)
     output = node(21, "CreateVideo", images=merged, fps=16, audio=["2", 1])
@@ -96,9 +97,9 @@ def artwork_workflow(filename, prefix, instruction, seed=421, reference=None, le
     prompt = (
         f"{instruction.strip()}\n"
         f"{subject} The artwork performs this action continuously over time, independently "
-        "of the wearer's body motion. It remains flat printed ink attached to the fabric, "
-        "bending with folds and inheriting cloth texture, shadows and foreground occlusion. "
-        "Preserve the garment's cut, color, seams and fit, the actor, camera and background. "
+        "of the selected surface's motion. It remains attached to that surface, "
+        "following its shape, deformation, texture, shadows and foreground occlusion. "
+        "Preserve the selected surface and all non-artwork subjects, camera and background. "
         "Do not create floating stickers or physical characters outside the print."
     )
     graph = workflow(filename, prefix, prompt, seed, reference, target, artwork=True)
@@ -109,7 +110,7 @@ def artwork_workflow(filename, prefix, instruction, seed=421, reference=None, le
             "image": ["2", 0], "batch_index": 0, "length": 1,
         }}
         graph["16"]["inputs"]["reference_image"] = ["27", 0]
-    graph["15"]["inputs"]["text"] += ", static frozen print, motionless artwork, floating sticker, changed garment"
+    graph["15"]["inputs"]["text"] += ", static frozen print, motionless artwork, floating sticker, unwanted surface changes"
     return graph
 
 
@@ -126,8 +127,8 @@ def main():
     parser.add_argument("--input", required=True, help="Prepared 512x288, 16fps, 49-frame MP4 already in worker input")
     parser.add_argument("--report", required=True)
     parser.add_argument("--reference", help="Optional target garment image already in worker input")
-    parser.add_argument("--target", required=True, help="Garment to segment, including identifying details")
-    parser.add_argument("--prompt", default="The man wears an orange cotton button-down shirt with a full front row of buttons, natural fabric folds and realistic lighting. Preserve his original movement.")
+    parser.add_argument("--target", required=True, help="Garment, person or object to segment, including identifying details")
+    parser.add_argument("--prompt", required=True, help="Describe the requested replacement")
     args = parser.parse_args()
     base = f"http://127.0.0.1:{args.port}"
     info = request(base, "/object_info")

@@ -90,10 +90,11 @@ test("API accepts cloud without a worker, retains local requests, rejects unknow
 });
 
 test("replacement targets people, objects, and garments, with optional reference conditioning", () => {
-  for (const target of ["the person on the left", "the red car", "the jacket"]) {
+  for (const target of ["the person on the left", "the red car", "the jacket", "the dress", "the trousers", "the wooden chair"]) {
     assert.match(replacementPrompt(target, "Make the requested replacement", false), new RegExp(target));
     assert.doesNotMatch(replacementPrompt(target, "Replace it", false), /@Image1/);
     assert.match(replacementPrompt(target, "Replace it", true), /@Image1/);
+    assert.doesNotMatch(replacementPrompt(target, "Replace it", true), /Keep the original person|selected shirt|selected garment|changed face/i);
   }
   for (const [start, duration, total] of [[-1, 2, 5], [0, 1, 5], [0, 16, 30], [4, 2, 5], [NaN, 2, 5]]) {
     assert.throws(() => validateReplacementRange(start, duration, total));

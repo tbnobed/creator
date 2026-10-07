@@ -550,8 +550,8 @@ export function PreserveArtworkWorkbench({
               className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" data-testid="input-preserve-title" />
           </label>
           <label className="mt-3 block text-xs">
-            <span className="text-muted-foreground">Garment / artwork note</span>
-            <input value={targetGarment} maxLength={200} onChange={(e) => { setTargetGarment(e.target.value); onInputChangeRef.current(); }} placeholder="Front print on black hoodie"
+            <span className="text-muted-foreground">Target / artwork note</span>
+            <input value={targetGarment} maxLength={160} onChange={(e) => { setTargetGarment(e.target.value); onInputChangeRef.current(); }} placeholder="e.g. printed artwork on a jacket, bag, or vehicle"
               className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" data-testid="input-preserve-target" />
           </label>
           <label className="mt-4 flex items-start gap-2 text-xs">
