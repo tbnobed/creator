@@ -1,0 +1,51 @@
+Partition both H100s with MIG and update CreatorAI to run on the new slices. Your scope is CreatorAI only. One slice is reserved for a separate internal service that you will not set up, touch, or use.
+
+## Target layout
+
+| GPU | MIG slice | MIG index | Assignment |
+|---|---|---|---|
+| H100 #0 | 4g.40gb | 0:0 | CreatorAI 
+| H100 #0 | 3g.40gb | 0:1 | CreatorAI 
+| H100 #1 | 4g.40gb | 1:0 | CreatorAI 
+| H100 #1 | 3g.40gb | 1:1 | Reserved. Create it, leave it idle, and assign nothing to it. |
+
+## Steps
+
+1. Before changing anything, record the current state:
+   - `nvidia-smi` output
+   - every CreatorAI container, service and ComfyUI instance, and which GPU each one uses
+   - the relevant config files: docker-compose, env files, ComfyUI launch args, and the GPU Servers settings in the portal
+   Save all of it to `~/mig-migration/before/` so you can roll back.
+
+2. Drain the CreatorAI render queue. Let in-progress jobs finish, pause new job intake, then stop every process using either H100. Confirm with `nvidia-smi` that no processes remain.
+
+3. Install mig-parted:
+   go install github.com/NVIDIA/mig-parted/cmd/nvidia-mig-parted@latest
+   sudo cp ~/go/bin/nvidia-mig-parted /usr/local/bin/
+
+4. Create /etc/nvidia-mig-parted/config.yaml:
+   version: v1
+   mig-configs:
+     obtv-split:
+       - devices: all
+         mig-enabled: true
+         mig-devices:
+           "4g.40gb": 1
+           "3g.40gb": 1
+
+5. Apply the layout:
+   sudo nvidia-mig-parted apply -f /etc/nvidia-mig-parted/config.yaml -c obtv-split
+   If it reports a pending GPU reset that won't clear, reboot once and apply again. Run `nvidia-smi -L` and confirm each GPU shows a 4g.40gb slice and a 3g.40gb slice. Record which MIG index maps to which profile. The 4g slice is expected at index 0, but verify it, and adjust the assignments below if the order differs.
+
+6. Make the layout persist across reboots. Create /etc/systemd/system/mig-layout.service:
+   [Unit]
+   Description=Apply OBTV MIG layout
+   After=nvidia-persistenced.service
+   Before=docker.service
+   [Service]
+   Type=oneshot
+   ExecStart=/usr/local/bin/nvidia-mig-parted apply -f /etc/nvidia-mig-parted/config.yaml -c obtv-split
+   RemainAfterExit=yes
+   [Install]
+   WantedBy=multi-user.target
+   Then run: sudo systemctl daemon-reload && sudo systemctl enable mig-layout.service
