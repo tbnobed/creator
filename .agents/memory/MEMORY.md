@@ -34,3 +34,4 @@
 - [Video Cleanup contract](video-cleanup-contract.md) — Both camera modes use tracked short-shot removal; preserve source audio and distinguish local allowances from provider prices.
 - [Video replacement](garment-video-editing.md) — Paid editing must cover people, objects, and clothing; keep local garment/artwork experiments separate.
 - [Image Studio safety](image-studio-safety.md) — Keep model choices per mode; distinguish app safety limits from native model capacity.
+- [Git provider authorization](git-provider-authorization.md) — Healthy connection badges and successful reads do not prove push authorization.
