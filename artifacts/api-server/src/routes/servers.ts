@@ -1,4 +1,5 @@
 import { asc } from "drizzle-orm";
+import { comfyDeviceMemory } from "../lib/comfy-device-memory";
 import { Router, type IRouter } from "express";
 import {
   CreateServerBody,
@@ -189,8 +190,7 @@ router.post("/servers/:id/test", async (req, res): Promise<void> => {
     const devices = Array.isArray(stats.devices) ? stats.devices : [];
     const device = devices[0] as { name?: string; total_memory?: number; free_memory?: number } | undefined;
     const gpuName = device?.name ?? server.gpuName;
-    const vramGb = device?.total_memory ? Math.round((device.total_memory / 1024 ** 3) * 10) / 10 : server.vramGb;
-    const memoryUsedGb = device?.total_memory && device.free_memory ? Math.round(((device.total_memory - device.free_memory) / 1024 ** 3) * 10) / 10 : null;
+    const { vramGb, memoryUsedGb } = comfyDeviceMemory(device);
     await db.update(comfyServersTable).set({
       status: "ONLINE",
       gpuName,

@@ -2,6 +2,7 @@ import { db, comfyServersTable } from "@workspace/db";
 import { liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { ComfyUIClient } from "./comfy/client";
 import { logger } from "./logger";
+import { comfyDeviceMemory } from "./comfy-device-memory";
 
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000;
 
@@ -12,11 +13,7 @@ async function pingServer(server: typeof comfyServersTable.$inferSelect): Promis
     const devices = Array.isArray(stats.devices) ? stats.devices : [];
     const device = devices[0] as { name?: string; total_memory?: number; free_memory?: number } | undefined;
     const gpuName = device?.name ?? server.gpuName;
-    const vramGb = device?.total_memory ? Math.round((device.total_memory / 1024 ** 3) * 10) / 10 : server.vramGb;
-    const memoryUsedGb =
-      device?.total_memory && device.free_memory
-        ? Math.round(((device.total_memory - device.free_memory) / 1024 ** 3) * 10) / 10
-        : null;
+    const { vramGb, memoryUsedGb } = comfyDeviceMemory(device);
     await db.update(comfyServersTable).set({
       status: "ONLINE",
       gpuName,
