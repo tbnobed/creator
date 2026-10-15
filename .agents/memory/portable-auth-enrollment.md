@@ -21,8 +21,8 @@ Administrator password recovery belongs to site administrators, not workspace ad
 
 **How to apply:** Require site-admin authorization and current-password confirmation. Keep ordinary self-service recovery separate from enrollment of passwordless identities.
 
-Make administrator password reset accessible beside members in Account & Workspace, not only on a separate Studio Admin page.
+Keep administrator password reset beside members in Account & Workspace. Do not put a standalone password-reset form on Studio Admin.
 
-**Why:** The user looked for reset controls in the Members list and could not find the original standalone admin form.
+**Why:** The user looked for reset controls in the Members list and explicitly requested removing the standalone Studio Admin form.
 
 **How to apply:** Prefill the selected member's email while preserving site-admin authorization and current-password confirmation.

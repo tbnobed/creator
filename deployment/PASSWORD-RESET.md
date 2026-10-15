@@ -33,10 +33,9 @@ Passwordless legacy users cannot enroll through this flow.
 
 ## Administrator flow
 
-Studio Admin → Send Password Reset. A **site administrator**, not a workspace
-owner/admin, enters the target email and confirms their own current password.
-Site administrators can also use **Account & Workspace → Members → Reset
-password** beside a member; this prefills that member's email.
+**Account & Workspace → Members → Reset password** beside a member.
+A **site administrator**, not a workspace owner/admin, confirms their own
+current password; the selected member's email is prefilled.
 The recipient chooses their own password through the same email flow.
 Admins never see a reset token or set a shared/temporary password.
 Existing passwords and sessions are unchanged until redemption succeeds.
