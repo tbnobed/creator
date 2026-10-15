@@ -20,3 +20,9 @@ Administrator password recovery belongs to site administrators, not workspace ad
 **Why:** One identity can belong to multiple workspaces, so granting workspace admins account-wide reset authority would allow cross-workspace takeover.
 
 **How to apply:** Require site-admin authorization and current-password confirmation. Keep ordinary self-service recovery separate from enrollment of passwordless identities.
+
+Make administrator password reset accessible beside members in Account & Workspace, not only on a separate Studio Admin page.
+
+**Why:** The user looked for reset controls in the Members list and could not find the original standalone admin form.
+
+**How to apply:** Prefill the selected member's email while preserving site-admin authorization and current-password confirmation.

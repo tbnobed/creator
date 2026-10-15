@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { LogOut, Plus, CheckCircle2, UserPlus, Trash2, Building, UserCircle, Shield, Briefcase, Mail, BadgeCheck, Users, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { publishAuthChanged } from "@/lib/auth-events";
+import { MemberPasswordReset } from "@/components/member-password-reset";
 
 export default function AccountPage() {
   const { data: session } = useGetSession();
@@ -101,6 +102,7 @@ export default function AccountPage() {
               tenantId={session.activeTenant.id} 
               userRole={session.activeTenant.role} 
               currentUserId={session.user.id}
+              isSiteAdmin={session.user.siteRole === "SITE_ADMIN"}
             />
           )}
         </div>
@@ -274,7 +276,7 @@ function WorkspaceManager({ activeTenantId }: { activeTenantId?: string }) {
   );
 }
 
-function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: string, userRole: string, currentUserId: string }) {
+function WorkspaceMembers({ tenantId, userRole, currentUserId, isSiteAdmin }: { tenantId: string, userRole: string, currentUserId: string, isSiteAdmin: boolean }) {
   const { data: members, isLoading, refetch } = useListTenantMembers(tenantId);
   const { toast } = useToast();
   
@@ -458,7 +460,7 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
           <div className="rounded-lg border overflow-hidden">
             <div className="divide-y divide-border">
               {members?.map(member => (
-                <div key={member.userId} className="flex items-center justify-between p-3 sm:p-4 bg-card hover:bg-secondary/20 transition-colors">
+                <div key={member.userId} className="flex flex-wrap items-center justify-between gap-y-3 p-3 sm:p-4 bg-card hover:bg-secondary/20 transition-colors">
                   <div className="flex items-center gap-3 overflow-hidden">
                     <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary/20">
                       {member.displayName.substring(0, 1).toUpperCase()}
@@ -476,10 +478,11 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId }: { tenantId: str
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0 ml-4">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 ml-auto pl-4">
                     <div className="text-xs font-medium px-2 py-1 rounded bg-secondary text-secondary-foreground border border-border">
                       {member.role}
                     </div>
+                    {isSiteAdmin && <MemberPasswordReset email={member.email ?? null} displayName={member.displayName} />}
                     {canManageMembers && member.userId !== currentUserId && member.role !== "OWNER" && (
                       <Button 
                         variant="ghost" 
