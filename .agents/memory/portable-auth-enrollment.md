@@ -8,3 +8,9 @@ First-administrator bootstrap requires a high-entropy, one-time operator credent
 **Why:** Email addresses are public identifiers, and tenant-issued bearer invitations can otherwise be used to claim a legacy identity and inherit its unrelated tenant or site-administrator access.
 
 **How to apply:** Keep bootstrap credentials out of URLs and persisted account data, close bootstrap after the first password account exists, and validate legacy-enrollment authority again when an invitation is redeemed.
+
+Password-reset email delivery must not depend on Replit.
+
+**Why:** The user requested self-service password reset and asked for SendGrid with “no replit dep.”
+
+**How to apply:** Use a direct, portable email-provider integration for this flow rather than a Replit-managed email dependency.
