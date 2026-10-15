@@ -649,6 +649,9 @@ importers:
 
   scripts:
     devDependencies:
+      '@playwright/test':
+        specifier: 1.63.0
+        version: 1.63.0
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.5

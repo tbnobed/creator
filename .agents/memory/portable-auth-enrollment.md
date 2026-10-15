@@ -26,3 +26,9 @@ Keep administrator password reset beside members in Account & Workspace. Do not 
 **Why:** The user looked for reset controls in the Members list and explicitly requested removing the standalone Studio Admin form.
 
 **How to apply:** Prefill the selected member's email while preserving site-admin authorization and current-password confirmation.
+
+Auth-change broadcasts must distinguish the originating document from other tabs.
+
+**Why:** BroadcastChannel excludes only the sending channel object, not other subscribers in the same document. A successful password reset therefore reloaded its own page and falsely showed an invalid link after its token was cleared.
+
+**How to apply:** Ignore same-document messages while retaining cross-tab session invalidation. Verify the post-submit screen with a real browser, not only API tests.

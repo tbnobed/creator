@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/node": "catalog:",
     "tsx": "catalog:"
   }
