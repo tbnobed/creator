@@ -323,16 +323,18 @@ export async function loginUser(
   password: string,
   priorToken?: string,
 ): Promise<string | null> {
-  const [user] = await db.select().from(usersTable).where(and(
+  return db.transaction(async (tx) => {
+  const [user] = await tx.select().from(usersTable).where(and(
     eq(usersTable.email, email),
     isNotNull(usersTable.passwordHash),
-  )).limit(1);
+  )).for("update").limit(1);
   if (!user?.passwordHash) {
     await performDummyPasswordVerification(password);
     return null;
   }
   if (!(await verifyPassword(password, user.passwordHash))) return null;
-  return db.transaction((tx) => createSession(tx, user.id, priorToken));
+  return createSession(tx, user.id, priorToken);
+  });
 }
 
 export async function deleteSession(token: string | undefined): Promise<void> {

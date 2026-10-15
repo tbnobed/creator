@@ -37,6 +37,45 @@ tags:
   - name: spending
     description: Estimated paid-provider spending policy and ledger
 paths:
+  /auth/forgot-password:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '204':
+          description: Request accepted without disclosing account existence
+  /auth/reset-password:
+    post:
+      operationId: redeemPasswordReset
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRedemption'
+      responses:
+        '204':
+          description: Password changed and all sessions revoked
+  /admin/password-reset:
+    post:
+      operationId: adminPasswordReset
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPasswordResetRequest'
+      responses:
+        '204':
+          description: Reset email accepted by provider
   /video-library:
     get:
       operationId: listVideoLibrary
@@ -1832,6 +1871,37 @@ components:
       schema:
         type: string
   schemas:
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          maxLength: 320
+    PasswordResetRedemption:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          minLength: 43
+          maxLength: 43
+          pattern: '^[A-Za-z0-9_-]{43}$'
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+    AdminPasswordResetRequest:
+      type: object
+      required: [email, currentPassword]
+      properties:
+        email:
+          type: string
+          maxLength: 320
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 128
     GarmentWorker:
       type: object
       required: [id, name, ready, busy, reason]

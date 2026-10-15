@@ -13,6 +13,7 @@ import promptGuidanceRouter from "./prompt-guidance";
 import sessionRouter from "./session";
 import generationCapabilitiesRouter from "./generation-capabilities";
 import authRouter from "./auth";
+import passwordResetRouter from "./password-reset";
 import imageStudioRouter from "./image-studio";
 import spendingRouter from "./spending";
 import videoLibraryRouter from "./video-library";
@@ -25,6 +26,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(passwordResetRouter);
 router.use(requireAuth);
 router.use(spendingRouter);
 router.use(requireTenant);

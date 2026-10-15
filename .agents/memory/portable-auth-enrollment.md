@@ -14,3 +14,9 @@ Password-reset email delivery must not depend on Replit.
 **Why:** The user requested self-service password reset and asked for SendGrid with “no replit dep.”
 
 **How to apply:** Use a direct, portable email-provider integration for this flow rather than a Replit-managed email dependency.
+
+Administrator password recovery belongs to site administrators, not workspace administrators; send a reset link to the existing account email rather than disclosing a token or choosing the user's password.
+
+**Why:** One identity can belong to multiple workspaces, so granting workspace admins account-wide reset authority would allow cross-workspace takeover.
+
+**How to apply:** Require site-admin authorization and current-password confirmation. Keep ordinary self-service recovery separate from enrollment of passwordless identities.

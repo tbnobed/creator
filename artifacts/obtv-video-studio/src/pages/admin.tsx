@@ -1,4 +1,9 @@
-import { useGetDashboardSummary, useHealthCheck } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useAdminPasswordReset, useGetDashboardSummary, useHealthCheck } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { KeyRound } from "lucide-react";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Card } from "@/components/ui/card";
 import { Activity, ShieldCheck, HardDrive, Database, Network } from "lucide-react";
@@ -108,6 +113,8 @@ export default function AdminPage() {
             </div>
           </dl>
         </Card>
+
+        <AdminPasswordResetCard />
       </div>
     </Page>
   );
@@ -134,6 +141,63 @@ function StatusCard({ title, value, icon: Icon, isLoading, status }: {
           <p className="text-2xl font-bold font-mono tracking-tight">{value}</p>
         )}
       </div>
+    </Card>
+  );
+}
+function AdminPasswordResetCard() {
+  const [email, setEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const reset = useAdminPasswordReset();
+  const status = typeof reset.error === "object" && reset.error && "status" in reset.error
+    ? Number((reset.error as { status: unknown }).status) : undefined;
+  const errorText = reset.error
+    ? status === 403 ? "Your admin password was incorrect. No email was sent."
+    : status === 404 ? "No local account exists for that email."
+    : status === 429 ? "Too many reset requests. Please wait and try again."
+    : status === 503 ? "Password reset email is not configured on the server."
+    : "Unable to send the reset email right now. Please try again."
+    : null;
+  const trimmed = email.trim().toLowerCase();
+  const canSubmit = /^[^\s@]+@[^\s@]+$/.test(trimmed) && trimmed.length <= 320 && currentPassword.length >= 1 && currentPassword.length <= 128;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setSentTo(null);
+    const pw = currentPassword;
+    setCurrentPassword("");
+    reset.mutate({ data: { email: trimmed, currentPassword: pw } }, {
+      onSuccess: () => { setSentTo(trimmed); setEmail(""); },
+    });
+  };
+
+  return (
+    <Card className="p-6 border-border/50 bg-card/30 backdrop-blur-sm lg:col-span-2">
+      <h3 className="font-semibold text-lg flex items-center gap-2 mb-2">
+        <KeyRound className="size-5 text-primary" /> Send Password Reset
+      </h3>
+      <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
+        Emails a single-use reset link to the account owner. No password is set and no token is shown here.
+        All of the recipient's sessions are revoked once they complete the reset. Requires password reset email to be configured on the server.
+      </p>
+      <form onSubmit={submit} className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" data-testid="form-admin-password-reset">
+        <div className="space-y-2">
+          <Label htmlFor="admin-reset-email">Account email</Label>
+          <Input id="admin-reset-email" type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} disabled={reset.isPending} data-testid="input-admin-reset-email" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="admin-reset-password">Your current password</Label>
+          <Input id="admin-reset-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} disabled={reset.isPending} data-testid="input-admin-reset-current-password" />
+        </div>
+        <Button type="submit" disabled={!canSubmit || reset.isPending} data-testid="button-admin-reset-submit">
+          {reset.isPending ? "Sending…" : "Send Reset Email"}
+        </Button>
+      </form>
+      {errorText && <p className="mt-4 text-sm text-destructive" role="alert" data-testid="error-admin-password-reset">{errorText}</p>}
+      {sentTo && !reset.error && (
+        <p className="mt-4 text-sm text-emerald-500" role="status" data-testid="text-admin-reset-sent">Reset email sent to {sentTo}.</p>
+      )}
     </Card>
   );
 }

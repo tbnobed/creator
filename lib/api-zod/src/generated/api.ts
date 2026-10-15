@@ -8,6 +8,49 @@
 import * as zod from 'zod';
 
 
+export const requestPasswordResetBodyEmailMax = 320;
+
+
+
+export const RequestPasswordResetBody = zod.object({
+  "email": zod.string().max(requestPasswordResetBodyEmailMax)
+})
+
+export const RequestPasswordResetResponse = zod.void()
+
+
+export const redeemPasswordResetBodyTokenMin = 43;
+export const redeemPasswordResetBodyTokenMax = 43;
+
+
+export const redeemPasswordResetBodyTokenRegExp = new RegExp('^[A-Za-z0-9_-]{43}$');
+export const redeemPasswordResetBodyPasswordMin = 12;
+export const redeemPasswordResetBodyPasswordMax = 128;
+
+
+
+export const RedeemPasswordResetBody = zod.object({
+  "token": zod.string().min(redeemPasswordResetBodyTokenMin).max(redeemPasswordResetBodyTokenMax).regex(redeemPasswordResetBodyTokenRegExp),
+  "password": zod.string().min(redeemPasswordResetBodyPasswordMin).max(redeemPasswordResetBodyPasswordMax)
+})
+
+export const RedeemPasswordResetResponse = zod.void()
+
+
+export const adminPasswordResetBodyEmailMax = 320;
+
+export const adminPasswordResetBodyCurrentPasswordMax = 128;
+
+
+
+export const AdminPasswordResetBody = zod.object({
+  "email": zod.string().max(adminPasswordResetBodyEmailMax),
+  "currentPassword": zod.string().min(1).max(adminPasswordResetBodyCurrentPasswordMax)
+})
+
+export const AdminPasswordResetResponse = zod.void()
+
+
 export const ListVideoLibraryQueryParams = zod.object({
   "favorite": zod.coerce.boolean().optional()
 })

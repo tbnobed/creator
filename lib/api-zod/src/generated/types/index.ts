@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminPasswordResetRequest';
 export * from './artworkPoint';
 export * from './artworkPolygon';
 export * from './artworkSourceRequest';
@@ -128,6 +129,8 @@ export * from './longFormTimelineClip';
 export * from './longFormTimelineInput';
 export * from './paginatedGenerations';
 export * from './parameterMapping';
+export * from './passwordResetRedemption';
+export * from './passwordResetRequest';
 export * from './pendingSpendingInvitation';
 export * from './pixelAnimation';
 export * from './promptCheckIssue';

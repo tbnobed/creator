@@ -5,6 +5,35 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PasswordResetRequest {
+  /** @maxLength 320 */
+  email: string;
+}
+
+export interface PasswordResetRedemption {
+  /**
+     * @minLength 43
+     * @maxLength 43
+     * @pattern ^[A-Za-z0-9_-]{43}$
+     */
+  token: string;
+  /**
+     * @minLength 12
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface AdminPasswordResetRequest {
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  currentPassword: string;
+}
+
 export interface GarmentWorker {
   id: string;
   name: string;

@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { SignInPage, SignUpPage } from "@/pages/auth";
+import { ForgotPasswordPage, ResetPasswordPage } from "@/pages/password-reset";
 import { subscribeToAuthChanges } from "@/lib/auth-events";
 
 const LandingPage = lazy(() => import("@/pages/landing"));
@@ -112,6 +113,8 @@ function AppRoutes() {
             <Route path="/" component={HomeRedirect} />
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
+            <Route path="/forgot-password" component={ForgotPasswordPage} />
+            <Route path="/reset-password" component={ResetPasswordPage} />
             <Route path="/studio" component={StudioRouter} />
             <Route path="/reference-video" component={StudioRouter} />
             <Route path="/projects" component={StudioRouter} />

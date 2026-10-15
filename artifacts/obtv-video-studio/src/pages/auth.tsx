@@ -33,7 +33,7 @@ function authErrorMessage(error: unknown, action: "sign in" | "create your accou
   return `Unable to ${action} right now. Please try again.`;
 }
 
-function AuthLayout({ children }: { children: React.ReactNode }) {
+export function AuthLayout({ children }: { children: React.ReactNode }) {
   const wordmarkSrc = `${import.meta.env.BASE_URL}brand/obtv-creator-ai-wordmark.png`;
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background px-4 py-10">
@@ -104,7 +104,10 @@ export function SignInPage() {
               )} />
               <FormField control={form.control} name="password" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Password</FormLabel>
+                    <Link href="/forgot-password" className="text-xs font-medium text-primary hover:text-primary/80" data-testid="link-forgot-password">Forgot password?</Link>
+                  </div>
                   <FormControl><Input {...field} type="password" autoComplete="current-password" disabled={login.isPending} data-testid="input-sign-in-password" /></FormControl>
                   <FormMessage />
                 </FormItem>
