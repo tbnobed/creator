@@ -22,3 +22,9 @@ timeoutMs = 20000
 [nix]
 channel = "stable-25_05"
 packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[userenv]
+
+[userenv.shared]
+PUBLIC_APP_URL = "https://create1.obtv.io"
+SENDGRID_FROM_EMAIL = "alerts@obedtv.com"
