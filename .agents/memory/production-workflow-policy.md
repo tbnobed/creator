@@ -15,6 +15,12 @@ Offer compatible local and paid models at every generation step, rather than fix
 
 **How to apply:** Persist per-step choices, explain capability restrictions, and obtain paid-batch confirmation without silently switching models.
 
+The script-generation model should run on one of the GPUs.
+
+**Why:** The user explicitly requested GPU execution after encountering slow CPU-only script generation.
+
+**How to apply:** Configure and verify a GPU-backed writing service; preserve the existing H100 reserved-slice boundary and coordinate capacity with video rendering.
+
 Automatic continuity review may initially be a stub, but must not report that everything matches before a real check has run.
 
 **Why:** The user requested a stubbed checker behind an interface; an empty stub result is not evidence of visual consistency.
