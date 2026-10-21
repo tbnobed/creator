@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   customFetch,
+  getProductionProject,
   getGetProductionProjectQueryKey,
   getListProductionProjectsQueryKey,
   useCreateProductionProject,
@@ -22,20 +23,11 @@ import {
 import { StoryStep } from "./story-step";
 import { CharactersStep, PlacesStep, WardrobeStep } from "./cast-steps";
 import { CreateStep, ReviewStep } from "./render-steps";
+import { draftFrom, draftPatch, rebaseDraft, sameDraftValue, ProductionDraftConflict, type ProductionDraft as Draft } from "@/lib/production-draft";
 
-type Draft = { title: string; step: number; story: Pick<Story, "summary" | "script" | "targetMinutes" | "scenes">; settings: ProductionSettings };
 export type RunAction = (action: string, payload?: Record<string, unknown>) => Promise<ProductionProject | null>;
 
 const EMPTY: Draft = { title: "", step: 0, story: { summary: "", script: "", targetMinutes: 10, scenes: [] }, settings: DEFAULT_SETTINGS };
-
-function draftFrom(p: ProductionProject): Draft {
-  const s = normalizeState(p.state as Record<string, unknown>);
-  return {
-    title: p.title, step: s.step,
-    story: { summary: s.story.summary, script: s.story.script, targetMinutes: s.story.targetMinutes, scenes: s.story.scenes },
-    settings: s.settings,
-  };
-}
 
 export default function ProductionWorkflowPage() {
   const params = useParams<{ id?: string }>();
@@ -43,12 +35,14 @@ export default function ProductionWorkflowPage() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const savingRef = useRef(false);
 
   const query = useGetProductionProject(id ?? "", {
     query: {
       enabled: !!id,
       queryKey: getGetProductionProjectQueryKey(id ?? ""),
       refetchInterval: (q) => {
+        if (savingRef.current) return false;
         const d = q.state.data as ProductionProject | undefined;
         return d && needsPolling(normalizeState(d.state as Record<string, unknown>)) ? 2000 : false;
       },
@@ -61,7 +55,8 @@ export default function ProductionWorkflowPage() {
 
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [dirty, setDirty] = useState(false);
-  const [saveError, setSaveError] = useState<{ message: string; conflict: boolean } | null>(null);
+  const [saveError, setSaveError] = useState<{ message: string; conflict: boolean; canKeepLocal?: boolean } | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [actionError, setActionError] = useState<{ message: string; retry: () => void } | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -69,16 +64,19 @@ export default function ProductionWorkflowPage() {
   const dirtyRef = useRef(false);
   dirtyRef.current = dirty;
   const projectRef = useRef<ProductionProject | null | undefined>(project);
-  projectRef.current = project;
+  if (project && (!projectRef.current || project.id !== projectRef.current.id || project.revision >= projectRef.current.revision)) projectRef.current = project;
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  const baselineRef = useRef<Draft>(EMPTY);
+  const retryOverrideRef = useRef<Partial<Draft> | undefined>(undefined);
 
   // Sync server -> draft only when the user has no unsaved edits.
   useEffect(() => {
     if (!project) return;
+    if (projectRef.current && project.id === projectRef.current.id && project.revision < projectRef.current.revision) return;
     if (initFor.current !== project.id || !dirtyRef.current) {
       initFor.current = project.id;
-      setDraft(draftFrom(project));
+      const next = draftFrom(project);
+      baselineRef.current = next; draftRef.current = next; setDraft(next);
     }
   }, [project?.id, project?.revision, project?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -88,15 +86,18 @@ export default function ProductionWorkflowPage() {
   }, [project, draft]);
 
   const edit = useCallback((patch: Partial<Draft>) => {
-    setDraft((d) => ({ ...d, ...patch }));
+    const next = { ...draftRef.current, ...patch };
+    draftRef.current = next; setDraft(next); dirtyRef.current = true;
     setDirty(true);
   }, []);
   const editStory = useCallback((patch: Partial<Draft["story"]>) => {
-    setDraft((d) => ({ ...d, story: { ...d.story, ...patch } }));
+    const d = draftRef.current, next = { ...d, story: { ...d.story, ...patch } };
+    draftRef.current = next; setDraft(next); dirtyRef.current = true;
     setDirty(true);
   }, []);
   const editSettings = useCallback((patch: Partial<ProductionSettings>) => {
-    setDraft((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
+    const d = draftRef.current, next = { ...d, settings: { ...d.settings, ...patch } };
+    draftRef.current = next; setDraft(next); dirtyRef.current = true;
     setDirty(true);
   }, []);
 
@@ -110,33 +111,59 @@ export default function ProductionWorkflowPage() {
   const actionMutRef = useRef(actionM.mutateAsync); actionMutRef.current = actionM.mutateAsync;
 
   /** Persist the draft. Returns the latest server project, or null on failure (draft kept). */
-  const save = useCallback(async (override?: Partial<Draft>): Promise<ProductionProject | null> => {
-    const d = { ...draftRef.current, ...override };
-    const title = d.title.trim() || "Untitled production";
-    const statePatch = { step: d.step, story: d.story, settings: d.settings };
+  const save = useCallback(async (override?: Partial<Draft>, keepLocal = false): Promise<ProductionProject | null> => {
+    if (savingRef.current) return null;
+    savingRef.current = true; setSavingDraft(true);
+    const initial = draftRef.current, base = baselineRef.current;
+    const proposed = { ...initial, ...override };
+    const d = { ...proposed, title: proposed.title.trim() || "Untitled production" };
+    retryOverrideRef.current = override;
     setSaveError(null);
     try {
       const current = projectRef.current;
       let saved: ProductionProject;
       if (!current) {
-        saved = await createMutRef.current({ data: { title, state: statePatch } });
+        saved = await createMutRef.current({ data: { title: d.title, state: { step: d.step, story: d.story, settings: d.settings } } });
       } else {
-        saved = await updateMutRef.current({ id: current.id, data: { title, revision: current.revision, state: statePatch } });
+        await qc.cancelQueries({ queryKey: getGetProductionProjectQueryKey(current.id) });
+        saved = current;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const latest = await getProductionProject(current.id);
+          const merged = rebaseDraft(base, d, draftFrom(latest), keepLocal);
+          const patch = draftPatch(draftFrom(latest), merged);
+          if (!patch.title && !Object.keys(patch.state).length) { saved = latest; break; }
+          try {
+            saved = await updateMutRef.current({ id: latest.id, data: { ...patch, title: patch.title ?? latest.title, revision: latest.revision } });
+            break;
+          } catch (err) {
+            if (!isConflict(err) || attempt === 2) throw err;
+            await new Promise(resolve => setTimeout(resolve, 150 * (attempt + 1)));
+          }
+        }
+        await qc.cancelQueries({ queryKey: getGetProductionProjectQueryKey(current.id) });
       }
       projectRef.current = saved;
       initFor.current = saved.id;
+      const server = draftFrom(saved);
+      const next = draftRef.current === initial ? server : rebaseDraft(initial, draftRef.current, server, true);
+      baselineRef.current = server; draftRef.current = next;
+      dirtyRef.current = !sameDraftValue(next, server);
+      setDraft(next); setDirty(dirtyRef.current);
       commit(saved);
-      setDirty(false);
+      retryOverrideRef.current = undefined;
       return saved;
     } catch (err) {
-      const conflict = isConflict(err);
+      const competingEdit = err instanceof ProductionDraftConflict;
+      const conflict = competingEdit || isConflict(err);
       setSaveError({
-        conflict,
-        message: conflict
-          ? "This production changed on the server since you loaded it. Your edits are still here."
+        conflict, canKeepLocal: competingEdit,
+        message: competingEdit ? err.message : conflict
+          ? `${errorMessage(err)} Your edits are retained. Retry once the background update finishes.`
           : errorMessage(err),
       });
       return null;
+    } finally {
+      savingRef.current = false; setSavingDraft(false);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -150,6 +177,11 @@ export default function ProductionWorkflowPage() {
     try {
       let current = projectRef.current;
       if (!current || dirtyRef.current) current = await save();
+      else {
+        current = await getProductionProject(current.id);
+        projectRef.current = current;
+        commit(current);
+      }
       if (!current) return null;
       const result = await actionMutRef.current({ id: current.id, data: { action, revision: current.revision, payload } });
       projectRef.current = result;
@@ -168,7 +200,6 @@ export default function ProductionWorkflowPage() {
   const goToStep = async (step: number) => {
     const saved = await save({ step });
     if (saved) {
-      setDraft((d) => ({ ...d, step }));
       if (!id) setLocation(`/productions/${saved.id}`);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -198,7 +229,8 @@ export default function ProductionWorkflowPage() {
       projectRef.current = result;
       commit(result);
       setDraft(draftFrom(result));
-      setDirty(false);
+      draftRef.current = draftFrom(result); baselineRef.current = draftRef.current;
+      dirtyRef.current = false; setDirty(false);
       toast({ title: "Script uploaded", description: file.name });
       if (!id) setLocation(`/productions/${result.id}`);
     } catch (err) {
@@ -216,10 +248,13 @@ export default function ProductionWorkflowPage() {
   }, [dirty]);
 
   const reloadServer = async () => {
-    setDirty(false);
-    setSaveError(null);
     const r = await query.refetch();
-    if (r.data) setDraft(draftFrom(r.data));
+    if (r.isError || !r.data) {
+      toast({ title: "Could not load the server copy", description: "Your unsaved edits are still here.", variant: "destructive" });
+    } else {
+      projectRef.current = r.data; draftRef.current = draftFrom(r.data); baselineRef.current = draftRef.current;
+      dirtyRef.current = false; setDirty(false); setSaveError(null); setDraft(draftRef.current);
+    }
   };
 
   if (id && query.isLoading) return <WorkflowSkeleton />;
@@ -240,7 +275,7 @@ export default function ProductionWorkflowPage() {
   }
 
   const step = draft.step;
-  const saving = createM.isPending || updateM.isPending;
+  const saving = savingDraft || createM.isPending || updateM.isPending;
   const ds = state.story.draftStatus?.toUpperCase();
   const scenesReady = state.story.scenes.length > 0 && (!ds || ds === "READY");
   const nextDisabled = saving || (step === 0 && !scenesReady) || step === 5;
@@ -270,7 +305,10 @@ export default function ProductionWorkflowPage() {
         {saveError && (
           <Banner tone="error" testId="alert-save-error">
             <span className="flex-1">{saveError.message}</span>
-            <Button size="sm" variant="outline" onClick={() => void save()} data-testid="button-retry-save">Retry save</Button>
+            <Button size="sm" variant="outline" disabled={saving} onClick={() => void save(retryOverrideRef.current)} data-testid="button-retry-save">Retry save</Button>
+            {saveError.canKeepLocal && (
+              <Button size="sm" variant="outline" disabled={saving} onClick={() => { if (window.confirm("Replace the conflicting saved fields with your edits? Other server updates will be kept.")) void save(retryOverrideRef.current, true); }} data-testid="button-keep-local-edits">Keep my edits</Button>
+            )}
             {saveError.conflict && (
               <Button size="sm" variant="ghost" onClick={() => { if (window.confirm("Discard your unsaved edits and load the server copy?")) void reloadServer(); }} data-testid="button-load-server">
                 Load server copy

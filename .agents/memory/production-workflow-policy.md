@@ -32,3 +32,9 @@ Automatic continuity review may initially be a stub, but must not report that ev
 **Why:** The user requested a stubbed checker behind an interface; an empty stub result is not evidence of visual consistency.
 
 **How to apply:** Distinguish not checked from checked with zero issues, and retain manual shot corrections.
+
+Background generation updates must not block step navigation or overwrite unsaved creator edits.
+
+**Why:** The production record advances while server work runs; treating every revision change as a competing human edit repeatedly blocked the user's Next action.
+
+**How to apply:** Preserve revision checks, rebase only disjoint edits onto fresh server state, and require an explicit choice for competing edits to the same field. Never resolve this by blindly replacing the entire production snapshot.

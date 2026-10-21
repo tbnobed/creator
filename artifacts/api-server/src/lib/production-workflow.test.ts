@@ -27,3 +27,13 @@ test("FDX text extraction preserves screenplay paragraphs and rejects entities",
   assert.equal(extractFdx(Buffer.from('<FinalDraft><Paragraph><Text>A &amp; B</Text></Paragraph><Paragraph><Text>Hello.</Text></Paragraph></FinalDraft>')), "A & B\n\nHello.");
   assert.throws(() => extractFdx(Buffer.from('<!DOCTYPE x><FinalDraft/>')), /external entities/);
 });
+test("partial edits retain generated state and unrelated per-mode model choices", () => {
+  const state = emptyProduction();
+  state.story.summary = "Storm";
+  state.tasks.push({ id: "writing", type: "story", status: "RUNNING" } as typeof state.tasks[number]);
+  state.settings.imageModels = { places: "local-place-model", characters: "old-character-model" };
+  const next = applyProductionPatch(state, { step: 4, story: { targetMinutes: 10 }, settings: { imageModels: { characters: "new-character-model" } } });
+  assert.equal(next.story.summary, "Storm"); assert.equal(next.tasks[0].status, "RUNNING");
+  assert.deepEqual(next.settings.imageModels, { places: "local-place-model", characters: "new-character-model" });
+  assert.throws(() => applyProductionPatch(state, { story: { summary: "Changed while writing" } }), /Wait for story/);
+});

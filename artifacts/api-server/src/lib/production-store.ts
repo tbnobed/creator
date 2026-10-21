@@ -35,7 +35,7 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
   if (patch.story && typeof patch.story === "object") {
     const story = patch.story as Record<string, unknown>;
     const busy = state.tasks.some(t => t.type === "story" && ["QUEUED", "RUNNING"].includes(t.status));
-    if (busy && (story.summary !== state.story.summary || story.script !== state.story.script)) throw new ProductionConflict("Wait for story drafting to finish before changing the source.");
+    if (busy && ((story.summary !== undefined && story.summary !== state.story.summary) || (story.script !== undefined && story.script !== state.story.script))) throw new ProductionConflict("Wait for story drafting to finish before changing the source.");
     if (story.summary !== undefined) next.story.summary = text(story.summary, "Summary", 20000, false);
     if (story.script !== undefined) next.story.script = text(story.script, "Script", 100000, false);
     if (story.targetMinutes !== undefined) {
@@ -62,10 +62,10 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
     // Spending permission can only be granted by the explicit create action.
     if (next.settings.videoProvider !== state.settings.videoProvider || next.settings.videoModel !== state.settings.videoModel) delete next.settings.videoConfirmed;
     if (settings.imageModels && typeof settings.imageModels === "object") {
-      next.settings.imageModels = Object.fromEntries(
+      next.settings.imageModels = { ...next.settings.imageModels, ...Object.fromEntries(
         Object.entries(settings.imageModels).filter(([key]) => ["characters", "referenceSheet", "wardrobe", "places", "variants"].includes(key))
           .map(([key, value]) => [key, text(value, "Image model", 100)]),
-      );
+      ) };
     }
     if (settings.generationMode !== undefined) next.settings.generationMode = text(settings.generationMode, "Workflow", 100, false);
     for (const key of ["width", "height"] as const) if (settings[key] !== undefined) next.settings[key] = numberIn(settings[key], key, 64, 4096);

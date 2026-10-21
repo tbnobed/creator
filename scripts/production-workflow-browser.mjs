@@ -10,7 +10,7 @@ const scenes = [
 ];
 
 function makeMock() {
-  const m = { project: null, actions: [], patches: [], conflictNext: false, list: [] };
+  const m = { project: null, actions: [], patches: [], conflictNext: false, bumpNextPatch: false, delayNextPatchMs: 0, list: [] };
   m.handle = async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -33,9 +33,15 @@ function makeMock() {
     if (path === "/api/production-projects/prod-1" && method === "PATCH") {
       const body = req.postDataJSON();
       m.patches.push(body);
+      if (m.delayNextPatchMs) { const delay = m.delayNextPatchMs; m.delayNextPatchMs = 0; await new Promise(r => setTimeout(r, delay)); }
+      if (m.bumpNextPatch) {
+        m.bumpNextPatch = false; m.project.revision++;
+        m.project.state.settings.width = 1600;
+        m.project.state.story.scenes[0].action = "A background writer updated this scene.";
+      }
       if (m.conflictNext || body.revision !== m.project.revision) { m.conflictNext = false; return json({ error: "Revision conflict" }, 409); }
       const st = m.project.state;
-      m.project = { ...m.project, title: body.title, revision: m.project.revision + 1, updatedAt: now(), state: { ...st, ...body.state, story: { ...st.story, ...body.state.story } } };
+      m.project = { ...m.project, title: body.title, revision: m.project.revision + 1, updatedAt: now(), state: { ...st, ...body.state, settings: { ...st.settings, ...body.state.settings, imageModels: { ...st.settings?.imageModels, ...body.state.settings?.imageModels } }, story: { ...st.story, ...body.state.story } } };
       return json(m.project);
     }
     if (path === "/api/production-projects/prod-1/actions") {
@@ -111,9 +117,9 @@ try {
     await page.getByTestId("option-portrait-2").click();
     await expect(page.getByTestId("option-portrait-2")).toHaveAttribute("aria-checked", "true");
     await page.getByTestId("button-keep-look").click();
+    await expect(page.getByTestId("badge-locked-pc-1")).toBeVisible();
     expect(mock.actions.at(-1)).toMatchObject({ action: "keep-look", payload: { id: "pc-1", assetId: "opt-2", modelId: "local-flux2-klein-4b", cloudConfirmed: false } });
     expect(mock.actions.find((a) => a.action === "add-character").payload).toMatchObject({ modelId: "local-flux2-klein-4b", cloudConfirmed: false });
-    await expect(page.getByTestId("badge-locked-pc-1")).toBeVisible();
 
     // Steps 3-6.
     for (const label of ["Wardrobe", "Places", "Create", "Review"]) {
@@ -135,17 +141,64 @@ try {
     await expect(page.getByTestId("text-issue-count")).toContainText("0 things");
     await expect(page.getByTestId("text-all-clear")).toHaveCount(0);
 
-    // 409 preserves draft.
+    // A real revision race during Create -> Review is recovered without
+    // sending stale scenes/settings back or replaying a generation action.
+    await page.getByTestId("button-step-4").click();
+    await expect(page.getByTestId("text-step-label")).toContainText("Create");
+    const actionCount = mock.actions.length;
+    mock.bumpNextPatch = true;
+    await page.getByTestId("button-step-next").click();
+    await expect(page.getByTestId("text-step-label")).toContainText("Review");
+    expect(mock.patches.at(-1).state).toEqual({ step: 5 });
+    expect(mock.project.state.settings.width).toBe(1600);
+    expect(mock.project.state.story.scenes[0].action).toContain("background writer");
+    expect(mock.actions.length).toBe(actionCount);
+    await expect(page.getByTestId("alert-save-error")).toHaveCount(0);
+
+    // Transient 409 automatically retries with a fresh revision.
     await page.getByTestId("button-step-0").click();
     await expect(page.getByTestId("text-step-label")).toContainText("Story");
     await page.getByTestId("input-production-title").fill("Harrow Point (director's cut)");
     mock.conflictNext = true;
     await page.getByTestId("button-save-draft").click();
-    await expect(page.getByTestId("alert-save-error")).toBeVisible();
-    await expect(page.getByTestId("input-production-title")).toHaveValue("Harrow Point (director's cut)");
-    await page.getByTestId("button-retry-save").click();
     await expect(page.getByTestId("status-save")).toContainText("Saved");
     expect(mock.project.title).toBe("Harrow Point (director's cut)");
+
+    // Genuine same-field edits stay protected, with an explicit choice.
+    await page.getByTestId("input-production-title").fill("My final title");
+    mock.project = { ...mock.project, title: "Another editor's title", revision: mock.project.revision + 1 };
+    await page.getByTestId("button-save-draft").click();
+    await expect(page.getByTestId("alert-save-error")).toContainText("also edited elsewhere");
+    await expect(page.getByTestId("input-production-title")).toHaveValue("My final title");
+    await page.getByTestId("button-retry-save").click();
+    await expect(page.getByTestId("alert-save-error")).toBeVisible();
+    expect(mock.project.title).toBe("Another editor's title");
+    page.once("dialog", dialog => dialog.dismiss());
+    await page.getByTestId("button-load-server").click();
+    await expect(page.getByTestId("input-production-title")).toHaveValue("My final title");
+    page.once("dialog", dialog => dialog.accept());
+    await page.getByTestId("button-keep-local-edits").click();
+    await expect(page.getByTestId("status-save")).toContainText("Saved");
+    expect(mock.project.title).toBe("My final title");
+    expect(mock.project.state.settings.width).toBe(1600);
+
+    // A successful older response must not erase typing made in flight.
+    await page.getByTestId("input-production-title").fill("Submitted title");
+    mock.delayNextPatchMs = 600;
+    const sent = page.waitForRequest(r => r.method() === "PATCH");
+    await page.getByTestId("button-save-draft").click();
+    await sent;
+    await page.getByTestId("input-production-title").fill("Typed while saving");
+    await expect(page.getByTestId("button-save-draft")).toBeEnabled();
+    await expect(page.getByTestId("input-production-title")).toHaveValue("Typed while saving");
+    expect(mock.project.title).toBe("Submitted title");
+    await page.getByTestId("button-save-draft").click();
+    await expect(page.getByTestId("status-save")).toContainText("Saved");
+    expect(mock.project.title).toBe("Typed while saving");
+    const patchCount = mock.patches.length;
+    await page.getByTestId("button-step-next").evaluate(button => { button.click(); button.click(); });
+    await expect(page.getByTestId("text-step-label")).toContainText("Characters");
+    expect(mock.patches.length - patchCount).toBe(1);
     await context.close();
   }
 
