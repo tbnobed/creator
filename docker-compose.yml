@@ -52,10 +52,11 @@ services:
       PROMPT_AI_BASE_URL: http://prompt-ai:11434
       PROMPT_AI_MODEL: ${PROMPT_AI_MODEL:-qwen2.5:1.5b}
       # Dedicated GB10 writer; never fall back to CPU prompt assistance.
-      STORY_AI_BASE_URL: ${STORY_AI_BASE_URL:-}
-      STORY_AI_MODEL: ${STORY_AI_MODEL:-qwen2.5:1.5b}
-      NO_PROXY: prompt-ai,db,127.0.0.1,localhost
-      no_proxy: prompt-ai,db,127.0.0.1,localhost
+      STORY_AI_BASE_URL: ${STORY_AI_BASE_URL:-http://192.168.0.114:11434}
+      STORY_AI_MODEL: ${STORY_AI_MODEL:-qwen3.8:27b-q8_0}
+      STORY_AI_COMFY_BASE_URL: ${STORY_AI_COMFY_BASE_URL:-http://192.168.0.114:8188}
+      NO_PROXY: prompt-ai,db,192.168.0.114,127.0.0.1,localhost
+      no_proxy: prompt-ai,db,192.168.0.114,127.0.0.1,localhost
       COMFY_ALLOWED_HOSTS: ${COMFY_ALLOWED_HOSTS:-}
       APP_ORIGINS: ${APP_ORIGINS:-}
       TRUST_PROXY: "true"

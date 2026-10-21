@@ -27,7 +27,7 @@ export async function tickProductions() {
               const paid = task.storyModel && task.storyModel !== "local";
               state.story.progress = {
                 stage: task.index === 0 ? "Preparing the scene list" : `Writing scene ${task.index} of ${state.story.scenes.length}`,
-                model: paid ? task.storyModel!.replace(/^openai:/, "") : process.env.STORY_AI_MODEL?.trim() || "qwen2.5:1.5b",
+                model: paid ? task.storyModel!.replace(/^openai:/, "") : process.env.STORY_AI_MODEL?.trim() || "qwen3.8:27b-q8_0",
                 target: paid ? "Paid provider" : "GB10 / Blackwell",
                 startedAt: new Date().toISOString(), active: true, gpuVerified: false,
               };
@@ -63,7 +63,10 @@ export async function tickProductions() {
             const message = error instanceof Error ? error.message : "Production task failed.";
             // Busy workers are capacity constraints, not failed creative drafts.
             if (/No .*worker.*available|safe render capacity|worker.*busy/i.test(message)) {
-              task.status = "QUEUED"; task.error = "Waiting for an available local image worker.";
+              task.status = "QUEUED"; task.error = task.type === "story" ? message : "Waiting for an available local image worker.";
+              if (task.type === "story" && state.story.progress) {
+                state.story.progress.active = false; state.story.progress.gpuVerified = false; state.story.progress.stage = "Waiting for GB10 GPU capacity";
+              }
             } else {
               task.status = "FAILED"; task.error = message;
               if (task.type === "story") {

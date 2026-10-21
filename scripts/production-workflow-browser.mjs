@@ -178,17 +178,22 @@ try {
       state: { step: 0, story: {
         summary: "A lighthouse keeper repairs the light.", script: "", targetMinutes: 10,
         draftStatus: "RUNNING", scenes: [],
-        progress: { stage: "Writing scene 2 of 5", model: "qwen2.5:1.5b", target: "GB10 / Blackwell", startedAt: now(), active: true, gpuVerified: true },
+        progress: { stage: "Writing scene 2 of 5", model: "qwen3.8:27b-q8_0", target: "GB10 / Blackwell", startedAt: now(), active: true, gpuVerified: true },
       }, tasks: [{ id: "story-progress", type: "story", status: "RUNNING", index: 2 }], settings: { storyModel: "local" } },
     };
     await context.route("**/api/**", mock.handle);
     const page = await context.newPage();
     await page.goto(`${base}/productions/prod-1`);
     await expect(page.getByTestId("status-story-progress")).toContainText("Writing scene 2 of 5");
-    await expect(page.getByTestId("status-story-progress")).toContainText("qwen2.5:1.5b");
+    await expect(page.getByTestId("status-story-progress")).toContainText("qwen3.8:27b-q8_0");
     await expect(page.getByTestId("status-story-progress")).toContainText("GPU model verified");
     await expect(page.getByTestId("button-draft-story")).toBeDisabled();
+    await page.getByTestId("status-story-progress").scrollIntoViewIfNeeded();
     await page.screenshot({ path: "/tmp/gb10-writer-progress.png", fullPage: true });
+    mock.project.state.story.progress = { ...mock.project.state.story.progress, active: false, gpuVerified: false, stage: "Waiting for GB10 GPU capacity" };
+    mock.project.state.tasks[0].status = "QUEUED";
+    mock.project.revision++;
+    await expect(page.getByTestId("status-story-progress")).toContainText("Video jobs have priority", { timeout: 10000 });
     mock.project.state.story.draftStatus = "FAILED";
     mock.project.state.story.error = "The GB10 script writer timed out. Your input is saved.";
     mock.project.state.story.progress = { ...mock.project.state.story.progress, active: false, stage: "Writing stopped" };

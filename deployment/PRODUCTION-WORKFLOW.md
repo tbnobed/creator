@@ -26,11 +26,15 @@ use `pdftotext`, now installed in the API image.
   assistance only. They are never used as a fallback for script writing.
 - Set `STORY_AI_BASE_URL` to the GB10's private Ollama endpoint and
   `STORY_AI_MODEL` to an installed model (current migration baseline:
-  `qwen2.5:1.5b`). The writer warms the selected model, checks `/api/ps`
+  `qwen3.8:27b-q8_0`, already installed on the GB10). Also set
+  `STORY_AI_COMFY_BASE_URL` to that host's ComfyUI endpoint. The writer
+  checks the video queue and memory headroom, warms the selected model, checks `/api/ps`
   for nonzero GPU residency, then submits story content. CPU-only runners
   are refused. Models are unloaded after a stage to release residency;
-  this does not itself coordinate ComfyUI capacity. Reserve capacity on the
-  GPU host before enabling the endpoint.
+  a two-second workload monitor cancels writing when a video job appears,
+  then releases the writer model and queues the writing stage for retry.
+  This is cooperative priority, not an atomic GPU reservation across all
+  outside applications. It does not stop or alter the ComfyUI queue.
 - Ollama has no built-in authentication here: do **not** expose port 11434
   to the public internet. Verify connectivity from the actual API host over
   the private network or an authenticated tunnel. An app-side source update

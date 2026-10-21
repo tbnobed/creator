@@ -135,7 +135,7 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           <div className="space-y-1 rounded-lg border border-border bg-card p-3 text-xs" role="status" aria-live="polite" data-testid="status-story-progress">
             <p className="font-semibold">{story.progress.stage}</p>
             <p className="text-muted-foreground">{story.progress.target} · {story.progress.model}</p>
-            {running && <p className="text-muted-foreground">{story.progress.gpuVerified ? "GPU model verified. Writing this stage; results appear when it finishes." : story.progress.target === "Paid provider" ? "Waiting for the selected provider." : "Checking the GPU writer and loading its model."} Your input is saved.</p>}
+            {running && <p className="text-muted-foreground">{story.progress.stage.startsWith("Waiting for GB10") ? "Video jobs have priority. Writing resumes when GPU capacity is available." : story.progress.gpuVerified ? "GPU model verified. Writing this stage; results appear when it finishes." : story.progress.target === "Paid provider" ? "Waiting for the selected provider." : "Checking the GPU writer and loading its model."} Your input is saved.</p>}
             {running && <p className="text-muted-foreground">Each writing request has a four-minute timeout. A failure will show here with a retry action.</p>}
           </div>
         )}

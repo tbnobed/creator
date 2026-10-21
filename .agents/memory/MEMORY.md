@@ -37,4 +37,4 @@
 - [Image Studio safety](image-studio-safety.md) — Keep model choices per mode; distinguish app safety limits from native model capacity.
 - [Git provider authorization](git-provider-authorization.md) — Healthy connection badges and successful reads do not prove push authorization.
 - [Prompt-first characters](character-creation-ux.md) — Generate from a prompt first; dossier details are optional, not prerequisites.
-- [Guided production policy](production-workflow-policy.md) — Full screenplay drafts, per-step local/paid model choice, and honest continuity review.
+- [Guided production policy](production-workflow-policy.md) — Full screenplay drafts, per-step local/paid model choice, GB10 writing, and honest continuity review.

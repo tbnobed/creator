@@ -21,6 +21,12 @@ The script-generation model should run on the GB10 / Blackwell.
 
 **How to apply:** Configure and verify a GPU-backed writing service; preserve the existing H100 reserved-slice boundary and coordinate capacity with video rendering.
 
+The production system can reach the GB10 directly through its internal IP.
+
+**Why:** The user explicitly confirmed local-network access; an additional production SSH tunnel is unnecessary.
+
+**How to apply:** Prefer the private LAN endpoints for the API's writer and workload checks. SSH access is for administration or workspace-only verification, not a required application dependency.
+
 Automatic continuity review may initially be a stub, but must not report that everything matches before a real check has run.
 
 **Why:** The user requested a stubbed checker behind an interface; an empty stub result is not evidence of visual consistency.

@@ -49,6 +49,7 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 These SSH connection details were confirmed by the operator. Keep them available for future worker maintenance; do not ask the operator to supply them again.
 
 - **A100:** `ssh ubuntu@107.180.212.240 -p 225` — password supplied through `GPU_A100_SSH_PASSWORD`.
+- **GB10 / Asus:** SSH `76.219.194.165`, port **225**, using `GPU_BLACKWELL_SSH_USERNAME` and `GPU_BLACKWELL_SSH_PASSWORD`. Operator confirmed this endpoint. Hardware verification reports NVIDIA GB10 on `gx10-28e4`, not the separate RTX PRO 6000 host. See `deployment/GB10-STORY-WRITER.md` for the writer integration.
 - **H100:** `ssh ubuntu@107.180.212.240 -p 226` — password supplied through `GPU_H100_SSH_PASSWORD`.
 - **Dual H100 (separate host):** `98.191.147.191`, SSH port **229** — username and password supplied through `GPU_DUAL_H100_SSH_USERNAME` and `GPU_DUAL_H100_SSH_PASSWORD`. Operator reconfirmed this address on 2026-09-30. Do not confuse it with the older A100 labelled H100 above. Previously shut down after overheating/ECC/PCIe faults; inspect health before considering any workload or service startup.
 - SSH inspection confirmed `/home/ubuntu/ComfyUI` on port 225 (runs as `ubuntu`) and `/opt/ComfyUI` on port 226 (systemd `comfyui.service`, runs as `comfyui`, models in `/srv/comfyui/models`).
