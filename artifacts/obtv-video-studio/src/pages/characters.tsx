@@ -47,9 +47,9 @@ export default function CharactersPage() {
         title="Cast Library"
         description="Manage recurring characters, their approved wardrobes, and performance rules."
         actions={
-          <Button onClick={handleCreateNew} className="gap-2 shadow-lg hover-elevate">
+          <Button onClick={handleCreateNew} data-testid="button-new-character" className="gap-2 shadow-lg hover-elevate">
             <Plus className="size-4" />
-            New Character Dossier
+            New character
           </Button>
         }
       />

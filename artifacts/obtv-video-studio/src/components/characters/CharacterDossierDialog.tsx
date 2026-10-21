@@ -24,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DossierReferences } from "./DossierReferences";
 import { DossierWardrobe } from "./DossierWardrobe";
 import { DossierVoice } from "./DossierVoice";
+import { CharacterQuickCreate } from "./CharacterQuickCreate";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 
@@ -37,9 +38,15 @@ export function CharacterDossierDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { data: characters } = useListCharacters();
-  const character = characters?.find(c => c.id === characterId);
+  const [quickId, setQuickId] = useState<string | null>(null);
+  const [mode, setMode] = useState<"quick" | "advanced">("quick");
+  useEffect(() => {
+    if (open) { setQuickId(null); setMode(characterId ? "advanced" : "quick"); }
+  }, [open, characterId]);
+  const effectiveId = characterId ?? quickId;
+  const character = characters?.find(c => c.id === effectiveId);
   
-  const isNew = open && !characterId;
+  const isNew = open && !effectiveId;
   const [isDirty, setIsDirty] = useState(false);
   
   const handleOpenChange = (val: boolean) => {
@@ -57,8 +64,17 @@ export function CharacterDossierDialog({
   
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {open && (
-        <CharacterDossierEditor 
+      {open && mode === "quick" && !characterId && (
+        <CharacterQuickCreate
+          characterId={quickId}
+          onCharacterCreated={setQuickId}
+          onOpenAdvanced={() => setMode("advanced")}
+          onClose={() => onOpenChange(false)}
+        />
+      )}
+      {open && (mode === "advanced" || !!characterId) && (effectiveId === null || character) && (
+        <CharacterDossierEditor
+          key={effectiveId ?? "new"}
           character={character} 
           isNew={isNew} 
           onClose={() => onOpenChange(false)} 
@@ -264,7 +280,7 @@ function CharacterDossierEditor({
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div className="pr-4 w-full">
             <DialogTitle className="text-xl font-bold tracking-tight mb-1 flex flex-wrap items-center gap-2">
-              {activeId ? `Editing Dossier: ${form.watch("name") || "Unnamed"}` : "New Character Dossier"}
+              {activeId ? `Editing Dossier: ${form.watch("name") || "Unnamed"}` : "New character"}
               {dossier?.status === "APPROVED" && (
                 <Badge variant="default" className="bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/30">
                   <CheckCircle2 className="w-3 h-3 mr-1" /> Approved

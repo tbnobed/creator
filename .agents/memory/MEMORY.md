@@ -36,3 +36,4 @@
 - [Video replacement](garment-video-editing.md) — Paid editing must cover people, objects, and clothing; keep local garment/artwork experiments separate.
 - [Image Studio safety](image-studio-safety.md) — Keep model choices per mode; distinguish app safety limits from native model capacity.
 - [Git provider authorization](git-provider-authorization.md) — Healthy connection badges and successful reads do not prove push authorization.
+- [Prompt-first characters](character-creation-ux.md) — Generate from a prompt first; dossier details are optional, not prerequisites.
