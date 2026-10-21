@@ -1,10 +1,10 @@
 import type { ProductionProject } from "@workspace/api-client-react";
 import { normalizeState, type Story, type ProductionSettings } from "./production-types";
 
-export type ProductionDraft = { title: string; step: number; story: Pick<Story, "summary" | "script" | "targetMinutes" | "scenes">; settings: ProductionSettings };
+export type ProductionDraft = { title: string; step: number; story: Pick<Story, "summary" | "script" | "targetMinutes" | "scenes" | "sourceMode">; settings: ProductionSettings };
 export function draftFrom(p: ProductionProject): ProductionDraft {
   const s = normalizeState(p.state as Record<string, unknown>);
-  return { title: p.title, step: s.step, story: { summary: s.story.summary, script: s.story.script, targetMinutes: s.story.targetMinutes, scenes: s.story.scenes }, settings: s.settings };
+  return { title: p.title, step: s.step, story: { summary: s.story.summary, script: s.story.script, targetMinutes: s.story.targetMinutes, scenes: s.story.scenes, sourceMode: s.story.sourceMode }, settings: s.settings };
 }
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 export function sameDraftValue(a: unknown, b: unknown): boolean {

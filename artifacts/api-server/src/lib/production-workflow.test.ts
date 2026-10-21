@@ -32,8 +32,9 @@ test("partial edits retain generated state and unrelated per-mode model choices"
   state.story.summary = "Storm";
   state.tasks.push({ id: "writing", type: "story", status: "RUNNING" } as typeof state.tasks[number]);
   state.settings.imageModels = { places: "local-place-model", characters: "old-character-model" };
-  const next = applyProductionPatch(state, { step: 4, story: { targetMinutes: 10 }, settings: { imageModels: { characters: "new-character-model" } } });
+  const next = applyProductionPatch(state, { step: 4, story: { targetMinutes: 3 }, settings: { imageModels: { characters: "new-character-model" } } });
   assert.equal(next.story.summary, "Storm"); assert.equal(next.tasks[0].status, "RUNNING");
   assert.deepEqual(next.settings.imageModels, { places: "local-place-model", characters: "new-character-model" });
-  assert.throws(() => applyProductionPatch(state, { story: { summary: "Changed while writing" } }), /Wait for story/);
+  assert.throws(() => applyProductionPatch(state, { story: { summary: "Changed while writing" } }), /Cancel writing/);
+  assert.throws(() => applyProductionPatch(state, { story: { targetMinutes: 10 } }), /Cancel writing/);
 });

@@ -17,6 +17,7 @@ function makeMock() {
     const path = url.pathname, method = req.method();
     const json = (data, status = 200) => route.fulfill({ status, json: data });
     if (path === "/api/session") return json({ user: { id: "u1", email: "t@example.com", displayName: "Test", siteRole: "SITE_ADMIN" }, activeTenant: { id: "t1", name: "Test", slug: "test", role: "OWNER" } });
+    if (path === "/api/characters") return json([{ id: "saved-mara", name: "Saved Mara", description: "Mechanic", promptDescription: "Mechanic", thumbnail: image, tags: [], assetCount: 1 }]);
     if (path === "/api/image-studio/models") return json({ models: [
       { id: "local-flux2-klein-4b", name: "FLUX.2 klein", provider: "LOCAL", description: "", operations: ["generate", "edit"], aspectRatios: ["1:1"], maxImages: 4, supportsSeed: true, supportsNegativePrompt: false, maxReferences: 4, priceNote: "", available: true },
       { id: "cloud-nano-banana-pro", name: "Nano Banana Pro", provider: "CLOUD", description: "", operations: ["generate", "edit"], aspectRatios: ["1:1"], maxImages: 4, supportsSeed: false, supportsNegativePrompt: false, maxReferences: 8, priceNote: "about $0.14 per image", available: true },
@@ -47,9 +48,13 @@ function makeMock() {
     if (path === "/api/production-projects/prod-1/actions") {
       const body = req.postDataJSON();
       m.actions.push(body);
-      if (body.revision !== m.project.revision) return json({ error: "Revision conflict" }, 409);
+      if (body.action !== "cancel-story" && body.revision !== m.project.revision) return json({ error: "Revision conflict" }, 409);
       const st = structuredClone(m.project.state);
       if (body.action === "draft-story") st.story = { ...st.story, draftStatus: "READY", scenes };
+      if (body.action === "cancel-story") { st.story.draftStatus = "CANCELLED"; if (st.story.progress) st.story.progress.active = false; st.tasks = st.tasks.map(t => t.type === "story" ? { ...t, status: "CANCELLED" } : t); }
+      if (body.action === "import-character") st.characters.push({ id: "imported-mara", characterId: body.payload.characterId, name: "Saved Mara", description: "Mechanic", seed: 1, options: [{ assetId: "saved-image", mediaUrl: image }], selectedAssetId: "saved-image", referenceSheet: [{ assetId: "saved-image", mediaUrl: image }], locked: true, status: "LOCKED" });
+      if (body.action === "remove-place") st.places = st.places.filter(p => p.id !== body.payload.placeId);
+      if (body.action === "remove-variant") st.places = st.places.map(p => p.id === body.payload.placeId ? { ...p, variants: p.variants.filter(v => v.id !== body.payload.id) } : p);
       if (body.action === "add-character") st.characters.push({ id: "pc-1", name: body.payload.name, description: body.payload.description, seed: 42, options: [0, 1, 2, 3].map((i) => ({ assetId: `opt-${i}`, mediaUrl: image })), locked: false, referenceSheet: [], status: "READY" });
       if (body.action === "keep-look") st.characters = st.characters.map((c) => c.id === body.payload.id ? { ...c, locked: true, selectedAssetId: body.payload.assetId, referenceSheet: [{ assetId: "ref-1", mediaUrl: image, label: "front" }] } : c);
       m.project = { ...m.project, revision: m.project.revision + 1, state: st, updatedAt: now() };
@@ -254,6 +259,44 @@ try {
     mock.project.revision++;
     await expect(page.getByTestId("text-draft-error")).toContainText("timed out", { timeout: 10000 });
     await expect(page.getByTestId("button-draft-story")).toBeEnabled();
+    // New controls never reach a real provider: this context mocks every API.
+    mock.project.state.step = 0;
+    mock.project.state.story.draftStatus = "RUNNING";
+    mock.project.state.story.error = undefined;
+    mock.project.state.story.progress = { stage: "Writing scene 3", model: "test-writer", target: "GPU", active: true, startedAt: now() };
+    mock.project.state.tasks = [{ id: "writing", type: "story", status: "RUNNING", index: 2 }];
+    await page.reload();
+    await expect(page.getByTestId("button-cancel-writing")).toBeVisible();
+    const patchesBeforeCancel = mock.patches.length;
+    await page.getByTestId("input-production-title").fill("My unsaved title");
+    await page.getByTestId("button-cancel-writing").click();
+    await expect(page.getByTestId("button-cancel-writing")).toHaveCount(0);
+    expect(mock.actions.at(-1).action).toBe("cancel-story");
+    expect(mock.patches.length).toBe(patchesBeforeCancel);
+    await expect(page.getByTestId("input-production-title")).toHaveValue("My unsaved title");
+    mock.project.state.step = 1; mock.project.state.story.draftStatus = "READY"; mock.project.state.tasks = []; mock.project.state.characters = [];
+    await page.reload();
+    await page.getByTestId("button-import-character-saved-mara").click();
+    await expect(page.getByTestId("card-character-imported-mara")).toBeVisible();
+    await expect(page.getByTestId("badge-locked-imported-mara")).toBeVisible();
+    await expect(page.getByTestId("button-import-character-saved-mara")).toBeDisabled();
+    mock.project.state.step = 3;
+    mock.project.state.places = [{ id: "remove-place", name: "Test set", prompt: "A set", seed: 1, status: "READY", mediaUrl: image, variants: [{ id: "remove-variant", name: "Night", prompt: "Night", mediaUrl: image, status: "READY" }] }];
+    await page.reload();
+    await page.screenshot({ path: "/tmp/production-controls-scenery.png", fullPage: true });
+    page.on("dialog", dialog => void dialog.accept());
+    await page.getByTestId("button-remove-variant-remove-variant").click();
+    await expect(page.getByTestId("pill-variant-remove-variant")).toHaveCount(0);
+    await page.getByTestId("button-remove-place-remove-place").click();
+    await expect(page.getByTestId("card-place-remove-place")).toHaveCount(0);
+    mock.project.state.step = 0; mock.project.state.story = { ...mock.project.state.story, sourceMode: "summary", summary: "A brief test.", script: "", draftStatus: "READY" };
+    await page.reload();
+    await page.getByTestId("input-target-minutes").fill("3");
+    await expect(page.getByTestId("button-length-3")).toHaveAttribute("aria-pressed", "true");
+    await page.getByTestId("input-story-summary").fill("SCENE 1 — ROOM — DAY — 0:00–3:00\nA light glows.");
+    await expect(page.getByTestId("text-script-timing")).toBeVisible();
+    await expect(page.getByTestId("button-length-10")).toHaveCount(0);
+    console.log("PASS: cancellation preserves unsaved edits; existing library import; scenery/variant removal; custom duration and authored-script timing");
     await context.close();
   }
   console.log("production workflow browser checks passed");

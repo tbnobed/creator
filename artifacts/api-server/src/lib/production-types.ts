@@ -2,6 +2,7 @@ export type ProductionImage = { assetId: string; mediaUrl: string; label?: strin
 export type ProductionScene = {
   sceneNumber: number; title: string; location: string; timeOfDay: string;
   characters: string[]; action: string; dialogue: string;
+  durationSeconds?: number;
   shots?: { prompt: string; dialogue: string; durationSeconds: number }[];
 };
 export type ProductionCharacter = {
@@ -20,13 +21,15 @@ export type ProductionVariant = {
 export type ProductionPlace = ProductionVariant & { seed: number; variants: ProductionVariant[] };
 export type ProductionTask = {
   id: string; type: "story" | "portraits" | "sheet" | "wardrobe" | "place" | "variant";
-  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
   entityId?: string; placeId?: string; jobId?: string; index: number; error?: string;
   modelId?: string; cloudConfirmed?: boolean; storyModel?: string;
+  storySourceKey?: string;
 };
 export type ProductionState = {
   step: number;
-  story: { summary: string; script: string; targetMinutes: 10 | 30 | 90;
+  storyCancelTaskId?: string | null;
+  story: { summary: string; script: string; targetMinutes: number; sourceMode?: "summary" | "script";
     scriptName?: string; scriptStorageKey?: string; draftStatus?: string; error?: string; scenes: ProductionScene[];
     progress?: { stage: string; model: string; target: string; startedAt: string; active: boolean; gpuVerified?: boolean } };
   characters: ProductionCharacter[];
@@ -38,7 +41,7 @@ export type ProductionState = {
 };
 export function emptyProduction(): ProductionState {
   return {
-    step: 0, story: { summary: "", script: "", targetMinutes: 10, scenes: [] },
+    step: 0, story: { summary: "", script: "", targetMinutes: 3, scenes: [] },
     characters: [], wardrobes: [], places: [], tasks: [],
     settings: { generationMode: "", width: 1280, height: 720, fps: 24, shotDurationSeconds: 8, qualityPreset: "STANDARD" },
     review: { status: "NOT_IMPLEMENTED", issues: [] },
@@ -63,6 +66,7 @@ export function validateScenes(value: unknown): ProductionScene[] {
       location: text(s.location, "Location", 180), timeOfDay: text(s.timeOfDay, "Time of day", 100),
       characters: s.characters.map(c => text(c, "Character name", 180)),
       action: text(s.action, "Scene action", 20000), dialogue: text(s.dialogue ?? "", "Dialogue", 20000, false),
+      ...(s.durationSeconds !== undefined ? { durationSeconds: numberIn(s.durationSeconds, "Scene duration", 2, 5400) } : {}),
     };
   });
 }

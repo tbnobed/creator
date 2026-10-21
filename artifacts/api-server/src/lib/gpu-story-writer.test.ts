@@ -34,6 +34,23 @@ test("missing dedicated endpoint never falls back to the prompt checker", async 
   await assert.rejects(callGpuStoryWriter("Write scenes", {}), /CPU prompt checker is not used/);
   assert.equal(calls.length, 0);
 });
+test("creator cancellation aborts an in-flight GPU chat and unloads only the writer", async () => {
+  const calls = mockWriter();
+  const underlying = globalThis.fetch;
+  const cancel = new AbortController();
+  globalThis.fetch = (async (url, init) => {
+    if (new URL(String(url)).pathname === "/api/chat" && JSON.parse(String(init?.body)).options.num_predict !== 1) {
+      return new Promise<Response>((_, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason), { once: true });
+        setTimeout(() => cancel.abort(new Error("Creator cancelled writing")), 5);
+      });
+    }
+    return underlying(url, init);
+  }) as typeof fetch;
+  await assert.rejects(callGpuStoryWriter("Write", {}, undefined, cancel.signal), /Creator cancelled writing/);
+  assert.equal(calls.at(-1)?.path, "/api/generate");
+  assert.equal(calls.at(-1)?.body.keep_alive, 0);
+});
 test("CPU-only runner is refused before submitting screenplay content", async () => {
   const calls = mockWriter({ vram: 0 });
   await assert.rejects(callGpuStoryWriter("Write scenes", { privateStory: "content" }), /CPU-only script generation was refused/);

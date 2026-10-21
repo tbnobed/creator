@@ -38,3 +38,15 @@ Background generation updates must not block step navigation or overwrite unsave
 **Why:** The production record advances while server work runs; treating every revision change as a competing human edit repeatedly blocked the user's Next action.
 
 **How to apply:** Preserve revision checks, rebase only disjoint edits onto fresh server state, and require an explicit choice for competing edits to the same field. Never resolve this by blindly replacing the entire production snapshot.
+
+Do not expand an authored short screenplay to a ten-minute preset. Support shorter custom targets and preserve supplied scene timing.
+
+**Why:** The user supplied a three-minute test script and explicitly rejected its expansion to ten minutes; the original UI offered no shorter choice.
+
+**How to apply:** Duration presets are goals for writing from summaries, not permission to pad existing scripts. Recognize screenplay content pasted into Summary too; preserve its boundaries and dialogue instead of blaming the selected input tab.
+
+Writing must be cancellable, existing library characters reusable, and scenery removable from a production.
+
+**Why:** The user explicitly requested these controls after being unable to stop a draft, find saved characters, or remove scenery. Production references can share media, so removing one reference must not destroy files used elsewhere.
+
+**How to apply:** Stop the writing request rather than killing shared GPU services, retain creator input and completed work, and detach scenery only from the chosen production. Reusing a saved identity is not permission to regenerate its images or incur new charges.

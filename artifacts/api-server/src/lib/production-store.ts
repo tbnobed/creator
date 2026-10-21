@@ -23,7 +23,10 @@ export async function productionLock<T>(id: string, work: () => Promise<T>): Pro
 }
 export async function saveProduction(row: ProductionProjectRow, state: ProductionState, extra: { title?: string; renderProjectId?: string } = {}) {
   const [saved] = await db.update(productionProjectsTable).set({
-    ...extra, state: state as unknown as Record<string, unknown>,
+    ...extra,
+    // Cancellation is an out-of-band control message: preserve it atomically
+    // even when the inference worker saves an older in-memory snapshot.
+    state: sql`(${JSON.stringify(state)}::jsonb - 'storyCancelTaskId') || jsonb_build_object('storyCancelTaskId', coalesce(${productionProjectsTable.state}->'storyCancelTaskId', 'null'::jsonb))`,
     revision: sql`${productionProjectsTable.revision} + 1`, updatedAt: new Date(),
   }).where(and(eq(productionProjectsTable.id, row.id), eq(productionProjectsTable.revision, row.revision))).returning();
   if (!saved) throw new ProductionConflict("This project changed in another tab. Reload it before saving.");
@@ -35,12 +38,15 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
   if (patch.story && typeof patch.story === "object") {
     const story = patch.story as Record<string, unknown>;
     const busy = state.tasks.some(t => t.type === "story" && ["QUEUED", "RUNNING"].includes(t.status));
-    if (busy && ((story.summary !== undefined && story.summary !== state.story.summary) || (story.script !== undefined && story.script !== state.story.script))) throw new ProductionConflict("Wait for story drafting to finish before changing the source.");
+    if (busy && ["summary", "script", "targetMinutes", "sourceMode"].some(key => story[key] !== undefined && story[key] !== (state.story as unknown as Record<string, unknown>)[key])) throw new ProductionConflict("Cancel writing before changing its source or duration.");
     if (story.summary !== undefined) next.story.summary = text(story.summary, "Summary", 20000, false);
     if (story.script !== undefined) next.story.script = text(story.script, "Script", 100000, false);
     if (story.targetMinutes !== undefined) {
-      if (![10, 30, 90].includes(Number(story.targetMinutes))) throw new Error("Choose Short (10), Episode (30), or Feature (90).");
-      next.story.targetMinutes = Number(story.targetMinutes) as 10 | 30 | 90;
+      next.story.targetMinutes = numberIn(story.targetMinutes, "Duration in minutes", 1, 90);
+    }
+    if (story.sourceMode !== undefined) {
+      if (!["summary", "script"].includes(String(story.sourceMode))) throw new Error("Choose Summary or Script.");
+      next.story.sourceMode = story.sourceMode as "summary" | "script";
     }
     if (Array.isArray(story.scenes) && story.scenes.length && !busy) {
       const scenes = validateScenes(story.scenes);

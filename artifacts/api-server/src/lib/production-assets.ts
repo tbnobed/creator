@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db, charactersTable, characterAssetsTable, imageStudioAssetsTable, type ProductionProjectRow } from "@workspace/db";
-import { createImageJob, getImageJob } from "./image-studio-service";
+import { createImageJob, getImageJob, inspectImage, presentImageAsset } from "./image-studio-service";
+import { mediaStorage } from "./storage-service";
 import { getImageModel } from "./image-studio-models";
 import { numberIn, text, type ProductionState, type ProductionTask } from "./production-types";
 import { stateOf } from "./production-store";
@@ -25,6 +26,42 @@ function flagCharacterScenes(state: ProductionState, id: string) {
 }
 export async function mutateProductionAsset(row: ProductionProjectRow, action: string, payload: Record<string, unknown>) {
   const state = stateOf(row);
+  if (action === "remove-place" || action === "remove-variant") {
+    const place = state.places.find(p => p.id === payload.placeId);
+    if (!place) throw new Error("Scenery not found in this production.");
+    const ids = action === "remove-place" ? [place.id, ...place.variants.map(v => v.id)] : [text(payload.id, "Variant ID", 100)];
+    if (action === "remove-variant" && !place.variants.some(v => v.id === ids[0])) throw new Error("Scenery variant not found.");
+    for (const id of ids) requireIdle(state, id);
+    if (action === "remove-place") state.places = state.places.filter(p => p.id !== place.id);
+    else place.variants = place.variants.filter(v => !ids.includes(v.id));
+    state.tasks = state.tasks.filter(t => !ids.includes(t.entityId ?? "") && !(action === "remove-place" && t.placeId === place.id));
+    if (row.renderProjectId) state.review.issues.push({ id: `removed-${randomUUID()}`, description: `Scenery reference removed: ${place.name}. Existing rendered shots are retained; review their scenery.` });
+    return state; // Detach from this production only; never delete shared media bytes.
+  }
+  if (action === "import-character") {
+    const sourceId = text(payload.characterId, "Character ID", 100);
+    if (state.characters.some(c => c.characterId === sourceId)) return state;
+    if (state.characters.length >= 9) throw new Error("This production supports up to nine characters.");
+    const [source] = await db.select().from(charactersTable).where(and(eq(charactersTable.id, sourceId), eq(charactersTable.tenantId, row.tenantId)));
+    if (!source) throw new Error("Character not found in this workspace.");
+    const references = await db.select().from(characterAssetsTable).where(eq(characterAssetsTable.characterId, source.id));
+    const selected = references.find(a => a.isPrimary && a.mimeType.startsWith("image/")) ?? references.find(a => a.mimeType.startsWith("image/"));
+    let image: { assetId: string; mediaUrl: string } | undefined;
+    if (selected) {
+      let [asset] = await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId, row.tenantId), eq(imageStudioAssetsTable.storageKey, selected.storageKey)));
+      if (!asset) {
+        const metadata = inspectImage(await mediaStorage.readBuffer(selected.storageKey), selected.mimeType);
+        [asset] = await db.insert(imageStudioAssetsTable).values({ tenantId: row.tenantId, createdByUserId: row.createdByUserId, name: selected.originalName, storageKey: selected.storageKey, ...metadata }).returning();
+      }
+      image = { assetId: asset.id, mediaUrl: presentImageAsset(asset).url };
+    }
+    state.characters.push({
+      id: randomUUID(), characterId: source.id, name: source.name, description: source.promptDescription || source.description,
+      seed: Math.floor(Math.random() * 2147483647), options: image ? [image] : [], selectedAssetId: image?.assetId,
+      locked: !!image, referenceSheet: image ? [{ ...image, label: "existing look" }] : [], status: image ? "LOCKED" : "DRAFT",
+    });
+    return state; // Reuse the approved identity and reference, with no generation or spending.
+  }
   const priorTasks = new Set(state.tasks.map(t => t.id));
   const modelId = payload.modelId === undefined ? MODEL : text(payload.modelId, "Image model", 100);
   const model = getImageModel(modelId);

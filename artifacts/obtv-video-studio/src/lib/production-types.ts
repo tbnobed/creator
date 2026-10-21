@@ -1,14 +1,16 @@
 // Local contract for ProductionProject.state. Backend owns tasks/statuses.
-export type TargetMinutes = 10 | 30 | 90;
+export type TargetMinutes = number;
 export type QualityPreset = "DRAFT" | "STANDARD" | "HIGH";
 
 export interface SceneShot { prompt: string; dialogue: string; durationSeconds: number }
 export interface Scene {
   sceneNumber: number; title: string; location: string; timeOfDay: string;
   characters: string[]; action: string; dialogue: string; shots?: SceneShot[];
+  durationSeconds?: number;
 }
 export interface Story {
   summary: string; script: string; targetMinutes: TargetMinutes; scriptName?: string;
+  sourceMode?: "summary" | "script";
   draftStatus?: string; error?: string; scenes: Scene[];
   progress?: { stage: string; model: string; target: string; startedAt: string; active: boolean; gpuVerified?: boolean };
 }
@@ -41,6 +43,7 @@ export interface ProductionTask { id: string; type: string; status: string; erro
 export const taskIsPaid = (t: ProductionTask) => !!t.cloudConfirmed || ["CLOUD", "FAL", "OPENAI"].includes((t.provider ?? "").toUpperCase()) || /^(openai:|cloud)/.test(t.modelId ?? "");
 export interface ReviewIssue { id: string; shotId?: string; sceneNumber?: number; timecode?: string; description: string; correction?: string }
 export interface ProductionState {
+  storyCancelTaskId?: string;
   step: number; story: Story; characters: ProductionCharacter[]; wardrobes: Wardrobe[]; places: Place[];
   settings: ProductionSettings; tasks: ProductionTask[];
   review: { status: string; issues: ReviewIssue[] };
@@ -57,11 +60,13 @@ const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 export function normalizeState(raw: Record<string, unknown> | null | undefined): ProductionState {
   const r = (raw ?? {}) as Record<string, any>;
   const s = r.story ?? {};
-  const tm = [10, 30, 90].includes(s.targetMinutes) ? s.targetMinutes : 10;
+  const tm = Number.isInteger(s.targetMinutes) && s.targetMinutes >= 1 && s.targetMinutes <= 90 ? s.targetMinutes : 3;
   return {
+    storyCancelTaskId: typeof r.storyCancelTaskId === "string" ? r.storyCancelTaskId : undefined,
     step: Math.min(5, Math.max(0, Number(r.step) || 0)),
     story: {
       summary: s.summary ?? "", script: s.script ?? "", targetMinutes: tm, scriptName: s.scriptName,
+      sourceMode: s.sourceMode ?? (s.script?.trim() ? "script" : "summary"),
       draftStatus: s.draftStatus, error: s.error, scenes: arr<Scene>(s.scenes),
       progress: s.progress && typeof s.progress.stage === "string" && typeof s.progress.model === "string" && typeof s.progress.target === "string" ? s.progress : undefined,
     },

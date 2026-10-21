@@ -26,8 +26,9 @@ import { CreateStep, ReviewStep } from "./render-steps";
 import { draftFrom, draftPatch, rebaseDraft, sameDraftValue, ProductionDraftConflict, type ProductionDraft as Draft } from "@/lib/production-draft";
 
 export type RunAction = (action: string, payload?: Record<string, unknown>) => Promise<ProductionProject | null>;
+const isStoryActive = (status: string) => ["QUEUED", "RUNNING"].includes(status);
 
-const EMPTY: Draft = { title: "", step: 0, story: { summary: "", script: "", targetMinutes: 10, scenes: [] }, settings: DEFAULT_SETTINGS };
+const EMPTY: Draft = { title: "", step: 0, story: { summary: "", script: "", targetMinutes: 3, sourceMode: "summary", scenes: [] }, settings: DEFAULT_SETTINGS };
 
 export default function ProductionWorkflowPage() {
   const params = useParams<{ id?: string }>();
@@ -176,8 +177,9 @@ export default function ProductionWorkflowPage() {
     setPendingAction(action);
     try {
       let current = projectRef.current;
-      if (!current || dirtyRef.current) current = await save();
-      else {
+      if (action !== "cancel-story" && (!current || dirtyRef.current)) current = await save();
+      else if (action === "cancel-story") { /* Never save edits or wait on the inference lock to cancel. */ }
+      else if (current) {
         current = await getProductionProject(current.id);
         projectRef.current = current;
         commit(current);
@@ -301,6 +303,15 @@ export default function ProductionWorkflowPage() {
         />
 
         <Stepper current={step} onSelect={(i) => void goToStep(i)} disabled={saving || !scenesReady} />
+        {state.tasks.some(t => t.type === "story" && isStoryActive(t.status)) && (
+          <Banner tone="error" testId="status-writing-control">
+            <span className="flex-1">Writing in progress. Cancelling keeps your source and completed scene plans. Paid requests already accepted may still be charged.</span>
+            <Button variant="outline" size="sm" disabled={pendingAction === "cancel-story" || state.tasks.some(t => t.id === state.storyCancelTaskId && isStoryActive(t.status))}
+              onClick={() => void run("cancel-story")} data-testid="button-cancel-writing">
+              {pendingAction === "cancel-story" || state.tasks.some(t => t.id === state.storyCancelTaskId && isStoryActive(t.status)) ? "Cancelling…" : "Cancel writing"}
+            </Button>
+          </Banner>
+        )}
 
         {saveError && (
           <Banner tone="error" testId="alert-save-error">

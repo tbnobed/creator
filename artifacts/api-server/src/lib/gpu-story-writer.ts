@@ -11,10 +11,10 @@ export function gpuStoryWriterConfig() {
 }
 
 /** Dedicated writer endpoint. A CPU-only Ollama runner is never accepted. */
-export async function callGpuStoryWriter(instruction: string, material: unknown, onGpuVerified?: () => Promise<void>): Promise<unknown> {
+export async function callGpuStoryWriter(instruction: string, material: unknown, onGpuVerified?: () => Promise<void>, cancelSignal?: AbortSignal): Promise<unknown> {
   const config = gpuStoryWriterConfig();
   const guard = new AbortController();
-  const signal = AbortSignal.any([AbortSignal.timeout(240_000), guard.signal]);
+  const signal = AbortSignal.any([AbortSignal.timeout(240_000), guard.signal, ...(cancelSignal ? [cancelSignal] : [])]);
   let warmed = false;
   let guardFailure: "busy" | "unavailable" | undefined;
   let watcher: ReturnType<typeof setInterval> | undefined;
@@ -82,6 +82,7 @@ export async function callGpuStoryWriter(instruction: string, material: unknown,
     try { return JSON.parse(data.message.content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
     catch { throw new Error("The GB10 script writer returned invalid JSON. Your input is saved; retry this stage."); }
   } catch (error) {
+    if (cancelSignal?.aborted) throw cancelSignal.reason;
     if (guardFailure === "busy") throw new Error("No GB10 writer worker is available: writing yielded to a video job. Your input is saved.");
     if (guardFailure === "unavailable") throw new Error("The GB10 workload monitor became unreachable. Writing stopped safely; check the worker before retrying.");
     if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) throw new Error("The GB10 script writer timed out. Your input is saved. Check its workload and service health, then retry.");

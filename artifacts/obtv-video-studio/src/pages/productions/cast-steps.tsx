@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isFailed, isPending, type ProductionCharacter, type ProductionSettings, type ProductionState } from "@/lib/production-types";
 import { ModelPicker, useModelChoice, type ModelChoice } from "./model-picker";
 import type { RunAction } from "./workflow";
+import { useListCharacters } from "@workspace/api-client-react";
 
 type StepProps = { state: ProductionState; run: RunAction; pendingAction: string | null; onSettings: (p: Partial<ProductionSettings>) => void };
 
@@ -34,6 +35,7 @@ const CHIPS = ["age", "hair", "build", "eye colour", "clothing", "personality"];
 /* ---------------- Characters ---------------- */
 
 export function CharactersStep({ state, run, pendingAction, onSettings }: StepProps) {
+  const library = useListCharacters();
   const portraitModel = useModelChoice("characters", "generate", state.settings, onSettings);
   const sheetModel = useModelChoice("referenceSheet", "edit", state.settings, onSettings);
   const [panel, setPanel] = useState<{ mode: "new" } | { mode: "edit"; id: string } | null>(null);
@@ -42,6 +44,21 @@ export function CharactersStep({ state, run, pendingAction, onSettings }: StepPr
   return (
     <div>
       <StepHead n="02 / Characters" title="Who is in it?" sub="Describe each character, pick one of four portraits, then lock the look. We build a reference sheet in the background so every scene keeps the same face." />
+      <section className="mb-6 rounded-xl border border-border bg-card p-4" data-testid="character-library">
+        <h3 className="font-semibold">Use an existing character</h3>
+        <p className="mb-3 text-xs text-muted-foreground">Add a character from your workspace. Its existing look is reused; no new images are generated or charged.</p>
+        {library.isLoading && <p className="text-sm text-muted-foreground">Loading your characters…</p>}
+        {library.isError && <Button variant="outline" onClick={() => void library.refetch()}>Retry character library</Button>}
+        {!library.isLoading && !library.isError && !library.data?.length && <p className="text-sm text-muted-foreground">Your workspace has no saved characters yet.</p>}
+        <div className="flex flex-wrap gap-2">
+          {library.data?.map(c => {
+            const included = state.characters.some(p => p.characterId === c.id);
+            return <Button key={c.id} variant="outline" disabled={!!pendingAction || included} onClick={() => void run("import-character", { characterId: c.id })} data-testid={`button-import-character-${c.id}`}>
+              {c.thumbnail && <img src={c.thumbnail} alt="" className="mr-2 h-7 w-7 rounded object-cover" />}{c.name}{included ? " · Added" : " · Add"}
+            </Button>;
+          })}
+        </div>
+      </section>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {state.characters.map((c) => {
           const portrait = c.options.find((o) => o.assetId === c.selectedAssetId)?.mediaUrl ?? c.referenceSheet[0]?.mediaUrl;
@@ -315,7 +332,7 @@ export function PlacesStep({ state, run, pendingAction, onSettings }: StepProps)
     <div>
       <StepHead n="04 / Places" title="Where does it happen?" sub="Each place gets a wide establishing reference with a fixed seed, so every scene reuses the same set. Variants for time and weather are edited from the base." />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {state.places.map((p) => <PlaceCard key={p.id} model={variantModel} place={p} usedIn={used(p.name)} run={run} busy={pendingAction === "add-variant"} />)}
+        {state.places.map((p) => <PlaceCard key={p.id} model={variantModel} place={p} usedIn={used(p.name)} run={run} busy={!!pendingAction} />)}
         <button type="button" onClick={() => setAdding(true)}
           className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground" data-testid="button-add-place">
           <MapPin className="h-5 w-5 text-primary" /> Add a place
@@ -360,17 +377,25 @@ function PlaceCard({ model, place: p, usedIn, run, busy }: { model: ModelChoice;
       <div className="space-y-2 p-3">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="truncate font-bold">{p.name}</h3>
+          <Button size="sm" variant="ghost" disabled={busy || isPending(p.status) || p.variants.some(v => isPending(v.status))}
+            onClick={() => { if (window.confirm(`Remove “${p.name}” and its variants from this production? Existing scenes and shared media files will be kept.`)) void run("remove-place", { placeId: p.id }); }}
+            data-testid={`button-remove-place-${p.id}`}>Remove</Button>
           <span className="shrink-0 text-xs text-muted-foreground" data-testid={`text-place-usage-${p.id}`}>Used in {usedIn} scene{usedIn === 1 ? "" : "s"}</span>
         </div>
         {p.error && <p className="text-xs text-destructive">{p.error}</p>}
         <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => setPreview(undefined)} className={`rounded-full px-2 py-0.5 text-[11px] ${!preview ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`} data-testid={`pill-variant-base-${p.id}`}>Base</button>
           {p.variants.map((v) => (
-            <button key={v.id} type="button" onClick={() => setPreview(v.mediaUrl)} title={v.error ?? v.prompt}
+            <span key={v.id} className="inline-flex items-center gap-1">
+            <button type="button" onClick={() => setPreview(v.mediaUrl)} title={v.error ?? v.prompt}
               className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${preview && preview === v.mediaUrl ? "bg-primary/20 text-primary" : isFailed(v.status) ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}
               data-testid={`pill-variant-${v.id}`}>
               {isPending(v.status) && <Loader2 className="h-2.5 w-2.5 animate-spin" />}{v.name}
             </button>
+            <button type="button" aria-label={`Remove ${v.name} variant`} disabled={busy || isPending(v.status)}
+              onClick={async () => { if (window.confirm(`Remove the “${v.name}” variant? Shared media is kept.`)) { const result = await run("remove-variant", { placeId: p.id, id: v.id }); if (result) setPreview(undefined); } }}
+              className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-40" data-testid={`button-remove-variant-${v.id}`}><X className="h-3 w-3" /></button>
+            </span>
           ))}
           <button type="button" disabled={!p.assetId} onClick={() => setOpen((o) => !o)} className="rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40" data-testid={`button-add-variant-${p.id}`}>+ variant</button>
         </div>

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isFailed, isPending, type ProductionSettings, type Scene, type Story, type TargetMinutes } from "@/lib/production-types";
 
 const LENGTHS: { minutes: TargetMinutes; name: string; note: string }[] = [
+  { minutes: 3, name: "Test", note: "3 minutes" },
   { minutes: 10, name: "Short", note: "about 10 min" },
   { minutes: 30, name: "Episode", note: "about 30 min" },
   { minutes: 90, name: "Feature", note: "about 90 min" },
@@ -14,7 +15,7 @@ const LENGTHS: { minutes: TargetMinutes; name: string; note: string }[] = [
 
 type Props = {
   story: Story;
-  onChange: (patch: Partial<Pick<Story, "summary" | "script" | "targetMinutes" | "scenes">>) => void;
+  onChange: (patch: Partial<Pick<Story, "summary" | "script" | "targetMinutes" | "scenes" | "sourceMode">>) => void;
   onDraft: (payload: Record<string, unknown>) => Promise<void>;
   settings: ProductionSettings;
   onSettings: (p: Partial<ProductionSettings>) => void;
@@ -36,10 +37,13 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
     void draftAction(payload);
   };
   const fileRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<"summary" | "script">(story.script ? "script" : "summary");
+  const mode = story.sourceMode ?? (story.script ? "script" : "summary");
+  const setMode = (sourceMode: "summary" | "script") => onChange({ sourceMode });
   const running = drafting || isPending(story.draftStatus);
   const ready = !running && !isFailed(story.draftStatus) && (!story.draftStatus || story.draftStatus.toUpperCase() === "READY");
   const hasInput = (mode === "summary" ? story.summary : story.script).trim().length > 0;
+  const authored = mode === "script" || /^\s*(?:SCENE\s+\d+\b|(?:INT|EXT|INT\/EXT)\.)/mi.test(story.summary);
+  const validDuration = Number.isInteger(story.targetMinutes) && story.targetMinutes >= 1 && story.targetMinutes <= 90;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -84,8 +88,10 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Length</p>
-          <div className="grid grid-cols-3 gap-2">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{authored ? "Script timing" : "Target length"}</p>
+          {authored && <p className="text-sm text-muted-foreground" data-testid="text-script-timing">Your script’s scene timings are preserved. It will not be expanded to a preset length. Untimed scenes use a content-based estimate.</p>}
+          {!authored && <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {LENGTHS.map((l) => {
               const active = story.targetMinutes === l.minutes;
               return (
@@ -98,6 +104,13 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
               );
             })}
           </div>
+          <label className="mt-3 flex items-center gap-3 text-sm">
+            Exact target (minutes)
+            <Input type="number" min={1} max={90} step={1} value={story.targetMinutes} disabled={running}
+              onChange={e => onChange({ targetMinutes: Number(e.target.value) })} className="w-24" data-testid="input-target-minutes" />
+          </label>
+          {!validDuration && <p role="alert" className="text-sm text-destructive">Choose a whole number from 1 to 90 minutes.</p>}
+          </>}
         </div>
 
         <div className="space-y-2 rounded-xl border border-border bg-card p-3" data-testid="picker-story-model">
@@ -127,7 +140,7 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           )}
         </div>
 
-        <Button size="lg" className="w-full brand-glow" disabled={!hasInput || running || (paid && !confirmed)} onClick={onDraft} data-testid="button-draft-story">
+        <Button size="lg" className="w-full brand-glow" disabled={!hasInput || running || (!authored && !validDuration) || (paid && !confirmed)} onClick={onDraft} data-testid="button-draft-story">
           {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Writing scenes</> : story.scenes.length
             ? <><RefreshCw className="mr-2 h-4 w-4" /> Redraft scenes</> : <><PenLine className="mr-2 h-4 w-4" /> {mode === "script" ? "Break script into scenes" : "Write scenes and dialogue"}</>}
         </Button>
