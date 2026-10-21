@@ -105,13 +105,14 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => onSettings({ storyModel: "local" })} aria-pressed={!paid}
               className={`rounded-md border px-3 py-1.5 text-xs font-semibold ${!paid ? "border-primary bg-primary/10" : "border-border text-muted-foreground"}`} data-testid="button-story-model-local">
-              Local <span className="ml-1 text-[10px] text-emerald-400">LOCAL</span>
+              Local GPU <span className="ml-1 text-[10px] text-emerald-400">LOCAL</span>
             </button>
             <button type="button" onClick={() => onSettings({ storyModel: `openai:${modelIdDraft.trim() || "gpt-4.1"}` })} aria-pressed={paid}
               className={`rounded-md border px-3 py-1.5 text-xs font-semibold ${paid ? "border-primary bg-primary/10" : "border-border text-muted-foreground"}`} data-testid="button-story-model-openai">
               OpenAI-compatible <span className="ml-1 text-[10px] text-amber-300">PAID</span>
             </button>
           </div>
+          {!paid && <p className="text-xs text-muted-foreground">Uses the configured GB10 GPU writer, not the CPU prompt checker. GPU execution is verified before drafting.</p>}
           {paid && (
             <>
               <Input value={modelIdDraft} onChange={(e) => setModelIdDraft(e.target.value)}
@@ -130,6 +131,14 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Writing scenes</> : story.scenes.length
             ? <><RefreshCw className="mr-2 h-4 w-4" /> Redraft scenes</> : <><PenLine className="mr-2 h-4 w-4" /> {mode === "script" ? "Break script into scenes" : "Write scenes and dialogue"}</>}
         </Button>
+        {story.progress && (
+          <div className="space-y-1 rounded-lg border border-border bg-card p-3 text-xs" role="status" aria-live="polite" data-testid="status-story-progress">
+            <p className="font-semibold">{story.progress.stage}</p>
+            <p className="text-muted-foreground">{story.progress.target} · {story.progress.model}</p>
+            {running && <p className="text-muted-foreground">{story.progress.gpuVerified ? "GPU model verified. Writing this stage; results appear when it finishes." : story.progress.target === "Paid provider" ? "Waiting for the selected provider." : "Checking the GPU writer and loading its model."} Your input is saved.</p>}
+            {running && <p className="text-muted-foreground">Each writing request has a four-minute timeout. A failure will show here with a retry action.</p>}
+          </div>
+        )}
         {story.scenes.length > 0 && !running && <p className="text-xs text-muted-foreground">Redrafting replaces the scenes on the right.</p>}
       </section>
 

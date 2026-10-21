@@ -15,9 +15,9 @@ Offer compatible local and paid models at every generation step, rather than fix
 
 **How to apply:** Persist per-step choices, explain capability restrictions, and obtain paid-batch confirmation without silently switching models.
 
-The script-generation model should run on one of the GPUs.
+The script-generation model should run on the GB10 / Blackwell.
 
-**Why:** The user explicitly requested GPU execution after encountering slow CPU-only script generation.
+**Why:** The user explicitly requested GPU execution after encountering slow CPU-only script generation and selected GB10 / Blackwell as its host.
 
 **How to apply:** Configure and verify a GPU-backed writing service; preserve the existing H100 reserved-slice boundary and coordinate capacity with video rendering.
 

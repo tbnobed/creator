@@ -15,16 +15,31 @@ export async function tickProductions() {
       if (!stateOf(candidate).tasks?.some(t => ["QUEUED", "RUNNING"].includes(t.status))) continue;
       try {
         await productionLock(candidate.id, async () => {
-          const [row] = await db.select().from(productionProjectsTable).where(eq(productionProjectsTable.id, candidate.id));
+          let [row] = await db.select().from(productionProjectsTable).where(eq(productionProjectsTable.id, candidate.id));
           if (!row) return;
           const state = stateOf(row);
           const task = state.tasks.find(t => ["QUEUED", "RUNNING"].includes(t.status));
           if (!task) return;
           try {
             if (task.type === "story") {
+              if (state.story.progress?.active) throw new Error("The previous writing request was interrupted. Your input is saved. Retry explicitly; no replacement request was submitted.");
               state.story.draftStatus = "RUNNING"; task.status = "RUNNING";
+              const paid = task.storyModel && task.storyModel !== "local";
+              state.story.progress = {
+                stage: task.index === 0 ? "Preparing the scene list" : `Writing scene ${task.index} of ${state.story.scenes.length}`,
+                model: paid ? task.storyModel!.replace(/^openai:/, "") : process.env.STORY_AI_MODEL?.trim() || "qwen2.5:1.5b",
+                target: paid ? "Paid provider" : "GB10 / Blackwell",
+                startedAt: new Date().toISOString(), active: true, gpuVerified: false,
+              };
+              // Publish progress before awaiting inference, not only when the
+              // entire request ends. Keep the revision current for the final save.
+              row = await saveProduction(row, state);
+              const onGpuVerified = async () => {
+                state.story.progress!.gpuVerified = true;
+                row = await saveProduction(row, state);
+              };
               if (task.index === 0) {
-                state.story.scenes = await outlineStory({ title: row.title, ...state.story }, task.storyModel);
+                state.story.scenes = await outlineStory({ title: row.title, ...state.story }, task.storyModel, onGpuVerified);
                 task.index = 1;
               } else {
                 const i = task.index - 1;
@@ -33,13 +48,14 @@ export async function tickProductions() {
                     title: row.title, summary: state.story.summary, previousScene: state.story.scenes[i - 1],
                     targetSeconds: Math.ceil(state.story.targetMinutes * 60 / state.story.scenes.length),
                     shotSeconds: state.settings.shotDurationSeconds,
-                  }, task.storyModel);
+                  }, task.storyModel, onGpuVerified);
                   task.index++;
                 }
                 if (task.index > state.story.scenes.length) {
                   state.story.draftStatus = "READY"; task.status = "COMPLETED";
                 }
               }
+              state.story.progress.active = false;
             } else {
               await advanceProductionImage(row, state, task);
             }
@@ -50,7 +66,10 @@ export async function tickProductions() {
               task.status = "QUEUED"; task.error = "Waiting for an available local image worker.";
             } else {
               task.status = "FAILED"; task.error = message;
-              if (task.type === "story") { state.story.draftStatus = "FAILED"; state.story.error = message; }
+              if (task.type === "story") {
+                state.story.draftStatus = "FAILED"; state.story.error = message;
+                if (state.story.progress) { state.story.progress.active = false; state.story.progress.stage = "Writing stopped"; }
+              }
               const entity = state.characters.find(c => c.id === task.entityId)
                 ?? state.wardrobes.find(w => w.id === task.entityId)
                 ?? state.places.flatMap(p => [p, ...p.variants]).find(p => p.id === task.entityId);

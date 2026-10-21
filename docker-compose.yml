@@ -51,6 +51,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       PROMPT_AI_BASE_URL: http://prompt-ai:11434
       PROMPT_AI_MODEL: ${PROMPT_AI_MODEL:-qwen2.5:1.5b}
+      # Dedicated GB10 writer; never fall back to CPU prompt assistance.
+      STORY_AI_BASE_URL: ${STORY_AI_BASE_URL:-}
+      STORY_AI_MODEL: ${STORY_AI_MODEL:-qwen2.5:1.5b}
       NO_PROXY: prompt-ai,db,127.0.0.1,localhost
       no_proxy: prompt-ai,db,127.0.0.1,localhost
       COMFY_ALLOWED_HOSTS: ${COMFY_ALLOWED_HOSTS:-}

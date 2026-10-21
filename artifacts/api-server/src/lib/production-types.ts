@@ -27,7 +27,8 @@ export type ProductionTask = {
 export type ProductionState = {
   step: number;
   story: { summary: string; script: string; targetMinutes: 10 | 30 | 90;
-    scriptName?: string; scriptStorageKey?: string; draftStatus?: string; error?: string; scenes: ProductionScene[] };
+    scriptName?: string; scriptStorageKey?: string; draftStatus?: string; error?: string; scenes: ProductionScene[];
+    progress?: { stage: string; model: string; target: string; startedAt: string; active: boolean; gpuVerified?: boolean } };
   characters: ProductionCharacter[];
   wardrobes: ProductionWardrobe[];
   places: ProductionPlace[];

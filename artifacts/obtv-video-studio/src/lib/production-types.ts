@@ -10,6 +10,7 @@ export interface Scene {
 export interface Story {
   summary: string; script: string; targetMinutes: TargetMinutes; scriptName?: string;
   draftStatus?: string; error?: string; scenes: Scene[];
+  progress?: { stage: string; model: string; target: string; startedAt: string; active: boolean; gpuVerified?: boolean };
 }
 export interface MediaRef { assetId: string; mediaUrl: string; label?: string }
 export interface ProductionCharacter {
@@ -62,6 +63,7 @@ export function normalizeState(raw: Record<string, unknown> | null | undefined):
     story: {
       summary: s.summary ?? "", script: s.script ?? "", targetMinutes: tm, scriptName: s.scriptName,
       draftStatus: s.draftStatus, error: s.error, scenes: arr<Scene>(s.scenes),
+      progress: s.progress && typeof s.progress.stage === "string" && typeof s.progress.model === "string" && typeof s.progress.target === "string" ? s.progress : undefined,
     },
     characters: arr<ProductionCharacter>(r.characters).map((c) => ({ ...c, options: arr(c.options), referenceSheet: arr(c.referenceSheet) })),
     wardrobes: arr<Wardrobe>(r.wardrobes),

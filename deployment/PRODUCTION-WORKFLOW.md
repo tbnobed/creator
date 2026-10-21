@@ -17,11 +17,24 @@ use `pdftotext`, now installed in the API image.
 
 ## Models and credentials
 
-- Story: existing local `PROMPT_AI_BASE_URL` / `PROMPT_AI_MODEL`, or a paid
+- Story: dedicated GPU `STORY_AI_BASE_URL` / `STORY_AI_MODEL`, or a paid
   OpenAI-compatible model. For standalone deployment, configure `OPENAI_API_KEY`
   and optionally `OPENAI_BASE_URL` (default `https://api.openai.com/v1`).
   The model-id field supports provider-qualified IDs when the configured
   compatible endpoint requires them. No credential is sent to the browser.
+- The existing `PROMPT_AI_BASE_URL` / `PROMPT_AI_MODEL` remain CPU prompt
+  assistance only. They are never used as a fallback for script writing.
+- Set `STORY_AI_BASE_URL` to the GB10's private Ollama endpoint and
+  `STORY_AI_MODEL` to an installed model (current migration baseline:
+  `qwen2.5:1.5b`). The writer warms the selected model, checks `/api/ps`
+  for nonzero GPU residency, then submits story content. CPU-only runners
+  are refused. Models are unloaded after a stage to release residency;
+  this does not itself coordinate ComfyUI capacity. Reserve capacity on the
+  GPU host before enabling the endpoint.
+- Ollama has no built-in authentication here: do **not** expose port 11434
+  to the public internet. Verify connectivity from the actual API host over
+  the private network or an authenticated tunnel. An app-side source update
+  does not install or enable the service on the GB10.
 - Images: the Image Studio catalog, including local and configured paid models.
   Reference sheets, wardrobe and location variants require native reference
   editing support. Models without seed support omit the seed instead of
