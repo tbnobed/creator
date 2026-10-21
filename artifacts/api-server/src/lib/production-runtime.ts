@@ -66,6 +66,9 @@ export async function tickProductions() {
               };
               if (task.index === 0) {
                 state.story.scenes = await outlineStory({ title: row.title, ...state.story }, task.storyModel, onGpuVerified, cancellation.signal);
+                // A new screenplay can reorder scene numbers. Do not carry a
+                // prior scene's explicit set assignment into a different scene.
+                state.settings.sceneReferences = {};
                 task.index = 1;
               } else {
                 const i = task.index - 1;

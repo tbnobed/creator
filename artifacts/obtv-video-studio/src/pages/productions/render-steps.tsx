@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage, isFailed, isPending, taskIsPaid, type ProductionSettings, type ProductionState } from "@/lib/production-types";
 import type { RunAction } from "./workflow";
+import { SceneScenery, resolveSceneScenery } from "./scene-scenery";
 
 type Base = { state: ProductionState; project?: ProductionProject; run: RunAction; pendingAction: string | null };
 
@@ -89,6 +90,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
   const cancel = useCancelLongFormProject();
   const s = state.settings;
   const active = rp && ["RUNNING", "ASSEMBLING"].includes(rp.status);
+  const sceneryReady = state.story.scenes.every(scene => !!resolveSceneScenery(state, scene)?.reference.assetId);
   const invalidate = () => void render.refetch();
 
   const shotsByScene = new Map<number, LongFormShot[]>();
@@ -114,6 +116,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
   return (
     <div>
       <Head n="05 / Create" title="Roll camera" sub="Each scene's prompt is assembled from its locked cast, active outfit, place variant and action. The last frame of each shot seeds the next." />
+      <SceneScenery state={state} onSettings={onSettings} disabled={!!active || !!pendingAction} />
 
       <section className="mb-6 grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-6" data-testid="section-render-settings">
         <div className="space-y-2 sm:col-span-2 lg:col-span-6" data-testid="picker-video-provider">
@@ -190,7 +193,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
           </div>
         )}
         <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-5">
-          <Button className="brand-glow" disabled={!ready || !!active || pendingAction !== null || state.story.scenes.length === 0}
+          <Button className="brand-glow" disabled={!ready || !sceneryReady || !!active || pendingAction !== null || state.story.scenes.length === 0}
             onClick={() => void createAll()} data-testid="button-create-all">
             {pendingAction === "create-scenes" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             {rp ? "Create remaining scenes" : "Create all scenes"}

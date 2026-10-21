@@ -53,8 +53,15 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
       // Keep drafted shot plans only if the producer has not changed that scene.
       next.story.scenes = scenes.map((scene, i) => {
         const prior = state.story.scenes[i];
-        return prior && prior.action === scene.action && prior.dialogue === scene.dialogue ? { ...scene, shots: prior.shots } : scene;
+        return prior && prior.action === scene.action && prior.dialogue === scene.dialogue && prior.location === scene.location && prior.timeOfDay === scene.timeOfDay ? { ...scene, shots: prior.shots } : scene;
       });
+      if (next.settings.sceneReferences) {
+        for (const key of Object.keys(next.settings.sceneReferences)) {
+          const scene = next.story.scenes.find(s => String(s.sceneNumber) === key), prior = state.story.scenes.find(s => String(s.sceneNumber) === key);
+          if (!scene) delete next.settings.sceneReferences[key];
+          else if (prior && (scene.location !== prior.location || scene.timeOfDay !== prior.timeOfDay)) next.settings.sceneReferences[key] = null;
+        }
+      }
     }
   }
   if (patch.settings && typeof patch.settings === "object") {
@@ -74,6 +81,22 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
       ) };
     }
     if (settings.generationMode !== undefined) next.settings.generationMode = text(settings.generationMode, "Workflow", 100, false);
+    if (settings.sceneReferences !== undefined) {
+      if (!settings.sceneReferences || typeof settings.sceneReferences !== "object" || Array.isArray(settings.sceneReferences)) throw new Error("Choose scenery for each scene.");
+      const assignments = { ...next.settings.sceneReferences };
+      for (const [sceneNumber, raw] of Object.entries(settings.sceneReferences)) {
+        if (!/^[1-9]\d{0,2}$/.test(sceneNumber) || !next.story.scenes.some(s => String(s.sceneNumber) === sceneNumber)) throw new Error("Choose an existing scene for scenery assignment.");
+        if (raw === null) { assignments[sceneNumber] = null; continue; }
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid scenery assignment.");
+        const ref = raw as Record<string, unknown>, placeId = text(ref.placeId, "Place ID", 100);
+        const place = next.places.find(p => p.id === placeId);
+        if (!place) throw new Error("Choose a place from this production.");
+        const variantId = ref.variantId === undefined ? undefined : text(ref.variantId, "Variant ID", 100);
+        if (variantId && !place.variants.some(v => v.id === variantId)) throw new Error("Choose a variant belonging to the selected place.");
+        assignments[sceneNumber] = { placeId, ...(variantId ? { variantId } : {}) };
+      }
+      next.settings.sceneReferences = assignments;
+    }
     for (const key of ["width", "height"] as const) if (settings[key] !== undefined) next.settings[key] = numberIn(settings[key], key, 64, 4096);
     if (settings.shotDurationSeconds !== undefined) next.settings.shotDurationSeconds = numberIn(settings.shotDurationSeconds, "Shot duration", 2, 30);
     if (settings.fps !== undefined) {

@@ -50,3 +50,9 @@ Writing must be cancellable, existing library characters reusable, and scenery r
 **Why:** The user explicitly requested these controls after being unable to stop a draft, find saved characters, or remove scenery. Production references can share media, so removing one reference must not destroy files used elsewhere.
 
 **How to apply:** Stop the writing request rather than killing shared GPU services, retain creator input and completed work, and detach scenery only from the chosen production. Reusing a saved identity is not permission to regenerate its images or incur new charges.
+
+Script location labels are display text, not the identity of an approved scenery reference.
+
+**Why:** A generated location added “Gull Point” to the authored lantern-room label, and exact-name matching then rejected the already-created room. Renaming or generating duplicate scenery is not an acceptable requirement.
+
+**How to apply:** Preserve authored location headings and allow explicit scene-to-place/variant assignments. Reuse approved references by ID; never silently substitute a vaguely similar room or fall back to a base image when a selected variant disappears.

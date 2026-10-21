@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isFailed, isPending, type ProductionCharacter, type ProductionSettings, type ProductionState } from "@/lib/production-types";
 import { ModelPicker, useModelChoice, type ModelChoice } from "./model-picker";
 import type { RunAction } from "./workflow";
+import { SceneScenery, resolveSceneScenery } from "./scene-scenery";
 import { useListCharacters } from "@workspace/api-client-react";
 
 type StepProps = { state: ProductionState; run: RunAction; pendingAction: string | null; onSettings: (p: Partial<ProductionSettings>) => void };
@@ -320,9 +321,8 @@ export function PlacesStep({ state, run, pendingAction, onSettings }: StepProps)
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [adding, setAdding] = useState(false);
-  const used = (place: string) => state.story.scenes.filter((s) => s.location.trim().toLowerCase() === place.trim().toLowerCase()).length;
-  const suggestions = Array.from(new Set(state.story.scenes.map((s) => s.location).filter(Boolean)))
-    .filter((loc) => !state.places.some((p) => p.name.toLowerCase() === loc.toLowerCase())).slice(0, 8);
+  const used = (placeId: string) => state.story.scenes.filter(s => resolveSceneScenery(state, s)?.place.id === placeId).length;
+  const suggestions = Array.from(new Set(state.story.scenes.filter(s => !resolveSceneScenery(state, s)).map(s => s.location).filter(Boolean))).slice(0, 8);
   const submit = async () => {
     const ok = await run("add-place", { name: name.trim(), prompt: prompt.trim(), ...model.payload() });
     model.reset();
@@ -331,8 +331,9 @@ export function PlacesStep({ state, run, pendingAction, onSettings }: StepProps)
   return (
     <div>
       <StepHead n="04 / Places" title="Where does it happen?" sub="Each place gets a wide establishing reference with a fixed seed, so every scene reuses the same set. Variants for time and weather are edited from the base." />
+      <SceneScenery state={state} onSettings={onSettings} disabled={!!pendingAction} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {state.places.map((p) => <PlaceCard key={p.id} model={variantModel} place={p} usedIn={used(p.name)} run={run} busy={!!pendingAction} />)}
+        {state.places.map((p) => <PlaceCard key={p.id} model={variantModel} place={p} usedIn={used(p.id)} run={run} busy={!!pendingAction} />)}
         <button type="button" onClick={() => setAdding(true)}
           className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground" data-testid="button-add-place">
           <MapPin className="h-5 w-5 text-primary" /> Add a place

@@ -35,7 +35,9 @@ export type ProductionState = {
   characters: ProductionCharacter[];
   wardrobes: ProductionWardrobe[];
   places: ProductionPlace[];
-  settings: { generationMode: string; width: number; height: number; fps: 24 | 25 | 30; shotDurationSeconds: number; qualityPreset: "DRAFT" | "STANDARD" | "HIGH"; imageModels?: Record<string, string>; storyModel?: string; videoProvider?: "COMFYUI" | "FAL"; videoModel?: string; videoConfirmed?: boolean };
+  // Stable scene-to-place links; names remain editable display text.
+  // A null entry opts back into an unambiguous exact-name match.
+  settings: { sceneReferences?: Record<string, { placeId: string; variantId?: string } | null>; generationMode: string; width: number; height: number; fps: 24 | 25 | 30; shotDurationSeconds: number; qualityPreset: "DRAFT" | "STANDARD" | "HIGH"; imageModels?: Record<string, string>; storyModel?: string; videoProvider?: "COMFYUI" | "FAL"; videoModel?: string; videoConfirmed?: boolean };
   tasks: ProductionTask[];
   review: { status: "NOT_IMPLEMENTED"; issues: { id: string; shotId?: string; sceneNumber?: number; timecode?: string; description: string; correction?: string }[] };
 };

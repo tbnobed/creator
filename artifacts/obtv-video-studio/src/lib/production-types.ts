@@ -31,6 +31,7 @@ export interface Place {
 }
 export type ImageModelKey = "characters" | "referenceSheet" | "wardrobe" | "places" | "variants";
 export interface ProductionSettings {
+  sceneReferences?: Record<string, { placeId: string; variantId?: string } | null>;
   imageModels?: Partial<Record<ImageModelKey, string>>;
   /** "local" or "openai:<model-id>" */
   storyModel?: string;

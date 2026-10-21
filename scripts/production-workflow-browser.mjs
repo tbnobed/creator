@@ -297,6 +297,35 @@ try {
     await expect(page.getByTestId("text-script-timing")).toBeVisible();
     await expect(page.getByTestId("button-length-10")).toHaveCount(0);
     console.log("PASS: cancellation preserves unsaved edits; existing library import; scenery/variant removal; custom duration and authored-script timing");
+    mock.project.state.step = 4;
+    mock.project.state.story = { ...mock.project.state.story, draftStatus: "READY", scenes: [
+      { ...scenes[0], sceneNumber: 1, location: "Lighthouse Lantern Room, Gull Point", timeOfDay: "Night" },
+      { ...scenes[0], sceneNumber: 2, location: "Lantern Room", timeOfDay: "Pre-dawn" },
+    ] };
+    mock.project.state.places = [{ id: "room", name: "Lantern Room", prompt: "Existing approved room", seed: 1, status: "READY", assetId: "room-image", mediaUrl: image, variants: [{ id: "dawn", name: "Pre-dawn", prompt: "Existing dawn version", status: "READY", assetId: "dawn-image", mediaUrl: image }] }];
+    mock.project.state.settings.sceneReferences = {};
+    await page.reload();
+    await expect(page.getByTestId("status-scene-scenery-1")).toContainText("Assign a ready reference");
+    await expect(page.getByTestId("button-create-all")).toBeDisabled();
+    const actionsBeforeAssignment = mock.actions.length;
+    await page.getByTestId("select-scene-scenery-1").selectOption("room");
+    await page.getByTestId("select-scene-scenery-2").selectOption("room:dawn");
+    await expect(page.getByTestId("status-scene-scenery-1")).toContainText("Ready: Lantern Room");
+    await expect(page.getByTestId("status-scene-scenery-2")).toContainText("Ready: Lantern Room · Pre-dawn");
+    await page.getByTestId("button-step-3").click();
+    await expect(page.getByTestId("text-step-label")).toContainText("Places");
+    expect(mock.project.state.settings.sceneReferences).toMatchObject({ "1": { placeId: "room" }, "2": { placeId: "room", variantId: "dawn" } });
+    expect(mock.project.state.story.scenes[0].location).toBe("Lighthouse Lantern Room, Gull Point");
+    expect(mock.actions.length).toBe(actionsBeforeAssignment);
+    await page.reload();
+    await expect(page.getByTestId("select-scene-scenery-1")).toHaveValue("room");
+    await expect(page.getByTestId("text-place-usage-room")).toContainText("Used in 2 scenes");
+    await page.screenshot({ path: "/tmp/production-scene-scenery.png", fullPage: true });
+    mock.project.state.places[0].variants = [];
+    await page.reload();
+    await expect(page.getByTestId("select-scene-scenery-2")).toHaveValue("__missing__");
+    await expect(page.getByTestId("status-scene-scenery-2")).toContainText("Assign a ready reference");
+    console.log("PASS: differently named scenery and variants explicitly assigned, saved across navigation/reload, no image requests, and removed selections fail closed");
     await context.close();
   }
   console.log("production workflow browser checks passed");

@@ -7,6 +7,7 @@ import path from "node:path";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, productionProjectsTable, imageStudioAssetsTable, longFormProjectsTable, longFormShotsTable, type ProductionProjectRow, type LongFormShot } from "@workspace/db";
 import { stateOf } from "./production-store";
+import { requireProductionScenery } from "./production-scenery";
 import { text, type ProductionScene } from "./production-types";
 import { mediaStorage } from "./storage-service";
 import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject, retryLongFormShot, startLongFormProject, updateLongFormShot } from "./long-form-service";
@@ -41,7 +42,7 @@ export async function prepareProductionRender(row: ProductionProjectRow): Promis
   if (!state.settings.generationMode) throw new Error("Select a video workflow in Create.");
   const names = new Set(state.story.scenes.flatMap(s => s.characters).map(n => n.toLowerCase()));
   for (const name of names) if (!state.characters.some(c => c.name.toLowerCase() === name && c.locked && c.characterId)) throw new Error(`Lock a look for ${name} before creating scenes.`);
-  for (const scene of state.story.scenes) if (!state.places.some(p => p.name.toLowerCase() === scene.location.toLowerCase() && p.assetId)) throw new Error(`Generate the ${scene.location} location reference before creating scenes.`);
+  for (const scene of state.story.scenes) requireProductionScenery(state, scene);
   const shots = productionShotPlan(state.story.scenes, state.settings.shotDurationSeconds);
   const total = shots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
   if (total > 5400 || shots.length > 2700) throw new Error("The reviewed draft exceeds the 90-minute production limit. Shorten it before rendering.");
@@ -158,11 +159,8 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
       if (outfit.stateFromScene !== undefined && scene.sceneNumber >= outfit.stateFromScene) notes.push(`${character.name} outfit state: ${outfit.stateNote || ""}`);
     }
   }
-  const place = state.places.find(p => p.name.toLowerCase() === scene.location.toLowerCase());
-  if (!place?.assetId) throw new Error(`Generate the ${scene.location} set reference first.`);
-  const variant = place.variants.find(v => v.name.toLowerCase() === scene.timeOfDay.toLowerCase());
-  if (variant && !variant.assetId) throw new Error(`The ${variant.name} location variant is not ready.`);
-  ids.push(variant?.assetId ?? place.assetId);
+  const { place, reference: scenery } = requireProductionScenery(state, scene);
+  ids.push(scenery.assetId!);
   const assets = await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId, row.tenantId), inArray(imageStudioAssetsTable.id, [...new Set(ids)])));
   if (assets.length !== new Set(ids).size) throw new Error("A locked production reference was removed. Restore it before rendering.");
   const keys = [...new Set(ids)].map(id => assets.find(a => a.id === id)!.storageKey);
@@ -170,7 +168,7 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   const previous = position > 0 ? orderedShots[position - 1] : null;
   // The opening shot uses the approved location plate; subsequent shots use
   // the actual previous output frame. Never leave firstFrame placeholders unset.
-  let startFrameKey: string | undefined = assets.find(a => a.id === (variant?.assetId ?? place.assetId))!.storageKey;
+  let startFrameKey: string | undefined = assets.find(a => a.id === scenery.assetId)!.storageKey;
   if (previous) {
     if (previous.status !== "COMPLETED" || !previous.outputStorageKey) throw new Error("Waiting for the previous shot to finish before continuing its last frame.");
     const directory = await mkdtemp(path.join(tmpdir(), "production-last-frame-"));
