@@ -26,6 +26,8 @@ import {
 import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
+import { productionForRender, productionShotReferences, dispatchProductionCloudShot } from "./production-render";
+import { stateOf as productionState } from "./production-store";
 import { comfyServerLockKey, getAssignableWorker, liveWorker } from "./worker-lifecycle";
 import { mediaStorage } from "./storage-service";
 import { assertOwnedAssetSelections, ResourceNotFoundError } from "./resource-errors";
@@ -548,8 +550,8 @@ function planShots(input: LongFormProjectInput): PlannedShot[] {
       }
     });
     const authoredTotal = exactDurations.reduce((sum, duration) => sum + duration, 0);
-    if (authoredTotal > 600) {
-      throw new Error("Authored shot durations cannot exceed 10 minutes.");
+    if (authoredTotal > 5400) {
+      throw new Error("Authored shot durations cannot exceed 90 minutes.");
     }
     if (Math.abs(authoredTotal - input.targetDurationSeconds) > 0.01) {
       throw new Error(`Authored shot durations total ${authoredTotal} seconds, but the project target is ${input.targetDurationSeconds} seconds.`);
@@ -744,7 +746,7 @@ export async function createLongFormProject(input: OwnedLongFormProjectInput) {
     settingId,
     settingFound: Boolean(setting[0]),
   });
-  if (input.targetDurationSeconds > 600) throw new Error("Long-form projects are limited to 10 minutes.");
+  if (input.targetDurationSeconds > 5400) throw new Error("Long-form projects are limited to 90 minutes.");
   const shots = planShots(input);
   const continuity = await validateContinuitySettings(
     input.tenantId,
@@ -1425,12 +1427,17 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
 
   const remaining = shots.filter((shot) => shot.status === "PLANNED");
   const active = shots.filter((shot) => activeShotStatuses.includes(shot.status));
+  const production = await productionForRender(projectId);
+  if (production && active.length > 0) return;
   if (remaining.length === 0 && active.length === 0) {
     const failed = shots.filter((shot) => shot.status === "FAILED");
     if (failed.length > 0) {
       await db.update(longFormProjectsTable).set({ status: "FAILED", errorMessage: `${failed.length} shot${failed.length === 1 ? "" : "s"} need a retry.` }).where(eq(longFormProjectsTable.id, project.id));
     } else if (shots.length > 0 && shots.every((shot) => shot.status === "COMPLETED")) {
       await openProjectEditor(project, shots);
+      if (production) {
+        await db.update(longFormProjectsTable).set({ status: "ASSEMBLING" }).where(eq(longFormProjectsTable.id, project.id));
+      }
     }
     return;
   }
@@ -1446,6 +1453,13 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
   }
 
   let nextShot = remaining[0];
+  if (production && productionState(production).settings.videoProvider === "FAL") {
+    if (nextShot) {
+      try { await dispatchProductionCloudShot(production, nextShot, shots); }
+      catch (error) { await recordDispatchBlock(project, error instanceof Error ? error.message : "Cloud dispatch unavailable."); }
+    }
+    return;
+  }
   let nextWardrobeReferences = nextShot ? await wardrobeReferenceKeys(project, nextShot) : [];
   let availability = await findDispatchAvailability(
     project,
@@ -1480,6 +1494,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
       });
       if (!claimed) return false;
       try {
+        const productionInputs = production ? await productionShotReferences(production, claimed, shots) : undefined;
         const renderDurationSeconds = Math.max(claimed.durationSeconds, minimumShotDuration(claimed.dialogue));
         if (renderDurationSeconds !== claimed.durationSeconds) {
           await db.update(longFormShotsTable)
@@ -1503,7 +1518,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
           width: project.width,
           height: project.height,
           qualityPreset: project.qualityPreset,
-          seedMode: "RANDOM",
+          seedMode: productionInputs ? "FIXED" : "RANDOM",
            speakerCharacterId: claimed.continuity?.speakerCharacterId,
            voiceCloningEnabled: claimed.continuity?.voiceCloningEnabled === true,
             referenceImageKeys: project.continuity?.enabled && claimed.stillStorageKey
@@ -1513,6 +1528,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
               ? 1 + wardrobeReferences.length
               : 0,
            continuityContext: conciseContinuityContext(project, claimed),
+          ...productionInputs,
           preferredServerId: server.id,
           longFormShotId: claimed.id,
           onJobCreated: async (job) => {
@@ -1543,6 +1559,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
     })();
     if (!dispatched) break;
     nextShot = (await db.select().from(longFormShotsTable).where(and(eq(longFormShotsTable.projectId, project.id), eq(longFormShotsTable.status, "PLANNED"))).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber)))[0];
+    if (production) break;
     nextWardrobeReferences = nextShot ? await wardrobeReferenceKeys(project, nextShot) : [];
     availability = await findDispatchAvailability(
       project,

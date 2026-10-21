@@ -374,6 +374,16 @@ export class LocalMediaStorage {
     }
   }
 
+  async storeScript(originalName: string, bytes: Buffer, tenantId: string): Promise<string> {
+    const extension = path.extname(originalName).toLowerCase();
+    if (![".txt", ".fdx", ".pdf"].includes(extension) || !bytes.length || bytes.length > 10 * 1024 * 1024) throw new Error("Invalid script file.");
+    const key = tenantKey(tenantId, `scripts/${randomUUID()}${extension}`);
+    const destination = resolveKey(key);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx" });
+    return key;
+  }
+
   async storeOutput(
     originalName: string,
     mimeType: "video/mp4" | "video/webm" | "video/quicktime",

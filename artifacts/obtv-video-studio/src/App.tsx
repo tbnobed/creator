@@ -25,7 +25,7 @@ const GenerationDetailPage = lazy(() => import("@/pages/generation-detail"));
 const ImageStudioPage = lazy(() => import("@/pages/image-studio"));
 const ProjectsPage = lazy(() => import("@/pages/projects"));
 const ProjectDetailPage = lazy(() => import("@/pages/projects/[id]"));
-const NewProjectPage = lazy(() => import("@/pages/projects/new"));
+const ProductionWorkflowPage = lazy(() => import("@/pages/productions/workflow"));
 const AccountPage = lazy(() => import("@/pages/account"));
 const VideoCleanupPage = lazy(() => import("@/pages/video-cleanup"));
 const GarmentStudioPage = lazy(() => import("@/pages/garment-studio"));
@@ -68,7 +68,8 @@ function StudioRouter() {
               <Route path="/reference-video" component={ReferenceVideoPage} />
               <Route path="/projects" component={ProjectsPage} />
               <Route path="/image-studio" component={ImageStudioPage} />
-              <Route path="/projects/new" component={NewProjectPage} />
+              <Route path="/projects/new" component={ProductionWorkflowPage} />
+              <Route path="/productions/:id" component={ProductionWorkflowPage} />
               <Route path="/projects/:id" component={ProjectDetailPage} />
               <Route path="/characters" component={CharactersPage} />
               <Route path="/settings" component={SettingsPage} />
@@ -120,6 +121,7 @@ function AppRoutes() {
             <Route path="/projects" component={StudioRouter} />
             <Route path="/image-studio" component={StudioRouter} />
             <Route path="/projects/new" component={StudioRouter} />
+            <Route path="/productions/:id" component={StudioRouter} />
             <Route path="/projects/:id" component={StudioRouter} />
             <Route path="/characters" component={StudioRouter} />
             <Route path="/settings" component={StudioRouter} />

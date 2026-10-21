@@ -1,4 +1,5 @@
-import { getListLongFormProjectsQueryKey, useDeleteLongFormProject, useListLongFormProjects } from "@workspace/api-client-react";
+import { getListLongFormProjectsQueryKey, useDeleteLongFormProject, useListLongFormProjects, useListProductionProjects } from "@workspace/api-client-react";
+import { STEPS, normalizeState } from "@/lib/production-types";
 import { useQueryClient } from "@tanstack/react-query";
 import type { MouseEvent } from "react";
 import { Link } from "wouter";
@@ -8,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export default function ProjectsPage() {
   const { data: projects = [], isLoading, error } = useListLongFormProjects();
+  const { data: productions = [], isLoading: productionsLoading, error: productionsError, refetch: refetchProductions } = useListProductionProjects();
   const queryClient = useQueryClient();
   const deleteProject = useDeleteLongFormProject();
 
@@ -64,6 +66,32 @@ export default function ProjectsPage() {
             </Button>
           </Link>
         </div>
+
+        <section className="mb-10" data-testid="section-workflow-productions">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Guided productions</h2>
+          {productionsLoading ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">{[1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-card/50" />)}</div>
+          ) : productionsError ? (
+            <p className="text-sm text-destructive">Could not load guided productions. <button className="underline" onClick={() => refetchProductions()} data-testid="button-retry-productions">Retry</button></p>
+          ) : productions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">None yet. New productions walk you through story, cast, wardrobe, places, rendering and review.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {productions.map((p) => {
+                const st = normalizeState(p.state as Record<string, unknown>);
+                return (
+                  <Link key={p.id} href={`/productions/${p.id}`} className="group block rounded-xl border border-card-border bg-card p-4 transition-colors hover:border-primary/50" data-testid={`card-production-${p.id}`}>
+                    <p className="truncate font-bold">{p.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Step {st.step + 1} · {STEPS[st.step]} · {st.story.scenes.length} scenes · {st.characters.length} characters</p>
+                    <div className="mt-3 flex gap-1">{STEPS.map((s, i) => <span key={s} className={`h-1 flex-1 rounded-full ${i <= st.step ? "bg-primary" : "bg-border"}`} />)}</div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">Updated {formatDistanceToNow(new Date(p.updatedAt), { addSuffix: true })}</p>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+          <h2 className="mb-3 mt-10 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Render projects</h2>
+        </section>
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">

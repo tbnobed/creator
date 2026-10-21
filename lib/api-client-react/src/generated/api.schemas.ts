@@ -1954,6 +1954,39 @@ export interface DashboardSummary {
   latestGenerations: GenerationJob[];
 }
 
+export type ProductionProjectState = { [key: string]: unknown };
+
+export interface ProductionProject {
+  id: string;
+  title: string;
+  revision: number;
+  state: ProductionProjectState;
+  /** @nullable */
+  renderProjectId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProductionProjectInputState = { [key: string]: unknown };
+
+export interface ProductionProjectInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  revision?: number;
+  state: ProductionProjectInputState;
+}
+
+export type ProductionActionInputPayload = { [key: string]: unknown };
+
+export interface ProductionActionInput {
+  action: string;
+  revision: number;
+  payload?: ProductionActionInputPayload;
+}
+
 export type LongFormProjectInputFps = typeof LongFormProjectInputFps[keyof typeof LongFormProjectInputFps];
 
 
@@ -2041,7 +2074,7 @@ export interface LongFormProjectInput {
   storyline?: string;
   /**
      * @minimum 1
-     * @maximum 600
+     * @maximum 5400
      */
   targetDurationSeconds: number;
   /**

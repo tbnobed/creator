@@ -81,6 +81,9 @@ import type {
   PaginatedGenerations,
   PasswordResetRedemption,
   PasswordResetRequest,
+  ProductionActionInput,
+  ProductionProject,
+  ProductionProjectInput,
   PromptCheckResult,
   PromptPolishInput,
   PromptPolishResult,
@@ -150,6 +153,411 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListProductionProjectsUrl = () => {
+
+
+
+
+  return `/api/production-projects`
+}
+
+export const listProductionProjects = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProductionProject[]> => {
+
+  return customFetch<ProductionProject[]>(getListProductionProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductionProjectsQueryKey = () => {
+    return [
+    `/api/production-projects`
+    ] as const;
+    }
+
+
+export const getListProductionProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProductionProjects>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductionProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductionProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductionProjects>>> = ({ signal }) => listProductionProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductionProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductionProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listProductionProjects>>>
+export type ListProductionProjectsQueryError = ErrorType<unknown>
+
+
+
+export function useListProductionProjects<TData = Awaited<ReturnType<typeof listProductionProjects>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductionProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProductionProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProductionProjectUrl = () => {
+
+
+
+
+  return `/api/production-projects`
+}
+
+export const createProductionProject = async (productionProjectInput: ProductionProjectInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductionProject> => {
+
+  return customFetch<ProductionProject>(getCreateProductionProjectUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(productionProjectInput)
+  }
+);}
+
+
+
+
+
+export const getCreateProductionProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProductionProject>>, TError,{data: BodyType<ProductionProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProductionProject>>, TError,{data: BodyType<ProductionProjectInput>}, TContext> => {
+
+const mutationKey = ['createProductionProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProductionProject>>, {data: BodyType<ProductionProjectInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createProductionProject(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProductionProjectMutationResult = NonNullable<Awaited<ReturnType<typeof createProductionProject>>>
+    export type CreateProductionProjectMutationBody = BodyType<ProductionProjectInput>
+    export type CreateProductionProjectMutationError = ErrorType<unknown>
+
+    export const useCreateProductionProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProductionProject>>, TError,{data: BodyType<ProductionProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProductionProject>>,
+        TError,
+        {data: BodyType<ProductionProjectInput>},
+        TContext
+      > => {
+      return useMutation(getCreateProductionProjectMutationOptions(options));
+    }
+
+export const getGetProductionProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/production-projects/${id}`
+}
+
+export const getProductionProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ProductionProject> => {
+
+  return customFetch<ProductionProject>(getGetProductionProjectUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProductionProjectQueryKey = (id: string,) => {
+    return [
+    `/api/production-projects/${id}`
+    ] as const;
+    }
+
+
+export const getGetProductionProjectQueryOptions = <TData = Awaited<ReturnType<typeof getProductionProject>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductionProject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProductionProjectQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProductionProject>>> = ({ signal }) => getProductionProject(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProductionProject>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProductionProjectQueryResult = NonNullable<Awaited<ReturnType<typeof getProductionProject>>>
+export type GetProductionProjectQueryError = ErrorType<unknown>
+
+
+
+export function useGetProductionProject<TData = Awaited<ReturnType<typeof getProductionProject>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductionProject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProductionProjectQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateProductionProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/production-projects/${id}`
+}
+
+export const updateProductionProject = async (id: string,
+    productionProjectInput: ProductionProjectInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductionProject> => {
+
+  return customFetch<ProductionProject>(getUpdateProductionProjectUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(productionProjectInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProductionProjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductionProject>>, TError,{id: string;data: BodyType<ProductionProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProductionProject>>, TError,{id: string;data: BodyType<ProductionProjectInput>}, TContext> => {
+
+const mutationKey = ['updateProductionProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProductionProject>>, {id: string;data: BodyType<ProductionProjectInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateProductionProject(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProductionProjectMutationResult = NonNullable<Awaited<ReturnType<typeof updateProductionProject>>>
+    export type UpdateProductionProjectMutationBody = BodyType<ProductionProjectInput>
+    export type UpdateProductionProjectMutationError = ErrorType<unknown>
+
+    export const useUpdateProductionProject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductionProject>>, TError,{id: string;data: BodyType<ProductionProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProductionProject>>,
+        TError,
+        {id: string;data: BodyType<ProductionProjectInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateProductionProjectMutationOptions(options));
+    }
+
+export const getRunProductionActionUrl = (id: string,) => {
+
+
+
+
+  return `/api/production-projects/${id}/actions`
+}
+
+export const runProductionAction = async (id: string,
+    productionActionInput: ProductionActionInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductionProject> => {
+
+  return customFetch<ProductionProject>(getRunProductionActionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(productionActionInput)
+  }
+);}
+
+
+
+
+
+export const getRunProductionActionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runProductionAction>>, TError,{id: string;data: BodyType<ProductionActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runProductionAction>>, TError,{id: string;data: BodyType<ProductionActionInput>}, TContext> => {
+
+const mutationKey = ['runProductionAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runProductionAction>>, {id: string;data: BodyType<ProductionActionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  runProductionAction(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunProductionActionMutationResult = NonNullable<Awaited<ReturnType<typeof runProductionAction>>>
+    export type RunProductionActionMutationBody = BodyType<ProductionActionInput>
+    export type RunProductionActionMutationError = ErrorType<unknown>
+
+    export const useRunProductionAction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runProductionAction>>, TError,{id: string;data: BodyType<ProductionActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runProductionAction>>,
+        TError,
+        {id: string;data: BodyType<ProductionActionInput>},
+        TContext
+      > => {
+      return useMutation(getRunProductionActionMutationOptions(options));
+    }
+
+export const getUploadProductionScriptUrl = (id: string,) => {
+
+
+
+
+  return `/api/production-projects/${id}/script`
+}
+
+export const uploadProductionScript = async (id: string,
+    uploadProductionScriptBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<ProductionProject> => {
+
+  return customFetch<ProductionProject>(getUploadProductionScriptUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', ...options?.headers },
+    body: uploadProductionScriptBody
+  }
+);}
+
+
+
+
+
+export const getUploadProductionScriptMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadProductionScript>>, TError,{id: string;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadProductionScript>>, TError,{id: string;data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadProductionScript'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadProductionScript>>, {id: string;data: BodyType<Blob>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadProductionScript(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadProductionScriptMutationResult = NonNullable<Awaited<ReturnType<typeof uploadProductionScript>>>
+    export type UploadProductionScriptMutationBody = BodyType<Blob>
+    export type UploadProductionScriptMutationError = ErrorType<unknown>
+
+    export const useUploadProductionScript = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadProductionScript>>, TError,{id: string;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadProductionScript>>,
+        TError,
+        {id: string;data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadProductionScriptMutationOptions(options));
+    }
 
 export const getRequestPasswordResetUrl = () => {
 

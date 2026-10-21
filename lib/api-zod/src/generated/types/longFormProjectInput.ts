@@ -24,7 +24,7 @@ export interface LongFormProjectInput {
   storyline?: string;
   /**
      * @minimum 1
-     * @maximum 600
+     * @maximum 5400
      */
   targetDurationSeconds: number;
   /**

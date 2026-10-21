@@ -1323,7 +1323,6 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   if (
     input.seedanceTask
-    || input.startFrameKey
     || input.endFrameKey
     || input.referenceVideoKeys?.length
     || input.referenceAudioKeys?.length
@@ -1335,6 +1334,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     .from(workflowTemplatesTable)
     .where(and(eq(workflowTemplatesTable.generationMode, input.generationMode), eq(workflowTemplatesTable.active, true)))
     .orderBy(desc(workflowTemplatesTable.version));
+  if (input.startFrameKey && !workflows.some(w => (w.mappings as ParameterMappings).firstFrame)) {
+    throw new Error("This local workflow has no explicit firstFrame mapping for shot continuation. Import a compatible image-to-video workflow.");
+  }
   const inputTypeWorkflows = workflows.filter((candidate) => (
     wantsReferenceVideo
       ? Boolean(candidate.apiWorkflow && (candidate.mappings as ParameterMappings).referenceVideo)
@@ -1347,7 +1349,8 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   const compatibleWorkflows = inputTypeWorkflows.filter((candidate) => {
     const required = getWorkflowReferenceRequirements(candidate.apiWorkflow, candidate.mappings);
-    return (!required.requiresCharacterReferences || characters.length > 0 || Boolean(input.referenceImageKeys?.length))
+    return (!input.startFrameKey || Boolean((candidate.mappings as ParameterMappings).firstFrame))
+      && (!required.requiresCharacterReferences || characters.length > 0 || Boolean(input.referenceImageKeys?.length))
       && (!required.requiresSettingReference || setting.length > 0)
       && (!input.referenceImageKeys?.length || Boolean((candidate.mappings as ParameterMappings).referenceImage1))
       && (!input.mandatoryReferenceImageCount || Object.keys(candidate.mappings)
@@ -1526,6 +1529,14 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       input.mandatoryReferenceImageCount,
     );
     const requiredReferences = getWorkflowReferenceRequirements(apiWorkflow, workflow.mappings);
+    if (input.startFrameKey) {
+      const uploaded = await client.uploadImage({
+        name: "production-first-frame.png",
+        mimeType: "image/png",
+        bytes: await mediaStorage.readBuffer(input.startFrameKey),
+      });
+      assetParameters.firstFrame = uploaded.name;
+    }
     if (
       requiredReferences.requiresCharacterReferences &&
       !Object.keys(assetParameters).some((field) => /^referenceImage\d+$/.test(field))

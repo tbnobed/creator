@@ -8,6 +8,115 @@
 import * as zod from 'zod';
 
 
+export const ListProductionProjectsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "revision": zod.number(),
+  "state": zod.record(zod.string(), zod.unknown()),
+  "renderProjectId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListProductionProjectsResponse = zod.array(ListProductionProjectsResponseItem)
+
+
+export const createProductionProjectBodyTitleMax = 180;
+
+
+
+export const CreateProductionProjectBody = zod.object({
+  "title": zod.string().min(1).max(createProductionProjectBodyTitleMax),
+  "revision": zod.number().optional(),
+  "state": zod.record(zod.string(), zod.unknown())
+})
+
+export const CreateProductionProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "revision": zod.number(),
+  "state": zod.record(zod.string(), zod.unknown()),
+  "renderProjectId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const GetProductionProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetProductionProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "revision": zod.number(),
+  "state": zod.record(zod.string(), zod.unknown()),
+  "renderProjectId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const UpdateProductionProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateProductionProjectBodyTitleMax = 180;
+
+
+
+export const UpdateProductionProjectBody = zod.object({
+  "title": zod.string().min(1).max(updateProductionProjectBodyTitleMax),
+  "revision": zod.number().optional(),
+  "state": zod.record(zod.string(), zod.unknown())
+})
+
+export const UpdateProductionProjectResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "revision": zod.number(),
+  "state": zod.record(zod.string(), zod.unknown()),
+  "renderProjectId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const RunProductionActionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RunProductionActionBody = zod.object({
+  "action": zod.string(),
+  "revision": zod.number(),
+  "payload": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const RunProductionActionResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "revision": zod.number(),
+  "state": zod.record(zod.string(), zod.unknown()),
+  "renderProjectId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const UploadProductionScriptParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UploadProductionScriptResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "revision": zod.number(),
+  "state": zod.record(zod.string(), zod.unknown()),
+  "renderProjectId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
 export const requestPasswordResetBodyEmailMax = 320;
 
 
@@ -2383,7 +2492,7 @@ export const createLongFormProjectBodyScriptMax = 100000;
 
 export const createLongFormProjectBodyStorylineMax = 20000;
 
-export const createLongFormProjectBodyTargetDurationSecondsMax = 600;
+export const createLongFormProjectBodyTargetDurationSecondsMax = 5400;
 
 export const createLongFormProjectBodyShotDurationSecondsDefault = 8;
 export const createLongFormProjectBodyShotDurationSecondsMin = 2;

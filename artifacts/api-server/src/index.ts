@@ -5,6 +5,7 @@ import { startServerHealthChecks } from "./lib/server-health";
 import { logger } from "./lib/logger";
 import { ensureStudioSeed } from "./lib/seed-studio";
 import { startLongFormOrchestrator } from "./lib/long-form-service";
+import { startProductionRuntime } from "./lib/production-runtime";
 import { resumeImageStudioJobs } from "./lib/image-studio-service";
 import { resumeCharacterImageJobs } from "./lib/studio-image-generation";
 
@@ -27,6 +28,7 @@ async function start(): Promise<void> {
   await resumeActiveGenerations();
   await resumeGarmentJobs();
   await startLongFormOrchestrator();
+  startProductionRuntime();
   await resumeImageStudioJobs();
   await resumeCharacterImageJobs();
   void startServerHealthChecks();
