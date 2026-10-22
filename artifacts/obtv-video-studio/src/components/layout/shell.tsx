@@ -65,7 +65,7 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/garment-studio", label: "Video Replacement", icon: Shirt },
     { href: "/projects", label: "Long-Form", icon: Film },
     { href: "/characters", label: "Characters", icon: Users },
-    { href: "/settings", label: "Settings", icon: Map },
+    { href: "/settings", label: "Locations & Scenery", icon: Map },
     { href: "/generations", label: "Queue & History", icon: Activity },
   ];
 
@@ -127,7 +127,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-border bg-card p-2 shadow-2xl">
               {["Create", "Manage"].map((group) => <div key={group}>
               <p className="px-3 pb-1 pt-3 text-xs font-semibold text-foreground">{group}</p>
-              {secondaryDesktopLinks.filter(link => (["/settings", "/servers", "/workflows", "/admin", "/spending"].includes(link.href)) === (group === "Manage")).map((link) => (
+              {secondaryDesktopLinks.filter(link => (["/servers", "/workflows", "/admin", "/spending"].includes(link.href)) === (group === "Manage")).map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -248,7 +248,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 px-3">Studio Settings</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 px-3">More tools</h3>
               {secondaryMobileLinks.map((link) => {
                 const isActive = location === link.href || (link.href !== "/studio" && location.startsWith(link.href));
                 return (

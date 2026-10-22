@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const deleteMutation = useDeleteSetting();
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this setting?")) {
+    if (confirm("Are you sure you want to delete this location?")) {
       await deleteMutation.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
     }
@@ -38,19 +38,19 @@ export default function SettingsPage() {
   return (
     <Page>
       <PageHeader
-        title="Settings & Environments"
+        title="Locations & Scenery"
         description="Manage reusable locations and environments for your scenes."
         actions={
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="size-4" />
-                New Setting
+                New Location
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Create Setting</DialogTitle>
+                <DialogTitle>Create Location</DialogTitle>
               </DialogHeader>
               <SettingForm onSuccess={() => setIsCreateOpen(false)} />
             </DialogContent>
@@ -69,11 +69,11 @@ export default function SettingsPage() {
           <div className="size-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
             <Map className="size-8 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-semibold mb-2">No settings yet</h3>
+          <h3 className="text-xl font-semibold mb-2">No locations yet</h3>
           <p className="text-muted-foreground max-w-md mb-6">
             Create locations to maintain environmental consistency across shots.
           </p>
-          <Button onClick={() => setIsCreateOpen(true)}>Create your first setting</Button>
+          <Button onClick={() => setIsCreateOpen(true)}>Create your first location</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -100,7 +100,7 @@ export default function SettingsPage() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
-                        <DialogTitle>Edit Setting</DialogTitle>
+                        <DialogTitle>Edit Location</DialogTitle>
                       </DialogHeader>
                       <SettingForm
                         initialData={setting}
@@ -214,14 +214,14 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
       queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
       onSuccess();
     } catch (err: any) {
-      toast({ title: "Error saving setting", description: err.message, variant: "destructive" });
+      toast({ title: "Error saving location", description: err.message, variant: "destructive" });
     }
   };
 
   const handleGenerateImage = async (prompt: string, seed?: number) => {
     if (!formRef.current?.checkValidity()) {
       formRef.current?.reportValidity();
-      throw new Error("Please fill out required fields first to save the setting.");
+      throw new Error("Please fill out required fields first to save the location.");
     }
 
     // Save first
@@ -294,7 +294,7 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
 
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : activeId ? "Save Changes" : "Create Setting"}
+            {isPending ? "Saving..." : activeId ? "Save Changes" : "Create Location"}
           </Button>
         </div>
       </form>
