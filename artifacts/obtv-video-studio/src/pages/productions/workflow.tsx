@@ -355,7 +355,7 @@ export default function ProductionWorkflowPage() {
           {step === 2 && <WardrobeStep state={state} run={run} pendingAction={pendingAction} onSettings={editSettings} />}
           {step === 3 && <PlacesStep state={state} run={run} pendingAction={pendingAction} onSettings={editSettings} />}
           {step === 4 && (
-            <CreateStep state={state} project={project} run={run} pendingAction={pendingAction} onSettings={editSettings} save={save} />
+            <CreateStep state={state} project={project} run={run} pendingAction={pendingAction} onSettings={editSettings} save={save} onPlaces={() => void goToStep(3)} />
           )}
           {step === 5 && <ReviewStep state={state} project={project} run={run} pendingAction={pendingAction} />}
         </div>

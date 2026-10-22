@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage, isFailed, isPending, taskIsPaid, type ProductionSettings, type ProductionState } from "@/lib/production-types";
 import type { RunAction } from "./workflow";
-import { SceneScenery, resolveSceneScenery } from "./scene-scenery";
+import { missingSceneryCount } from "./scene-scenery";
 
 type Base = { state: ProductionState; project?: ProductionProject; run: RunAction; pendingAction: string | null };
 
@@ -76,7 +76,8 @@ function cloudDurationProblem(m: FalModel, seconds: number): string | null {
   return `${m} cannot render ${seconds}s shots with references. Supported lengths: ${modelDurationOptions(m, { hasReferenceImages: true }).join(", ")}s. Change the shot length; it is not adjusted for you.`;
 }
 
-export function CreateStep({ state, project, run, pendingAction, onSettings, save }: Base & {
+export function CreateStep({ state, project, run, pendingAction, onSettings, save, onPlaces }: Base & {
+  onPlaces: () => void;
   onSettings: (p: Partial<ProductionSettings>) => void; save: () => Promise<ProductionProject | null>;
 }) {
   const { toast } = useToast();
@@ -90,7 +91,8 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
   const cancel = useCancelLongFormProject();
   const s = state.settings;
   const active = rp && ["RUNNING", "ASSEMBLING"].includes(rp.status);
-  const sceneryReady = state.story.scenes.every(scene => !!resolveSceneScenery(state, scene)?.reference.assetId);
+  const missingScenery = missingSceneryCount(state);
+  const sceneryReady = missingScenery === 0;
   const invalidate = () => void render.refetch();
 
   const shotsByScene = new Map<number, LongFormShot[]>();
@@ -115,8 +117,15 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
 
   return (
     <div>
-      <Head n="05 / Create" title="Roll camera" sub="Each scene's prompt is assembled from its locked cast, active outfit, place variant and action. The last frame of each shot seeds the next." />
-      <SceneScenery state={state} onSettings={onSettings} disabled={!!active || !!pendingAction} />
+      <Head n="05 / Create" title="Roll camera" sub="Choose a model, then create every scene in order." />
+      {missingScenery > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" data-testid="alert-missing-scenery">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{missingScenery} scene{missingScenery === 1 ? " needs" : "s need"} scenery before rendering.</span>
+          <button type="button" className="font-semibold underline" data-testid="button-go-places"
+            onClick={onPlaces}>Assign in Places</button>
+        </div>
+      )}
 
       <section className="mb-6 grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-6" data-testid="section-render-settings">
         <div className="space-y-2 sm:col-span-2 lg:col-span-6" data-testid="picker-video-provider">
@@ -164,6 +173,11 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
           {cloudModel && <p className="mt-1 text-xs text-muted-foreground">Native lengths: {modelDurationOptions(cloudModel, { hasReferenceImages: true }).join(", ")}s</p>}
         </div>
         )}
+        <details className="sm:col-span-2 lg:col-span-6" data-testid="details-advanced-settings">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-muted-foreground" data-testid="toggle-advanced-settings">
+            Advanced · {s.width}x{s.height} · {s.fps} fps · {s.qualityPreset.toLowerCase()} · {s.shotDurationSeconds}s shots
+          </summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <NumField label="Width" value={s.width} step={64} onChange={(v) => onSettings({ width: v })} id="width" disabled={!!active} />
         <NumField label="Height" value={s.height} step={64} onChange={(v) => onSettings({ height: v })} id="height" disabled={!!active} />
         <div>
@@ -181,6 +195,8 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
           </Select>
         </div>
         <NumField label="Shot length (s)" value={s.shotDurationSeconds} step={1} onChange={(v) => onSettings({ shotDurationSeconds: v })} id="shot-duration" disabled={!!active} />
+          </div>
+        </details>
         {cloud && (
           <div className="space-y-2 sm:col-span-2 lg:col-span-6">
             {cloudProblem && <p className="text-xs text-destructive" data-testid="text-cloud-problem">{cloudProblem}</p>}
@@ -227,7 +243,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
       )}
       {render.error && <p className="mb-4 text-sm text-destructive">Could not load render status: {errorMessage(render.error)} <button className="underline" onClick={invalidate}>Retry</button></p>}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="space-y-4">
         <ol className="space-y-2" data-testid="list-scenes-render">
           {sceneNumbers.length === 0 && <li className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No scenes yet. Draft your story first.</li>}
           {sceneNumbers.map((n) => {
@@ -305,11 +321,25 @@ export function ShotFix({ shot, run, busy, initial = "" }: { shot: LongFormShot;
 }
 
 function JobQueue({ state, run, busy }: { state: ProductionState; run: RunAction; busy: boolean }) {
-  const tasks = [...state.tasks].reverse();
+  const all = [...state.tasks].reverse();
+  const live = all.filter((t) => isPending(t.status) || isFailed(t.status));
+  const done = all.filter((t) => !isPending(t.status) && !isFailed(t.status));
+  if (!all.length) return null;
   return (
-    <aside className="h-fit rounded-xl border border-border bg-card/60 p-3 lg:sticky lg:top-4" data-testid="panel-job-queue">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Job queue</p>
-      {tasks.length === 0 ? <p className="text-xs text-muted-foreground">Nothing queued.</p> : (
+    <aside className="rounded-xl border border-border bg-card/60 p-3" data-testid="panel-job-queue">
+      {live.length > 0 && <TaskList tasks={live} run={run} busy={busy} />}
+      {done.length > 0 && (
+        <details className={live.length ? "mt-2" : ""} data-testid="details-job-history">
+          <summary className="cursor-pointer text-xs text-muted-foreground" data-testid="toggle-job-history">Completed jobs ({done.length})</summary>
+          <div className="mt-2"><TaskList tasks={done} run={run} busy={busy} /></div>
+        </details>
+      )}
+    </aside>
+  );
+}
+
+function TaskList({ tasks, run, busy }: { tasks: ProductionState["tasks"]; run: RunAction; busy: boolean }) {
+  return (
         <ul className="max-h-[50vh] space-y-1.5 overflow-y-auto">
           {tasks.map((t) => (
             <li key={t.id} className="flex items-start gap-2 text-xs" data-testid={`task-${t.id}`}>
@@ -325,8 +355,6 @@ function JobQueue({ state, run, busy }: { state: ProductionState; run: RunAction
             </li>
           ))}
         </ul>
-      )}
-    </aside>
   );
 }
 

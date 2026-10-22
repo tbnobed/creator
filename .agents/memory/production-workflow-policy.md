@@ -56,3 +56,9 @@ Script location labels are display text, not the identity of an approved scenery
 **Why:** A generated location added “Gull Point” to the authored lantern-room label, and exact-name matching then rejected the already-created room. Renaming or generating duplicate scenery is not an acceptable requirement.
 
 **How to apply:** Preserve authored location headings and allow explicit scene-to-place/variant assignments. Reuse approved references by ID; never silently substitute a vaguely similar room or fall back to a base image when a selected variant disappears.
+
+Keep the production workflow uncluttered; do not duplicate setup controls across steps.
+
+**Why:** The user objected to unnecessary elements and an overcrowded interface after scenery assignments appeared in both Places and Create.
+
+**How to apply:** Give each setting one primary home. Keep advanced settings and completed history available on demand while showing blocking issues, active progress, and paid confirmations clearly.

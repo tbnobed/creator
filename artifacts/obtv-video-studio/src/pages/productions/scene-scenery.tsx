@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ProductionSettings, ProductionState, Scene } from "@/lib/production-types";
 const normalized = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 export function resolveSceneScenery(state: ProductionState, scene: Scene) {
@@ -8,11 +9,21 @@ export function resolveSceneScenery(state: ProductionState, scene: Scene) {
   if (variants.length > 1 || (assigned?.variantId && !variants.length)) return undefined;
   return { place, reference: variants[0] ?? place };
 }
+export const missingSceneryCount = (state: ProductionState) => state.story.scenes.filter(scene => !resolveSceneScenery(state, scene)?.reference.assetId).length;
 export function SceneScenery({ state, onSettings, disabled }: { state: ProductionState; onSettings: (p: Partial<ProductionSettings>) => void; disabled?: boolean }) {
+  const missing = missingSceneryCount(state);
+  const [open, setOpen] = useState(missing > 0);
+  useEffect(() => { if (missing > 0) setOpen(true); }, [missing]);
   if (!state.story.scenes.length) return null;
-  return <section className="mb-6 space-y-3 rounded-xl border border-border bg-card p-4" data-testid="scene-scenery">
-    <h3 className="font-semibold">Scene scenery</h3>
-    <p className="text-sm text-muted-foreground">Choose an existing place for each scene. Names do not have to match. Reuse a room, or choose its lighting/weather variant. Assigning a reference does not generate an image or incur charges.</p>
+  return <details open={open} onToggle={e => setOpen(e.currentTarget.open)} className="group mb-6 rounded-xl border border-border bg-card" data-testid="scene-scenery">
+    <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 text-sm" data-testid="toggle-scene-scenery">
+      <span className="font-semibold">Scene scenery</span>
+      <span className={missing ? "text-destructive" : "text-emerald-400"} data-testid="text-scenery-summary">
+        {missing ? `${missing} of ${state.story.scenes.length} scenes need scenery` : `All ${state.story.scenes.length} scenes assigned`}
+      </span>
+    </summary>
+    <div className="space-y-3 px-4 pb-4">
+    <p className="text-xs text-muted-foreground">Pick a place or variant for each scene. Names do not have to match. No images are generated.</p>
     {state.story.scenes.map(scene => {
       const assigned = state.settings.sceneReferences?.[String(scene.sceneNumber)];
       const resolved = resolveSceneScenery(state, scene), ready = !!resolved?.reference.assetId;
@@ -36,10 +47,11 @@ export function SceneScenery({ state, onSettings, disabled }: { state: Productio
             </optgroup>)}
           </select>
           <p className={`mt-1 text-xs ${ready ? "text-emerald-400" : "text-destructive"}`} data-testid={`status-scene-scenery-${scene.sceneNumber}`}>
-            {ready ? `Ready: ${resolved!.place.name}${resolved!.reference.id !== resolved!.place.id ? ` · ${resolved!.reference.name}` : ""}` : "Assign a ready reference here, or generate one in Places."}
+            {ready ? `Ready: ${resolved!.place.name}${resolved!.reference.id !== resolved!.place.id ? ` · ${resolved!.reference.name}` : ""}` : "Assign a ready reference, or generate one below."}
           </p>
         </div>
       </div>;
     })}
-  </section>;
+    </div>
+  </details>;
 }

@@ -51,7 +51,7 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-primary">01 / Story</p>
           <h2 className="mt-1 text-2xl font-extrabold">What happens?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Write the summary and we will draft every scene with full dialogue. Already have a script? Upload it and we will break it down instead.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Write a summary, or paste or upload a script.</p>
         </div>
 
         <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs" role="tablist">
@@ -89,7 +89,7 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{authored ? "Script timing" : "Target length"}</p>
-          {authored && <p className="text-sm text-muted-foreground" data-testid="text-script-timing">Your script’s scene timings are preserved. It will not be expanded to a preset length. Untimed scenes use a content-based estimate.</p>}
+          {authored && <p className="text-sm text-muted-foreground" data-testid="text-script-timing">Your scene timings are kept as written.</p>}
           {!authored && <>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {LENGTHS.map((l) => {
@@ -125,13 +125,11 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
               OpenAI-compatible <span className="ml-1 text-[10px] text-amber-300">PAID</span>
             </button>
           </div>
-          {!paid && <p className="text-xs text-muted-foreground">Uses the configured GB10 GPU writer, not the CPU prompt checker. GPU execution is verified before drafting.</p>}
           {paid && (
             <>
               <Input value={modelIdDraft} onChange={(e) => setModelIdDraft(e.target.value)}
                 onBlur={() => onSettings({ storyModel: `openai:${modelIdDraft.trim() || "gpt-4.1"}` })}
                 placeholder="gpt-4.1" className="h-8 font-mono text-xs" data-testid="input-story-model-id" />
-              <p className="text-xs text-muted-foreground">Requires configured OpenAI credentials on the server. If they are missing, the server error is shown here and nothing is charged.</p>
               <label className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-400/5 p-2 text-xs text-amber-100" data-testid="confirm-paid-story">
                 <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} data-testid="checkbox-paid-story" />
                 <span>I confirm paid requests to {storyModel.slice(7)}: one outline request plus one request per scene (a feature can need around 46 requests). Billed by your provider.</span>
@@ -148,8 +146,7 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           <div className="space-y-1 rounded-lg border border-border bg-card p-3 text-xs" role="status" aria-live="polite" data-testid="status-story-progress">
             <p className="font-semibold">{story.progress.stage}</p>
             <p className="text-muted-foreground">{story.progress.target} · {story.progress.model}</p>
-            {running && <p className="text-muted-foreground">{story.progress.stage.startsWith("Waiting for GB10") ? "Video jobs have priority. Writing resumes when GPU capacity is available." : story.progress.gpuVerified ? "GPU model verified. Writing this stage; results appear when it finishes." : story.progress.target === "Paid provider" ? "Waiting for the selected provider." : "Checking the GPU writer and loading its model."} Your input is saved.</p>}
-            {running && <p className="text-muted-foreground">Each writing request has a four-minute timeout. A failure will show here with a retry action.</p>}
+            {running && <p className="text-muted-foreground">{story.progress.stage.startsWith("Waiting for GB10") ? "Video jobs have priority; writing resumes shortly." : story.progress.gpuVerified ? "GPU model verified." : story.progress.target === "Paid provider" ? "Waiting for the provider." : "Loading the writer."} Your input is saved.</p>}
           </div>
         )}
         {story.scenes.length > 0 && !running && <p className="text-xs text-muted-foreground">Redrafting replaces the scenes on the right.</p>}
@@ -176,7 +173,7 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           <div className="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-8 text-center" data-testid="empty-scenes">
             <div className="mb-4 grid grid-cols-3 gap-1 opacity-40">{Array.from({ length: 9 }).map((_, i) => <div key={i} className="h-4 w-10 rounded-sm bg-muted" />)}</div>
             <p className="font-semibold">Nothing drafted yet</p>
-            <p className="mt-1 max-w-xs text-sm text-muted-foreground">Each scene arrives with its location, time of day, cast, action and full dialogue so you can check it before casting.</p>
+            <p className="mt-1 max-w-xs text-sm text-muted-foreground">Drafted scenes appear here for review.</p>
           </div>
         ) : (
           <ol className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
