@@ -868,6 +868,236 @@ export const GenerateCharacterImageResponse = zod.object({
 
 
 /**
+ * @summary Latest portrait options and reference sheet for a character
+ */
+export const GetCharacterLooksParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCharacterLooksResponse = zod.object({
+  "portraits": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()]),
+  "sheet": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Start a durable batch of four portrait options
+ */
+export const StartCharacterLooksParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const startCharacterLooksBodyPromptMax = 4000;
+
+export const startCharacterLooksBodyModelIdMax = 200;
+
+export const startCharacterLooksBodyRequestKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const StartCharacterLooksBody = zod.object({
+  "prompt": zod.string().min(1).max(startCharacterLooksBodyPromptMax),
+  "modelId": zod.string().min(1).max(startCharacterLooksBodyModelIdMax),
+  "cloudConfirmed": zod.boolean().optional(),
+  "requestKey": zod.string().regex(startCharacterLooksBodyRequestKeyRegExp)
+})
+
+export const StartCharacterLooksResponse = zod.object({
+  "portraits": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()]),
+  "sheet": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Keep a portrait as the primary headshot and start its reference sheet
+ */
+export const KeepCharacterLookParams = zod.object({
+  "id": zod.coerce.string(),
+  "batchId": zod.coerce.string()
+})
+
+export const keepCharacterLookBodyAssetIdMax = 100;
+
+export const keepCharacterLookBodyModelIdMax = 200;
+
+export const keepCharacterLookBodyRequestKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const KeepCharacterLookBody = zod.object({
+  "assetId": zod.string().min(1).max(keepCharacterLookBodyAssetIdMax),
+  "modelId": zod.string().min(1).max(keepCharacterLookBodyModelIdMax),
+  "cloudConfirmed": zod.boolean().optional(),
+  "requestKey": zod.string().regex(keepCharacterLookBodyRequestKeyRegExp)
+})
+
+export const KeepCharacterLookResponse = zod.object({
+  "portraits": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()]),
+  "sheet": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Resubmit only the failed images of a batch
+ */
+export const RetryCharacterLooksParams = zod.object({
+  "id": zod.coerce.string(),
+  "batchId": zod.coerce.string()
+})
+
+export const RetryCharacterLooksBody = zod.object({
+  "cloudConfirmed": zod.boolean().optional()
+})
+
+export const RetryCharacterLooksResponse = zod.object({
+  "portraits": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()]),
+  "sheet": zod.union([zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['PORTRAITS', 'SHEET']),
+  "status": zod.enum(['ACTIVE', 'COMPLETED', 'FAILED']),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "prompt": zod.string(),
+  "selectedAssetId": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "slots": zod.array(zod.object({
+  "index": zod.number(),
+  "view": zod.string().nullable(),
+  "status": zod.enum(['PENDING', 'RUNNING', 'READY', 'FAILED']),
+  "assetId": zod.string().nullable(),
+  "mediaUrl": zod.string().nullable(),
+  "error": zod.string().nullable()
+}))
+}),zod.null()])
+})
+
+
+/**
  * @summary Read the persisted character dossier and references
  */
 export const GetCharacterDossierParams = zod.object({
@@ -1266,6 +1496,12 @@ export const ListSettingsResponseItem = zod.object({
   "thumbnail": zod.string().nullable(),
   "tags": zod.array(zod.string()),
   "assetCount": zod.number(),
+  "references": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "prompt": zod.string()
+})).optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -1294,6 +1530,12 @@ export const CreateSettingResponse = zod.object({
   "thumbnail": zod.string().nullable(),
   "tags": zod.array(zod.string()),
   "assetCount": zod.number(),
+  "references": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "prompt": zod.string()
+})).optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -1325,6 +1567,12 @@ export const UpdateSettingResponse = zod.object({
   "thumbnail": zod.string().nullable(),
   "tags": zod.array(zod.string()),
   "assetCount": zod.number(),
+  "references": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "prompt": zod.string()
+})).optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

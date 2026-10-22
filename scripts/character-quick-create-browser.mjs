@@ -1,75 +1,124 @@
-// Mock all APIs: verifies UI contracts without using a GPU or paid provider.
+// Mock all APIs: verifies the server-owned character look flow without any GPU or paid provider.
 import { chromium, expect } from "@playwright/test";
 const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE });
-try {
-  const context = await browser.newContext({ serviceWorkers: "block" });
-  const image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG1cAAAAASUVORK5CYII=";
-  let character, generation = null, creates = 0, attempts = 0;
-  const bodies = [];
+const image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG1cAAAAASUVORK5CYII=";
+const LOCAL = "local-flux2-klein-4b", PAID = "cloud-nano-banana-pro";
+const model = (id, provider) => ({
+  id, name: provider === "LOCAL" ? "FLUX.2 Klein" : "Nano Banana Pro", provider, description: "", operations: ["generate", "edit"],
+  aspectRatios: ["3:4"], maxImages: 4, supportsSeed: provider === "LOCAL", supportsNegativePrompt: false, maxReferences: 4,
+  priceNote: provider === "LOCAL" ? "free" : "$0.15 per image", available: true,
+});
+const views = ["front", "three-quarter", "profile", "expressions"];
+const batch = (kind, modelId, status, slotStatus) => ({
+  id: `${kind.toLowerCase()}-batch`, kind, status, modelId, modelName: modelId, provider: modelId === LOCAL ? "LOCAL" : "CLOUD",
+  prompt: "A weathered harbor pilot in a navy coat", selectedAssetId: null, createdAt: new Date().toISOString(),
+  slots: [0, 1, 2, 3].map(i => ({
+    index: i, view: kind === "SHEET" ? views[i] : null, status: slotStatus,
+    assetId: slotStatus === "READY" ? `${kind}-asset-${i}` : null, mediaUrl: slotStatus === "READY" ? image : null, error: null,
+  })),
+});
+
+async function run(viewport, label) {
+  const context = await browser.newContext({ serviceWorkers: "block", viewport });
+  let character = null, looks = { portraits: null, sheet: null }, creates = 0;
+  const calls = { start: [], keep: [], legacy: 0 };
   await context.route("**/api/**", async route => {
-    const req = route.request(), path = new URL(req.url()).pathname;
+    const req = route.request(), path = new URL(req.url()).pathname, method = req.method();
     let data = [];
     if (path === "/api/session") data = { user: { id: "test", name: "Test", siteRole: "SITE_ADMIN" }, tenant: { id: "test", name: "Test" } };
-    if (path === "/api/characters" && req.method() === "POST") {
+    else if (path === "/api/image-studio/models") data = { models: [model(LOCAL, "LOCAL"), model(PAID, "CLOUD")] };
+    else if (path === "/api/characters" && method === "POST") {
       creates++;
-      character = { ...req.postDataJSON(), id: "character-test", dossierStatus: "DRAFT", dossierRevision: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      character = { ...req.postDataJSON(), id: "character-test", thumbnail: null, assetCount: 0, dossierStatus: "DRAFT", dossierRevision: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       data = character;
     } else if (path === "/api/characters") data = character ? [character] : [];
-    if (path.endsWith("/generate-image")) {
-      attempts++;
-      bodies.push(req.postDataJSON());
-      if (attempts === 1) return route.fulfill({ status: 503, json: { error: "No local GPU available" } });
-      generation = { id: `job-${attempts}`, status: "QUEUED", modelId: "local-flux2-klein-4b", provider: "LOCAL" };
-      return route.fulfill({ status: 202, json: generation });
-    }
-    if (path.endsWith("/dossier")) data = {
-      characterId: "character-test", revision: 0, status: "DRAFT", role: "", performanceNotes: "",
-      wardrobes: [], assets: [], imageGeneration: generation,
-    };
+    else if (path.endsWith("/generate-image")) calls.legacy++;
+    else if (path === "/api/characters/character-test/looks" && method === "POST") {
+      calls.start.push(req.postDataJSON());
+      looks = { portraits: batch("PORTRAITS", req.postDataJSON().modelId, "ACTIVE", "RUNNING"), sheet: null };
+      return route.fulfill({ status: 202, json: looks });
+    } else if (path === "/api/characters/character-test/looks") data = looks;
+    else if (path.endsWith("/keep")) {
+      const body = req.postDataJSON();
+      calls.keep.push(body);
+      looks = { portraits: { ...looks.portraits, selectedAssetId: body.assetId }, sheet: batch("SHEET", body.modelId, "ACTIVE", "RUNNING") };
+      character.thumbnail = image;
+      return route.fulfill({ status: 202, json: looks });
+    } else if (path.endsWith("/dossier")) data = { characterId: "character-test", revision: 0, status: "DRAFT", role: "", performanceNotes: "", wardrobes: [], assets: [], imageGeneration: null };
     await route.fulfill({ json: data });
   });
   const page = await context.newPage();
-  const base = process.env.APP_TEST_URL ?? "http://127.0.0.1";
-  await page.goto(`${base}/characters`);
+  await page.goto(`${process.env.APP_TEST_URL ?? "http://127.0.0.1"}/characters`);
   await page.getByTestId("button-new-character").click();
-  const button = page.getByTestId("button-generate-character");
-  await expect(button).toBeDisabled();
+  const generate = page.getByTestId("button-generate-character");
+  await expect(generate).toBeDisabled();
   await page.getByTestId("input-new-character-prompt").fill("A weathered harbor pilot in a navy coat");
-  await button.click();
-  await expect(page.getByTestId("status-new-character-error")).toContainText("No local GPU available");
-  await expect(page.getByTestId("input-new-character-prompt")).toHaveValue("A weathered harbor pilot in a navy coat");
-  await button.click();
-  await expect(page.getByTestId("status-new-character-stage")).toHaveText("Queued");
-  await expect(button).toBeDisabled();
+  await expect(page.getByTestId("select-model-characters")).toContainText("FLUX.2 Klein");
+  await expect(generate).toBeEnabled();
+
+  // Paid gating: choosing a paid model blocks submission until this batch is confirmed.
+  await page.getByTestId("select-model-characters").click();
+  await page.getByTestId(`option-model-characters-${PAID}`).click();
+  await expect(page.getByTestId("confirm-paid-characters")).toBeVisible();
+  await expect(generate).toBeDisabled();
+  await page.getByTestId("checkbox-paid-characters").click();
+  await expect(generate).toBeEnabled();
+  // Switch back to local and generate four looks.
+  await page.getByTestId("select-model-characters").click();
+  await page.getByTestId(`option-model-characters-${LOCAL}`).click();
+  await expect(page.getByTestId("confirm-paid-characters")).toHaveCount(0);
+  await generate.click();
+  await expect(generate).toContainText("Generating four looks");
   expect(creates).toBe(1);
-  expect(bodies[0].requestKey).toBe(bodies[1].requestKey);
-  generation = { ...generation, status: "FAILED", errorMessage: "Test worker failure" };
-  await expect(page.getByTestId("status-new-character-failed")).toContainText("Test worker failure", { timeout: 10000 });
-  await page.getByTestId("button-retry-new-character").click();
-  await expect(page.getByTestId("status-new-character-stage")).toHaveText("Queued");
-  expect(creates).toBe(1);
-  expect(bodies[2].requestKey).not.toBe(bodies[1].requestKey);
-  generation = { ...generation, status: "RUNNING", progressStage: "rendering", progress: 0.4, progressStep: 8, progressTotalSteps: 20 };
-  await expect(page.getByTestId("text-new-character-progress")).toContainText("40%", { timeout: 10000 });
-  generation = { ...generation, status: "COMPLETED", mediaUrl: image, assetId: "asset-test" };
-  character.thumbnail = image;
-  await expect(page.getByTestId("img-new-character-output")).toHaveAttribute("src", image, { timeout: 10000 });
-  for (const body of bodies) {
-    expect(body.modelId).toBe("local-flux2-klein-4b");
-    expect(body.allowNewIdentity).toBe(true);
-    expect(body.referenceAssetId).toBeUndefined();
-  }
+  expect(calls.start).toHaveLength(1);
+  expect(calls.start[0]).toMatchObject({ modelId: LOCAL, cloudConfirmed: false, prompt: "A weathered harbor pilot in a navy coat" });
+  expect(calls.start[0].requestKey).toMatch(/^[0-9a-f-]{36}$/);
+
+  // Server finishes while the dialog is closed; reopening shows all four from the server.
   await page.getByTestId("button-close-new-character").click();
-  await expect(page.getByText(character.name, { exact: true })).toBeVisible();
+  looks = { portraits: batch("PORTRAITS", LOCAL, "COMPLETED", "READY"), sheet: null };
   await page.reload();
-  await expect(page.getByText(character.name, { exact: true })).toBeVisible();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByTestId("button-new-character").click();
-  await expect(button).toBeVisible();
+  await page.getByTestId("button-edit-character-character-test").click();
+  for (const i of [0, 1, 2, 3]) await expect(page.getByTestId(`option-portrait-${i}`)).toBeVisible();
+  await expect(page.getByTestId("input-new-character-prompt")).toHaveValue("A weathered harbor pilot in a navy coat");
+
+  // Keep this look with a paid sheet model: requires its own confirmation.
+  const keep = page.getByTestId("button-keep-look");
+  await expect(keep).toBeDisabled();
+  await page.getByTestId("option-portrait-2").click();
+  await expect(keep).toBeEnabled();
+  await page.getByTestId("select-model-referenceSheet").click();
+  await page.getByTestId(`option-model-referenceSheet-${PAID}`).click();
+  await expect(keep).toBeDisabled();
+  await page.getByTestId("checkbox-paid-referenceSheet").click();
+  await keep.click();
+  await expect(page.getByTestId("reference-sheet")).toBeVisible();
+  expect(calls.keep).toHaveLength(1);
+  expect(calls.keep[0]).toMatchObject({ assetId: "PORTRAITS-asset-2", modelId: PAID, cloudConfirmed: true });
+  // Confirmation resets after the batch.
+  await expect(page.getByTestId("checkbox-paid-referenceSheet")).toHaveAttribute("data-state", "unchecked");
+
+  // Close, server completes the sheet, reopen: kept look selected and completed references visible.
+  await page.getByTestId("button-close-new-character").click();
+  looks = { portraits: looks.portraits, sheet: batch("SHEET", PAID, "COMPLETED", "READY") };
+  await page.reload();
+  await page.getByTestId("button-edit-character-character-test").click();
+  await expect(page.getByTestId("option-portrait-2")).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("option-portrait-2")).toContainText("Kept");
+  await expect(page.getByTestId("reference-sheet").locator("img")).toHaveCount(4);
+  await expect(page.getByTestId("button-keep-look")).toBeDisabled();
+  // Wait for the open animation to settle before checking it fits the viewport.
   await expect.poll(async () => {
-    const bounds = await page.getByTestId("dialog-new-character").boundingBox();
-    return bounds.x >= -0.5 && bounds.width <= 390;
+    const box = await page.getByTestId("dialog-new-character").boundingBox();
+    return box.x >= -0.5 && box.x + box.width <= viewport.width + 0.5;
   }).toBe(true);
-  await page.screenshot({ path: "/tmp/character-quick-mobile.png" });
-  console.log("PASS: prompt-only create, local-only model, failed submission retry, failed job retry, one character, progress, saved output, reload, mobile.");
+  expect(calls.legacy).toBe(0);
+  await page.screenshot({ path: `/tmp/character-looks-${label}.png` });
+  await context.close();
+}
+
+try {
+  await run({ width: 1366, height: 900 }, "desktop");
+  await run({ width: 390, height: 844 }, "mobile");
+  console.log("PASS desktop+mobile: local default, paid gating per batch, four looks, close/reopen from server, keep (paid confirmed), sheet survives close, no legacy endpoint, no real jobs.");
 } finally { await browser.close(); }

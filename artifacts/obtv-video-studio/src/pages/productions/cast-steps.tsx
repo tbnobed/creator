@@ -8,7 +8,7 @@ import { isFailed, isPending, type ProductionCharacter, type ProductionSettings,
 import { ModelPicker, useModelChoice, type ModelChoice } from "./model-picker";
 import type { RunAction } from "./workflow";
 import { SceneScenery, resolveSceneScenery } from "./scene-scenery";
-import { useListCharacters } from "@workspace/api-client-react";
+import { useListCharacters, useListSettings, getListSettingsQueryKey } from "@workspace/api-client-react";
 
 type StepProps = { state: ProductionState; run: RunAction; pendingAction: string | null; onSettings: (p: Partial<ProductionSettings>) => void };
 
@@ -316,6 +316,7 @@ function WardrobeRow({ model, character: c, outfits, maxScene, run, busy }: { mo
 const VARIANT_PRESETS = ["Morning", "Evening", "Night", "Storm"];
 
 export function PlacesStep({ state, run, pendingAction, onSettings }: StepProps) {
+  const library = useListSettings({ query: { queryKey: getListSettingsQueryKey(), staleTime: 0, refetchOnMount: "always" } });
   const model = useModelChoice("places", "generate", state.settings, onSettings);
   const variantModel = useModelChoice("variants", "edit", state.settings, onSettings);
   const [name, setName] = useState("");
@@ -341,6 +342,18 @@ export function PlacesStep({ state, run, pendingAction, onSettings }: StepProps)
       </div>
       {adding && (
         <section className="mt-6 space-y-3 rounded-2xl border border-primary/30 bg-card p-5" data-testid="form-place">
+          <label className="block text-sm">
+            Use a saved location
+            <select aria-label="Use a saved location" className="mt-2 w-full rounded-md border border-border bg-background p-2"
+              value="" disabled={!!pendingAction || library.isLoading}
+              onChange={async e => { const id = e.target.value; if (id && await run("import-place", { settingId: id })) setAdding(false); }}>
+              <option value="">Choose from Locations &amp; Scenery</option>
+              {library.data?.filter(location => !state.places.some(place => place.id === location.id)).map(location =>
+                <option key={location.id} value={location.id} disabled={!location.assetCount}>{location.name}{!location.assetCount ? " — no image" : ""}</option>)}
+            </select>
+          </label>
+          {library.isError && <p role="alert" className="text-sm text-destructive">Could not load saved locations. <button type="button" onClick={() => void library.refetch()}>Retry</button></p>}
+          <p className="text-xs text-muted-foreground">Reuse its images and variants without generating anything, or create a new location below.</p>
           {suggestions.length > 0 && (
             <div className="flex flex-wrap gap-1.5"><span className="text-xs text-muted-foreground">From your scenes:</span>
               {suggestions.map((s) => <button key={s} type="button" onClick={() => setName(s)} className="rounded-full border border-border px-2.5 py-0.5 text-xs hover:border-primary" data-testid={`chip-place-${s}`}>{s}</button>)}

@@ -1069,6 +1069,13 @@ export interface CharacterAssetUploadResult {
   mediaUrl: string;
 }
 
+export type SettingReferencesItem = {
+  id: string;
+  name: string;
+  url: string;
+  prompt: string;
+};
+
 export interface Setting {
   id: string;
   name: string;
@@ -1078,6 +1085,7 @@ export interface Setting {
   thumbnail: string | null;
   tags: string[];
   assetCount: number;
+  references?: SettingReferencesItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -1119,6 +1127,109 @@ export interface StudioImageGenerationInput {
   referenceLabel?: StudioImageGenerationInputReferenceLabel;
   /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
   requestKey?: string;
+}
+
+export interface CharacterLooksInput {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  prompt: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  modelId: string;
+  cloudConfirmed?: boolean;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
+  requestKey: string;
+}
+
+export interface CharacterKeepLookInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  assetId: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  modelId: string;
+  cloudConfirmed?: boolean;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ */
+  requestKey: string;
+}
+
+export interface CharacterLooksRetryInput {
+  cloudConfirmed?: boolean;
+}
+
+export type CharacterLookSlotStatus = typeof CharacterLookSlotStatus[keyof typeof CharacterLookSlotStatus];
+
+
+export const CharacterLookSlotStatus = {
+  PENDING: 'PENDING',
+  RUNNING: 'RUNNING',
+  READY: 'READY',
+  FAILED: 'FAILED',
+} as const;
+
+export interface CharacterLookSlot {
+  index: number;
+  /** @nullable */
+  view: string | null;
+  status: CharacterLookSlotStatus;
+  /** @nullable */
+  assetId: string | null;
+  /** @nullable */
+  mediaUrl: string | null;
+  /** @nullable */
+  error: string | null;
+}
+
+export type CharacterLookBatchKind = typeof CharacterLookBatchKind[keyof typeof CharacterLookBatchKind];
+
+
+export const CharacterLookBatchKind = {
+  PORTRAITS: 'PORTRAITS',
+  SHEET: 'SHEET',
+} as const;
+
+export type CharacterLookBatchStatus = typeof CharacterLookBatchStatus[keyof typeof CharacterLookBatchStatus];
+
+
+export const CharacterLookBatchStatus = {
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+} as const;
+
+export type CharacterLookBatchProvider = typeof CharacterLookBatchProvider[keyof typeof CharacterLookBatchProvider];
+
+
+export const CharacterLookBatchProvider = {
+  LOCAL: 'LOCAL',
+  CLOUD: 'CLOUD',
+} as const;
+
+export interface CharacterLookBatch {
+  id: string;
+  kind: CharacterLookBatchKind;
+  status: CharacterLookBatchStatus;
+  modelId: string;
+  modelName: string;
+  provider: CharacterLookBatchProvider;
+  prompt: string;
+  /** @nullable */
+  selectedAssetId: string | null;
+  createdAt: string;
+  slots: CharacterLookSlot[];
+}
+
+export interface CharacterLooks {
+  portraits: CharacterLookBatch | null;
+  sheet: CharacterLookBatch | null;
 }
 
 /**

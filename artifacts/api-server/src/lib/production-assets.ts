@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { db, charactersTable, characterAssetsTable, imageStudioAssetsTable, type ProductionProjectRow } from "@workspace/db";
+import { and, asc, eq } from "drizzle-orm";
+import { db, charactersTable, characterAssetsTable, imageStudioAssetsTable, settingsTable, settingAssetsTable, type ProductionProjectRow } from "@workspace/db";
 import { createImageJob, getImageJob, inspectImage, presentImageAsset } from "./image-studio-service";
 import { mediaStorage } from "./storage-service";
 import { getImageModel } from "./image-studio-models";
 import { numberIn, text, type ProductionState, type ProductionTask } from "./production-types";
 import { stateOf } from "./production-store";
+import { publishProductionScenery } from "./scenery-library";
 
 const MODEL = "local-flux2-klein-4b";
 const views = ["front", "three-quarter", "profile", "expressions"];
@@ -26,7 +27,29 @@ function flagCharacterScenes(state: ProductionState, id: string) {
 }
 export async function mutateProductionAsset(row: ProductionProjectRow, action: string, payload: Record<string, unknown>) {
   const state = stateOf(row);
+  if (action === "import-place") {
+    const id = text(payload.settingId, "Location ID", 100);
+    if (state.places.some(p => p.id === id)) return state;
+    const [source] = await db.select().from(settingsTable).where(and(eq(settingsTable.id, id), eq(settingsTable.tenantId, row.tenantId)));
+    if (!source) throw new Error("Location not found in this workspace.");
+    const refs = await db.select().from(settingAssetsTable).where(eq(settingAssetsTable.settingId, id)).orderBy(asc(settingAssetsTable.sortOrder), asc(settingAssetsTable.createdAt));
+    const images = [];
+    for (const ref of refs.filter(ref => ref.mimeType.startsWith("image/"))) {
+      let [asset] = await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId, row.tenantId), eq(imageStudioAssetsTable.storageKey, ref.storageKey)));
+      if (!asset) {
+        const metadata = inspectImage(await mediaStorage.readBuffer(ref.storageKey), ref.mimeType);
+        [asset] = await db.insert(imageStudioAssetsTable).values({ tenantId: row.tenantId, createdByUserId: row.createdByUserId, name: ref.originalName, storageKey: ref.storageKey, ...metadata }).returning();
+      }
+      images.push({ id: ref.id, name: ref.originalName, prompt: ref.description, assetId: asset.id, mediaUrl: presentImageAsset(asset).url, status: "READY" });
+    }
+    if (!images.length) throw new Error("This location has no reference image yet. Add one in Locations & Scenery first.");
+    state.places.push({ id: source.id, name: source.name, prompt: source.promptDescription || source.description,
+      seed: Math.floor(Math.random() * 2147483647), assetId: images[0].assetId, mediaUrl: images[0].mediaUrl,
+      status: "READY", variants: images.slice(1) });
+    return state;
+  }
   if (action === "remove-place" || action === "remove-variant") {
+    await publishProductionScenery(row);
     const place = state.places.find(p => p.id === payload.placeId);
     if (!place) throw new Error("Scenery not found in this production.");
     const ids = action === "remove-place" ? [place.id, ...place.variants.map(v => v.id)] : [text(payload.id, "Variant ID", 100)];
@@ -207,5 +230,8 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
   if (task.index >= total) {
     task.status = "COMPLETED";
     entity.status = task.type === "sheet" ? "LOCKED" : "READY";
+    if (task.type === "place" || task.type === "variant") {
+      await publishProductionScenery({ ...row, state: state as unknown as Record<string, unknown> });
+    }
   }
 }

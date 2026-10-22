@@ -21,17 +21,22 @@ import { useToast } from "@/hooks/use-toast";
 import { ImageGenerator } from "@/components/studio/ImageGenerator";
 
 export default function SettingsPage() {
-  const { data: settings, isLoading } = useListSettings();
+  const { data: settings, isLoading, isError, refetch } = useListSettings({ query: { queryKey: getListSettingsQueryKey(), staleTime: 0, refetchOnMount: "always", refetchInterval: 15000 } });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteSetting();
+  const { toast } = useToast();
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this location?")) {
-      await deleteMutation.mutateAsync({ id });
-      queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
+      try {
+        await deleteMutation.mutateAsync({ id });
+        queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
+      } catch (error) {
+        toast({ title: "Location not deleted", description: error instanceof Error ? error.message : "Try again.", variant: "destructive" });
+      }
     }
   };
 
@@ -58,7 +63,7 @@ export default function SettingsPage() {
         }
       />
 
-      {isLoading ? (
+      {isError ? <div role="alert">Could not load locations. <Button variant="outline" onClick={() => void refetch()}>Retry</Button></div> : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2].map(i => (
             <Card key={i} className="h-64 bg-card/50 border-border/50 animate-pulse" />
@@ -128,6 +133,15 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1">
                   {setting.description || "No description provided."}
                 </p>
+                {(setting.references?.length ?? 0) > 1 && <details className="mb-3 text-sm">
+                  <summary className="cursor-pointer">Reference images ({setting.references!.length})</summary>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {setting.references!.map(ref => <a key={ref.id} href={ref.url} target="_blank" rel="noreferrer" className="min-w-0">
+                      <img src={ref.url} alt={ref.name} loading="lazy" className="aspect-video w-full rounded object-cover" />
+                      <span className="block truncate text-xs">{ref.name}</span>
+                    </a>)}
+                  </div>
+                </details>}
                 <div className="flex flex-wrap gap-1">
                   {setting.tags?.slice(0, 3).map(tag => (
                     <Badge key={tag} variant="secondary" className="text-xs px-2 py-0 h-5 bg-secondary/50">{tag}</Badge>

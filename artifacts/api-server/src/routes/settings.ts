@@ -19,14 +19,18 @@ import {
   StudioImageGenerationUnavailableError,
 } from "../lib/studio-image-generation";
 import { presentSetting } from "../lib/studio-presenters";
+import { reconcileSceneryLibrary, sceneryUsedByProjects } from "../lib/scenery-library";
 
 const router: IRouter = Router();
 
 async function list(tenantId: string) {
+  await reconcileSceneryLibrary(tenantId);
   const settings = await db.select().from(settingsTable).where(eq(settingsTable.tenantId, tenantId));
   return Promise.all(settings.map(async (setting) => {
-    const assets = await db.select({ id: settingAssetsTable.id }).from(settingAssetsTable).where(eq(settingAssetsTable.settingId, setting.id));
-    return presentSetting(setting, assets.length);
+    const assets = await db.select().from(settingAssetsTable).where(eq(settingAssetsTable.settingId, setting.id));
+    return { ...presentSetting(setting, assets.length), references: assets.sort((a, b) => a.sortOrder - b.sortOrder).map(asset => ({
+      id: asset.id, name: asset.originalName, url: `/api/media/${asset.storageKey}`, prompt: asset.description,
+    })) };
   }));
 }
 
@@ -75,6 +79,10 @@ router.delete("/settings/:id", async (req, res): Promise<void> => {
   const params = DeleteSettingParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (await sceneryUsedByProjects(req.context!.tenant!.id, params.data.id)) {
+    res.status(409).json({ error: "This location is used by a production. Remove it from those projects before deleting it from the library." });
     return;
   }
   const [deleted] = await db.delete(settingsTable).where(and(

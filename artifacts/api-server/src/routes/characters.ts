@@ -48,6 +48,23 @@ import {
   StudioImageGenerationUnavailableError,
 } from "../lib/studio-image-generation";
 import { presentCharacter } from "../lib/studio-presenters";
+import {
+  CharacterLookError,
+  getCharacterLooks,
+  keepCharacterLook,
+  retryCharacterLookBatch,
+  startPortraitBatch,
+} from "../lib/character-looks";
+import {
+  GetCharacterLooksParams,
+  GetCharacterLooksResponse,
+  KeepCharacterLookBody,
+  KeepCharacterLookParams,
+  RetryCharacterLooksBody,
+  RetryCharacterLooksParams,
+  StartCharacterLooksBody,
+  StartCharacterLooksParams,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -260,6 +277,55 @@ router.post("/characters/:id/dossier/approve", async (req, res): Promise<void> =
     return;
   }
   res.json(ApproveCharacterDossierResponse.parse(result.dossier));
+});
+
+function lookFailure(res: express.Response, error: unknown) {
+  if (error instanceof CharacterLookError) {
+    res.status(error.status).json({ error: error.message });
+    return;
+  }
+  res.status(500).json({ error: "Character looks could not be updated" });
+}
+
+router.get("/characters/:id/looks", async (req, res): Promise<void> => {
+  const params = GetCharacterLooksParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  try {
+    res.json(GetCharacterLooksResponse.parse(await getCharacterLooks(req.context!.tenant!.id, params.data.id)));
+  } catch (error) { lookFailure(res, error); }
+});
+
+router.post("/characters/:id/looks", async (req, res): Promise<void> => {
+  const params = StartCharacterLooksParams.safeParse(req.params);
+  const body = StartCharacterLooksBody.safeParse(req.body);
+  if (!params.success || !body.success) { res.status(400).json({ error: (params.error ?? body.error)!.message }); return; }
+  try {
+    res.status(202).json(GetCharacterLooksResponse.parse(await startPortraitBatch({
+      tenantId: req.context!.tenant!.id, userId: req.context!.user.id, characterId: params.data.id, ...body.data,
+    })));
+  } catch (error) { lookFailure(res, error); }
+});
+
+router.post("/characters/:id/looks/:batchId/keep", async (req, res): Promise<void> => {
+  const params = KeepCharacterLookParams.safeParse(req.params);
+  const body = KeepCharacterLookBody.safeParse(req.body);
+  if (!params.success || !body.success) { res.status(400).json({ error: (params.error ?? body.error)!.message }); return; }
+  try {
+    res.status(202).json(GetCharacterLooksResponse.parse(await keepCharacterLook({
+      tenantId: req.context!.tenant!.id, userId: req.context!.user.id, characterId: params.data.id, batchId: params.data.batchId, ...body.data,
+    })));
+  } catch (error) { lookFailure(res, error); }
+});
+
+router.post("/characters/:id/looks/:batchId/retry", async (req, res): Promise<void> => {
+  const params = RetryCharacterLooksParams.safeParse(req.params);
+  const body = RetryCharacterLooksBody.safeParse(req.body ?? {});
+  if (!params.success || !body.success) { res.status(400).json({ error: (params.error ?? body.error)!.message }); return; }
+  try {
+    res.status(202).json(GetCharacterLooksResponse.parse(await retryCharacterLookBatch({
+      tenantId: req.context!.tenant!.id, characterId: params.data.id, batchId: params.data.batchId, ...body.data,
+    })));
+  } catch (error) { lookFailure(res, error); }
 });
 
 router.post("/characters/:id/generate-image", async (req, res): Promise<void> => {

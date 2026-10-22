@@ -18,6 +18,7 @@ function makeMock() {
     const json = (data, status = 200) => route.fulfill({ status, json: data });
     if (path === "/api/session") return json({ user: { id: "u1", email: "t@example.com", displayName: "Test", siteRole: "SITE_ADMIN" }, activeTenant: { id: "t1", name: "Test", slug: "test", role: "OWNER" } });
     if (path === "/api/characters") return json([{ id: "saved-mara", name: "Saved Mara", description: "Mechanic", promptDescription: "Mechanic", thumbnail: image, tags: [], assetCount: 1 }]);
+    if (path === "/api/settings") return json([{ id: "library-room", name: "Shared lantern room", description: "Shared room", promptDescription: "Room", thumbnail: image, tags: [], assetCount: 2, createdAt: now(), updatedAt: now(), references: [{ id: "base", name: "Base", prompt: "Night", url: image }, { id: "dawn", name: "Dawn", prompt: "Dawn", url: image }] }]);
     if (path === "/api/image-studio/models") return json({ models: [
       { id: "local-flux2-klein-4b", name: "FLUX.2 klein", provider: "LOCAL", description: "", operations: ["generate", "edit"], aspectRatios: ["1:1"], maxImages: 4, supportsSeed: true, supportsNegativePrompt: false, maxReferences: 4, priceNote: "", available: true },
       { id: "cloud-nano-banana-pro", name: "Nano Banana Pro", provider: "CLOUD", description: "", operations: ["generate", "edit"], aspectRatios: ["1:1"], maxImages: 4, supportsSeed: false, supportsNegativePrompt: false, maxReferences: 8, priceNote: "about $0.14 per image", available: true },
@@ -53,6 +54,7 @@ function makeMock() {
       if (body.action === "draft-story") st.story = { ...st.story, draftStatus: "READY", scenes };
       if (body.action === "cancel-story") { st.story.draftStatus = "CANCELLED"; if (st.story.progress) st.story.progress.active = false; st.tasks = st.tasks.map(t => t.type === "story" ? { ...t, status: "CANCELLED" } : t); }
       if (body.action === "import-character") st.characters.push({ id: "imported-mara", characterId: body.payload.characterId, name: "Saved Mara", description: "Mechanic", seed: 1, options: [{ assetId: "saved-image", mediaUrl: image }], selectedAssetId: "saved-image", referenceSheet: [{ assetId: "saved-image", mediaUrl: image }], locked: true, status: "LOCKED" });
+      if (body.action === "import-place") st.places.push({ id: body.payload.settingId, name: "Shared lantern room", prompt: "Room", seed: 1, status: "READY", assetId: "shared-base", mediaUrl: image, variants: [{ id: "shared-dawn", name: "Dawn", prompt: "Dawn", assetId: "shared-dawn-image", mediaUrl: image, status: "READY" }] });
       if (body.action === "remove-place") st.places = st.places.filter(p => p.id !== body.payload.placeId);
       if (body.action === "remove-variant") st.places = st.places.map(p => p.id === body.payload.placeId ? { ...p, variants: p.variants.filter(v => v.id !== body.payload.id) } : p);
       if (body.action === "add-character") st.characters.push({ id: "pc-1", name: body.payload.name, description: body.payload.description, seed: 42, options: [0, 1, 2, 3].map((i) => ({ assetId: `opt-${i}`, mediaUrl: image })), locked: false, referenceSheet: [], status: "READY" });
@@ -76,6 +78,12 @@ try {
     await context.route("**/api/**", mock.handle);
     const page = await context.newPage();
     await page.goto(`${base}/projects/new`);
+    const navigation = page.getByRole("navigation", { name: "Studio sections" });
+    await expect(navigation.getByRole("link", { name: "Long-Form", exact: true })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Queue & History", exact: true })).not.toBeVisible();
+    await navigation.getByText("More", { exact: true }).click();
+    await expect(navigation.getByRole("link", { name: "Queue & History", exact: true })).toBeVisible();
+    await navigation.getByText("More", { exact: true }).click();
     await page.getByTestId("input-production-title").fill("Harrow Point");
     await page.getByTestId("input-story-summary").fill("A storm-chaser returns home.");
     await page.getByTestId("button-length-30").click();
@@ -348,6 +356,20 @@ try {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: "/tmp/production-create-mobile.png", fullPage: true });
     console.log("PASS: differently named scenery and variants explicitly assigned, saved across navigation/reload, no image requests, and removed selections fail closed");
+    await page.getByTestId("button-step-3").click();
+    await page.getByTestId("button-add-place").click();
+    await page.getByLabel("Use a saved location", { exact: true }).selectOption("library-room");
+    await expect(page.getByText("Shared lantern room", { exact: true }).first()).toBeVisible();
+    expect(mock.actions.at(-1)).toMatchObject({ action: "import-place", payload: { settingId: "library-room" } });
+    const projectUrl = page.url();
+    await page.goto(`${base}/settings`);
+    await expect(page.getByRole("heading", { name: "Locations & Scenery" })).toBeVisible();
+    await page.getByText("Reference images (2)", { exact: true }).click();
+    await expect(page.getByAltText("Dawn", { exact: true })).toBeVisible();
+    await page.screenshot({ path: "/tmp/scenery-library-mobile.png", fullPage: true });
+    await page.goto(projectUrl);
+    await expect(page.getByText("Shared lantern room", { exact: true }).first()).toBeVisible();
+    console.log("PASS: shared location import, variants, library display and reload persistence");
     await context.close();
   }
   console.log("production workflow browser checks passed");

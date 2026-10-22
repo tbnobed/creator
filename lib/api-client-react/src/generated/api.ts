@@ -37,6 +37,10 @@ import type {
   CharacterImageGeneration,
   CharacterImageGenerationInput,
   CharacterInput,
+  CharacterKeepLookInput,
+  CharacterLooks,
+  CharacterLooksInput,
+  CharacterLooksRetryInput,
   CharacterUpdateInput,
   CharacterVoiceSampleResult,
   ComfyServer,
@@ -2807,6 +2811,303 @@ export const useGenerateCharacterImage = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGenerateCharacterImageMutationOptions(options));
+    }
+
+export const getGetCharacterLooksUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/looks`
+}
+
+/**
+ * @summary Latest portrait options and reference sheet for a character
+ */
+export const getCharacterLooks = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CharacterLooks> => {
+
+  return customFetch<CharacterLooks>(getGetCharacterLooksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCharacterLooksQueryKey = (id: string,) => {
+    return [
+    `/api/characters/${id}/looks`
+    ] as const;
+    }
+
+
+export const getGetCharacterLooksQueryOptions = <TData = Awaited<ReturnType<typeof getCharacterLooks>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCharacterLooks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCharacterLooksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCharacterLooks>>> = ({ signal }) => getCharacterLooks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCharacterLooks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCharacterLooksQueryResult = NonNullable<Awaited<ReturnType<typeof getCharacterLooks>>>
+export type GetCharacterLooksQueryError = ErrorType<void>
+
+
+/**
+ * @summary Latest portrait options and reference sheet for a character
+ */
+
+export function useGetCharacterLooks<TData = Awaited<ReturnType<typeof getCharacterLooks>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCharacterLooks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCharacterLooksQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartCharacterLooksUrl = (id: string,) => {
+
+
+
+
+  return `/api/characters/${id}/looks`
+}
+
+/**
+ * @summary Start a durable batch of four portrait options
+ */
+export const startCharacterLooks = async (id: string,
+    characterLooksInput: CharacterLooksInput, options?: Parameters<typeof customFetch>[1]): Promise<CharacterLooks> => {
+
+  return customFetch<CharacterLooks>(getStartCharacterLooksUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(characterLooksInput)
+  }
+);}
+
+
+
+
+
+export const getStartCharacterLooksMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCharacterLooks>>, TError,{id: string;data: BodyType<CharacterLooksInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startCharacterLooks>>, TError,{id: string;data: BodyType<CharacterLooksInput>}, TContext> => {
+
+const mutationKey = ['startCharacterLooks'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startCharacterLooks>>, {id: string;data: BodyType<CharacterLooksInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  startCharacterLooks(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartCharacterLooksMutationResult = NonNullable<Awaited<ReturnType<typeof startCharacterLooks>>>
+    export type StartCharacterLooksMutationBody = BodyType<CharacterLooksInput>
+    export type StartCharacterLooksMutationError = ErrorType<void>
+
+    /**
+ * @summary Start a durable batch of four portrait options
+ */
+export const useStartCharacterLooks = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startCharacterLooks>>, TError,{id: string;data: BodyType<CharacterLooksInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startCharacterLooks>>,
+        TError,
+        {id: string;data: BodyType<CharacterLooksInput>},
+        TContext
+      > => {
+      return useMutation(getStartCharacterLooksMutationOptions(options));
+    }
+
+export const getKeepCharacterLookUrl = (id: string,
+    batchId: string,) => {
+
+
+
+
+  return `/api/characters/${id}/looks/${batchId}/keep`
+}
+
+/**
+ * @summary Keep a portrait as the primary headshot and start its reference sheet
+ */
+export const keepCharacterLook = async (id: string,
+    batchId: string,
+    characterKeepLookInput: CharacterKeepLookInput, options?: Parameters<typeof customFetch>[1]): Promise<CharacterLooks> => {
+
+  return customFetch<CharacterLooks>(getKeepCharacterLookUrl(id,batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(characterKeepLookInput)
+  }
+);}
+
+
+
+
+
+export const getKeepCharacterLookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepCharacterLook>>, TError,{id: string;batchId: string;data: BodyType<CharacterKeepLookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof keepCharacterLook>>, TError,{id: string;batchId: string;data: BodyType<CharacterKeepLookInput>}, TContext> => {
+
+const mutationKey = ['keepCharacterLook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof keepCharacterLook>>, {id: string;batchId: string;data: BodyType<CharacterKeepLookInput>}> = (props) => {
+          const {id,batchId,data} = props ?? {};
+
+          return  keepCharacterLook(id,batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KeepCharacterLookMutationResult = NonNullable<Awaited<ReturnType<typeof keepCharacterLook>>>
+    export type KeepCharacterLookMutationBody = BodyType<CharacterKeepLookInput>
+    export type KeepCharacterLookMutationError = ErrorType<void>
+
+    /**
+ * @summary Keep a portrait as the primary headshot and start its reference sheet
+ */
+export const useKeepCharacterLook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepCharacterLook>>, TError,{id: string;batchId: string;data: BodyType<CharacterKeepLookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof keepCharacterLook>>,
+        TError,
+        {id: string;batchId: string;data: BodyType<CharacterKeepLookInput>},
+        TContext
+      > => {
+      return useMutation(getKeepCharacterLookMutationOptions(options));
+    }
+
+export const getRetryCharacterLooksUrl = (id: string,
+    batchId: string,) => {
+
+
+
+
+  return `/api/characters/${id}/looks/${batchId}/retry`
+}
+
+/**
+ * @summary Resubmit only the failed images of a batch
+ */
+export const retryCharacterLooks = async (id: string,
+    batchId: string,
+    characterLooksRetryInput: CharacterLooksRetryInput, options?: Parameters<typeof customFetch>[1]): Promise<CharacterLooks> => {
+
+  return customFetch<CharacterLooks>(getRetryCharacterLooksUrl(id,batchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(characterLooksRetryInput)
+  }
+);}
+
+
+
+
+
+export const getRetryCharacterLooksMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCharacterLooks>>, TError,{id: string;batchId: string;data: BodyType<CharacterLooksRetryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryCharacterLooks>>, TError,{id: string;batchId: string;data: BodyType<CharacterLooksRetryInput>}, TContext> => {
+
+const mutationKey = ['retryCharacterLooks'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryCharacterLooks>>, {id: string;batchId: string;data: BodyType<CharacterLooksRetryInput>}> = (props) => {
+          const {id,batchId,data} = props ?? {};
+
+          return  retryCharacterLooks(id,batchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryCharacterLooksMutationResult = NonNullable<Awaited<ReturnType<typeof retryCharacterLooks>>>
+    export type RetryCharacterLooksMutationBody = BodyType<CharacterLooksRetryInput>
+    export type RetryCharacterLooksMutationError = ErrorType<void>
+
+    /**
+ * @summary Resubmit only the failed images of a batch
+ */
+export const useRetryCharacterLooks = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCharacterLooks>>, TError,{id: string;batchId: string;data: BodyType<CharacterLooksRetryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryCharacterLooks>>,
+        TError,
+        {id: string;batchId: string;data: BodyType<CharacterLooksRetryInput>},
+        TContext
+      > => {
+      return useMutation(getRetryCharacterLooksMutationOptions(options));
     }
 
 export const getGetCharacterDossierUrl = (id: string,) => {

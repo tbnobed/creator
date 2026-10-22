@@ -83,11 +83,10 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/studio", label: "Generate", icon: Clapperboard },
     { href: "/image-studio", label: "Images", icon: Palette },
     { href: "/projects", label: "Long-Form", icon: Film },
-    { href: "/generations", label: "Queue", icon: Activity },
   ];
 
   const secondaryMobileLinks = allLinks.filter(link => !primaryMobileLinks.find(pl => pl.href === link.href));
-  const primaryDesktopLinks = allLinks.filter((link) => ["/studio", "/image-studio", "/generations"].includes(link.href));
+  const primaryDesktopLinks = allLinks.filter((link) => ["/studio", "/image-studio", "/projects"].includes(link.href));
   const secondaryDesktopLinks = allLinks.filter((link) => !primaryDesktopLinks.some((primary) => primary.href === link.href));
 
   return (
@@ -127,7 +126,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-border bg-card p-2 shadow-2xl">
               {["Create", "Manage"].map((group) => <div key={group}>
               <p className="px-3 pb-1 pt-3 text-xs font-semibold text-foreground">{group}</p>
-              {secondaryDesktopLinks.filter(link => (["/servers", "/workflows", "/admin", "/spending"].includes(link.href)) === (group === "Manage")).map((link) => (
+              {secondaryDesktopLinks.filter(link => (["/generations", "/servers", "/workflows", "/admin", "/spending"].includes(link.href)) === (group === "Manage")).map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

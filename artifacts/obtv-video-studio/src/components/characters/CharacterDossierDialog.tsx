@@ -17,6 +17,8 @@ import {
   useUpdateCharacterDossier, 
   useApproveCharacterDossier,
   getGetCharacterDossierQueryKey,
+  useGetCharacterLooks,
+  getGetCharacterLooksQueryKey,
   CharacterWardrobe as IWardrobe
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,9 +42,14 @@ export function CharacterDossierDialog({
   const { data: characters } = useListCharacters();
   const [quickId, setQuickId] = useState<string | null>(null);
   const [mode, setMode] = useState<"quick" | "advanced">("quick");
+  // Characters with a server-owned look batch reopen on their portraits and reference sheet.
+  const { data: looks, isFetched: looksFetched } = useGetCharacterLooks(characterId ?? "", {
+    query: { enabled: open && !!characterId, queryKey: getGetCharacterLooksQueryKey(characterId ?? ""), staleTime: 0 },
+  });
+  const hasLooks = !!looks?.portraits;
   useEffect(() => {
-    if (open) { setQuickId(null); setMode(characterId ? "advanced" : "quick"); }
-  }, [open, characterId]);
+    if (open) { setQuickId(null); setMode(characterId ? (hasLooks ? "quick" : "advanced") : "quick"); }
+  }, [open, characterId, hasLooks]);
   const effectiveId = characterId ?? quickId;
   const character = characters?.find(c => c.id === effectiveId);
   
@@ -64,15 +71,15 @@ export function CharacterDossierDialog({
   
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {open && mode === "quick" && !characterId && (
+      {open && mode === "quick" && (!characterId || (looksFetched && hasLooks)) && (
         <CharacterQuickCreate
-          characterId={quickId}
+          characterId={characterId ?? quickId}
           onCharacterCreated={setQuickId}
           onOpenAdvanced={() => setMode("advanced")}
           onClose={() => onOpenChange(false)}
         />
       )}
-      {open && (mode === "advanced" || !!characterId) && (effectiveId === null || character) && (
+      {open && (mode === "advanced" || (!!characterId && looksFetched && !hasLooks)) && (effectiveId === null || character) && (
         <CharacterDossierEditor
           key={effectiveId ?? "new"}
           character={character} 

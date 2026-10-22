@@ -62,3 +62,15 @@ Keep the production workflow uncluttered; do not duplicate setup controls across
 **Why:** The user objected to unnecessary elements and an overcrowded interface after scenery assignments appeared in both Places and Create.
 
 **How to apply:** Give each setting one primary home. Keep advanced settings and completed history available on demand while showing blocking issues, active progress, and paid confirmations clearly.
+
+Project locations and variants belong in the shared Locations & Scenery library and must be reusable without regeneration.
+
+**Why:** The user explicitly requested merging project Places with the standalone location library after finding their created scenery missing there.
+
+**How to apply:** Share existing images and preserve stable project reference IDs. Removing a project reference must not remove library media; edits in a shared library must not silently change an already approved production.
+
+Long-Form belongs in primary navigation; Queue & History belongs in the More menu.
+
+**Why:** The user explicitly requested this navigation priority.
+
+**How to apply:** Keep Long-Form directly accessible on desktop and mobile rather than replacing it with the queue.

@@ -666,6 +666,113 @@ paths:
                 $ref: "#/components/schemas/CharacterImageGeneration"
         "409":
           description: Another character image task is already active
+  /characters/{id}/looks:
+    get:
+      operationId: getCharacterLooks
+      tags: [characters]
+      summary: Latest portrait options and reference sheet for a character
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Server-owned look batches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterLooks"
+        "404":
+          description: Character not found
+    post:
+      operationId: startCharacterLooks
+      tags: [characters]
+      summary: Start a durable batch of four portrait options
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterLooksInput"
+      responses:
+        "202":
+          description: Batch accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterLooks"
+        "400":
+          description: Invalid request or unsupported model
+        "402":
+          description: Paid batch not confirmed
+        "404":
+          description: Character or batch not found
+        "409":
+          description: A batch of this kind is already generating
+  /characters/{id}/looks/{batchId}/keep:
+    post:
+      operationId: keepCharacterLook
+      tags: [characters]
+      summary: Keep a portrait as the primary headshot and start its reference sheet
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - in: path
+          name: batchId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterKeepLookInput"
+      responses:
+        "202":
+          description: Look kept and reference sheet accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterLooks"
+        "400":
+          description: Invalid request or unsupported model
+        "402":
+          description: Paid batch not confirmed
+        "404":
+          description: Character or batch not found
+        "409":
+          description: A batch of this kind is already generating
+  /characters/{id}/looks/{batchId}/retry:
+    post:
+      operationId: retryCharacterLooks
+      tags: [characters]
+      summary: Resubmit only the failed images of a batch
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - in: path
+          name: batchId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterLooksRetryInput"
+      responses:
+        "202":
+          description: Failed images resubmitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharacterLooks"
+        "400":
+          description: Invalid request or unsupported model
+        "402":
+          description: Paid batch not confirmed
+        "404":
+          description: Character or batch not found
+        "409":
+          description: A batch of this kind is already generating
   /characters/{id}/dossier:
     get:
       operationId: getCharacterDossier
@@ -2632,6 +2739,16 @@ components:
         thumbnail: { type: ["string", "null"] }
         tags: { type: array, items: { type: string } }
         assetCount: { type: number }
+        references:
+          type: array
+          items:
+            type: object
+            required: [id, name, url, prompt]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              url: { type: string }
+              prompt: { type: string }
         createdAt: { type: string }
         updatedAt: { type: string }
     SettingInput:
@@ -2654,6 +2771,64 @@ components:
         requestKey:
           type: string
           pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    CharacterLooksInput:
+      type: object
+      required: [prompt, modelId, requestKey]
+      properties:
+        prompt: { type: string, minLength: 1, maxLength: 4000 }
+        modelId: { type: string, minLength: 1, maxLength: 200 }
+        cloudConfirmed: { type: boolean }
+        requestKey: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" }
+    CharacterKeepLookInput:
+      type: object
+      required: [assetId, modelId, requestKey]
+      properties:
+        assetId: { type: string, minLength: 1, maxLength: 100 }
+        modelId: { type: string, minLength: 1, maxLength: 200 }
+        cloudConfirmed: { type: boolean }
+        requestKey: { type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" }
+    CharacterLooksRetryInput:
+      type: object
+      properties:
+        cloudConfirmed: { type: boolean }
+    CharacterLookSlot:
+      type: object
+      required: [index, view, status, assetId, mediaUrl, error]
+      properties:
+        index: { type: number }
+        view: { type: ["string", "null"] }
+        status: { type: string, enum: [PENDING, RUNNING, READY, FAILED] }
+        assetId: { type: ["string", "null"] }
+        mediaUrl: { type: ["string", "null"] }
+        error: { type: ["string", "null"] }
+    CharacterLookBatch:
+      type: object
+      required: [id, kind, status, modelId, modelName, provider, prompt, selectedAssetId, createdAt, slots]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [PORTRAITS, SHEET] }
+        status: { type: string, enum: [ACTIVE, COMPLETED, FAILED] }
+        modelId: { type: string }
+        modelName: { type: string }
+        provider: { type: string, enum: [LOCAL, CLOUD] }
+        prompt: { type: string }
+        selectedAssetId: { type: ["string", "null"] }
+        createdAt: { type: string }
+        slots:
+          type: array
+          items: { $ref: "#/components/schemas/CharacterLookSlot" }
+    CharacterLooks:
+      type: object
+      required: [portraits, sheet]
+      properties:
+        portraits:
+          oneOf:
+            - $ref: "#/components/schemas/CharacterLookBatch"
+            - type: "null"
+        sheet:
+          oneOf:
+            - $ref: "#/components/schemas/CharacterLookBatch"
+            - type: "null"
     CharacterImageGenerationInput:
       type: object
       properties:

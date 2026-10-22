@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SettingReferencesItem } from './settingReferencesItem';
 
 export interface Setting {
   id: string;
@@ -15,6 +16,7 @@ export interface Setting {
   thumbnail: string | null;
   tags: string[];
   assetCount: number;
+  references?: SettingReferencesItem[];
   createdAt: string;
   updatedAt: string;
 }
