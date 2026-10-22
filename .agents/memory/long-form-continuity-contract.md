@@ -20,3 +20,9 @@ Reusable character dossiers are a source for explicitly imported production sett
 **Why:** Updating a cast-library wardrobe must not unexpectedly change an ongoing production's approved look. Dossier approval is advisory for legacy character use, separate from shot-still approval.
 
 **How to apply:** Import approved dossier data only by producer action, confirm replacements, and retain project-owned snapshots. Describe text-only reference generation honestly; a saved primary image does not mean every image workflow consumes it.
+
+The user requires exact starting-frame continuation, not the previous frame supplied merely as a visual reference.
+
+**Why:** The user explicitly chose exact first-frame continuation when H3 REF2VA could not provide it.
+
+**How to apply:** Do not alias H3 reference images as first frames. A workflow must consume a true starting-frame input without displacing mandatory cast/scenery references; otherwise it needs an approved composed-frame stage before animation.

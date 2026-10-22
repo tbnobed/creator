@@ -82,8 +82,15 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
 }) {
   const { toast } = useToast();
   const { data: caps = [], isLoading: capsLoading, error: capsError } = useGetGenerationCapabilities();
-  const modes = caps.filter((c, i, all) => !c.supportsReferenceVideo && c.supportsCharacterReferences
-    && all.findIndex((x) => !x.supportsReferenceVideo && x.supportsCharacterReferences && x.generationMode === c.generationMode) === i);
+  const requiredSlots = Math.max(1, ...state.story.scenes.map(scene => {
+    const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
+    return 1 + cast.length + cast.filter(c => state.wardrobes.some(w =>
+      w.characterId === c.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber,
+    )).length;
+  }));
+  const compatible = caps.filter(c => !c.supportsReferenceVideo && c.supportsFirstFrame
+    && (c.referenceImageSlots ?? 0) >= requiredSlots);
+  const modes = compatible.filter((c, i) => compatible.findIndex(x => x.generationMode === c.generationMode) === i);
   const rid = project?.renderProjectId ?? null;
   const render = useRender(rid);
   const rp = render.data;
@@ -104,7 +111,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
   const cloudProblem = cloud ? (!cloudModel ? "Choose a cloud model" : cloudModelReason(cloudModel) ?? cloudDurationProblem(cloudModel, s.shotDurationSeconds)) : null;
   const [confirmed, setConfirmed] = useState(false);
   useEffect(() => setConfirmed(false), [s.videoProvider, s.videoModel]);
-  const ready = cloud ? !cloudProblem && confirmed : !!s.generationMode;
+  const ready = cloud ? !cloudProblem && confirmed : modes.some(m => m.generationMode === s.generationMode);
 
   const createAll = async () => {
     if (!ready) return;
@@ -152,7 +159,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
             </SelectContent>
           </Select>
           {capsError ? <p className="mt-1 text-xs text-destructive">Could not load workflows: {errorMessage(capsError)}</p>
-            : !capsLoading && modes.length === 0 ? <p className="mt-1 text-xs text-amber-300">No character-reference workflows are available on this workspace.</p> : null}
+            : !capsLoading && !modes.some(m => m.generationMode === s.generationMode) ? <p className="mt-1 text-xs text-amber-300">{modes.length ? "Choose a compatible workflow." : `No active local workflow supports a starting frame plus ${requiredSlots} separate cast/scenery references. Install a compatible workflow before rendering.`}</p> : null}
         </div>
         ) : (
         <div className="sm:col-span-2">

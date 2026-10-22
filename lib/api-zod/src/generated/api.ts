@@ -346,6 +346,11 @@ export const AcceptTenantInvitationResponse = zod.object({
 /**
  * @summary List safe generation options available to the active tenant
  */
+export const getGenerationCapabilitiesResponseReferenceImageSlotsMin = 0;
+export const getGenerationCapabilitiesResponseReferenceImageSlotsMultipleOf = 1;
+
+
+
 export const GetGenerationCapabilitiesResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -353,6 +358,8 @@ export const GetGenerationCapabilitiesResponseItem = zod.object({
   "modelFamily": zod.string(),
   "supportsReferenceVideo": zod.boolean(),
   "supportsCharacterReferences": zod.boolean(),
+  "supportsFirstFrame": zod.boolean().optional(),
+  "referenceImageSlots": zod.number().min(getGenerationCapabilitiesResponseReferenceImageSlotsMin).multipleOf(getGenerationCapabilitiesResponseReferenceImageSlotsMultipleOf).optional(),
   "supportsSettingReference": zod.boolean(),
   "requiresCharacterReferences": zod.boolean(),
   "requiresSettingReference": zod.boolean()

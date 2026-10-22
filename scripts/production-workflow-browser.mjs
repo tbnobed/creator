@@ -24,7 +24,7 @@ function makeMock() {
       { id: "cloud-nano-banana-pro", name: "Nano Banana Pro", provider: "CLOUD", description: "", operations: ["generate", "edit"], aspectRatios: ["1:1"], maxImages: 4, supportsSeed: false, supportsNegativePrompt: false, maxReferences: 8, priceNote: "about $0.14 per image", available: true },
       { id: "local-offline", name: "Offline model", provider: "LOCAL", description: "", operations: ["generate"], aspectRatios: ["1:1"], maxImages: 1, supportsSeed: true, supportsNegativePrompt: false, maxReferences: 0, priceNote: "", available: false, unavailableReason: "No worker online" },
     ] });
-    if (path.includes("capabilit")) return json([{ id: "w1", name: "Wan Character", generationMode: "wan-character", modelFamily: "wan", supportsReferenceVideo: false, supportsCharacterReferences: true, supportsSettingReference: true, requiresCharacterReferences: false, requiresSettingReference: false }]);
+    if (path.includes("capabilit")) return json([{ id: "w1", name: "Wan Character", generationMode: "wan-character", modelFamily: "wan", supportsFirstFrame: m.firstFrame !== false, referenceImageSlots: 8, supportsReferenceVideo: false, supportsCharacterReferences: true, supportsSettingReference: true, requiresCharacterReferences: false, requiresSettingReference: false }]);
     if (path === "/api/production-projects" && method === "GET") return json(m.project ? [m.project] : m.list);
     if (path === "/api/production-projects" && method === "POST") {
       const body = req.postDataJSON();
@@ -370,6 +370,12 @@ try {
     await page.goto(projectUrl);
     await expect(page.getByText("Shared lantern room", { exact: true }).first()).toBeVisible();
     console.log("PASS: shared location import, variants, library display and reload persistence");
+    mock.firstFrame = false;
+    mock.project.state.step = 4;
+    await page.reload();
+    await expect(page.getByText(/No active local workflow supports a starting frame/)).toBeVisible();
+    await expect(page.getByTestId("button-create-all")).toBeDisabled();
+    console.log("PASS: reference-only workflow cannot submit an exact-continuation render");
     await context.close();
   }
   console.log("production workflow browser checks passed");

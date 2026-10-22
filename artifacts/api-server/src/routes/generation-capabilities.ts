@@ -3,6 +3,7 @@ import { Router, type IRouter } from "express";
 import { GetGenerationCapabilitiesResponse } from "@workspace/api-zod";
 import { db, workflowTemplatesTable } from "@workspace/db";
 import { getWorkflowReferenceRequirements } from "../lib/comfy/workflow-references";
+import { productionWorkflowCapability } from "../lib/comfy/production-capability";
 
 const router: IRouter = Router();
 
@@ -29,6 +30,7 @@ router.get("/generation-capabilities", async (_req, res): Promise<void> => {
       supportsReferenceVideo: mappingNames.includes("referenceVideo"),
       supportsCharacterReferences: mappingNames.some((field) => /^referenceImage\d+$/.test(field)),
       supportsSettingReference: mappingNames.some((field) => /^settingImage\d+$/.test(field)),
+      ...productionWorkflowCapability(workflow.apiWorkflow, workflow.mappings),
       ...getWorkflowReferenceRequirements(workflow.apiWorkflow, workflow.mappings),
     };
   })));

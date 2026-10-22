@@ -4,7 +4,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { db, productionProjectsTable, imageStudioAssetsTable, longFormProjectsTable, longFormShotsTable, type ProductionProjectRow, type LongFormShot } from "@workspace/db";
+import { db, productionProjectsTable, imageStudioAssetsTable, longFormProjectsTable, longFormShotsTable, workflowTemplatesTable, type ProductionProjectRow, type LongFormShot } from "@workspace/db";
+import { productionWorkflowCapability } from "./comfy/production-capability";
 import { stateOf } from "./production-store";
 import { requireProductionScenery } from "./production-scenery";
 import { registerProductionFrame } from "./production-dispatch";
@@ -73,6 +74,25 @@ export async function prepareProductionRender(row: ProductionProjectRow): Promis
 export async function runProductionRenderAction(row: ProductionProjectRow, action: string, payload: Record<string, unknown>) {
   if (action === "create-scenes" || action === "prepare-render") {
     const state = stateOf(row);
+    if (state.settings.videoProvider !== "FAL") {
+      const workflows = await db.select().from(workflowTemplatesTable).where(and(
+        eq(workflowTemplatesTable.active, true),
+        eq(workflowTemplatesTable.generationMode, state.settings.generationMode),
+      ));
+      const requiredSlots = Math.max(1, ...state.story.scenes.map(scene => {
+        const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
+        return 1 + cast.length + cast.filter(c => state.wardrobes.some(w =>
+          w.characterId === c.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber,
+        )).length;
+      }));
+      if (!workflows.some(workflow => {
+        const capability = productionWorkflowCapability(workflow.apiWorkflow, workflow.mappings);
+        return capability.supportsFirstFrame && capability.referenceImageSlots >= requiredSlots
+          && !workflow.mappings.referenceVideo;
+      })) {
+        throw new Error(`This production requires a first-frame workflow with ${requiredSlots} separate character/scenery reference slots. The selected local workflow cannot supply both. No shots were submitted.`);
+      }
+    }
     if (state.settings.videoProvider === "FAL") {
       if (payload.cloudConfirmed !== true) throw new Error("Confirm the paid scene batch before rendering.");
       if (!state.settings.videoModel || !(state.settings.videoModel in falModels)) throw new Error("Select a supported Cloud video model.");

@@ -524,6 +524,9 @@ export interface GenerationCapability {
   modelFamily: string;
   supportsReferenceVideo: boolean;
   supportsCharacterReferences: boolean;
+  supportsFirstFrame?: boolean;
+  /** @minimum 0 */
+  referenceImageSlots?: number;
   supportsSettingReference: boolean;
   requiresCharacterReferences: boolean;
   requiresSettingReference: boolean;
