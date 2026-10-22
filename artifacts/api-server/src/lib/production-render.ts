@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -8,6 +7,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, productionProjectsTable, imageStudioAssetsTable, longFormProjectsTable, longFormShotsTable, type ProductionProjectRow, type LongFormShot } from "@workspace/db";
 import { stateOf } from "./production-store";
 import { requireProductionScenery } from "./production-scenery";
+import { registerProductionFrame } from "./production-dispatch";
 import { text, type ProductionScene } from "./production-types";
 import { mediaStorage } from "./storage-service";
 import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject, retryLongFormShot, startLongFormProject, updateLongFormShot } from "./long-form-service";
@@ -168,15 +168,18 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   const previous = position > 0 ? orderedShots[position - 1] : null;
   // The opening shot uses the approved location plate; subsequent shots use
   // the actual previous output frame. Never leave firstFrame placeholders unset.
-  let startFrameKey: string | undefined = assets.find(a => a.id === scenery.assetId)!.storageKey;
+  let startFrameKey: string;
   if (previous) {
     if (previous.status !== "COMPLETED" || !previous.outputStorageKey) throw new Error("Waiting for the previous shot to finish before continuing its last frame.");
     const directory = await mkdtemp(path.join(tmpdir(), "production-last-frame-"));
     try {
       const output = path.join(directory, "frame.png");
       await exec("ffmpeg", ["-y", "-sseof", "-0.1", "-i", mediaStorage.resolvePath(previous.outputStorageKey), "-frames:v", "1", output], { timeout: 60000, maxBuffer: 1024 * 1024 });
-      startFrameKey = await mediaStorage.storeImage(`continuation-${randomUUID()}.png`, "image/png", await readFile(output), "settings", row.tenantId);
+      startFrameKey = await mediaStorage.storeGenerationReferenceMedia("image/png", await readFile(output), row.tenantId);
     } finally { await rm(directory, { recursive: true, force: true }); }
+  } else {
+    const opening = assets.find(a => a.id === scenery.assetId)!;
+    startFrameKey = await registerProductionFrame(opening.storageKey, opening.mimeType, row.tenantId);
   }
   return {
     referenceImageKeys: keys, mandatoryReferenceImageCount: keys.length,

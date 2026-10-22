@@ -27,6 +27,7 @@ import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { productionForRender, productionShotReferences, dispatchProductionCloudShot } from "./production-render";
+import { productionDispatchBlock } from "./production-dispatch";
 import { stateOf as productionState } from "./production-store";
 import { comfyServerLockKey, getAssignableWorker, liveWorker } from "./worker-lifecycle";
 import { mediaStorage } from "./storage-service";
@@ -1429,6 +1430,17 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
   const active = shots.filter((shot) => activeShotStatuses.includes(shot.status));
   const production = await productionForRender(projectId);
   if (production && active.length > 0) return;
+  if (production) {
+    const blocked = productionDispatchBlock(shots);
+    if (blocked) {
+      if (blocked.failed) {
+        await db.update(longFormProjectsTable).set({ status: "FAILED", errorMessage: blocked.message }).where(eq(longFormProjectsTable.id, project.id));
+      } else {
+        await recordDispatchBlock(project, blocked.message);
+      }
+      return;
+    }
+  }
   if (remaining.length === 0 && active.length === 0) {
     const failed = shots.filter((shot) => shot.status === "FAILED");
     if (failed.length > 0) {
@@ -1960,6 +1972,19 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
       eq(longFormShotsTable.status, existingShot.status),
     )).returning();
     if (!updated) throw new Error("The shot changed before the retry could be prepared");
+    // Older production dispatch marked dependency waits as failures despite
+    // never submitting those shots. Recover only those unsubmitted waits when
+    // the creator explicitly retries; never reset genuine failed renders.
+    if (await productionForRender(projectId)) {
+      await db.update(longFormShotsTable).set({
+        status: "PLANNED", errorMessage: null, assignedServerId: null, startedAt: null,
+      }).where(and(
+        eq(longFormShotsTable.projectId, projectId),
+        eq(longFormShotsTable.status, "FAILED"),
+        eq(longFormShotsTable.errorMessage, "Waiting for the previous shot to finish before continuing its last frame."),
+        sql`${longFormShotsTable.generationJobId} IS NULL`,
+      ));
+    }
     await db.update(longFormProjectsTable).set({
       status: preparingCompletedRevision ? "PAUSED" : "RUNNING",
       ...(existingShot.status === "COMPLETED"
