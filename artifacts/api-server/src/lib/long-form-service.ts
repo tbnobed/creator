@@ -1594,21 +1594,22 @@ function scheduleLongFormOrchestration(projectId: string, source: string): void 
   });
 }
 
-export function longFormStartDisposition(status: string): "start" | "running" {
+export function longFormStartDisposition(status: string, resumeRemaining = false): "start" | "running" {
   if (status === "RUNNING") return "running";
+  if (status === "CANCELLED" && resumeRemaining) return "start";
   if (["READY", "PAUSED", "FAILED"].includes(status)) return "start";
   if (status === "CANCELLED") throw new Error("This render was cancelled. Retry a cancelled shot to resume it; Create does not restart cancelled renders.");
   if (["COMPLETED", "EDITING", "ASSEMBLING"].includes(status)) throw new Error(`This render is ${status.toLowerCase()}. Use Review or retry a specific shot instead of starting it again.`);
   throw new Error(`This render is ${status.toLowerCase()}. Finish preparing its shot queue before starting.`);
 }
 
-export async function startLongFormProject(projectId: string) {
+export async function startLongFormProject(projectId: string, resumeRemaining = false) {
   const project = await withProjectLock(projectId, async () => {
     const [current] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
     if (!current) throw new ResourceNotFoundError("Long-form project not found");
     // A retry already changes the project to RUNNING. A subsequent Start
     // must acknowledge that state, not fail after the retry succeeded.
-    if (longFormStartDisposition(current.status) === "running") return current;
+    if (longFormStartDisposition(current.status, resumeRemaining) === "running") return current;
     if (current?.continuity?.enabled) {
       const requiredReferenceSlots = 1 + Math.max(
         0,
@@ -1636,7 +1637,7 @@ export async function startLongFormProject(projectId: string) {
         shotNumber: longFormShotsTable.shotNumber,
       }).from(longFormShotsTable).where(and(
         eq(longFormShotsTable.projectId, projectId),
-        eq(longFormShotsTable.status, "PLANNED"),
+        inArray(longFormShotsTable.status, resumeRemaining ? ["PLANNED", "FAILED", "CANCELLED"] : ["PLANNED"]),
         // SQL's three-valued null comparison is not relevant: still status is
         // non-null and old projects receive the migration default.
         sql`${longFormShotsTable.stillStatus} <> 'APPROVED' OR ${longFormShotsTable.stillStorageKey} IS NULL`,
@@ -1647,11 +1648,25 @@ export async function startLongFormProject(projectId: string) {
         );
       }
     }
-    const [updated] = await db.update(longFormProjectsTable)
-      .set({ status: "RUNNING", startedAt: new Date(), errorMessage: null })
-      .where(and(eq(longFormProjectsTable.id, projectId), inArray(longFormProjectsTable.status, ["READY", "PAUSED", "FAILED"])))
-      .returning();
-    return updated;
+    return db.transaction(async (tx) => {
+      // Only the explicit production "remaining scenes" action retries failed
+      // or cancelled work. Never reset completed clips or active submissions.
+      if (resumeRemaining) {
+        await tx.update(longFormShotsTable).set({
+          status: "PLANNED", generationJobId: null, assignedServerId: null,
+          outputStorageKey: null, outputMimeType: null, errorMessage: null,
+          startedAt: null, completedAt: null,
+          retryCount: sql`${longFormShotsTable.retryCount} + 1`,
+        }).where(and(eq(longFormShotsTable.projectId, projectId),
+          inArray(longFormShotsTable.status, ["FAILED", "CANCELLED"])));
+      }
+      const [updated] = await tx.update(longFormProjectsTable)
+        .set({ status: "RUNNING", startedAt: current.startedAt ?? new Date(), errorMessage: null, cancelledAt: null })
+        .where(and(eq(longFormProjectsTable.id, projectId), eq(longFormProjectsTable.status, current.status)))
+        .returning();
+      if (!updated) throw new Error("Project changed while preparing remaining scenes. Try again.");
+      return updated;
+    });
   });
   if (project === null) throw new Error("Project is currently being updated; try again.");
   if (!project) throw new Error("Project cannot be started from its current status");

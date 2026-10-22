@@ -17,3 +17,13 @@ test("cancelled and finished projects are not silently restarted", () => {
   }
   assert.throws(() => longFormStartDisposition("DRAFT"), /Finish preparing/);
 });
+
+test("explicit remaining-scenes action resumes cancelled projects but not finished projects", () => {
+  for (const status of ["CANCELLED", "FAILED", "PAUSED", "READY"]) {
+    assert.equal(longFormStartDisposition(status, true), "start");
+  }
+  assert.equal(longFormStartDisposition("RUNNING", true), "running");
+  for (const status of ["COMPLETED", "EDITING", "ASSEMBLING", "DRAFT"]) {
+    assert.throws(() => longFormStartDisposition(status, true));
+  }
+});

@@ -74,3 +74,9 @@ Long-Form belongs in primary navigation; Queue & History belongs in the More men
 **Why:** The user explicitly requested this navigation priority.
 
 **How to apply:** Keep Long-Form directly accessible on desktop and mobile rather than replacing it with the queue.
+
+An explicit production resume must recover unfinished cancelled shots, not direct users to retry every shot separately.
+
+**Why:** The “Create remaining scenes” action previously rejected cancelled projects despite offering that action in the UI.
+
+**How to apply:** Keep completed clips and active jobs intact, retain paid confirmation, and reset only failed/cancelled work under the project lock. Ordinary starts must not silently undo cancellation.

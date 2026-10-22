@@ -212,7 +212,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
           <Button className="brand-glow" disabled={!ready || !sceneryReady || !!active || pendingAction !== null || state.story.scenes.length === 0}
             onClick={() => void createAll()} data-testid="button-create-all">
             {pendingAction === "create-scenes" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-            {rp ? "Create remaining scenes" : "Create all scenes"}
+            {rp?.status === "CANCELLED" ? "Resume remaining scenes" : rp ? "Create remaining scenes" : "Create all scenes"}
           </Button>
           {rp?.status === "RUNNING" && (
             <Button variant="secondary" disabled={pause.isPending} onClick={() => pause.mutate({ id: rp.id }, { onSuccess: invalidate, onError: (e) => toast({ title: "Pause failed", description: errorMessage(e), variant: "destructive" }) })} data-testid="button-pause-render">

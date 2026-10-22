@@ -80,7 +80,7 @@ export async function runProductionRenderAction(row: ProductionProjectRow, actio
       await db.update(productionProjectsTable).set({ state: state as unknown as Record<string, unknown> }).where(eq(productionProjectsTable.id, row.id));
     }
     const id = await prepareProductionRender(row);
-    if (action === "create-scenes") await startLongFormProject(id);
+    if (action === "create-scenes") await startLongFormProject(id, true);
     return id;
   }
   if (!row.renderProjectId) throw new Error("Create this project's scene queue first.");
