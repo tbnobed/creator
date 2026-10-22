@@ -4,6 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Trash2, Plus, Shirt } from "lucide-react";
 import { AssetPicker } from "@/components/long-form/AssetPicker";
+import { OutfitCard } from "./look/OutfitCard";
+import { outfitFromLibrary } from "@/lib/wardrobe-adapters";
 import { useFieldArray, UseFormReturn } from "react-hook-form";
 
 export function DossierWardrobe({ form }: { form: UseFormReturn<any> }) {
@@ -38,7 +40,10 @@ export function DossierWardrobe({ form }: { form: UseFormReturn<any> }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
           {fields.map((outfit, index) => (
-            <div key={outfit.id} className="p-5 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm space-y-4">
+            <OutfitCard key={outfit.id} showMedia={false} testId={`card-library-outfit-${index}`}
+              outfit={outfitFromLibrary({ id: outfit.id, name: form.watch(`wardrobes.${index}.name`), description: form.watch(`wardrobes.${index}.description`), referenceAssetId: form.watch(`wardrobes.${index}.referenceAssetId`) })}
+              className="p-5 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm">
+              <div className="space-y-4">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 space-y-1">
                   <FormField
@@ -60,6 +65,7 @@ export function DossierWardrobe({ form }: { form: UseFormReturn<any> }) {
                   size="icon" 
                   className="text-muted-foreground hover:text-destructive shrink-0 mt-6"
                   onClick={() => remove(index)}
+                  aria-label="Remove outfit"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -99,7 +105,8 @@ export function DossierWardrobe({ form }: { form: UseFormReturn<any> }) {
                   )}
                 />
               </div>
-            </div>
+              </div>
+            </OutfitCard>
           ))}
         </div>
       )}

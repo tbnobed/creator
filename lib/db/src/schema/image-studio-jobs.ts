@@ -8,7 +8,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { charactersTable, comfyServersTable, tenantsTable, usersTable } from "./obtv";
+import { charactersTable, comfyServersTable, settingsTable, tenantsTable, usersTable } from "./obtv";
 
 export type ImageStudioProvider = "LOCAL" | "CLOUD";
 export type ImageStudioJobStatus =
@@ -39,6 +39,8 @@ export const imageStudioJobsTable = pgTable(
     maskAssetId: uuid("mask_asset_id"),
     characterId: uuid("character_id").references(() => charactersTable.id, { onDelete: "cascade" }),
     referenceLabel: text("reference_label"),
+    settingId: uuid("setting_id").references(() => settingsTable.id, { onDelete: "set null" }),
+    settingReferenceName: text("setting_reference_name"),
     status: text("status").notNull().default("QUEUED").$type<ImageStudioJobStatus>(),
     errorMessage: text("error_message"),
     providerRequestId: text("provider_request_id"),

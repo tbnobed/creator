@@ -29,6 +29,7 @@ import { DossierVoice } from "./DossierVoice";
 import { CharacterQuickCreate } from "./CharacterQuickCreate";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { useConfirm } from "@/components/shared/confirm";
 
 export function CharacterDossierDialog({
   characterId,
@@ -56,10 +57,11 @@ export function CharacterDossierDialog({
   const isNew = open && !effectiveId;
   const [isDirty, setIsDirty] = useState(false);
   
-  const handleOpenChange = (val: boolean) => {
+  const confirmAction = useConfirm();
+  const handleOpenChange = async (val: boolean) => {
     if (!val) {
       if (isDirty) {
-        if (!confirm("You have unsaved changes in this dossier. Are you sure you want to discard them?")) {
+        if (!(await confirmAction({ title: "Discard unsaved dossier changes?", confirmLabel: "Discard", destructive: true }))) {
           return;
         }
       }
@@ -250,9 +252,10 @@ function CharacterDossierEditor({
     }
   };
 
-  const handleCancelClick = () => {
+  const confirmAction = useConfirm();
+  const handleCancelClick = async () => {
     if (isFormDirty) {
-      if (!confirm("You have unsaved changes in this dossier. Are you sure you want to discard them?")) {
+      if (!(await confirmAction({ title: "Discard unsaved dossier changes?", confirmLabel: "Discard", destructive: true }))) {
         return;
       }
     }

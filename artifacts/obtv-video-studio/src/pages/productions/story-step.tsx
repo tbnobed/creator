@@ -1,3 +1,4 @@
+import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -130,10 +131,9 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
               <Input value={modelIdDraft} onChange={(e) => setModelIdDraft(e.target.value)}
                 onBlur={() => onSettings({ storyModel: `openai:${modelIdDraft.trim() || "gpt-4.1"}` })}
                 placeholder="gpt-4.1" className="h-8 font-mono text-xs" data-testid="input-story-model-id" />
-              <label className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-400/5 p-2 text-xs text-amber-100" data-testid="confirm-paid-story">
-                <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} data-testid="checkbox-paid-story" />
-                <span>I confirm paid requests to {storyModel.slice(7)}: one outline request plus one request per scene (a feature can need around 46 requests). Billed by your provider.</span>
-              </label>
+              <PaidConfirm checked={confirmed} onChange={setConfirmed} testId="confirm-paid-story" checkboxTestId="checkbox-paid-story">
+                I confirm paid requests to {storyModel.slice(7)}: one outline request plus one request per scene (a feature can need around 46 requests). Billed by your provider.
+              </PaidConfirm>
             </>
           )}
         </div>

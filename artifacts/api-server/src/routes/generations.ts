@@ -256,6 +256,9 @@ router.post("/generations", async (req, res): Promise<void> => {
     res.status(400).json({ error: input.error.message });
     return;
   }
+  if (input.data.provider === "FAL" && input.data.cloudConfirmed !== true) {
+    res.status(400).json({ error: "Confirm the paid cloud render before submitting." }); return;
+  }
   try {
     const job = await createAndSubmitGeneration({
       ...input.data,

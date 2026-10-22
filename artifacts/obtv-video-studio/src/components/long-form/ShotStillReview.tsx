@@ -1,3 +1,4 @@
+import { FileDropzone } from "@/components/shared/file-dropzone";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -10,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getGetLongFormProjectQueryKey } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { AssetPicker } from "./AssetPicker";
+import { useConfirm } from "@/components/shared/confirm";
 
 export function ShotStillReview({ 
 
@@ -82,8 +84,9 @@ export function ShotStillReview({
     });
   };
 
-  const handleDelete = () => {
-    if (!window.confirm("Remove this still frame?")) return;
+  const confirmAction = useConfirm();
+  const handleDelete = async () => {
+    if (!(await confirmAction({ title: "Remove this still frame?", confirmLabel: "Remove", destructive: true }))) return;
     clearStill.mutate({ id: project.id, shotId: shot.id }, {
       onSuccess: (updatedShot) => {
         const updatedProject = { ...project, shots: project.shots.map((s: any) => s.id === updatedShot.id ? updatedShot : s) };
@@ -128,11 +131,9 @@ export function ShotStillReview({
                 <Camera className="w-10 h-10 text-muted-foreground mb-3 opacity-50" />
                 <p className="text-sm font-medium">No still frame provided</p>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">Generate one in Image Studio or upload a reference.</p>
-                <Link href="/image-studio" className="mb-4">
-                  <Button variant="outline" size="sm">Go to Image Studio</Button>
-                </Link>
+                <Button asChild variant="outline" size="sm" className="mb-4"><Link href="/image-studio">Go to Image Studio</Link></Button>
                 <div className="w-full flex items-center gap-2">
-                  <Input type="file" className="text-xs flex-1" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                  <div className="flex-1 min-w-0"><FileDropzone compact accept="image/png,image/jpeg,image/webp" title={file ? file.name : "Upload still"} hint="PNG, JPEG or WebP" onFiles={([f]) => setFile(f ?? null)} testId="dropzone-shot-still" /></div>
                   <span className="text-xs text-muted-foreground font-medium shrink-0">OR</span>
                   <div className="flex-1 min-w-0">
                     <AssetPicker

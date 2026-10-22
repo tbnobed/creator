@@ -1,3 +1,4 @@
+import { MediaFrame } from "./look/MediaTile";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -734,25 +735,10 @@ export function DossierReferences({
                 const isDeleting = deletingAssetId === asset.id;
                 return (
                   <div key={asset.id} className="overflow-hidden rounded-xl border border-border/50 bg-secondary/10">
-                    <button
-                      type="button"
-                      className="group relative block aspect-square w-full overflow-hidden bg-secondary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                      onClick={() => {
-                        setViewerAssetId(asset.id);
-                        setViewerZoom(1);
-                      }}
-                      aria-label={`Open ${assetName(asset, assetIndex)} in the image viewer`}
-                    >
-                      <img
-                        src={asset.mediaUrl}
-                        alt={assetName(asset, assetIndex)}
-                        className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-                        loading="lazy"
-                      />
-                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-8 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                        <Maximize2 className="h-3.5 w-3.5" /> Open full image
-                      </span>
-                    </button>
+                    <MediaFrame src={asset.mediaUrl} state="READY" alt={assetName(asset, assetIndex)} aspect="aspect-square" fit="contain"
+                      className="!rounded-none bg-secondary/20"
+                      onOpen={() => { setViewerAssetId(asset.id); setViewerZoom(1); }}
+                      openLabel={`Open ${assetName(asset, assetIndex)} in the image viewer`} />
 
                     <div className="space-y-3 p-3">
                       <div className="flex min-h-5 items-center justify-between gap-2">

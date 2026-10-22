@@ -2,7 +2,7 @@ import * as React from "react";
 import { type GenerationJob, useCancelGeneration } from "@workspace/api-client-react";
 import { useUndoableVideoDelete } from "@/components/video-studio/UndoableDelete";
 import { generationEditDestination } from "@/lib/generation-edit";
-import { displayDuration } from "@/lib/studio-display";
+import { GenerationDetails, GenerationPlayer, GenerationPrompt } from "./GenerationMedia";
 import { sanitizeProviderMessage } from "@/lib/provider-messages";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,6 @@ import { isTopazVideo, TopazProvenance, TopazUpscaleAction } from "./TopazUpscal
 import {
   ArrowLeft,
   ArrowRight,
-  Clipboard,
   Download,
   ExternalLink,
   Pencil,
@@ -44,7 +43,6 @@ export function VideoGenerationViewer({
   const cancel = useCancelGeneration();
   const selectedIndex = jobs.findIndex((job) => job.id === selectedJobId);
   const job = selectedIndex >= 0 ? jobs[selectedIndex] : null;
-  const [copyState, setCopyState] = React.useState<"idle" | "copied" | "error">("idle");
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const isActive = job ? ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"].includes(job.status) : false;
@@ -58,7 +56,6 @@ export function VideoGenerationViewer({
   }, [jobs, onSelectJob, selectedIndex]);
 
   React.useEffect(() => {
-    setCopyState("idle");
     cancel.reset();
     setDeleteError(null);
     setConfirmDelete(false);
@@ -86,15 +83,6 @@ export function VideoGenerationViewer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [hasNext, hasPrevious, job, selectRelative]);
 
-  const copyPrompt = async () => {
-    if (!job) return;
-    try {
-      await navigator.clipboard.writeText(job.prompt || "");
-      setCopyState("copied");
-    } catch {
-      setCopyState("error");
-    }
-  };
 
   const deleteCurrentGeneration = async () => {
     // Active jobs stay guarded here and server-side (409); finished jobs soft-delete with undo.
@@ -130,19 +118,7 @@ export function VideoGenerationViewer({
 
           <div className="grid min-w-0 gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)]">
             <div className="min-w-0 space-y-4">
-              <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-black">
-                {job.status === "COMPLETED" && job.outputUrl ? (
-                  <video
-                    key={job.id}
-                    src={job.outputUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="h-full w-full object-contain"
-                    aria-label={`Generated video: ${job.title || "Untitled generation"}`}
-                    data-testid={`video-generation-output-${job.id}`}
-                  />
-                ) : (
+              <GenerationPlayer job={job} pending={
                   <div className="max-w-lg px-5 py-8 text-center">
                     <Badge variant={job.status === "FAILED" ? "destructive" : "secondary"} className="mb-3">
                       {job.status}
@@ -163,54 +139,13 @@ export function VideoGenerationViewer({
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-
-              <section aria-labelledby="viewer-prompt-heading" className="rounded-lg border border-border/60 bg-card/40 p-4">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <h3 id="viewer-prompt-heading" className="text-sm font-semibold">Prompt</h3>
-                  <Button variant="outline" size="sm" onClick={copyPrompt} data-testid="button-copy-generation-prompt">
-                    <Clipboard className="size-4" />
-                    {copyState === "copied" ? "Copied" : "Copy prompt"}
-                  </Button>
-                </div>
-                <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground" data-testid="text-generation-prompt">
-                  {job.prompt || "No prompt provided"}
-                </p>
-                {copyState === "error" && (
-                  <p className="mt-2 text-xs text-destructive" role="alert">Could not copy the prompt. Check clipboard permissions and try again.</p>
-                )}
-              </section>
-
-              {job.compiledPrompt && (
-                <details className="rounded-lg border border-border/60 bg-card/30 p-4">
-                  <summary className="cursor-pointer text-sm font-medium">Compiled prompt</summary>
-                  <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
-                    {job.compiledPrompt}
-                  </p>
-                </details>
-              )}
+              } />
+              <GenerationPrompt key={job.id} prompt={job.prompt} compiledPrompt={job.compiledPrompt} />
             </div>
 
             <aside className="min-w-0 space-y-4">
               <TopazProvenance job={job} />
-              <section className="rounded-lg border border-border/60 bg-card/40 p-4">
-                <h3 className="mb-3 text-sm font-semibold">Generation details</h3>
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
-                  <Metadata label="Status" value={job.status} />
-                  <Metadata label="Provider" value={job.provider === "FAL" ? "Cloud" : "Local GPU / Comfy"} />
-                  <Metadata label="Model / workflow" value={job.providerModelId || job.workflowName?.replace(/\s*\((?:A100|H100|RTX[^)]*)\)/gi, "") || "Not specified"} />
-                  <Metadata label="Quality" value={job.qualityPreset} />
-                  <Metadata label="Resolution" value={`${job.width} × ${job.height}`} />
-                  <Metadata label="Duration" value={displayDuration(job.durationSeconds)} />
-                  <Metadata label="Frame rate" value={`${job.fps} fps`} />
-                  <Metadata label="Seed" value={job.seed == null ? "Random" : String(job.seed)} />
-                  <Metadata label="Created" value={new Date(job.createdAt).toLocaleString()} />
-                  {job.serverName && <Metadata label="Server" value={job.serverName} />}
-                  {job.longFormSceneNumber != null && <Metadata label="Scene" value={String(job.longFormSceneNumber)} />}
-                  {job.longFormShotNumber != null && <Metadata label="Shot" value={String(job.longFormShotNumber)} />}
-                </dl>
-              </section>
+              <GenerationDetails job={job} />
 
               <div className="flex flex-wrap gap-2">
                 <TopazUpscaleAction key={job.id} job={job} />
@@ -288,14 +223,3 @@ export function VideoGenerationViewer({
     </>
   );
 }
-
-function Metadata({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 break-words font-medium">{value}</dd>
-    </div>
-  );
-}
-
-export default VideoGenerationViewer;

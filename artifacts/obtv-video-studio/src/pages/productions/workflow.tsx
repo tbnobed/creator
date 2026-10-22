@@ -24,6 +24,7 @@ import { StoryStep } from "./story-step";
 import { CharactersStep, PlacesStep, WardrobeStep } from "./cast-steps";
 import { CreateStep, ReviewStep } from "./render-steps";
 import { draftFrom, draftPatch, rebaseDraft, sameDraftValue, ProductionDraftConflict, type ProductionDraft as Draft } from "@/lib/production-draft";
+import { useConfirm } from "@/components/shared/confirm";
 
 export type RunAction = (action: string, payload?: Record<string, unknown>) => Promise<ProductionProject | null>;
 const isStoryActive = (status: string) => ["QUEUED", "RUNNING"].includes(status);
@@ -168,9 +169,12 @@ export default function ProductionWorkflowPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const confirmAction = useConfirm();
+  const confirmRef = useRef(confirmAction);
+  confirmRef.current = confirmAction;
   const run: RunAction = useCallback(async (action, payload = {}) => {
     if (action === "fix-shot" && normalizeState(projectRef.current?.state ?? {}).settings.videoProvider === "FAL") {
-      if (!window.confirm("This correction will submit a new paid render. Continue?")) return null;
+      if (!(await confirmRef.current({ title: "Submit a new paid render?", description: "This correction uses paid cloud credits.", confirmLabel: "Submit paid render" }))) return null;
       payload = { ...payload, cloudConfirmed: true };
     }
     setActionError(null);
@@ -318,10 +322,10 @@ export default function ProductionWorkflowPage() {
             <span className="flex-1">{saveError.message}</span>
             <Button size="sm" variant="outline" disabled={saving} onClick={() => void save(retryOverrideRef.current)} data-testid="button-retry-save">Retry save</Button>
             {saveError.canKeepLocal && (
-              <Button size="sm" variant="outline" disabled={saving} onClick={() => { if (window.confirm("Replace the conflicting saved fields with your edits? Other server updates will be kept.")) void save(retryOverrideRef.current, true); }} data-testid="button-keep-local-edits">Keep my edits</Button>
+              <Button size="sm" variant="outline" disabled={saving} onClick={async () => { if (await confirmAction({ title: "Keep your edits?", description: "Conflicting saved fields are replaced with your edits. Other server updates are kept.", confirmLabel: "Keep my edits" })) void save(retryOverrideRef.current, true); }} data-testid="button-keep-local-edits">Keep my edits</Button>
             )}
             {saveError.conflict && (
-              <Button size="sm" variant="ghost" onClick={() => { if (window.confirm("Discard your unsaved edits and load the server copy?")) void reloadServer(); }} data-testid="button-load-server">
+              <Button size="sm" variant="ghost" onClick={async () => { if (await confirmAction({ title: "Load the server copy?", description: "Your unsaved edits are discarded.", confirmLabel: "Discard edits", destructive: true })) void reloadServer(); }} data-testid="button-load-server">
                 Load server copy
               </Button>
             )}

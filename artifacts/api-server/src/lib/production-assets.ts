@@ -98,7 +98,10 @@ export async function mutateProductionAsset(row: ProductionProjectRow, action: s
     if (state.characters.length >= 9) throw new Error("This production supports up to nine characters.");
     const id = randomUUID();
     state.characters.push({
-      id, name: text(payload.name, "Name", 180), description: text(payload.description, "Description"),
+      id, name: typeof payload.name === "string" && payload.name.trim()
+        ? text(payload.name, "Name", 180)
+        : text(payload.description, "Description").split(/\s+/).slice(0, 6).join(" ").slice(0, 180),
+      description: text(payload.description, "Description"),
       seed: Math.floor(Math.random() * 2147483647), workflowId: modelId, options: [], locked: false, referenceSheet: [], status: "QUEUED",
     });
     addTask(state, "portraits", id);

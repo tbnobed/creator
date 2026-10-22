@@ -8,20 +8,30 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { CharacterCard } from "@/components/characters/CharacterCard";
 import { CharacterDossierDialog } from "@/components/characters/CharacterDossierDialog";
+import { useConfirm } from "@/components/shared/confirm";
+import { ErrorNotice, readableError } from "@/components/shared/error-notice";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CharactersPage() {
-  const { data: characters, isLoading } = useListCharacters();
+  const { data: characters, isLoading, isError, refetch, isFetching } = useListCharacters();
   const [search, setSearch] = useState("");
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteCharacter();
+  const { toast } = useToast();
 
+  const confirmAction = useConfirm();
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this character?")) {
-      await deleteMutation.mutateAsync({ id });
-      queryClient.invalidateQueries({ queryKey: getListCharactersQueryKey() });
+    if (await confirmAction({ title: "Delete this character?", description: "Its library entry is removed. Productions that already imported it keep their own snapshot.", confirmLabel: "Delete", destructive: true })) {
+      try {
+        await deleteMutation.mutateAsync({ id });
+        queryClient.invalidateQueries({ queryKey: getListCharactersQueryKey() });
+        toast({ title: "Character deleted" });
+      } catch (err) {
+        toast({ title: "Character not deleted", description: readableError(err, "Try again."), variant: "destructive" });
+      }
     }
   };
 
@@ -44,8 +54,8 @@ export default function CharactersPage() {
   return (
     <Page>
       <PageHeader
-        title="Cast Library"
-        description="Manage recurring characters, their approved wardrobes, and performance rules."
+        title="Characters"
+        description="Your shared character library. Productions import a snapshot, so edits here never change an approved production."
         actions={
           <Button onClick={handleCreateNew} data-testid="button-new-character" className="gap-2 shadow-lg hover-elevate">
             <Plus className="size-4" />
@@ -61,10 +71,14 @@ export default function CharactersPage() {
           className="pl-9 bg-card/50 border-border/50 focus-visible:ring-primary/50"
           value={search}
           onChange={e => setSearch(e.target.value)}
+          aria-label="Search characters"
+          data-testid="input-search-characters"
         />
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorNotice testId="status-characters-error" title="Could not load characters" message="Check your connection and try again." onRetry={() => void refetch()} retrying={isFetching} />
+      ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => (
             <Card key={i} className="h-[22rem] bg-card/50 border-border/50 animate-pulse" />

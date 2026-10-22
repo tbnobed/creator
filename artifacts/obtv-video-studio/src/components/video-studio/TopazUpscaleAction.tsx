@@ -1,3 +1,4 @@
+import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
@@ -34,6 +35,9 @@ export function TopazUpscaleAction({ job }: { job: GenerationJob }) {
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState<"1080p" | "4k">("1080p");
   const [quote, setQuote] = useState<VideoUpscaleQuote | null>(null);
+  // A new estimate always needs a fresh approval.
+  const [paidOk, setPaidOk] = useState(false);
+  useEffect(() => setPaidOk(false), [quote, open]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,12 +124,15 @@ export function TopazUpscaleAction({ job }: { job: GenerationJob }) {
           <p className="text-base font-semibold">Estimated cost: ${quote.estimatedUsd.toFixed(2)} USD</p>
           <p className="text-xs text-muted-foreground">{quote.pricingNote}</p>
         </div>}
+        {quote && <PaidConfirm checked={paidOk} disabled={submitting} onChange={setPaidOk} testId="confirm-paid-topaz" checkboxTestId="checkbox-paid-topaz">
+          I approve a paid Topaz upscale, estimated ${quote.estimatedUsd.toFixed(2)} USD, and sending this video to the cloud provider.
+        </PaidConfirm>}
         <p className="text-xs text-muted-foreground">The result is a separate, downloadable video in your library. Upscaled output is not native higher-resolution generation. This processes the full clip; short comparison previews are not available yet.</p>
         {error && <p className="break-words text-sm text-destructive" role="alert">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" disabled={submitting} onClick={() => setOpen(false)}>Cancel</Button>
           {!quote && !loading && <Button variant="outline" onClick={() => setQuoteAttempt((n) => n + 1)}>Retry estimate</Button>}
-          <Button disabled={!quote || loading || submitting} onClick={() => void confirm()} data-testid="button-confirm-topaz">
+          <Button disabled={!quote || !paidOk || loading || submitting} onClick={() => void confirm()} data-testid="button-confirm-topaz">
             {submitting ? <><Loader2 className="size-4 animate-spin" /> Submitting…</> : "Confirm paid upscale"}
           </Button>
         </div>

@@ -12,6 +12,7 @@ import { Check, Download, Edit2, Focus, Heart, Trash2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { PaintMaskCanvas, PaintMaskCanvasRef } from "./PaintMaskCanvas";
+import { useConfirm } from "@/components/shared/confirm";
 
 interface ActiveImagePreviewProps {
   asset: ImageAsset | null;
@@ -170,8 +171,9 @@ export function ActiveImagePreview({
     }
   };
 
+  const confirmAction = useConfirm();
   const handleDelete = async () => {
-    if (!window.confirm("Delete this image forever?")) return;
+    if (!(await confirmAction({ title: "Delete this image?", description: "The image is permanently removed from Image Studio.", confirmLabel: "Delete", destructive: true }))) return;
     try {
       await deleteAsset.mutateAsync({ id: asset.id });
       onAssetDeleted(asset.id);

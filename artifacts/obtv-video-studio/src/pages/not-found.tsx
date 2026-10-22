@@ -1,25 +1,19 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
-import { Link } from 'wouter';
+import { Compass } from "lucide-react";
+import { Link } from "wouter";
+import { Page } from "@/components/layout/page";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background text-foreground">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-foreground">
-              404 Page Not Found
-            </h1>
-          </div>
-
-          <p className="mt-4 text-sm text-muted-foreground">
-            This page doesn’t exist or may have moved.
-          </p>
-          <Link href="/studio" className="mt-4 inline-block text-primary underline">Return to Studio</Link>
-        </CardContent>
-      </Card>
-    </div>
+    <Page>
+      <div className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border/60 bg-card/30 px-6 py-16 text-center" data-testid="page-not-found">
+        <Compass className="mb-4 size-10 text-primary" />
+        <h1 className="text-2xl font-bold">Page not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">This page does not exist or may have moved.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Link href="/studio" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" data-testid="link-notfound-studio">Generate Video</Link>
+          <Link href="/generations" className="rounded-md border border-border px-4 py-2 text-sm" data-testid="link-notfound-queue">Queue &amp; History</Link>
+        </div>
+      </div>
+    </Page>
   );
 }

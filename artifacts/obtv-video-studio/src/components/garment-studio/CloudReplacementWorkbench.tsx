@@ -1,3 +1,5 @@
+import { useFileDrop } from "@/components/shared/use-file-drop";
+import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,6 +106,7 @@ export function CloudReplacementWorkbench({
     setFileError("");
     onUpload(file);
   }
+  const drop = useFileDrop({ accept: "video/mp4,video/quicktime,.mp4,.mov", noun: "video", onFiles: ([f]) => handleFile(f), onReject: setFileError });
   function preview(s: number) { const v = video.current; if (v) { v.pause(); v.currentTime = s; } }
   function submit() {
     if (blocker) return;
@@ -112,15 +115,14 @@ export function CloudReplacementWorkbench({
 
   const fileInput = (
     <input ref={inputRef} type="file" accept={ACCEPTED_UPLOAD} className="sr-only" aria-label="Choose source video"
-      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }} />
+      onChange={drop.inputProps.onChange} />
   );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]" data-testid="cloud-replacement-workbench">
       <div className="min-w-0 space-y-6">
         {!source ? (
-          <section onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+          <section {...drop.dropProps}
             className="rounded-xl border-2 border-dashed border-border bg-card p-8 text-center md:p-14">
             <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10">
               {loading ? <Loader2 className="size-6 animate-spin text-primary" /> : <Upload className="size-6 text-primary" />}
@@ -265,11 +267,9 @@ export function CloudReplacementWorkbench({
             <li>The original clip’s audio is retained at its original timing. Any extra generated video may have no audio.</li>
             <li>Results vary. Areas outside the target can change too; review before using.</li>
           </ul>
-          <label className="mt-3 flex cursor-pointer gap-2.5 rounded-lg border border-border bg-secondary/40 p-3 text-xs leading-relaxed">
-            <input type="checkbox" checked={confirmed} disabled={active || !source} onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 size-4 shrink-0 accent-[hsl(var(--primary))]" data-testid="checkbox-cloud-confirm-paid" />
-            <span>{model === "kling-o3-edit" ? "I approve a paid Kling O3 edit. The local allowance is $0.20 per source second, not a confirmed provider bill. Workspace spending limits apply." : "I understand this is a paid run. Billing covers the provider output duration, chosen automatically up to 30 seconds, plus source processing, and is subject to my workspace spending limits."}</span>
-          </label>
+          <div className="mt-3"><PaidConfirm checked={confirmed} disabled={active || !source} onChange={setConfirmed} testId="confirm-paid-garment-cloud" checkboxTestId="checkbox-cloud-confirm-paid">
+            {model === "kling-o3-edit" ? "I approve a paid Kling O3 edit. The local allowance is $0.20 per source second, not a confirmed provider bill. Workspace spending limits apply." : "I understand this is a paid run. Billing covers the provider output duration, chosen automatically up to 30 seconds, plus source processing, and is subject to my workspace spending limits."}
+          </PaidConfirm></div>
           {error && (
             <p role="alert" className="mt-3 flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />{error}

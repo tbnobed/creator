@@ -1,0 +1,3 @@
+ALTER TABLE "obtv_image_studio_jobs" ADD COLUMN "setting_id" uuid;--> statement-breakpoint
+ALTER TABLE "obtv_image_studio_jobs" ADD COLUMN "setting_reference_name" text;--> statement-breakpoint
+ALTER TABLE "obtv_image_studio_jobs" ADD CONSTRAINT "obtv_image_studio_jobs_setting_id_obtv_settings_id_fk" FOREIGN KEY ("setting_id") REFERENCES "public"."obtv_settings"("id") ON DELETE set null ON UPDATE no action;

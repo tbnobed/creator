@@ -1,3 +1,4 @@
+import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,6 @@ import {
 } from "@workspace/api-client-react";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FirstFrameSelector, PointPanel } from "@/components/video-cleanup/FirstFrameSelector";
 import { CleanupHistory } from "@/components/video-cleanup/CleanupHistory";
 import { cleanupErrorMessage as errorMessage } from "@/components/video-cleanup/errors";
@@ -22,6 +22,7 @@ import {
   requestIdForAttempt, resolveDraftFromHistory, selectionFingerprint, selectionLocked, validateCleanupFile,
 } from "@/lib/video-cleanup";
 import type { CameraMode, CleanupDraft, CleanupPointType } from "@/lib/video-cleanup";
+import { useConfirm } from "@/components/shared/confirm";
 
 function measureLocalDuration(file: File): Promise<number> {
   return new Promise((resolve) => {
@@ -180,8 +181,9 @@ export default function VideoCleanupPage() {
     }
   }
 
-  function startOver() {
-    if (draftRef.current.phase === "uncertain" && !window.confirm("Discard this local draft? This does not cancel any processing already accepted by Fal. Starting a new job may cause another charge. You can instead retry this same request safely.")) return;
+  const confirmAction = useConfirm();
+  async function startOver() {
+    if (draftRef.current.phase === "uncertain" && !(await confirmAction({ title: "Discard this local draft?", destructive: true, confirmLabel: "Discard", description: " This does not cancel any processing already accepted by Fal. Starting a new job may cause another charge. You can instead retry this same request safely." }))) return;
     setConfirmedFingerprint(null);
     setSubmitError("");
     update(emptyDraft());
@@ -288,16 +290,10 @@ export default function VideoCleanupPage() {
                 </div>
               ) : (
                 <>
-                  <label className="mt-4 flex items-start gap-2.5 text-sm">
-                    <Checkbox
-                      checked={confirmed}
-                      disabled={draft.points.length === 0 || draft.phase === "sending"}
-                      onCheckedChange={(v) => setConfirmedFingerprint(v === true ? fingerprint : null)}
-                      data-testid="checkbox-confirm-paid"
-                      className="mt-0.5"
-                    />
-                    <span>I understand this is a paid cloud job and confirm this exact selection.</span>
-                  </label>
+                  <div className="mt-4"><PaidConfirm checked={confirmed} disabled={draft.points.length === 0 || draft.phase === "sending"}
+                    onChange={(v) => setConfirmedFingerprint(v ? fingerprint : null)} testId="confirm-paid-cleanup" checkboxTestId="checkbox-confirm-paid">
+                    I understand this is a paid cloud job and confirm this exact selection.
+                  </PaidConfirm></div>
                   {submitError && (
                     <p role="alert" className="mt-3 flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive-foreground">
                       <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />{submitError}

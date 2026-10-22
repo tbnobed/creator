@@ -113,7 +113,7 @@ async function run(viewport, label) {
     return box.x >= -0.5 && box.x + box.width <= viewport.width + 0.5;
   }).toBe(true);
   expect(calls.legacy).toBe(0);
-  await page.screenshot({ path: `/tmp/character-looks-${label}.png` });
+  await page.screenshot({ path: `screenshots/shared/character-looks-${label}.jpg`, type: "jpeg", quality: 80 });
   await context.close();
 }
 

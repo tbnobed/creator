@@ -80,3 +80,9 @@ An explicit production resume must recover unfinished cancelled shots, not direc
 **Why:** The “Create remaining scenes” action previously rejected cancelled projects despite offering that action in the UI.
 
 **How to apply:** Keep completed clips and active jobs intact, retain paid confirmation, and reset only failed/cancelled work under the project lock. Ordinary starts must not silently undo cancellation.
+
+Consolidate repeated UI without removing newer features or collapsing distinct library and production behavior.
+
+**Why:** The user requested fixing all inconsistencies while retaining newer features and the best UI experience.
+
+**How to apply:** Reuse presentation controls with adapters for project-specific scene ranges, approval, and job state. Preserve advanced tools, explicit paid consent, durable jobs, shared references and cancel/resume.

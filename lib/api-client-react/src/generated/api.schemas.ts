@@ -403,6 +403,14 @@ export interface ImageJob {
   createdAt: string;
 }
 
+export interface LocationReferenceNameInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+}
+
 export interface ImageJobInput {
   /**
      * @minLength 1
@@ -449,6 +457,11 @@ export interface ImageJobInput {
      */
   requestKey?: string;
 }
+
+export type LocationImageJobInput = ImageJobInput & {
+  /** @maxLength 180 */
+  referenceName?: string;
+};
 
 export interface ImageAssetUpdate {
   favorite?: boolean;
@@ -1074,6 +1087,8 @@ export interface CharacterAssetUploadResult {
 
 export type SettingReferencesItem = {
   id: string;
+  imageAssetId?: string;
+  unavailableReason?: string;
   name: string;
   url: string;
   prompt: string;
@@ -1718,6 +1733,7 @@ export const GenerationInputSeedMode = {
 
 export interface GenerationInput {
   provider?: GenerationInputProvider;
+  cloudConfirmed?: boolean;
   model?: GenerationInputModel;
   voiceCloningEnabled?: boolean;
   /** Native audio is available on all Cloud models. For Seedance, omission enables audio for dialogue; for Veo 3.1 Fast and Kling 3 Standard, omission keeps output silent. Explicit false always keeps a request silent. */

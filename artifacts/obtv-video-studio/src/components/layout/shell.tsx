@@ -19,7 +19,14 @@ import {
   Coins
 } from "lucide-react";
 import { useHealthCheck, useGetSession } from "@workspace/api-client-react";
+import { setStorageScope } from "@/lib/workspace-storage";
 import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
+
+function isLinkActive(location: string, href: string) {
+  if (location === href) return true;
+  if (href === "/projects" && location.startsWith("/productions/")) return true;
+  return href !== "/studio" && location.startsWith(`${href}/`);
+}
 
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -50,6 +57,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const { data: health } = useHealthCheck();
   const { data: session } = useGetSession();
+  // Set before children render so page drafts read the right workspace scope.
+  setStorageScope(session?.user.id, session?.activeTenant?.id);
 
   // Close mobile menu when location changes
   useEffect(() => {
@@ -85,6 +94,12 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/projects", label: "Long-Form", icon: Film },
   ];
 
+  // Browser tab titles use the same terminology as navigation.
+  useEffect(() => {
+    const match = [...allLinks, { href: "/account", label: "Account & Workspace" }].find((l) => isLinkActive(location, l.href));
+    document.title = match ? `${match.label} · OBTV Studio` : "OBTV Studio";
+  }, [location, allLinks]);
+
   const secondaryMobileLinks = allLinks.filter(link => !primaryMobileLinks.find(pl => pl.href === link.href));
   const primaryDesktopLinks = allLinks.filter((link) => ["/studio", "/image-studio", "/projects"].includes(link.href));
   const secondaryDesktopLinks = allLinks.filter((link) => !primaryDesktopLinks.some((primary) => primary.href === link.href));
@@ -102,7 +117,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </Link>
         <nav aria-label="Studio sections" className="flex min-w-0 flex-1 items-center justify-center gap-1">
           {primaryDesktopLinks.map((link) => {
-            const isActive = location === link.href || (link.href !== "/studio" && location.startsWith(link.href));
+            const isActive = isLinkActive(location, link.href);
             return (
               <Link
                 key={link.href}
@@ -131,7 +146,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   key={link.href}
                   href={link.href}
                   onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${location === link.href || location.startsWith(`${link.href}/`) ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"}`}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${isLinkActive(location, link.href) ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"}`}
                 >
                   <link.icon className="size-4" />{link.label}
                 </Link>
@@ -141,9 +156,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </details>
         </nav>
         <div className="flex w-[220px] shrink-0 items-center justify-end gap-4">
-          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground" title="Reports whether the studio API responds. GPU worker availability is shown in Queue & History." data-testid="status-api">
             <span className={`size-2 rounded-full ${health?.status === "ok" ? "bg-emerald-500" : "bg-destructive animate-pulse"}`} />
-            {health?.status === "ok" ? "Connected" : "API offline"}
+            {health?.status === "ok" ? "API reachable" : "API unreachable"}
           </span>
           <Link
             href="/account"
@@ -184,7 +199,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {/* Mobile Bottom Nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-[65px] border-t border-border bg-card/95 backdrop-blur-md flex items-center justify-around z-40 px-2 pb-safe">
         {primaryMobileLinks.map(link => {
-          const isActive = location === link.href || (link.href !== "/studio" && location.startsWith(link.href));
+          const isActive = isLinkActive(location, link.href);
           return (
             <Link 
               key={link.href}
@@ -199,6 +214,7 @@ export function Shell({ children }: { children: ReactNode }) {
           );
         })}
         <button 
+          type="button" aria-label="Open studio menu" aria-expanded={mobileMenuOpen} data-testid="button-mobile-more"
           onClick={() => setMobileMenuOpen(true)}
           className="flex flex-col items-center justify-center w-full h-full space-y-1 text-muted-foreground hover:text-foreground transition-colors"
         >
@@ -213,6 +229,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between p-4 border-b border-border/50">
             <h2 className="text-lg font-bold">Studio Menu</h2>
             <button 
+              type="button" aria-label="Close studio menu" data-testid="button-mobile-menu-close"
               onClick={() => setMobileMenuOpen(false)}
               className="p-2 rounded-full bg-secondary/50 text-foreground hover:bg-secondary"
             >
@@ -226,7 +243,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 px-3">Primary</h3>
               {primaryMobileLinks.map((link) => {
-                const isActive = location === link.href || (link.href !== "/studio" && location.startsWith(link.href));
+                const isActive = isLinkActive(location, link.href);
                 return (
                   <Link 
                     key={link.href} 
@@ -249,7 +266,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 px-3">More tools</h3>
               {secondaryMobileLinks.map((link) => {
-                const isActive = location === link.href || (link.href !== "/studio" && location.startsWith(link.href));
+                const isActive = isLinkActive(location, link.href);
                 return (
                   <Link 
                     key={link.href} 

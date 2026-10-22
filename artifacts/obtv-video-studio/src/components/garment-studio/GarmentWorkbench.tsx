@@ -1,3 +1,4 @@
+import { useFileDrop } from "@/components/shared/use-file-drop";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +75,7 @@ export function GarmentWorkbench({
     setFileError("");
     onUpload(file);
   }
+  const drop = useFileDrop({ accept: "video/mp4,video/quicktime,.mp4,.mov", noun: "video", onFiles: ([f]) => handleFile(f), onReject: setFileError });
 
   function preview(t: number) {
     const v = sourceVideo.current;
@@ -98,8 +100,7 @@ export function GarmentWorkbench({
         {!source ? (
           <section
             aria-labelledby="garment-upload-heading"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+            {...drop.dropProps}
             className="rounded-xl border-2 border-dashed border-border bg-card p-8 text-center md:p-14"
           >
             <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10">
@@ -110,7 +111,7 @@ export function GarmentWorkbench({
               MP4 or MOV. Longer clips are fine; you will pick a window of up to {PROOF_MAX_SECONDS} seconds to process.
             </p>
             <input ref={inputRef} type="file" accept={ACCEPTED_UPLOAD} className="sr-only" aria-label="Choose source video"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }} />
+              onChange={drop.inputProps.onChange} />
             <Button className="mt-5" disabled={loading} onClick={() => inputRef.current?.click()} data-testid="button-garment-upload">Choose clip</Button>
             {fileError && <p role="alert" className="mt-4 text-sm text-destructive">{fileError}</p>}
           </section>
@@ -127,7 +128,7 @@ export function GarmentWorkbench({
                 <Upload className="size-3.5" />Use a different clip
               </Button>
               <input ref={inputRef} type="file" accept={ACCEPTED_UPLOAD} className="sr-only" aria-label="Replace source video"
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }} />
+                onChange={drop.inputProps.onChange} />
             </div>
             {fileError && <p role="alert" className="mt-2 text-sm text-destructive">{fileError}</p>}
           </section>

@@ -1,3 +1,4 @@
+import { useFileDrop } from "@/components/shared/use-file-drop";
 import { useEffect, useState } from "react";
 import { ImageAsset, imageStudioError, useUploadAsset } from "@/hooks/image-studio";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,7 +22,6 @@ export function UploadImageDialog({ initialIntent, onClose, onUploaded }: {
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState<string>();
   const [error, setError] = useState("");
-  const [dragging, setDragging] = useState(false);
   const upload = useUploadAsset();
 
   useEffect(() => {
@@ -44,6 +44,9 @@ export function UploadImageDialog({ initialIntent, onClose, onUploaded }: {
     }
   };
 
+  const drop = useFileDrop({ accept: "image/png,image/jpeg,image/webp", noun: "image", disabled: upload.isPending,
+    onFiles: ([f]) => chooseFile(f), onReject: (m) => { setFile(undefined); setError(m); } });
+
   const submit = async () => {
     if (!file || upload.isPending) return;
     setError("");
@@ -63,27 +66,14 @@ export function UploadImageDialog({ initialIntent, onClose, onUploaded }: {
           <DialogDescription>Choose how to use your image. The original stays in your workspace gallery.</DialogDescription>
         </DialogHeader>
         <label
-          className={`relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-5 text-center transition-colors focus-within:ring-2 focus-within:ring-primary ${dragging ? "border-primary bg-primary/10" : "border-white/15 bg-black/20"}`}
-          onDragOver={(event) => { event.preventDefault(); if (!upload.isPending) setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            if (event.dataTransfer.files.length > 1) {
-              setFile(undefined);
-              setError("Choose one image at a time.");
-              return;
-            }
-            chooseFile(event.dataTransfer.files[0]);
-          }}
+          className={`relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-5 text-center transition-colors focus-within:ring-2 focus-within:ring-primary ${drop.dragging ? "border-primary bg-primary/10" : "border-white/15 bg-black/20"}`}
+          {...drop.dropProps}
         >
           <input
             type="file"
             aria-label="Choose image file"
-            accept="image/png,image/jpeg,image/webp"
-            disabled={upload.isPending}
+            {...drop.inputProps}
             className="sr-only"
-            onChange={(event) => { chooseFile(event.target.files?.[0]); event.target.value = ""; }}
           />
           {preview ? <img src={preview} alt="Image to upload" className="h-36 max-w-full rounded-lg object-contain" /> : <ImagePlus className="h-9 w-9 text-primary" />}
           <span className="max-w-full break-all text-sm font-medium">{file?.name || "Choose an image or drop it here"}</span>

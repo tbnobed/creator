@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Mic2, Loader2, Info } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/components/shared/confirm";
 
 export function DossierVoice({ 
   characterId, 
@@ -59,8 +60,9 @@ export function DossierVoice({
     }
   };
 
+  const confirmAction = useConfirm();
   const removeVoiceSample = async () => {
-    if (!confirm("Are you sure you want to remove the voice clone?")) return;
+    if (!(await confirmAction({ title: "Remove the voice clone?", description: "Dialogue using this character will no longer use the cloned voice.", confirmLabel: "Remove voice", destructive: true }))) return;
     
     setVoicePending(true);
     try {

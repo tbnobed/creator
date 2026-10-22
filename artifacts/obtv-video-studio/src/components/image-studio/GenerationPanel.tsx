@@ -1,3 +1,6 @@
+import { ModelCommandList } from "@/components/shared/model-option";
+import { imageModelOption } from "@/lib/model-option";
+import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -48,7 +51,6 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Checkbox } from "@/components/ui/checkbox";
 import { UploadIntent } from "./UploadImageDialog";
 import { UploadCloud, ChevronsUpDown, Check } from "lucide-react";
 
@@ -461,50 +463,8 @@ export function GenerationPanel({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[300px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search models..." />
-                <CommandList>
-                  <CommandEmpty>No models found.</CommandEmpty>
-                  <CommandGroup heading="Your GPUs">
-                    {supportedModels.filter((model) => model.provider === "LOCAL").map((model) => (
-                      <CommandItem
-                        key={model.id}
-                        value={model.name}
-                        disabled={!model.available}
-                        onSelect={() => {
-                          if (model.available) {
-                            handleModelChange(model.id);
-                            setModelPickerOpen(false);
-                          }
-                        }}
-                      >
-                        <Check className={`mr-2 h-4 w-4 ${modelId === model.id ? "opacity-100" : "opacity-0"}`} />
-                        <span className="truncate">{model.name}</span>
-                        {!model.available && <span className="ml-2 text-xs text-muted-foreground">(unavailable)</span>}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                  <CommandGroup heading="Cloud · cost applies">
-                    {supportedModels.filter((model) => model.provider === "CLOUD").map((model) => (
-                      <CommandItem
-                        key={model.id}
-                        value={model.name}
-                        disabled={!model.available}
-                        onSelect={() => {
-                          if (model.available) {
-                            handleModelChange(model.id);
-                            setModelPickerOpen(false);
-                          }
-                        }}
-                      >
-                        <Check className={`mr-2 h-4 w-4 ${modelId === model.id ? "opacity-100" : "opacity-0"}`} />
-                        <span className="truncate">{model.name}</span>
-                        {!model.available && <span className="ml-2 text-xs text-muted-foreground">(unavailable)</span>}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+              <ModelCommandList options={supportedModels.map((m) => imageModelOption(m, m.available ? null : "Unavailable right now"))} selectedId={modelId}
+                onSelect={(id) => { handleModelChange(id); setModelPickerOpen(false); }} testIdPrefix="option-image-model" />
             </PopoverContent>
           </Popover>
           {activeModel && (
@@ -722,10 +682,9 @@ export function GenerationPanel({
         {activeModel?.provider === "CLOUD" && (
           <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/10 p-4">
             <p className="text-xs text-primary">{activeModel.priceNote || "This action consumes credits."}</p>
-            <div className="flex items-center gap-2">
-              <Checkbox id="cloud-confirm" checked={cloudConfirmed} onCheckedChange={(value) => setCloudConfirmed(Boolean(value))} />
-              <label htmlFor="cloud-confirm" className="cursor-pointer text-xs">{isTopaz ? "I approve this cost and sending the source image to Fal / Topaz" : "I confirm the cost for this render"}</label>
-            </div>
+            <PaidConfirm checked={cloudConfirmed} onChange={setCloudConfirmed} testId="confirm-paid-image" checkboxTestId="checkbox-paid-image">
+              {isTopaz ? "I approve this cost and sending the source image to Fal / Topaz" : "I confirm the cost for this render"}
+            </PaidConfirm>
           </div>
         )}
 

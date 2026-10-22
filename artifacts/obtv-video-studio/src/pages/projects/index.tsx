@@ -1,4 +1,4 @@
-import { getListLongFormProjectsQueryKey, useDeleteLongFormProject, useListLongFormProjects, useListProductionProjects } from "@workspace/api-client-react";
+import { getListLongFormProjectsQueryKey, getListProductionProjectsQueryKey, useDeleteLongFormProject, useDeleteProductionProject, useListLongFormProjects, useListProductionProjects } from "@workspace/api-client-react";
 import { STEPS, normalizeState } from "@/lib/production-types";
 import { useQueryClient } from "@tanstack/react-query";
 import type { MouseEvent } from "react";
@@ -6,23 +6,53 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Plus, Clapperboard, Clock, AlertTriangle, CheckCircle2, PlayCircle, Loader2, Film, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useConfirm } from "@/components/shared/confirm";
+import { readableError } from "@/components/shared/error-notice";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProjectsPage() {
-  const { data: projects = [], isLoading, error } = useListLongFormProjects();
+  const { data: projects = [], isLoading, error, refetch: refetchProjects } = useListLongFormProjects();
   const { data: productions = [], isLoading: productionsLoading, error: productionsError, refetch: refetchProductions } = useListProductionProjects();
   const queryClient = useQueryClient();
   const deleteProject = useDeleteLongFormProject();
+  const { toast } = useToast();
 
-  const handleDelete = (event: MouseEvent, projectId: string, title: string) => {
+  // Render projects created by a guided production are shown once, on the production card.
+  const linkedRender = new Map(productions.filter((p) => p.renderProjectId).map((p) => [p.renderProjectId as string, p.id]));
+  const renderById = new Map(projects.map((r) => [r.id, r]));
+  const standaloneProjects = projects.filter((r) => !linkedRender.has(r.id));
+  const confirmAction = useConfirm();
+  const handleDelete = async (event: MouseEvent, projectId: string, title: string) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!window.confirm(`Delete "${title}"? This removes the project, its shot plan, and any project-only generated media.`)) return;
+    if (!(await confirmAction({ title: `Delete "${title}"?`, description: "This removes the project, its shot plan, and any project-only generated media.", confirmLabel: "Delete", destructive: true }))) return;
     deleteProject.mutate({ id: projectId }, {
+      onError: (err) => toast({ title: "Project not deleted", description: readableError(err, "Try again."), variant: "destructive" }),
       onSuccess: () => {
         queryClient.setQueryData(
           getListLongFormProjectsQueryKey(),
           (current: typeof projects) => current.filter((project) => project.id !== projectId),
         );
+        void queryClient.invalidateQueries({ queryKey: getListLongFormProjectsQueryKey() });
+      },
+    });
+  };
+
+  const deleteProduction = useDeleteProductionProject();
+  const handleDeleteProduction = async (event: MouseEvent, id: string, title: string, hasRender: boolean) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const ok = await confirmAction({
+      title: `Delete "${title}"?`,
+      description: <>This deletes the production, its shot plan{hasRender ? ", its linked render project" : ""} and any output made only for it. Shared characters and scenery in your library are kept. Queued or running work must be cancelled first.</>,
+      confirmLabel: "Delete production", destructive: true,
+    });
+    if (!ok) return;
+    deleteProduction.mutate({ id }, {
+      onError: (err) => toast({ title: "Production not deleted", description: readableError(err, "Try again."), variant: "destructive" }),
+      onSuccess: () => {
+        queryClient.setQueryData(getListProductionProjectsQueryKey(), (cur: typeof productions | undefined) => cur?.filter((p) => p.id !== id));
+        void queryClient.invalidateQueries({ queryKey: getListProductionProjectsQueryKey() });
         void queryClient.invalidateQueries({ queryKey: getListLongFormProjectsQueryKey() });
       },
     });
@@ -56,15 +86,15 @@ export default function ProjectsPage() {
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-10 gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Productions</h1>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Long-Form</h1>
             <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">Manage long-form AI video projects and shot plans.</p>
           </div>
-          <Link href="/projects/new">
-            <Button size="lg" className="brand-glow hover-elevate font-semibold w-full sm:w-auto h-12 md:h-11">
+          <Button asChild size="lg" className="brand-glow hover-elevate font-semibold w-full sm:w-auto h-12 md:h-11">
+            <Link href="/projects/new" data-testid="link-new-production">
               <Plus className="mr-2 w-5 h-5" />
               New Production
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         <section className="mb-10" data-testid="section-workflow-productions">
@@ -79,13 +109,33 @@ export default function ProjectsPage() {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {productions.map((p) => {
                 const st = normalizeState(p.state as Record<string, unknown>);
+                const render = p.renderProjectId ? renderById.get(p.renderProjectId) : undefined;
                 return (
-                  <Link key={p.id} href={`/productions/${p.id}`} className="group block rounded-xl border border-card-border bg-card p-4 transition-colors hover:border-primary/50" data-testid={`card-production-${p.id}`}>
-                    <p className="truncate font-bold">{p.title}</p>
+                  <div key={p.id} className="group relative rounded-xl border border-card-border bg-card p-4 transition-colors hover:border-primary/50" data-testid={`card-production-${p.id}`}>
+                    <Link href={`/productions/${p.id}`} className="block after:absolute after:inset-0 after:content-['']" data-testid={`link-production-${p.id}`}>
+                      <p className="truncate pr-8 font-bold">{p.title}</p>
+                    </Link>
+                    <Button variant="ghost" size="icon" aria-label={`Delete ${p.title}`} disabled={deleteProduction.isPending && deleteProduction.variables?.id === p.id}
+                      onClick={(e) => void handleDeleteProduction(e, p.id, p.title, !!p.renderProjectId)}
+                      className="absolute right-2 top-2 z-10 size-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-production-${p.id}`}>
+                      <Trash2 className="size-4" />
+                    </Button>
                     <p className="mt-1 text-xs text-muted-foreground">Step {st.step + 1} · {STEPS[st.step]} · {st.story.scenes.length} scenes · {st.characters.length} characters</p>
                     <div className="mt-3 flex gap-1">{STEPS.map((s, i) => <span key={s} className={`h-1 flex-1 rounded-full ${i <= st.step ? "bg-primary" : "bg-border"}`} />)}</div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">Updated {formatDistanceToNow(new Date(p.updatedAt), { addSuffix: true })}</p>
-                  </Link>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                      <span>Updated {formatDistanceToNow(new Date(p.updatedAt), { addSuffix: true })}</span>
+                      {render && (
+                        <span className={`flex items-center gap-1 font-semibold ${getStatusColor(render.status)}`} data-testid={`status-production-render-${p.id}`}>
+                          {getStatusIcon(render.status)} Render {render.status.toLowerCase()}
+                        </span>
+                      )}
+                    </div>
+                    {p.renderProjectId && (
+                      <Link href={`/projects/${p.renderProjectId}`} className="relative z-10 mt-2 inline-block text-[11px] font-medium text-primary underline-offset-2 hover:underline" data-testid={`link-production-timeline-${p.id}`}>
+                        Open advanced timeline
+                      </Link>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -102,9 +152,12 @@ export default function ProjectsPage() {
         ) : error ? (
           <div className="p-6 md:p-8 text-center border rounded-xl bg-destructive/10 text-destructive border-destructive/20 mx-auto max-w-xl">
             <AlertTriangle className="w-10 h-10 mx-auto mb-4 opacity-80" />
-            <p className="font-medium">Failed to load projects.</p>
+            <p className="font-medium">Failed to load render projects.</p>
             <p className="text-sm opacity-80 mt-1">{(error as any)?.message}</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => void refetchProjects()} data-testid="button-retry-projects">Retry</Button>
           </div>
+        ) : standaloneProjects.length === 0 && projects.length > 0 ? (
+          <p className="text-sm text-muted-foreground" data-testid="text-no-standalone-projects">Every render project belongs to a production above. Open one with “Open advanced timeline”.</p>
         ) : projects.length === 0 ? (
           <div className="text-center py-16 md:py-24 px-4 md:px-6 border border-dashed rounded-xl bg-card/20 mx-auto max-w-2xl">
             <Film className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 md:mb-6 text-muted-foreground/30" />
@@ -112,15 +165,15 @@ export default function ProjectsPage() {
             <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto mb-6 md:mb-8">
               Start by creating a new long-form production. Provide a script and let the AI break it down into a shot plan.
             </p>
-            <Link href="/projects/new">
-              <Button size="lg" className="brand-glow w-full sm:w-auto">
+            <Button asChild size="lg" className="brand-glow w-full sm:w-auto">
+              <Link href="/projects/new" data-testid="link-first-production">
                 <Plus className="mr-2 w-5 h-5" /> Create First Production
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-            {projects.map(project => (
+            {standaloneProjects.map(project => (
               <div key={project.id} className="relative h-full w-full">
                 <Link href={`/projects/${project.id}`} className="block h-full">
                 <div className="group relative flex flex-col h-full bg-card rounded-xl border border-card-border overflow-hidden hover:border-primary/50 transition-all md:hover-elevate cursor-pointer">

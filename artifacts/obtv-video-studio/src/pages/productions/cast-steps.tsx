@@ -1,14 +1,23 @@
+import { ErrorNotice } from "@/components/shared/error-notice";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { AlertTriangle, Check, ImageOff, Loader2, Lock, MapPin, Plus, RefreshCw, Shirt, X } from "lucide-react";
+import { Loader2, Lock, MapPin, Plus, RefreshCw, Shirt, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { isFailed, isPending, type ProductionCharacter, type ProductionSettings, type ProductionState } from "@/lib/production-types";
-import { ModelPicker, useModelChoice, type ModelChoice } from "./model-picker";
+import { ModelPicker, useModelChoice, type ModelChoice } from "@/components/shared/model-picker";
+import { CharacterPromptFields } from "@/components/characters/look/CharacterPromptFields";
+import { LookOptionGrid } from "@/components/characters/look/LookOptionGrid";
+import { OutfitCard } from "@/components/characters/look/OutfitCard";
+import { mediaStateOf, outfitFromProduction } from "@/lib/wardrobe-adapters";
+import { MediaFrame } from "@/components/characters/look/MediaTile";
+import { ReferenceSheetStrip } from "@/components/characters/look/ReferenceSheetStrip";
+import { slotsFromProduction, slotsFromSheet } from "@/lib/character-look-adapters";
 import type { RunAction } from "./workflow";
 import { SceneScenery, resolveSceneScenery } from "./scene-scenery";
 import { useListCharacters, useListSettings, getListSettingsQueryKey } from "@workspace/api-client-react";
+import { useConfirm } from "@/components/shared/confirm";
 
 type StepProps = { state: ProductionState; run: RunAction; pendingAction: string | null; onSettings: (p: Partial<ProductionSettings>) => void };
 
@@ -23,15 +32,9 @@ function StepHead({ n, title, sub }: { n: string; title: string; sub: string }) 
 }
 
 function Thumb({ src, alt, status, className = "aspect-[3/4]" }: { src?: string; alt: string; status?: string; className?: string }) {
-  if (src) return <img src={src} alt={alt} className={`${className} w-full rounded-lg object-cover`} loading="lazy" />;
-  return (
-    <div className={`${className} flex w-full flex-col items-center justify-center gap-2 rounded-lg bg-muted/40 text-xs text-muted-foreground`}>
-      {isPending(status) ? <><Loader2 className="h-5 w-5 animate-spin text-primary" /> Generating</> : isFailed(status) ? <><AlertTriangle className="h-5 w-5 text-destructive" /> Failed</> : <ImageOff className="h-5 w-5 opacity-40" />}
-    </div>
-  );
+  return <MediaFrame src={src} state={mediaStateOf(status, src)} alt={alt} aspect={className} />;
 }
 
-const CHIPS = ["age", "hair", "build", "eye colour", "clothing", "personality"];
 
 /* ---------------- Characters ---------------- */
 
@@ -98,28 +101,16 @@ export function CharactersStep({ state, run, pendingAction, onSettings }: StepPr
   );
 }
 
-function PromptFields({ name, setName, prompt, setPrompt }: { name: string; setName: (v: string) => void; prompt: string; setPrompt: (v: string) => void }) {
-  return (
-    <div className="space-y-3">
-      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" data-testid="input-character-name" />
-      <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe them" className="min-h-[110px]" data-testid="input-character-description" />
-      <div className="flex flex-wrap gap-1.5">
-        {CHIPS.map((chip) => (
-          <button key={chip} type="button" onClick={() => setPrompt(`${prompt}${prompt && !prompt.endsWith("\n") ? "\n" : ""}${chip}: `)}
-            className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary hover:text-foreground" data-testid={`chip-${chip.replace(" ", "-")}`}>
-            + {chip}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+function PromptFields({ name, setName, prompt, setPrompt, disabled }: { name: string; setName: (v: string) => void; prompt: string; setPrompt: (v: string) => void; disabled?: boolean }) {
+  return <CharacterPromptFields prompt={prompt} setPrompt={setPrompt} name={name} setName={setName} disabled={disabled} />;
 }
 
 function NewCharacterPanel({ model, run, busy, onClose, onCreated, existingIds }: { model: ModelChoice; run: RunAction; busy: boolean; onClose: () => void; onCreated: (id: string) => void; existingIds: string[] }) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const submit = async () => {
-    const res = await run("add-character", { name: name.trim(), description: prompt.trim(), ...model.payload() });
+    // An empty name is derived from the prompt server-side.
+    const res = await run("add-character", { ...(name.trim() ? { name: name.trim() } : {}), description: prompt.trim(), ...model.payload() });
     model.reset();
     if (!res) return;
     const chars = ((res.state as Record<string, unknown>).characters ?? []) as ProductionCharacter[];
@@ -133,15 +124,9 @@ function NewCharacterPanel({ model, run, busy, onClose, onCreated, existingIds }
       <div className="grid gap-5 md:grid-cols-[1fr_1.2fr]">
         <PromptFields name={name} setName={setName} prompt={prompt} setPrompt={setPrompt} />
         <div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : `Option ${i + 1}`}
-              </div>
-            ))}
-          </div>
+          <LookOptionGrid slots={slotsFromProduction({ options: [], status: busy ? "RUNNING" : "" })} choice={null} onChoose={() => undefined} />
           <div className="mt-4"><ModelPicker choice={model} label="Portrait model" /></div>
-          <Button className="mt-4 w-full brand-glow" disabled={busy || !name.trim() || !prompt.trim() || !model.canSubmit} onClick={() => void submit()} data-testid="button-generate-character">
+          <Button className="mt-4 w-full brand-glow" disabled={busy || !prompt.trim() || !model.canSubmit} onClick={() => void submit()} data-testid="button-generate-character">
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Generate four looks
           </Button>
         </div>
@@ -157,8 +142,9 @@ function CharacterPanel({ portraitModel, sheetModel, character: c, run, pendingA
   const generating = isPending(c.status);
   const changed = name !== c.name || prompt !== c.description;
 
-  const regenerate = () => {
-    if (c.locked && !window.confirm(`Regenerate ${c.name}? Scenes already created with this character will be flagged for re-render.`)) return;
+  const confirmAction = useConfirm();
+  const regenerate = async () => {
+    if (c.locked && !(await confirmAction({ title: `Regenerate ${c.name}?`, description: "Scenes already created with this character will be flagged for re-render.", confirmLabel: "Regenerate" }))) return;
     void run("regenerate-character", { id: c.id, name: name.trim(), description: prompt.trim(), ...portraitModel.payload() });
     portraitModel.reset();
     setChoice(undefined);
@@ -170,7 +156,7 @@ function CharacterPanel({ portraitModel, sheetModel, character: c, run, pendingA
         <h3 className="font-bold">{c.name}{c.locked && <span className="ml-2 text-xs font-semibold text-emerald-400">Look locked</span>}</h3>
         <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close" data-testid="button-close-character"><X className="h-4 w-4" /></Button>
       </div>
-      {c.error && <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" data-testid="text-character-error">{c.error}</p>}
+      {c.error && <ErrorNotice className="mb-3" testId="text-character-error" message={c.error} />}
       <div className="grid gap-5 md:grid-cols-[1fr_1.2fr]">
         <div>
           <PromptFields name={name} setName={setName} prompt={prompt} setPrompt={setPrompt} />
@@ -187,18 +173,7 @@ function CharacterPanel({ portraitModel, sheetModel, character: c, run, pendingA
           {c.locked && <p className="mt-2 text-xs text-amber-300/80">Regenerating replaces the locked look and flags existing scenes for re-render.</p>}
         </div>
         <div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Portrait options">
-            {(generating || c.options.length === 0 ? [0, 1, 2, 3].map((i) => c.options[i]) : c.options).map((o, i) => (
-              o ? (
-                <button key={o.assetId} type="button" role="radio" aria-checked={choice === o.assetId} onClick={() => setChoice(o.assetId)}
-                  className={`relative overflow-hidden rounded-lg border-2 transition-all ${choice === o.assetId ? "border-primary brand-glow" : "border-transparent hover:border-foreground/30"}`}
-                  data-testid={`option-portrait-${i}`}>
-                  <img src={o.mediaUrl} alt={`Option ${i + 1}`} className="aspect-[3/4] w-full object-cover" />
-                  {choice === o.assetId && <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5"><Check className="h-3 w-3" /></span>}
-                </button>
-              ) : <Thumb key={`ph-${i}`} alt="" status={generating ? "RUNNING" : c.status} />
-            ))}
-          </div>
+          <LookOptionGrid slots={slotsFromProduction(generating ? { ...c, status: "RUNNING" } : c)} choice={choice} onChoose={setChoice} keptAssetId={c.locked ? c.selectedAssetId : null} />
           <div className="mt-4"><ModelPicker choice={sheetModel} label="Reference sheet model" /></div>
           <div className="mt-4 flex gap-2">
             <Button className="flex-1 brand-glow" disabled={!choice || generating || pendingAction !== null || (c.locked && choice === c.selectedAssetId) || !sheetModel.canSubmit}
@@ -207,23 +182,7 @@ function CharacterPanel({ portraitModel, sheetModel, character: c, run, pendingA
             </Button>
             <Button variant="ghost" onClick={onClose} data-testid="button-cancel-character">Cancel</Button>
           </div>
-          {c.locked && (
-            <div className="mt-5">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference sheet</p>
-              {c.referenceSheet.length === 0 ? (
-                <p className="text-xs text-muted-foreground" data-testid="text-reference-pending">Front, three-quarter, profile and expression views are being prepared.</p>
-              ) : (
-                <div className="flex gap-2 overflow-x-auto">
-                  {c.referenceSheet.map((r) => (
-                    <figure key={r.assetId} className="w-20 shrink-0">
-                      <img src={r.mediaUrl} alt={r.label ?? "reference"} className="aspect-[3/4] w-full rounded-md object-cover" />
-                      <figcaption className="mt-1 truncate text-[10px] text-muted-foreground">{r.label}</figcaption>
-                    </figure>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {c.locked && <div className="mt-5"><ReferenceSheetStrip slots={slotsFromSheet(c.referenceSheet)} /></div>}
         </div>
       </div>
     </section>
@@ -270,13 +229,7 @@ function WardrobeRow({ model, character: c, outfits, maxScene, run, busy }: { mo
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1">
         {outfits.map((w) => (
-          <article key={w.id} className="w-36 shrink-0" data-testid={`card-outfit-${w.id}`}>
-            <Thumb src={w.mediaUrl} alt={w.name} status={w.status} />
-            <p className="mt-1.5 truncate text-sm font-semibold">{w.name}</p>
-            <p className="text-xs text-muted-foreground">Scenes {w.fromScene}{w.toScene !== w.fromScene ? `–${w.toScene}` : ""}</p>
-            {w.stateNote && <p className="text-xs text-violet-300">{w.stateNote} from scene {w.stateFromScene}</p>}
-            {w.error && <p className="text-xs text-destructive">{w.error}</p>}
-          </article>
+          <OutfitCard key={w.id} className="w-36 shrink-0" testId={`card-outfit-${w.id}`} outfit={outfitFromProduction(w)} />
         ))}
         <button type="button" disabled={!c.locked} onClick={() => setOpen(true)}
           className="flex aspect-[3/4] w-36 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-40"
@@ -380,6 +333,7 @@ function PlaceCard({ model, place: p, usedIn, run, busy }: { model: ModelChoice;
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<string | undefined>();
   const shown = preview ?? p.mediaUrl;
+  const confirmAction = useConfirm();
   const add = async () => {
     const ok = await run("add-variant", { placeId: p.id, name: vName.trim(), prompt: vPrompt.trim() || vName.trim(), ...model.payload() });
     model.reset();
@@ -392,11 +346,11 @@ function PlaceCard({ model, place: p, usedIn, run, busy }: { model: ModelChoice;
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="truncate font-bold">{p.name}</h3>
           <Button size="sm" variant="ghost" disabled={busy || isPending(p.status) || p.variants.some(v => isPending(v.status))}
-            onClick={() => { if (window.confirm(`Remove “${p.name}” and its variants from this production? Existing scenes and shared media files will be kept.`)) void run("remove-place", { placeId: p.id }); }}
+            onClick={async () => { if (await confirmAction({ title: `Remove “${p.name}” from this production?`, description: "Its variants are detached too. Existing scenes and shared library media are kept.", confirmLabel: "Remove", destructive: true })) void run("remove-place", { placeId: p.id }); }}
             data-testid={`button-remove-place-${p.id}`}>Remove</Button>
           <span className="shrink-0 text-xs text-muted-foreground" data-testid={`text-place-usage-${p.id}`}>Used in {usedIn} scene{usedIn === 1 ? "" : "s"}</span>
         </div>
-        {p.error && <p className="text-xs text-destructive">{p.error}</p>}
+        {p.error && <p role="alert" className="text-xs text-destructive" data-testid={`text-place-error-${p.id}`}>{p.error}</p>}
         <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => setPreview(undefined)} className={`rounded-full px-2 py-0.5 text-[11px] ${!preview ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`} data-testid={`pill-variant-base-${p.id}`}>Base</button>
           {p.variants.map((v) => (
@@ -407,7 +361,7 @@ function PlaceCard({ model, place: p, usedIn, run, busy }: { model: ModelChoice;
               {isPending(v.status) && <Loader2 className="h-2.5 w-2.5 animate-spin" />}{v.name}
             </button>
             <button type="button" aria-label={`Remove ${v.name} variant`} disabled={busy || isPending(v.status)}
-              onClick={async () => { if (window.confirm(`Remove the “${v.name}” variant? Shared media is kept.`)) { const result = await run("remove-variant", { placeId: p.id, id: v.id }); if (result) setPreview(undefined); } }}
+              onClick={async () => { if (await confirmAction({ title: `Remove the “${v.name}” variant?`, description: "Shared library media is kept.", confirmLabel: "Remove", destructive: true })) { const result = await run("remove-variant", { placeId: p.id, id: v.id }); if (result) setPreview(undefined); } }}
               className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-40" data-testid={`button-remove-variant-${v.id}`}><X className="h-3 w-3" /></button>
             </span>
           ))}

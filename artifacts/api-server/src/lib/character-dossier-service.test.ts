@@ -110,6 +110,7 @@ test("dossier image-generation serialization round-trips persisted model fields 
   const createdAt = new Date("2026-01-01T00:00:00.000Z");
   const job = {
     id: "job-legacy",
+    settingId: null, settingReferenceName: null,
     tenantId: "tenant",
     createdByUserId: "user",
     requestKey: null,
@@ -159,6 +160,7 @@ test("dossier image-generation serialization round-trips persisted model fields 
 test("terminal Cloud dossier jobs do not expose the legacy ongoing image-worker error", () => {
   const job = {
     id: "job-terminal-cloud",
+    settingId: null, settingReferenceName: null,
     tenantId: "tenant",
     createdByUserId: "user",
     requestKey: null,

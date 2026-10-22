@@ -1,3 +1,4 @@
+import { ToolHistory, ToolTabs, readHistoryTool, type HistoryTool } from "@/components/queue/ToolHistory";
 import * as React from "react";
 import {
   getListGenerationsQueryKey,
@@ -17,6 +18,7 @@ import { Link, useLocation } from "wouter";
 import { useUndoableVideoDelete } from "@/components/video-studio/UndoableDelete";
 import { VideoLibraryPanel } from "@/components/video-studio/VideoLibraryPanel";
 import { VideoGenerationViewer } from "@/components/video-studio/VideoGenerationViewer";
+import { useConfirm } from "@/components/shared/confirm";
 
 const PAGE_SIZES = ["24", "48", "96"];
 const ACTIVE_STATUSES = ["UPLOADING", "QUEUED", "RUNNING", "DOWNLOADING"];
@@ -32,6 +34,14 @@ export default function GenerationsPage() {
     setView(next);
     const params = new URLSearchParams(window.location.search);
     if (next === "library") params.set("view", "library"); else params.delete("view");
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  };
+  const [tool, setTool] = React.useState<HistoryTool>(readHistoryTool);
+  const changeTool = (next: HistoryTool) => {
+    setTool(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next === "video") params.delete("tool"); else params.set("tool", next);
     const query = params.toString();
     window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
   };
@@ -56,8 +66,9 @@ export default function GenerationsPage() {
   const jobs = data?.items ?? [];
   const activeJobs = jobs.filter((job) => ACTIVE_STATUSES.includes(job.status));
   const historyJobs = jobs.filter((job) => !ACTIVE_STATUSES.includes(job.status));
-  const requestCancellation = (jobId: string) => {
-    if (window.confirm("Cancel this generation? The current ComfyUI prompt will be interrupted and cannot be resumed.")) {
+  const confirmAction = useConfirm();
+  const requestCancellation = async (jobId: string) => {
+    if (await confirmAction({ title: "Cancel this generation?", description: "The current ComfyUI prompt will be interrupted and cannot be resumed.", confirmLabel: "Cancel generation", destructive: true })) {
       cancelJob.mutate({ id: jobId });
     }
   };
@@ -81,17 +92,21 @@ export default function GenerationsPage() {
           <Activity className="size-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Production Queue</h1>
-          <p className="text-muted-foreground text-xs font-medium">Monitor active rendering jobs and historical output.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Queue &amp; History</h1>
+          <p className="text-muted-foreground text-xs font-medium">Every tool's jobs in one place. Open a job to continue in its workbench.</p>
         </div>
-        <div role="tablist" aria-label="View" className="ml-auto flex rounded-md border border-border/60 p-0.5">
+        {tool === "video" && <div role="tablist" aria-label="View" className="ml-auto flex rounded-md border border-border/60 p-0.5">
           {(["queue", "library"] as const).map((value) => (
             <button key={value} type="button" role="tab" aria-selected={view === value} onClick={() => changeView(value)} className={`rounded px-3 py-1 text-xs capitalize ${view === value ? "bg-primary/20 text-foreground" : "text-muted-foreground"}`} data-testid={`tab-view-${value}`}>{value}</button>
           ))}
-        </div>
+        </div>}
       </div>
 
-      {view === "library" ? (
+      <ToolTabs tool={tool} onChange={changeTool} />
+
+      {tool !== "video" ? (
+        <ToolHistory tool={tool} />
+      ) : view === "library" ? (
         <VideoLibraryPanel onOpen={(id) => navigate(`/generations/${id}`)} />
       ) : isLoading ? (
         <LoadingGrid />

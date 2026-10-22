@@ -113,6 +113,8 @@ export * from './listReferenceLibraryParams';
 export * from './listSpendingEntriesParams';
 export * from './listVideoLibrary200';
 export * from './listVideoLibraryParams';
+export * from './locationImageJobInput';
+export * from './locationReferenceNameInput';
 export * from './longFormContinuityCharacter';
 export * from './longFormContinuityScene';
 export * from './longFormContinuitySceneWardrobeAssignmentsItem';

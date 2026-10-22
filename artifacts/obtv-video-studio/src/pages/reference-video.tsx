@@ -1,3 +1,5 @@
+import { scopedKey } from "@/lib/workspace-storage";
+import { FileDropzone } from "@/components/shared/file-dropzone";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Page, PageHeader } from "@/components/layout/page";
@@ -6,10 +8,11 @@ import { Card } from "@/components/ui/card";
 import { getListReferenceVideosQueryKey, useDeleteReferenceVideo, useListReferenceVideos } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, CheckCircle2, FileVideo, Loader2, RotateCcw, Trash2, Upload, Video } from "lucide-react";
+import { useConfirm } from "@/components/shared/confirm";
 
 const MAX_REFERENCE_VIDEO_BYTES = 250 * 1024 * 1024;
 const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm"];
-const REFERENCE_VIDEO_STORAGE_KEY = "obtv.referenceVideo";
+const REFERENCE_VIDEO_STORAGE_KEY_BASE = "obtv.referenceVideo";
 
 type StoredReferenceVideo = {
   storageKey: string;
@@ -22,7 +25,7 @@ type StoredReferenceVideo = {
 
 function readStoredReferenceVideo(): StoredReferenceVideo | null {
   try {
-    const raw = window.localStorage.getItem(REFERENCE_VIDEO_STORAGE_KEY);
+    const raw = window.localStorage.getItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StoredReferenceVideo>;
     if (
@@ -96,7 +99,7 @@ export default function ReferenceVideoPage() {
     setStoredVideo(null);
     setUploadedKey(null);
     setUploadedMediaUrl(null);
-    window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
+    window.localStorage.removeItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE));
     if (!nextFile) {
       setFile(null);
       return;
@@ -142,7 +145,7 @@ export default function ReferenceVideoPage() {
         previewUrl: undefined,
       };
       setStoredVideo(nextStoredVideo);
-      window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify(nextStoredVideo));
+      window.localStorage.setItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE), JSON.stringify(nextStoredVideo));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Reference video upload failed.");
     } finally {
@@ -161,7 +164,7 @@ export default function ReferenceVideoPage() {
     setUploadedKey(null);
     setUploadedMediaUrl(null);
     setError("");
-    window.localStorage.removeItem(REFERENCE_VIDEO_STORAGE_KEY);
+    window.localStorage.removeItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE));
   };
 
   const useSavedVideo = (video: NonNullable<typeof savedReferenceVideos>["items"][number]) => {
@@ -178,11 +181,12 @@ export default function ReferenceVideoPage() {
     setUploadedKey(video.storageKey);
     setUploadedMediaUrl(video.mediaUrl);
     setError("");
-    window.localStorage.setItem(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify(nextStoredVideo));
+    window.localStorage.setItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE), JSON.stringify(nextStoredVideo));
   };
 
+  const confirmAction = useConfirm();
   const deleteSavedVideo = async (video: NonNullable<typeof savedReferenceVideos>["items"][number]) => {
-    if (!window.confirm(`Delete ${video.name}? This cannot be undone.`)) return;
+    if (!(await confirmAction({ title: `Delete ${video.name}?`, description: "This cannot be undone.", confirmLabel: "Delete", destructive: true }))) return;
     setDeletingName(video.name);
     setError("");
     try {
@@ -202,11 +206,9 @@ export default function ReferenceVideoPage() {
         title="Reference Video"
         description="Upload presenter footage once, review it here, then send it into a reference-video workflow."
         actions={
-          <Link href={returnTo}>
-            <Button variant="outline" className="gap-2">
+          <Button asChild variant="outline" className="gap-2"><Link href={returnTo}>
               <ArrowLeft className="size-4" /> Back to Shot Composer
-            </Button>
-          </Link>
+            </Link></Button>
         }
       />
 
@@ -228,23 +230,8 @@ export default function ReferenceVideoPage() {
           </div>
 
           <div className="space-y-5 p-5 md:p-7">
-            <label
-              htmlFor="reference-video-upload"
-              className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-primary/40 bg-primary/5 px-6 py-12 text-center transition-colors hover:border-primary hover:bg-primary/10"
-            >
-              <div className="mb-4 rounded-full bg-primary/15 p-4">
-                <Upload className="size-7 text-primary" />
-              </div>
-              <span className="text-base font-semibold">Choose a reference video</span>
-              <span className="mt-2 text-xs text-muted-foreground">MP4 or WebM · maximum 250 MB</span>
-              <input
-                id="reference-video-upload"
-                type="file"
-                accept="video/mp4,video/webm"
-                onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
-                className="sr-only"
-              />
-            </label>
+            <FileDropzone accept="video/mp4,video/webm" title="Choose a reference video" hint="MP4 or WebM · maximum 250 MB · or drop it here"
+              onFiles={([f]) => selectFile(f ?? null)} testId="dropzone-reference-video" />
 
             {(file || uploadedKey) && (
               <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/40 p-3">

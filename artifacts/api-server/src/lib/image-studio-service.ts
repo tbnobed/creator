@@ -1,4 +1,5 @@
 import { assertOpaqueTopazSource, topazImageScale, TOPAZ_IMAGE_MODEL } from "./topaz-image";
+import { publishLocationImageResults } from "./scenery-library";
 import { galleryAssetCondition, isEditorMaskName } from "./image-studio-asset-visibility";
 import {
   and,
@@ -17,6 +18,9 @@ import {
   generationJobsTable,
   imageStudioAssetsTable,
   imageStudioJobsTable,
+  settingAssetsTable,
+  characterAssetsTable,
+  productionProjectsTable,
   longFormProjectsTable,
   pool,
   type ComfyServer,
@@ -1084,6 +1088,8 @@ export async function createImageJob(input: {
   tenantId: string;
   userId: string;
   request: ImageJobRequest;
+  settingId?: string;
+  settingReferenceName?: string;
 }): Promise<PresentedImageJob> {
   const model = getImageModel(input.request.modelId);
   if (!model) throw new ImageStudioRequestError("Image model not found", 400);
@@ -1105,6 +1111,7 @@ export async function createImageJob(input: {
       ))
       .limit(1);
     if (existing) {
+      if ((existing.settingId ?? undefined) !== input.settingId) throw new ImageStudioRequestError("Request key belongs to a different destination.", 409);
       if (
         hasImageSpendLifecycle(existing)
         && existing.providerTaskMetadata.submissionIntent !== true
@@ -1169,6 +1176,8 @@ export async function createImageJob(input: {
         tenantId: input.tenantId,
         createdByUserId: input.userId,
         requestKey: input.request.requestKey ?? null,
+        settingId: input.settingId ?? null,
+        settingReferenceName: input.settingReferenceName ?? null,
         modelId: model.id,
         modelName: model.name,
         provider: model.provider,
@@ -1222,6 +1231,7 @@ export async function createImageJob(input: {
       if (!existing) {
         throw new ImageStudioRequestError("The idempotent image request could not be resolved", 409);
       }
+      if ((existing.settingId ?? undefined) !== input.settingId) throw new ImageStudioRequestError("Request key belongs to a different destination.", 409);
       return existing;
     }
     let job = insertedJob;
@@ -1462,6 +1472,9 @@ export async function deleteImageJob(tenantId: string, id: string): Promise<"del
     .limit(1);
   if (!job) return "missing";
   if (ACTIVE_STATUSES.includes(job.status as typeof ACTIVE_STATUSES[number])) return "active";
+  // History deletion must not discard the durable destination before its output
+  // has been attached to the location library.
+  if (job.settingId && job.status === "COMPLETED") await publishLocationImageResults(tenantId, job.settingId);
   await db
     .delete(imageStudioJobsTable)
     .where(and(
@@ -1541,6 +1554,18 @@ export async function deleteImageAsset(
       .where(and(eq(imageStudioAssetsTable.id, id), eq(imageStudioAssetsTable.tenantId, tenantId)))
       .limit(1);
     if (!asset) return { kind: "missing" as const };
+    // Libraries share image bytes with Image Studio. Removing a gallery image
+    // must not break a saved character, location, or production snapshot.
+    const [locationReference] = await tx.select({ id: settingAssetsTable.id }).from(settingAssetsTable)
+      .where(eq(settingAssetsTable.storageKey, asset.storageKey)).limit(1);
+    const [characterReference] = await tx.select({ id: characterAssetsTable.id }).from(characterAssetsTable)
+      .where(eq(characterAssetsTable.storageKey, asset.storageKey)).limit(1);
+    const [productionReference] = await tx.select({ id: productionProjectsTable.id }).from(productionProjectsTable)
+      .where(and(eq(productionProjectsTable.tenantId, tenantId),
+        sql`position(${id} in ${productionProjectsTable.state}::text) > 0`)).limit(1);
+    const [pendingLocationAttachment] = asset.jobId ? await tx.select({ id: imageStudioJobsTable.id }).from(imageStudioJobsTable)
+      .where(and(eq(imageStudioJobsTable.id, asset.jobId), sql`${imageStudioJobsTable.settingId} IS NOT NULL`)).limit(1) : [];
+    if (locationReference || characterReference || productionReference || pendingLocationAttachment) return { kind: "referenced" as const };
     const [reference] = await tx
       .select({ id: imageStudioJobsTable.id })
       .from(imageStudioJobsTable)

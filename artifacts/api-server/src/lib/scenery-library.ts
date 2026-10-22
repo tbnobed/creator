@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { db, imageStudioAssetsTable, productionProjectsTable, settingsTable, settingAssetsTable, type ProductionProjectRow } from "@workspace/db";
+import { and, eq, isNotNull } from "drizzle-orm";
+import { db, imageStudioAssetsTable, imageStudioJobsTable, productionProjectsTable, settingsTable, settingAssetsTable, type ProductionProjectRow } from "@workspace/db";
 import type { ProductionState } from "./production-types";
 
 export function sceneryReferenceId(placeId: string, referenceId: string) {
@@ -37,7 +37,29 @@ export async function publishProductionScenery(row: ProductionProjectRow) {
   }
 }
 
+export async function publishLocationImageResults(tenantId: string, locationId?: string) {
+  // Destination lives on the durable job before submission; closing a dialog
+  // or restarting the API cannot orphan a finished location image.
+  const generated = await db.select({ job: imageStudioJobsTable, asset: imageStudioAssetsTable })
+    .from(imageStudioJobsTable).innerJoin(imageStudioAssetsTable, eq(imageStudioAssetsTable.jobId, imageStudioJobsTable.id))
+    .where(and(eq(imageStudioJobsTable.tenantId, tenantId), eq(imageStudioJobsTable.status, "COMPLETED"),
+      isNotNull(imageStudioJobsTable.settingId), locationId ? eq(imageStudioJobsTable.settingId, locationId) : undefined,
+      eq(imageStudioAssetsTable.tenantId, tenantId)));
+  for (const { job, asset } of generated) {
+    if (!job.settingId) continue;
+    const [location] = await db.select().from(settingsTable).where(and(eq(settingsTable.id, job.settingId), eq(settingsTable.tenantId, tenantId)));
+    if (!location) continue;
+    await db.insert(settingAssetsTable).values({
+      id: sceneryReferenceId(location.id, asset.id), settingId: location.id,
+      storageKey: asset.storageKey, mimeType: asset.mimeType,
+      originalName: job.settingReferenceName || "Base", description: job.prompt, sortOrder: 1,
+    }).onConflictDoNothing();
+    if (!location.thumbnail) await db.update(settingsTable).set({ thumbnail: `/api/media/${asset.storageKey}` }).where(eq(settingsTable.id, location.id));
+  }
+}
+
 export async function reconcileSceneryLibrary(tenantId: string) {
+  await publishLocationImageResults(tenantId);
   const rows = await db.select().from(productionProjectsTable).where(eq(productionProjectsTable.tenantId, tenantId));
   for (const row of rows) await publishProductionScenery(row);
 }

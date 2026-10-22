@@ -57,8 +57,9 @@ function makeMock() {
       if (body.action === "import-place") st.places.push({ id: body.payload.settingId, name: "Shared lantern room", prompt: "Room", seed: 1, status: "READY", assetId: "shared-base", mediaUrl: image, variants: [{ id: "shared-dawn", name: "Dawn", prompt: "Dawn", assetId: "shared-dawn-image", mediaUrl: image, status: "READY" }] });
       if (body.action === "remove-place") st.places = st.places.filter(p => p.id !== body.payload.placeId);
       if (body.action === "remove-variant") st.places = st.places.map(p => p.id === body.payload.placeId ? { ...p, variants: p.variants.filter(v => v.id !== body.payload.id) } : p);
-      if (body.action === "add-character") st.characters.push({ id: "pc-1", name: body.payload.name, description: body.payload.description, seed: 42, options: [0, 1, 2, 3].map((i) => ({ assetId: `opt-${i}`, mediaUrl: image })), locked: false, referenceSheet: [], status: "READY" });
+      if (body.action === "add-character") st.characters.push({ id: "pc-1", name: body.payload.name ?? "Weathered harbor pilot", description: body.payload.description, seed: 42, options: [0, 1, 2, 3].map((i) => ({ assetId: `opt-${i}`, mediaUrl: image })), locked: false, referenceSheet: [], status: "READY" });
       if (body.action === "keep-look") st.characters = st.characters.map((c) => c.id === body.payload.id ? { ...c, locked: true, selectedAssetId: body.payload.assetId, referenceSheet: [{ assetId: "ref-1", mediaUrl: image, label: "front" }] } : c);
+      if (body.action === "add-wardrobe") st.wardrobes = [...(st.wardrobes ?? []), { id: "w-1", characterId: body.payload.characterId, name: body.payload.name, prompt: body.payload.prompt, fromScene: body.payload.fromScene, toScene: body.payload.toScene, stateNote: body.payload.stateNote, stateFromScene: body.payload.stateFromScene, status: "READY", mediaUrl: image }];
       m.project = { ...m.project, revision: m.project.revision + 1, state: st, updatedAt: now() };
       return json(m.project);
     }
@@ -113,7 +114,7 @@ try {
     expect(mock.project.state.step).toBe(1);
     await page.getByTestId("button-add-character").click();
     await expect(page.getByTestId("button-generate-character")).toBeDisabled();
-    await page.getByTestId("input-character-name").fill("Eli");
+    // Name is optional: the server derives it from the prompt when left blank.
     await page.getByTestId("chip-age").click();
     await expect(page.getByTestId("input-character-description")).toHaveValue("age: ");
     await page.getByTestId("input-character-description").fill("age: 34, weathered");
@@ -133,11 +134,28 @@ try {
     await expect(page.getByTestId("badge-locked-pc-1")).toBeVisible();
     expect(mock.actions.at(-1)).toMatchObject({ action: "keep-look", payload: { id: "pc-1", assetId: "opt-2", modelId: "local-flux2-klein-4b", cloudConfirmed: false } });
     expect(mock.actions.find((a) => a.action === "add-character").payload).toMatchObject({ modelId: "local-flux2-klein-4b", cloudConfirmed: false });
+    expect(mock.actions.find((a) => a.action === "add-character").payload).not.toHaveProperty("name");
 
     // Steps 3-6.
     for (const label of ["Wardrobe", "Places", "Create", "Review"]) {
       await page.getByTestId("button-step-next").click();
       await expect(page.getByTestId("text-step-label")).toContainText(label);
+      if (label === "Wardrobe") {
+        // Shared outfit/look presentation in the production wardrobe step.
+        await expect(page.getByTestId("row-wardrobe-pc-1")).toBeVisible();
+        await page.getByTestId("button-add-outfit-pc-1").click();
+        await page.getByTestId("input-outfit-name").fill("Storm slicker");
+        await page.getByTestId("input-outfit-prompt").fill("Yellow fisherman's slicker over grey wool");
+        await page.getByTestId("input-outfit-to").fill("1");
+        await page.getByTestId("input-outfit-state-note").fill("soaked");
+        await page.getByTestId("input-outfit-state-from").fill("1");
+        await page.getByTestId("button-generate-outfit").click();
+        await expect(page.getByTestId("card-outfit-w-1")).toContainText("Storm slicker");
+        await expect(page.getByTestId("card-outfit-w-1").getByTestId("text-outfit-scenes")).toHaveText("Scene 1");
+        await expect(page.getByTestId("card-outfit-w-1")).toContainText("soaked from scene 1");
+        expect(mock.actions.at(-1)).toMatchObject({ action: "add-wardrobe", payload: { modelId: "local-flux2-klein-4b", cloudConfirmed: false } });
+        await page.screenshot({ path: "screenshots/shared/production-wardrobe.jpg", type: "jpeg", quality: 80, fullPage: true });
+      }
     }
     await expect(page.getByTestId("empty-review")).toBeVisible();
 
@@ -186,11 +204,11 @@ try {
     await page.getByTestId("button-retry-save").click();
     await expect(page.getByTestId("alert-save-error")).toBeVisible();
     expect(mock.project.title).toBe("Another editor's title");
-    page.once("dialog", dialog => dialog.dismiss());
     await page.getByTestId("button-load-server").click();
+    await page.getByTestId("button-confirm-cancel").click();
     await expect(page.getByTestId("input-production-title")).toHaveValue("My final title");
-    page.once("dialog", dialog => dialog.accept());
     await page.getByTestId("button-keep-local-edits").click();
+    await page.getByTestId("button-confirm-accept").click();
     await expect(page.getByTestId("status-save")).toContainText("Saved");
     expect(mock.project.title).toBe("My final title");
     expect(mock.project.state.settings.width).toBe(1600);
@@ -292,10 +310,11 @@ try {
     mock.project.state.places = [{ id: "remove-place", name: "Test set", prompt: "A set", seed: 1, status: "READY", mediaUrl: image, variants: [{ id: "remove-variant", name: "Night", prompt: "Night", mediaUrl: image, status: "READY" }] }];
     await page.reload();
     await page.screenshot({ path: "/tmp/production-controls-scenery.png", fullPage: true });
-    page.on("dialog", dialog => void dialog.accept());
     await page.getByTestId("button-remove-variant-remove-variant").click();
+    await page.getByTestId("button-confirm-accept").click();
     await expect(page.getByTestId("pill-variant-remove-variant")).toHaveCount(0);
     await page.getByTestId("button-remove-place-remove-place").click();
+    await page.getByTestId("button-confirm-accept").click();
     await expect(page.getByTestId("card-place-remove-place")).toHaveCount(0);
     mock.project.state.step = 0; mock.project.state.story = { ...mock.project.state.story, sourceMode: "summary", summary: "A brief test.", script: "", draftStatus: "READY" };
     await page.reload();
@@ -364,7 +383,7 @@ try {
     const projectUrl = page.url();
     await page.goto(`${base}/settings`);
     await expect(page.getByRole("heading", { name: "Locations & Scenery" })).toBeVisible();
-    await page.getByText("Reference images (2)", { exact: true }).click();
+    await page.getByText("References and variants (2)", { exact: true }).click();
     await expect(page.getByAltText("Dawn", { exact: true })).toBeVisible();
     await page.screenshot({ path: "/tmp/scenery-library-mobile.png", fullPage: true });
     await page.goto(projectUrl);

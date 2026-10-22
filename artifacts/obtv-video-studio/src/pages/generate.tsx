@@ -1,3 +1,9 @@
+import { ModelCommandList, ProviderBadge } from "@/components/shared/model-option";
+import { videoCloudOption } from "@/lib/model-option";
+import { PaidConfirm } from "@/components/shared/paid-confirm";
+import { LegacyDraftNotice } from "@/components/shared/legacy-draft-notice";
+import { scopedKey } from "@/lib/workspace-storage";
+import { ErrorNotice } from "@/components/shared/error-notice";
 import { useEffect, useRef, useState } from "react";
 import { localVideoDurationLimit } from "@workspace/api-zod";
 import { Link, useLocation, useSearch } from "wouter";
@@ -58,8 +64,8 @@ import {
   restoreComposerFields,
 } from "@/lib/generation-edit";
 
-const REFERENCE_VIDEO_STORAGE_KEY = "obtv.referenceVideo";
-const COMPOSER_DRAFT_STORAGE_KEY = "obtv.composerDraft";
+const REFERENCE_VIDEO_STORAGE_KEY_BASE = "obtv.referenceVideo";
+const COMPOSER_DRAFT_STORAGE_KEY_BASE = "obtv.composerDraft";
 const DEFAULT_RESOLUTION_OPTIONS = [
   { width: 1280, height: 720, label: "1280x720 (16:9)" },
   { width: 1920, height: 1080, label: "1920x1080 (16:9)" },
@@ -159,7 +165,7 @@ function extractQuotedDialogue(prompt: string): { dialogue: string; visualPrompt
 
 function readComposerDraft(): ComposerDraft {
   try {
-    const raw = window.localStorage.getItem(COMPOSER_DRAFT_STORAGE_KEY);
+    const raw = window.localStorage.getItem(scopedKey(COMPOSER_DRAFT_STORAGE_KEY_BASE));
     return raw ? JSON.parse(raw) as ComposerDraft : {};
   } catch {
     return {};
@@ -168,7 +174,7 @@ function readComposerDraft(): ComposerDraft {
 
 function readReferenceVideoKey(): string | null {
   try {
-    const raw = window.localStorage.getItem(REFERENCE_VIDEO_STORAGE_KEY);
+    const raw = window.localStorage.getItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { storageKey?: unknown };
     return typeof parsed.storageKey === "string" ? parsed.storageKey : null;
@@ -230,6 +236,9 @@ export default function GeneratePage() {
   const [outputFormat, setOutputFormat] = useState<"mp4" | "mov">(() => draft.outputFormat ?? "mp4");
   const [outputResolution, setOutputResolution] = useState<OutputResolution>(() => draft.outputResolution ?? "720p");
   const [prompt, setPrompt] = useState(() => draft.prompt ?? "");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // Paid cloud renders need an explicit per-submission confirmation; any change to what is billed clears it.
+  const [cloudConfirmed, setCloudConfirmed] = useState(false);
   const [dialogue, setDialogue] = useState(() => draft.dialogue ?? "");
   const [negativePrompt, setNegativePrompt] = useState(() => draft.negativePrompt ?? "ugly, distorted, blurry, low resolution, bad anatomy");
   const [cameraInstructions, setCameraInstructions] = useState(() => draft.cameraInstructions ?? "");
@@ -386,7 +395,7 @@ export default function GeneratePage() {
 
   useEffect(() => {
     if (cloneRestorationPending) return;
-    safeStorageSet(COMPOSER_DRAFT_STORAGE_KEY, JSON.stringify({
+    safeStorageSet(scopedKey(COMPOSER_DRAFT_STORAGE_KEY_BASE), JSON.stringify({
       provider,
       model,
       voiceCloningEnabled,
@@ -440,9 +449,9 @@ export default function GeneratePage() {
     setSelectedSetting(restored.selectedSetting);
     setReferenceVideoKey(restored.referenceVideoKey);
     if (restored.referenceVideoKey) {
-      safeStorageSet(REFERENCE_VIDEO_STORAGE_KEY, JSON.stringify({ storageKey: restored.referenceVideoKey }));
+      safeStorageSet(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE), JSON.stringify({ storageKey: restored.referenceVideoKey }));
     } else {
-      safeStorageRemove(REFERENCE_VIDEO_STORAGE_KEY);
+      safeStorageRemove(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE));
     }
     setVoiceCloningEnabled(restored.voiceCloningEnabled);
     setNativeAudioEnabled(restored.nativeAudioEnabled);
@@ -510,6 +519,7 @@ export default function GeneratePage() {
   useEffect(() => {
     if (provider === "FAL" && !VIDEO_MODEL_CAPABILITIES[model].qualities.includes(qualityPreset) && VIDEO_MODEL_CAPABILITIES[model].qualities.length) setQualityPreset("STANDARD");
   }, [provider, model, qualityPreset]);
+  useEffect(() => setCloudConfirmed(false), [provider, model, batchCount, seedanceTask, duration]);
 
   const toggleChar = (id: string) => {
     setSelectedChars(prev => 
@@ -521,6 +531,9 @@ export default function GeneratePage() {
 
   const handleGenerate = async () => {
     if (submissionInFlight.current) return;
+    setSubmitError(null);
+    const alert = (message: string) => { setSubmitError(message); };
+    if (isCloudProvider && !cloudConfirmed) return alert("Confirm the paid cloud render before submitting.");
     if (cloneRestorationPending) {
       return alert(sourceLoadState === "loading"
         ? "Loading the original generation before submission."
@@ -557,6 +570,7 @@ export default function GeneratePage() {
       const payload = {
           provider,
           model: provider === "FAL" ? model : undefined,
+          cloudConfirmed: provider === "FAL" ? cloudConfirmed : false,
           voiceCloningEnabled: editingSourceOnly ? false : voiceCloningEnabled,
           nativeAudioEnabled: isCloudProvider && modelCapabilities.nativeAudio && model !== "gemini-omni-flash" ? effectiveNativeAudio : undefined,
           characterIds: !editingSourceOnly && selectedChars.length ? selectedChars : undefined,
@@ -588,6 +602,7 @@ export default function GeneratePage() {
       };
       // Each take is a distinct createGeneration call; failures are recorded, never retried.
       const count = isCloudProvider ? batchCount : 1;
+      setCloudConfirmed(false);
       setBatchSubmitting(true);
       setBatchReceipts(count > 1 ? Array.from({ length: count }, (_, index) => ({ index, state: "pending" as const })) : []);
       let res: { id: string } | null = null;
@@ -621,7 +636,7 @@ export default function GeneratePage() {
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : null;
-      if (!isCloudProvider || batchCount === 1) alert("Failed to submit job: " + sanitizeProviderMessage(message, "Unknown error"));
+      if (!isCloudProvider || batchCount === 1) setSubmitError("Failed to submit job: " + sanitizeProviderMessage(message, "Unknown error"));
     } finally {
       submissionInFlight.current = false;
       setBatchSubmitting(false);
@@ -635,6 +650,7 @@ export default function GeneratePage() {
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden text-[#eeeee9]">
         
         <div className="contents">
+          {!cloneJobId && <LegacyDraftNotice />}
           {cloneJobId && (
             <Card
               className={`flex items-start gap-3 p-4 ${
@@ -668,7 +684,7 @@ export default function GeneratePage() {
           <div className="order-1 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#303135] bg-[#161719] px-4 py-3 md:px-8">
             <div className="flex items-center gap-2.5">
               <span className="flex size-8 items-center justify-center rounded-[9px] bg-[linear-gradient(135deg,#FF1F62,#8B2BE2)] text-white"><Film className="size-[18px]" strokeWidth={2.5} /></span>
-              <h1 className="text-[15px] font-semibold tracking-[-0.04em]">Video Studio</h1>
+              <h1 className="text-[15px] font-semibold tracking-[-0.04em]">Generate Video</h1>
             </div>
           </div>
 
@@ -779,7 +795,7 @@ export default function GeneratePage() {
                   size="sm"
                   onClick={() => {
                     setReferenceVideoKey(null);
-                    safeStorageRemove(REFERENCE_VIDEO_STORAGE_KEY);
+                    safeStorageRemove(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE));
                     setLocation("/studio");
                   }}
                 >
@@ -980,7 +996,7 @@ export default function GeneratePage() {
                     {isCloudProvider && <BatchCountPicker value={batchCount} onChange={setBatchCount} disabled={batchSubmitting} />}
                     <Button
                       onClick={handleGenerate}
-                      disabled={batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || cloneRestorationPending || !prompt.trim() || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
+                      disabled={(isCloudProvider && !cloudConfirmed) || batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || cloneRestorationPending || !prompt.trim() || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
                       className="h-8 rounded-md bg-[linear-gradient(90deg,#FF1F62,#8B2BE2)] px-3 text-[11px] font-semibold text-white hover:brightness-110 disabled:bg-none disabled:bg-[#514551] disabled:text-[#a8a0aa] sm:px-5"
                       data-testid="button-generate-video"
                     >
@@ -988,6 +1004,14 @@ export default function GeneratePage() {
                     </Button>
                   </div>
                 </div>
+                {isCloudProvider && (
+                  <div className="mx-3 mb-3">
+                    <PaidConfirm checked={cloudConfirmed} onChange={setCloudConfirmed} disabled={batchSubmitting} testId="confirm-paid-video" checkboxTestId="checkbox-paid-video">
+                      I confirm {batchCount > 1 ? `${batchCount} separate paid cloud renders` : "a paid cloud render"} with {cloudModelName}{estimatedFalCost !== null ? `, estimated $${(estimatedFalCost * batchCount).toFixed(2)} total` : " (cost estimate unavailable; billed by usage)"}. Confirmation clears after submitting or changing model, takes or duration.
+                    </PaidConfirm>
+                  </div>
+                )}
+                {submitError && <ErrorNotice className="mx-3 mb-3" testId="status-generate-error" title="Generation not submitted" message={submitError} onRetry={() => void handleGenerate()} onDismiss={() => setSubmitError(null)} />}
                 {pipelineError && <p role="alert" data-testid="status-local-pipeline-error" className="px-4 pb-3 text-xs text-rose-200">{pipelineError}</p>}
                 {!prompt.trim() && <p className="px-4 pb-3 text-sm text-[#d6c9d6]">Add a scene description to enable Generate.</p>}
               </div>
@@ -1100,8 +1124,8 @@ export default function GeneratePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-[70]">
-                      <SelectItem value="COMFYUI">Local</SelectItem>
-                      <SelectItem value="FAL">Cloud</SelectItem>
+                      <SelectItem value="COMFYUI">Local GPU <ProviderBadge paid={false} /></SelectItem>
+                      <SelectItem value="FAL">Cloud <ProviderBadge paid /></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1145,28 +1169,8 @@ export default function GeneratePage() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="z-[70] w-[300px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search cloud models..." />
-                        <CommandList>
-                          <CommandEmpty>No models found.</CommandEmpty>
-                          <CommandGroup heading="Cloud · cost applies">
-                            {FAL_MODELS.map((option) => (
-                              <CommandItem
-                                key={option.value}
-                                value={option.label}
-                                onSelect={() => {
-                                  modelSelection.current.selectExplicitly(cloneJobId);
-                                  setModel(option.value);
-                                  setModelPickerOpen(false);
-                                }}
-                              >
-                                <Check className={`mr-2 h-4 w-4 ${model === option.value ? "opacity-100" : "opacity-0"}`} />
-                                <span className="truncate">{option.label}</span>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
+                      <ModelCommandList options={FAL_MODELS.map((o) => videoCloudOption(o))} selectedId={model} searchPlaceholder="Search cloud models..." testIdPrefix="option-fal-model"
+                        onSelect={(id) => { modelSelection.current.selectExplicitly(cloneJobId); setModel(id as FalModel); setModelPickerOpen(false); }} />
                     </PopoverContent>
                   </Popover>
                   <p className="text-xs text-muted-foreground">

@@ -59,6 +59,7 @@ import { sanitizeProviderMessage } from "@/lib/provider-messages";
 import { longFormShotActionState } from "@/lib/long-form-shot-actions";
 import { ContinuityEditor } from "@/components/long-form/ContinuityEditor";
 import { ShotStillReview } from "@/components/long-form/ShotStillReview";
+import { useConfirm } from "@/components/shared/confirm";
 
 function editorClipsFromProject(project: any): EditorClip[] {
   const completedShots = project.shots.filter((shot: any) => shot.status === "COMPLETED" && shot.outputUrl);
@@ -208,8 +209,9 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const handleReassemble = () => {
-    if (!id || !window.confirm("Rebuild the final video from the completed shots? Existing shot renders will be reused.")) return;
+  const confirmAction = useConfirm();
+  const handleReassemble = async () => {
+    if (!id || !(await confirmAction({ title: "Rebuild the final video?", description: "Existing completed shot renders will be reused.", confirmLabel: "Rebuild" }))) return;
     reassembleProject.mutate({ id }, {
       onSuccess: () => {
         toast({ title: "Reassembly started", description: "Rebuilding the final video with audio from the existing shots." });
@@ -230,8 +232,8 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const handleDelete = () => {
-    if (!id || !window.confirm(`Delete "${project?.title ?? "this project"}"? This removes the project, its shot plan, and project-only generated media.`)) return;
+  const handleDelete = async () => {
+    if (!id || !(await confirmAction({ title: `Delete "${project?.title ?? "this project"}"?`, description: "This removes the project, its shot plan, and project-only generated media.", confirmLabel: "Delete", destructive: true }))) return;
     deleteProject.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListLongFormProjectsQueryKey() });
@@ -242,8 +244,8 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const submitShotRegeneration = (shotId: string, preparingRevision: boolean) => {
-    if (preparingRevision && !window.confirm("Prepare a revision of this shot? Its current clip will be removed from the active timeline, and production will pause for still approval. Other shots are preserved.")) return;
+  const submitShotRegeneration = async (shotId: string, preparingRevision: boolean) => {
+    if (preparingRevision && !(await confirmAction({ title: "Prepare a revision of this shot?", confirmLabel: "Prepare revision", description: " Its current clip will be removed from the active timeline, and production will pause for still approval. Other shots are preserved." }))) return;
     retryShot.mutate({ id: id as string, shotId }, {
       onSuccess: () => {
         toast({
@@ -337,9 +339,7 @@ export default function ProjectDetailPage() {
           <AlertTriangle className="w-10 h-10 mx-auto mb-4" />
           <h2 className="text-xl font-bold">Failed to load project</h2>
           <p className="mt-2 opacity-80 text-sm">{(error as any)?.message || "Not found"}</p>
-          <Link href="/projects">
-            <Button variant="outline" className="mt-6">Back to Projects</Button>
-          </Link>
+          <Button asChild variant="outline" className="mt-6"><Link href="/projects">Back to Projects</Link></Button>
         </div>
       </div>
     );

@@ -1,3 +1,6 @@
+import { ModelOptionLabel } from "@/components/shared/model-option";
+import { videoCloudOption } from "@/lib/model-option";
+import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { VIDEO_MODEL_CAPABILITIES, effectiveModelDuration, modelDurationOptions, type FalModel } from "@/lib/video-model-capabilities";
@@ -18,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { errorMessage, isFailed, isPending, taskIsPaid, type ProductionSettings, type ProductionState } from "@/lib/production-types";
 import type { RunAction } from "./workflow";
 import { missingSceneryCount } from "./scene-scenery";
+import { useConfirm } from "@/components/shared/confirm";
 
 type Base = { state: ProductionState; project?: ProductionProject; run: RunAction; pendingAction: string | null };
 
@@ -81,6 +85,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
   onSettings: (p: Partial<ProductionSettings>) => void; save: () => Promise<ProductionProject | null>;
 }) {
   const { toast } = useToast();
+  const confirmAction = useConfirm();
   const { data: caps = [], isLoading: capsLoading, error: capsError } = useGetGenerationCapabilities();
   const requiredSlots = Math.max(1, ...state.story.scenes.map(scene => {
     const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
@@ -171,7 +176,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
                 const why = cloudModelReason(m);
                 return (
                   <SelectItem key={m} value={m} disabled={!!why} data-testid={`option-cloud-model-${m}`}>
-                    <span className="flex flex-col"><span>{m}</span>{why && <span className="text-[11px] text-muted-foreground">{why}</span>}</span>
+                    <ModelOptionLabel option={videoCloudOption({ value: m, label: m }, why)} />
                   </SelectItem>
                 );
               })}
@@ -208,10 +213,9 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
           <div className="space-y-2 sm:col-span-2 lg:col-span-6">
             {cloudProblem && <p className="text-xs text-destructive" data-testid="text-cloud-problem">{cloudProblem}</p>}
             {cloudModel && !cloudProblem && (
-              <label className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-400/5 p-2 text-xs text-amber-100" data-testid="confirm-paid-render">
-                <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} data-testid="checkbox-paid-render" />
-                <span>I confirm paid cloud rendering with {cloudModel}: one billed request per shot across all scenes. Requires configured provider credentials on the server.</span>
-              </label>
+              <PaidConfirm checked={confirmed} onChange={setConfirmed} testId="confirm-paid-render" checkboxTestId="checkbox-paid-render">
+                I confirm paid cloud rendering with {cloudModel}: one billed request per shot across all scenes. Requires configured provider credentials on the server.
+              </PaidConfirm>
             )}
           </div>
         )}
@@ -228,7 +232,7 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
           )}
           {rp && ["RUNNING", "PAUSED", "READY"].includes(rp.status) && (
             <Button variant="outline" className="border-destructive/30 text-destructive" disabled={cancel.isPending}
-              onClick={() => { if (window.confirm("Cancel rendering? Finished shots are kept.")) cancel.mutate({ id: rp.id }, { onSuccess: invalidate, onError: (e) => toast({ title: "Cancel failed", description: errorMessage(e), variant: "destructive" }) }); }}
+              onClick={async () => { if (await confirmAction({ title: "Cancel rendering?", description: "Finished shots are kept. You can resume remaining scenes later.", confirmLabel: "Cancel rendering", destructive: true })) cancel.mutate({ id: rp.id }, { onSuccess: invalidate, onError: (e) => toast({ title: "Cancel failed", description: errorMessage(e), variant: "destructive" }) }); }}
               data-testid="button-cancel-render">
               <XCircle className="mr-1.5 h-4 w-4" /> Cancel
             </Button>
@@ -314,7 +318,7 @@ export function ShotFix({ shot, run, busy, initial = "" }: { shot: LongFormShot;
         <PhaseBadge p={p} />
         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen((o) => !o)} disabled={p === "Creating"} data-testid={`button-correct-shot-${shot.id}`}>Correct</Button>
       </div>
-      {shot.errorMessage && <p className="mt-1 text-xs text-destructive">{shot.errorMessage}</p>}
+      {shot.errorMessage && <p role="alert" className="mt-1 text-xs text-destructive">{shot.errorMessage}</p>}
       {open && (
         <div className="mt-2 flex gap-2">
           <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="His slicker should be soaked" className="h-8 text-sm" data-testid={`input-correction-${shot.id}`} />
@@ -346,16 +350,17 @@ function JobQueue({ state, run, busy }: { state: ProductionState; run: RunAction
 }
 
 function TaskList({ tasks, run, busy }: { tasks: ProductionState["tasks"]; run: RunAction; busy: boolean }) {
+  const confirmAction = useConfirm();
   return (
         <ul className="max-h-[50vh] space-y-1.5 overflow-y-auto">
           {tasks.map((t) => (
             <li key={t.id} className="flex items-start gap-2 text-xs" data-testid={`task-${t.id}`}>
               {isPending(t.status) ? <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-primary" /> : isFailed(t.status) ? <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-destructive" /> : <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />}
               <div className="min-w-0"><p className="truncate">{t.type.replace(/-/g, " ")} <span className="text-muted-foreground">· {t.status.toLowerCase()}</span></p>
-                {t.error && <p className="text-destructive">{t.error}</p>}
-                {isFailed(t.status) && <button type="button" disabled={busy} onClick={() => {
+                {t.error && <p role="alert" className="text-destructive">{t.error}</p>}
+                {isFailed(t.status) && <button type="button" disabled={busy} onClick={async () => {
                   if (taskIsPaid(t)) {
-                    if (!window.confirm(`Retry "${t.type.replace(/-/g, " ")}"? This uses a paid provider and will be billed again.`)) return;
+                    if (!(await confirmAction({ title: `Retry "${t.type.replace(/-/g, " ")}"?`, description: "This uses a paid provider and will be billed again.", confirmLabel: "Retry paid task" }))) return;
                     void run("retry-task", { id: t.id, cloudConfirmed: true });
                   } else void run("retry-task", { id: t.id });
                 }} className="mt-0.5 text-primary underline disabled:opacity-50" data-testid={`button-retry-task-${t.id}`}>Retry</button>}</div>
@@ -374,7 +379,10 @@ export function ReviewStep({ state, project, run, pendingAction }: Base) {
   const issues = state.review.issues;
   const notChecked = state.review.status === "NOT_IMPLEMENTED";
   const shotById = new Map((rp?.shots ?? []).map((s) => [s.id, s]));
-  const doneShots = (rp?.shots ?? []).filter((s) => s.status === "COMPLETED");
+  const allShots = rp?.shots ?? [];
+  const doneShots = allShots.filter((s) => s.status === "COMPLETED" && !!s.outputUrl);
+  // Export only a complete cut: every shot must be finished with a playable output.
+  const exportReady = allShots.length > 0 && doneShots.length === allShots.length;
   const exporting = pendingAction === "export" || rp?.status === "ASSEMBLING";
 
   return (
@@ -394,9 +402,12 @@ export function ReviewStep({ state, project, run, pendingAction }: Base) {
                 </div>}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button className="brand-glow" disabled={exporting || doneShots.length === 0 || pendingAction !== null} onClick={() => void run("export", {})} data-testid="button-export">
+              <Button className="brand-glow" disabled={exporting || !exportReady || pendingAction !== null} onClick={() => void run("export", {})} data-testid="button-export">
                 {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Film className="mr-2 h-4 w-4" />} {rp?.finalOutputUrl ? "Re-export" : "Export MP4"}
               </Button>
+              {!exportReady && allShots.length > 0 && !exporting && (
+                <span className="self-center text-xs text-muted-foreground" data-testid="text-export-blocked">{doneShots.length} of {allShots.length} shots finished. Export unlocks when every shot has a clip.</span>
+              )}
               {rp?.finalOutputUrl && (
                 <a href={rp.finalOutputUrl} download className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm hover:bg-muted" data-testid="link-download-final">
                   <Download className="h-4 w-4" /> Download
@@ -440,7 +451,7 @@ export function ReviewStep({ state, project, run, pendingAction }: Base) {
               );
             })}
             {issues.length === 0 && !notChecked && (
-              <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-300" data-testid="text-all-clear">Everything matches. Ready to export.</p>
+              <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-300" data-testid="text-all-clear">The continuity check reported no issues. Watch the cut before exporting.</p>
             )}
           </aside>
         </div>

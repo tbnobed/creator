@@ -41,6 +41,13 @@ export const CreateProductionProjectResponse = zod.object({
 })
 
 
+export const DeleteProductionProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteProductionProjectResponse = zod.void()
+
+
 export const GetProductionProjectParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -1505,6 +1512,8 @@ export const ListSettingsResponseItem = zod.object({
   "assetCount": zod.number(),
   "references": zod.array(zod.object({
   "id": zod.string(),
+  "imageAssetId": zod.string().optional(),
+  "unavailableReason": zod.string().optional(),
   "name": zod.string(),
   "url": zod.string(),
   "prompt": zod.string()
@@ -1539,6 +1548,8 @@ export const CreateSettingResponse = zod.object({
   "assetCount": zod.number(),
   "references": zod.array(zod.object({
   "id": zod.string(),
+  "imageAssetId": zod.string().optional(),
+  "unavailableReason": zod.string().optional(),
   "name": zod.string(),
   "url": zod.string(),
   "prompt": zod.string()
@@ -1576,6 +1587,8 @@ export const UpdateSettingResponse = zod.object({
   "assetCount": zod.number(),
   "references": zod.array(zod.object({
   "id": zod.string(),
+  "imageAssetId": zod.string().optional(),
+  "unavailableReason": zod.string().optional(),
   "name": zod.string(),
   "url": zod.string(),
   "prompt": zod.string()
@@ -2042,6 +2055,7 @@ export const ListGenerationsResponse = zod.object({
  * @summary Submit a generation job
  */
 export const createGenerationBodyProviderDefault = `COMFYUI`;
+export const createGenerationBodyCloudConfirmedDefault = false;
 export const createGenerationBodyVoiceCloningEnabledDefault = false;
 export const createGenerationBodyCharacterIdsMin = 0;
 export const createGenerationBodyCharacterIdsMax = 9;
@@ -2090,6 +2104,7 @@ export const createGenerationBodySeedMin = 0;
 
 export const CreateGenerationBody = zod.object({
   "provider": zod.enum(['COMFYUI', 'FAL']).default(createGenerationBodyProviderDefault),
+  "cloudConfirmed": zod.boolean().default(createGenerationBodyCloudConfirmedDefault),
   "model": zod.enum(['veo-3.1-fast', 'gemini-omni-flash', 'kling-v3-standard', 'seedance-2.0-mini', 'seedance-2.0', 'seedance-2.0-fast', 'seedance-2.5']).optional(),
   "voiceCloningEnabled": zod.boolean().default(createGenerationBodyVoiceCloningEnabledDefault),
   "nativeAudioEnabled": zod.boolean().optional().describe('Native audio is available on all Cloud models. For Seedance, omission enables audio for dialogue; for Veo 3.1 Fast and Kling 3 Standard, omission keeps output silent. Explicit false always keeps a request silent.'),
@@ -4410,6 +4425,121 @@ export const ListImageStudioModelsResponse = zod.object({
   "unavailableReason": zod.string().optional()
 }))
 })
+
+
+/**
+ * @summary Generate a durable location reference or variant
+ */
+export const CreateLocationImageJobParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const createLocationImageJobBodyOneModelIdMax = 200;
+
+export const createLocationImageJobBodyOnePromptMax = 10000;
+
+export const createLocationImageJobBodyOneNegativePromptMax = 5000;
+
+export const createLocationImageJobBodyOneWidthMax = 32768;
+
+export const createLocationImageJobBodyOneHeightMax = 32768;
+
+export const createLocationImageJobBodyOneCountMax = 16;
+
+export const createLocationImageJobBodyOneSeedMin = 0;
+export const createLocationImageJobBodyOneSeedMax = 2147483647;
+
+export const createLocationImageJobBodyOneDenoiseStrengthMin = 0.05;
+export const createLocationImageJobBodyOneDenoiseStrengthMax = 1;
+
+export const createLocationImageJobBodyOneReferenceAssetIdsMax = 16;
+
+export const createLocationImageJobBodyOneRequestKeyMin = 36;
+export const createLocationImageJobBodyOneRequestKeyMax = 36;
+
+export const createLocationImageJobBodyTwoReferenceNameMax = 180;
+
+
+
+export const CreateLocationImageJobBody = zod.object({
+  "modelId": zod.string().min(1).max(createLocationImageJobBodyOneModelIdMax),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string().max(createLocationImageJobBodyOnePromptMax),
+  "negativePrompt": zod.string().max(createLocationImageJobBodyOneNegativePromptMax).optional(),
+  "width": zod.number().min(1).max(createLocationImageJobBodyOneWidthMax),
+  "height": zod.number().min(1).max(createLocationImageJobBodyOneHeightMax),
+  "count": zod.number().min(1).max(createLocationImageJobBodyOneCountMax),
+  "seed": zod.number().min(createLocationImageJobBodyOneSeedMin).max(createLocationImageJobBodyOneSeedMax).optional(),
+  "denoiseStrength": zod.number().min(createLocationImageJobBodyOneDenoiseStrengthMin).max(createLocationImageJobBodyOneDenoiseStrengthMax).optional(),
+  "referenceAssetIds": zod.array(zod.string()).max(createLocationImageJobBodyOneReferenceAssetIdsMax).optional(),
+  "maskAssetId": zod.string().optional(),
+  "cloudConfirmed": zod.boolean().optional(),
+  "requestKey": zod.string().min(createLocationImageJobBodyOneRequestKeyMin).max(createLocationImageJobBodyOneRequestKeyMax).optional()
+}).and(zod.object({
+  "referenceName": zod.string().max(createLocationImageJobBodyTwoReferenceNameMax).optional()
+}))
+
+export const createLocationImageJobResponseDenoiseStrengthMin = 0.05;
+export const createLocationImageJobResponseDenoiseStrengthMax = 1;
+
+
+
+export const CreateLocationImageJobResponse = zod.object({
+  "id": zod.string(),
+  "modelId": zod.string(),
+  "modelName": zod.string(),
+  "provider": zod.enum(['LOCAL', 'CLOUD']),
+  "operation": zod.enum(['generate', 'edit', 'inpaint', 'outpaint', 'upscale', 'remove-background']),
+  "prompt": zod.string(),
+  "negativePrompt": zod.string().optional(),
+  "width": zod.number(),
+  "height": zod.number(),
+  "count": zod.number(),
+  "seed": zod.number().optional(),
+  "denoiseStrength": zod.number().min(createLocationImageJobResponseDenoiseStrengthMin).max(createLocationImageJobResponseDenoiseStrengthMax).optional(),
+  "status": zod.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+  "errorMessage": zod.string().nullable(),
+  "assets": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "storageKey": zod.string().optional(),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp']),
+  "width": zod.number(),
+  "height": zod.number(),
+  "favorite": zod.boolean(),
+  "collection": zod.string(),
+  "jobId": zod.string().nullable(),
+  "createdAt": zod.string()
+})),
+  "referenceAssetIds": zod.array(zod.string()),
+  "maskAssetId": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+export const RenameLocationReferenceParams = zod.object({
+  "id": zod.coerce.string(),
+  "referenceId": zod.coerce.string()
+})
+
+export const renameLocationReferenceBodyNameMax = 180;
+
+
+
+export const RenameLocationReferenceBody = zod.object({
+  "name": zod.string().min(1).max(renameLocationReferenceBodyNameMax)
+})
+
+export const RenameLocationReferenceResponse = zod.unknown()
+
+
+export const RemoveLocationReferenceParams = zod.object({
+  "id": zod.coerce.string(),
+  "referenceId": zod.coerce.string()
+})
+
+export const RemoveLocationReferenceResponse = zod.unknown()
 
 
 /**

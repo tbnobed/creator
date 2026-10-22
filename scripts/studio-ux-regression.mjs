@@ -40,7 +40,7 @@ try {
   console.log("Studio loaded");
   const prompt = page.getByTestId("input-video-prompt");
   await expect(prompt).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: "Video Studio" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Generate Video" })).toBeVisible();
   await expect(page.getByTestId("button-open-studio-generation-ux-0")).toContainText("A red teapot");
   await expect(page.getByText("Showing 24 of 76", { exact: true })).toBeVisible();
   const more = page.locator("summary").filter({ hasText: "More" });

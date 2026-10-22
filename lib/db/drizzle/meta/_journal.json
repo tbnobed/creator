@@ -155,6 +155,13 @@
       "when": 1792707319457,
       "tag": "0021_giant_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792710687874,
+      "tag": "0022_ambitious_mongoose",
+      "breakpoints": true
     }
   ]
 }

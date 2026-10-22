@@ -131,6 +131,9 @@ try {
   }, { message: "mobile dialog fits viewport after its opening transition" }).toBe(true);
   await page.getByTestId("select-topaz-target").selectOption("4k");
   await expect(page.getByTestId("topaz-quote")).toContainText("$0.64");
+  // Paid approval is an explicit checkbox; the confirm button stays disabled until ticked.
+  await expect(page.getByTestId("button-confirm-topaz")).toBeDisabled();
+  await page.getByTestId("checkbox-paid-topaz").click();
   await page.getByTestId("button-confirm-topaz").click();
   await expect(page.getByTestId("button-confirm-topaz")).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();

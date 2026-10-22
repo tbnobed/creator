@@ -1,3 +1,5 @@
+import { Page, PageHeader } from "@/components/layout/page";
+import { useConfirm } from "@/components/shared/confirm";
 import { useState } from "react";
 import { 
   useGetSession, 
@@ -48,13 +50,11 @@ export default function AccountPage() {
   if (!session) return null;
 
   return (
-    <div className="flex-1 p-6 md:p-8 max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Account & Workspace</h1>
-          <p className="text-muted-foreground mt-1">Manage your personal details and studio workspaces.</p>
-        </div>
-        <Button 
+    <Page className="animate-in fade-in duration-500">
+      <PageHeader
+        title="Account & Workspace"
+        description="Personal settings apply to you everywhere. Workspace settings and members are shared with everyone in the selected workspace. Paid usage estimates are under Spending."
+        actions={<Button 
           variant="destructive" 
           onClick={() => logout.mutate()}
           disabled={logout.isPending}
@@ -63,8 +63,9 @@ export default function AccountPage() {
         >
           <LogOut className="size-4 mr-2" />
           {logout.isPending ? "Signing Out…" : "Sign Out"}
-        </Button>
-      </div>
+        </Button>}
+      />
+      <div className="space-y-8">
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-8">
@@ -107,7 +108,8 @@ export default function AccountPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </Page>
   );
 }
 
@@ -277,6 +279,7 @@ function WorkspaceManager({ activeTenantId }: { activeTenantId?: string }) {
 }
 
 function WorkspaceMembers({ tenantId, userRole, currentUserId, isSiteAdmin }: { tenantId: string, userRole: string, currentUserId: string, isSiteAdmin: boolean }) {
+  const confirmAction = useConfirm();
   const { data: members, isLoading, refetch } = useListTenantMembers(tenantId);
   const { toast } = useToast();
   
@@ -488,8 +491,10 @@ function WorkspaceMembers({ tenantId, userRole, currentUserId, isSiteAdmin }: { 
                         variant="ghost" 
                         size="icon"
                         className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mr-2 size-8"
-                        onClick={() => {
-                          if (confirm(`Remove ${member.displayName} from the workspace?`)) {
+                        aria-label={`Remove ${member.displayName}`}
+                        data-testid={`button-remove-member-${member.userId}`}
+                        onClick={async () => {
+                          if (await confirmAction({ title: `Remove ${member.displayName} from the workspace?`, description: "They lose access to this workspace. Their past jobs stay in history.", confirmLabel: "Remove member", destructive: true })) {
                             deleteMember.mutate({ id: tenantId, userId: member.userId });
                           }
                         }}

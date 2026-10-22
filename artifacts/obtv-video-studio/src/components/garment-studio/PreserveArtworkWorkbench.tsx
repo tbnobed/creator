@@ -1,3 +1,4 @@
+import { useFileDrop } from "@/components/shared/use-file-drop";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GarmentJob as ApiGarmentJob } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,8 @@ export function PreserveArtworkWorkbench({
   const rafRef = useRef<number>(0);
 
   const [start, setStart] = useState(0);
+  const [dropError, setDropError] = useState("");
+  const drop = useFileDrop({ accept: "video/mp4,video/quicktime,.mp4,.mov", noun: "video", onFiles: ([f]) => { setDropError(""); onUpload(f); }, onReject: setDropError });
   const [startDraft, setStartDraft] = useState("0");
   const [duration, setDuration] = useState(2);
   const [frameState, setFrameState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -374,7 +377,7 @@ export function PreserveArtworkWorkbench({
 
   const fileField = (
     <input ref={fileInput} type="file" accept="video/mp4,video/quicktime,.mp4,.mov" className="sr-only" aria-label="Choose source video"
-      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onUpload(f); }} />
+      onChange={drop.inputProps.onChange} />
   );
   const showResult = Boolean(job);
 
@@ -384,14 +387,14 @@ export function PreserveArtworkWorkbench({
 
       {!source ? (
         <section aria-labelledby="preserve-upload-heading"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onUpload(f); }}
+          {...drop.dropProps}
           className="grid gap-6 rounded-2xl border-2 border-dashed border-primary/30 bg-card p-6 md:grid-cols-[1fr_auto] md:items-center md:p-10">
           <div>
             <h2 id="preserve-upload-heading" className="text-xl font-semibold tracking-tight">{usingResult ? "Loading that video" : loading ? "Uploading your video" : "Choose a video"}</h2>
             <p className="mt-2 max-w-md text-sm text-muted-foreground" data-testid="text-preserve-explainer">
               Make one part of any visible artwork swing back and forth, using the original pixels. Drop an MP4 or MOV here.
             </p>
+            {dropError && <p role="alert" className="mt-2 text-sm text-destructive" data-testid="text-preserve-file-error">{dropError}</p>}
             <div className="mt-5 flex flex-wrap gap-2">
               <Button size="lg" disabled={busy} onClick={() => fileInput.current?.click()} data-testid="button-preserve-upload">
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}Upload video

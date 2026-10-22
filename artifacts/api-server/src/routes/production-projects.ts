@@ -11,6 +11,8 @@ import { text } from "../lib/production-types";
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { cancelActiveStory } from "../lib/production-story-control";
+import { deleteLongFormProject } from "../lib/long-form-service";
+import { publishProductionScenery } from "../lib/scenery-library";
 
 const router: IRouter = Router();
 function errorResponse(res: express.Response, error: unknown) {
@@ -45,6 +47,26 @@ router.get("/production-projects/:id", async (req, res) => {
     });
   }
   res.json(presentProduction(row));
+});
+
+router.delete("/production-projects/:id", async (req, res) => {
+  try {
+    await productionLock(String(req.params.id), async () => {
+      const row = await ownedProduction(String(req.params.id), req.context!.tenant!.id);
+      if (!row) throw new Error("Production project not found.");
+      if (stateOf(row).tasks.some(task => ["QUEUED", "RUNNING"].includes(task.status))) {
+        throw new ProductionConflict("Cancel active production tasks before deleting this project.");
+      }
+      await publishProductionScenery(row);
+      if (row.renderProjectId) {
+        const [render] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, row.renderProjectId));
+        if (render && render.tenantId !== row.tenantId) throw new Error("Render project belongs to another workspace.");
+        if (render) await deleteLongFormProject(render.id);
+      }
+      await db.delete(productionProjectsTable).where(eq(productionProjectsTable.id, row.id));
+    });
+    res.sendStatus(204);
+  } catch (error) { errorResponse(res, error); }
 });
 router.patch("/production-projects/:id", async (req, res) => {
   const parsed = UpdateProductionProjectBody.safeParse(req.body);

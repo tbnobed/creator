@@ -1,3 +1,4 @@
+import { FileDropzone } from "@/components/shared/file-dropzone";
 import { useState, useRef } from "react";
 import { useListSettings, useDeleteSetting, useCreateSetting, useUpdateSetting } from "@workspace/api-client-react";
 import { getListSettingsQueryKey } from "@workspace/api-client-react";
@@ -18,7 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ImageGenerator } from "@/components/studio/ImageGenerator";
+import { LocationImageJob } from "@/components/locations/LocationImageJob";
+import { LocationReferences } from "@/components/locations/LocationReferences";
+import { ErrorNotice } from "@/components/shared/error-notice";
+import { useConfirm } from "@/components/shared/confirm";
 
 export default function SettingsPage() {
   const { data: settings, isLoading, isError, refetch } = useListSettings({ query: { queryKey: getListSettingsQueryKey(), staleTime: 0, refetchOnMount: "always", refetchInterval: 15000 } });
@@ -29,8 +33,9 @@ export default function SettingsPage() {
   const deleteMutation = useDeleteSetting();
   const { toast } = useToast();
 
+  const confirmAction = useConfirm();
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this location?")) {
+    if (await confirmAction({ title: "Delete this location?", description: "It is removed from Locations & Scenery. Productions that already imported it keep their own snapshot.", confirmLabel: "Delete", destructive: true })) {
       try {
         await deleteMutation.mutateAsync({ id });
         queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
@@ -48,12 +53,12 @@ export default function SettingsPage() {
         actions={
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2" data-testid="button-new-location">
                 <Plus className="size-4" />
                 New Location
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-w-[560px]">
               <DialogHeader>
                 <DialogTitle>Create Location</DialogTitle>
               </DialogHeader>
@@ -63,7 +68,7 @@ export default function SettingsPage() {
         }
       />
 
-      {isError ? <div role="alert">Could not load locations. <Button variant="outline" onClick={() => void refetch()}>Retry</Button></div> : isLoading ? (
+      {isError ? <ErrorNotice testId="status-locations-error" title="Could not load locations" message="Check your connection and try again." onRetry={() => void refetch()} /> : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2].map(i => (
             <Card key={i} className="h-64 bg-card/50 border-border/50 animate-pulse" />
@@ -103,7 +108,7 @@ export default function SettingsPage() {
                         <Edit2 className="size-4" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-w-[560px]">
                       <DialogHeader>
                         <DialogTitle>Edit Location</DialogTitle>
                       </DialogHeader>
@@ -133,14 +138,9 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1">
                   {setting.description || "No description provided."}
                 </p>
-                {(setting.references?.length ?? 0) > 1 && <details className="mb-3 text-sm">
-                  <summary className="cursor-pointer">Reference images ({setting.references!.length})</summary>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {setting.references!.map(ref => <a key={ref.id} href={ref.url} target="_blank" rel="noreferrer" className="min-w-0">
-                      <img src={ref.url} alt={ref.name} loading="lazy" className="aspect-video w-full rounded object-cover" />
-                      <span className="block truncate text-xs">{ref.name}</span>
-                    </a>)}
-                  </div>
+                {(setting.references?.length ?? 0) > 0 && <details className="mb-3 text-sm" data-testid={`details-references-${setting.id}`}>
+                  <summary className="cursor-pointer">References and variants ({setting.references!.length})</summary>
+                  <div className="mt-2"><LocationReferences settingId={setting.id} references={setting.references!} /></div>
                 </details>}
                 <div className="flex flex-wrap gap-1">
                   {setting.tags?.slice(0, 3).map(tag => (
@@ -167,6 +167,7 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
   const formRef = useRef<HTMLFormElement>(null);
   const [activeId, setActiveId] = useState<string | undefined>(initialData?.id);
   const [thumbnail, setThumbnail] = useState<string>(initialData?.thumbnail || "");
+  const [uploads, setUploads] = useState<File[]>([]);
   const { toast } = useToast();
 
   const getFormData = () => {
@@ -206,8 +207,7 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
     try {
       const { id: savedId, data } = await saveOrUpdate();
 
-      const formData = new FormData(e.currentTarget);
-      const files = formData.getAll("referenceImages").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+      const files = uploads;
 
       let finalThumbnail = thumbnail;
       for (const file of files) {
@@ -232,33 +232,15 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
     }
   };
 
-  const handleGenerateImage = async (prompt: string, seed?: number) => {
+  // Generation is queued against a saved location, so save the form first.
+  const ensureSaved = async () => {
     if (!formRef.current?.checkValidity()) {
       formRef.current?.reportValidity();
-      throw new Error("Please fill out required fields first to save the location.");
+      throw new Error("Fill out the required fields first so the location can be saved.");
     }
-
-    // Save first
-    const { id, data } = await saveOrUpdate();
-
-    // Generate
-    const res = await fetch(`/api/settings/${id}/generate-image`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, seed })
-    });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || "Failed to generate image");
-
-    // Update thumbnail if empty
-    if (!thumbnail) {
-      setThumbnail(result.mediaUrl);
-      await updateMutation.mutateAsync({ id, data: { ...data, thumbnail: result.mediaUrl } });
-    }
-
+    const { id } = await saveOrUpdate();
     queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
-
-    return result.mediaUrl;
+    return id;
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -294,20 +276,21 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
           <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} placeholder="interior, studio, nighttime" className="bg-secondary/20" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="referenceImages">Reference images</Label>
-          <Input id="referenceImages" name="referenceImages" type="file" accept="image/jpeg,image/png,image/webp" multiple className="bg-secondary/20" />
+          <Label>Reference images</Label>
+          <FileDropzone compact multiple accept="image/jpeg,image/png,image/webp" title={uploads.length ? `${uploads.length} image${uploads.length === 1 ? "" : "s"} selected` : "Choose or drop reference images"} hint="JPG, PNG or WebP" onFiles={setUploads} testId="dropzone-location-references" />
           <p className="text-xs text-muted-foreground">Upload approved JPG, PNG, or WebP images. The first image becomes the thumbnail automatically.</p>
         </div>
 
         <div className="pt-2">
-          <ImageGenerator
-            onGenerate={handleGenerateImage}
+          <LocationImageJob
+            ensureSaved={ensureSaved}
             defaultPrompt={initialData?.promptDescription || ""}
+            references={initialData?.references ?? []}
           />
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} data-testid="button-save-location">
             {isPending ? "Saving..." : activeId ? "Save Changes" : "Create Location"}
           </Button>
         </div>

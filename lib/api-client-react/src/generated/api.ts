@@ -61,6 +61,7 @@ import type {
   ImageAssetList,
   ImageAssetResult,
   ImageAssetUpdate,
+  ImageJob,
   ImageJobInput,
   ImageJobList,
   ImageJobResult,
@@ -73,6 +74,8 @@ import type {
   ListSpendingEntriesParams,
   ListVideoLibrary200,
   ListVideoLibraryParams,
+  LocationImageJobInput,
+  LocationReferenceNameInput,
   LongFormContinuitySettings,
   LongFormProject,
   LongFormProjectDetail,
@@ -292,6 +295,71 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getCreateProductionProjectMutationOptions(options));
+    }
+
+export const getDeleteProductionProjectUrl = (id: string,) => {
+
+
+
+
+  return `/api/production-projects/${id}`
+}
+
+export const deleteProductionProject = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteProductionProjectUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteProductionProjectMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductionProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProductionProject>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteProductionProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProductionProject>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteProductionProject(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProductionProjectMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProductionProject>>>
+
+    export type DeleteProductionProjectMutationError = ErrorType<void>
+
+    export const useDeleteProductionProject = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductionProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProductionProject>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteProductionProjectMutationOptions(options));
     }
 
 export const getGetProductionProjectUrl = (id: string,) => {
@@ -7142,6 +7210,213 @@ export function useListImageStudioModels<TData = Awaited<ReturnType<typeof listI
 
 
 
+
+export const getCreateLocationImageJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/settings/${id}/image-jobs`
+}
+
+/**
+ * @summary Generate a durable location reference or variant
+ */
+export const createLocationImageJob = async (id: string,
+    locationImageJobInput: LocationImageJobInput, options?: Parameters<typeof customFetch>[1]): Promise<ImageJob> => {
+
+  return customFetch<ImageJob>(getCreateLocationImageJobUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(locationImageJobInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLocationImageJobMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLocationImageJob>>, TError,{id: string;data: BodyType<LocationImageJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLocationImageJob>>, TError,{id: string;data: BodyType<LocationImageJobInput>}, TContext> => {
+
+const mutationKey = ['createLocationImageJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLocationImageJob>>, {id: string;data: BodyType<LocationImageJobInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createLocationImageJob(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLocationImageJobMutationResult = NonNullable<Awaited<ReturnType<typeof createLocationImageJob>>>
+    export type CreateLocationImageJobMutationBody = BodyType<LocationImageJobInput>
+    export type CreateLocationImageJobMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a durable location reference or variant
+ */
+export const useCreateLocationImageJob = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLocationImageJob>>, TError,{id: string;data: BodyType<LocationImageJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLocationImageJob>>,
+        TError,
+        {id: string;data: BodyType<LocationImageJobInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLocationImageJobMutationOptions(options));
+    }
+
+export const getRenameLocationReferenceUrl = (id: string,
+    referenceId: string,) => {
+
+
+
+
+  return `/api/settings/${id}/references/${referenceId}`
+}
+
+export const renameLocationReference = async (id: string,
+    referenceId: string,
+    locationReferenceNameInput: LocationReferenceNameInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRenameLocationReferenceUrl(id,referenceId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(locationReferenceNameInput)
+  }
+);}
+
+
+
+
+
+export const getRenameLocationReferenceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameLocationReference>>, TError,{id: string;referenceId: string;data: BodyType<LocationReferenceNameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameLocationReference>>, TError,{id: string;referenceId: string;data: BodyType<LocationReferenceNameInput>}, TContext> => {
+
+const mutationKey = ['renameLocationReference'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameLocationReference>>, {id: string;referenceId: string;data: BodyType<LocationReferenceNameInput>}> = (props) => {
+          const {id,referenceId,data} = props ?? {};
+
+          return  renameLocationReference(id,referenceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameLocationReferenceMutationResult = NonNullable<Awaited<ReturnType<typeof renameLocationReference>>>
+    export type RenameLocationReferenceMutationBody = BodyType<LocationReferenceNameInput>
+    export type RenameLocationReferenceMutationError = ErrorType<unknown>
+
+    export const useRenameLocationReference = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameLocationReference>>, TError,{id: string;referenceId: string;data: BodyType<LocationReferenceNameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameLocationReference>>,
+        TError,
+        {id: string;referenceId: string;data: BodyType<LocationReferenceNameInput>},
+        TContext
+      > => {
+      return useMutation(getRenameLocationReferenceMutationOptions(options));
+    }
+
+export const getRemoveLocationReferenceUrl = (id: string,
+    referenceId: string,) => {
+
+
+
+
+  return `/api/settings/${id}/references/${referenceId}`
+}
+
+export const removeLocationReference = async (id: string,
+    referenceId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveLocationReferenceUrl(id,referenceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveLocationReferenceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeLocationReference>>, TError,{id: string;referenceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeLocationReference>>, TError,{id: string;referenceId: string}, TContext> => {
+
+const mutationKey = ['removeLocationReference'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeLocationReference>>, {id: string;referenceId: string}> = (props) => {
+          const {id,referenceId} = props ?? {};
+
+          return  removeLocationReference(id,referenceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveLocationReferenceMutationResult = NonNullable<Awaited<ReturnType<typeof removeLocationReference>>>
+
+    export type RemoveLocationReferenceMutationError = ErrorType<void>
+
+    export const useRemoveLocationReference = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeLocationReference>>, TError,{id: string;referenceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeLocationReference>>,
+        TError,
+        {id: string;referenceId: string},
+        TContext
+      > => {
+      return useMutation(getRemoveLocationReferenceMutationOptions(options));
+    }
 
 export const getListImageStudioJobsUrl = (params?: ListImageStudioJobsParams,) => {
   const normalizedParams = new URLSearchParams();

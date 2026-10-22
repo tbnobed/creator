@@ -1,3 +1,5 @@
+import { GenerationDetails, GenerationPlayer, GenerationPrompt } from "@/components/video-studio/GenerationMedia";
+import { ErrorNotice } from "@/components/shared/error-notice";
 import { useGetGeneration } from "@workspace/api-client-react";
 import { Page, PageHeader } from "@/components/layout/page";
 import { useParams, Link, useLocation } from "wouter";
@@ -16,7 +18,7 @@ export default function GenerationDetailPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const id = params.id as string;
-  const { data: job, isLoading } = useGetGeneration(id, {
+  const { data: job, isLoading, isError, refetch, isFetching } = useGetGeneration(id, {
     query: {
       enabled: !!id,
       queryKey: getGetGenerationQueryKey(id),
@@ -31,9 +33,7 @@ export default function GenerationDetailPage() {
     return (
       <Page>
         <div className="flex items-center gap-4 mb-8 text-muted-foreground">
-          <Link href="/generations">
-            <Button variant="ghost" size="icon"><ArrowLeft className="size-4" /></Button>
-          </Link>
+          <Button asChild variant="ghost" size="icon"><Link href="/generations" aria-label="Back to Queue &amp; History" data-testid="link-back-queue"><ArrowLeft className="size-4" /></Link></Button>
           <div className="h-8 w-64 bg-card animate-pulse rounded" />
         </div>
         <div className="h-[400px] w-full bg-card animate-pulse rounded-lg" />
@@ -42,7 +42,14 @@ export default function GenerationDetailPage() {
   }
 
   if (!job) {
-    return <Page><div>Job not found.</div></Page>;
+    return (
+      <Page>
+        <Button asChild variant="ghost" size="sm" className="mb-4 gap-2"><Link href="/generations" data-testid="link-back-queue"><ArrowLeft className="size-4" /> Queue &amp; History</Link></Button>
+        {isError
+          ? <ErrorNotice testId="status-generation-error" title="Could not load this generation" message="It may have been deleted, or the connection failed." onRetry={() => void refetch()} retrying={isFetching} />
+          : <ErrorNotice testId="status-generation-missing" title="Generation not found" message="It may have been deleted or belong to another workspace." />}
+      </Page>
+    );
   }
 
   const isRunning = ["RUNNING", "QUEUED", "UPLOADING", "DOWNLOADING"].includes(job.status);
@@ -53,9 +60,7 @@ export default function GenerationDetailPage() {
   return (
     <Page>
       <div className="flex flex-wrap items-center gap-4 mb-6">
-        <Link href="/generations">
-          <Button variant="ghost" size="icon"><ArrowLeft className="size-4" /></Button>
-        </Link>
+        <Button asChild variant="ghost" size="icon"><Link href="/generations" aria-label="Back to Queue &amp; History" data-testid="link-back-queue"><ArrowLeft className="size-4" /></Link></Button>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
             {job.title || "Untitled Job"}
@@ -87,17 +92,7 @@ export default function GenerationDetailPage() {
           <TopazProvenance job={job} />
           {isCompleted && job.outputUrl && <a className="inline-block text-sm text-primary underline" href={job.outputUrl} download>Download video</a>}
           {/* Main Display Area */}
-          <Card className="overflow-hidden border-border/50 bg-card/30 backdrop-blur-sm">
-            <div className="aspect-video bg-black flex flex-col items-center justify-center relative">
-              {isCompleted && job.outputUrl ? (
-                <video 
-                  src={job.outputUrl} 
-                  controls 
-                  loop 
-                  preload="none"
-                  className="w-full h-full object-contain"
-                />
-              ) : isRunning ? (
+          <GenerationPlayer job={job} pending={<div className="flex h-full w-full flex-col items-center justify-center">{isRunning ? (
                 <div className="flex flex-col items-center justify-center text-primary gap-4">
                   <Loader2 className="size-12 animate-spin" />
                   <div className="text-center">
@@ -134,132 +129,17 @@ export default function GenerationDetailPage() {
                   <PlayCircle className="size-12 opacity-50" />
                   <p>Job is {job.status.toLowerCase()}</p>
                 </div>
-              )}
-            </div>
-          </Card>
+              )}</div>} />
 
-          <Card className="p-5 border-border/50 bg-card/30">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Info className="size-4 text-primary" /> Prompts
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">User Prompt</span>
-                <p className="text-sm bg-secondary/20 p-3 rounded-md border border-border/50">{job.prompt}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Compiled System Prompt</span>
-                <p className="text-xs font-mono bg-secondary/20 p-3 rounded-md border border-border/50 text-muted-foreground overflow-x-auto max-h-40 overflow-y-auto">
-                  {job.compiledPrompt}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <GenerationPrompt prompt={job.prompt} compiledPrompt={job.compiledPrompt} />
         </div>
 
         <div className="space-y-6">
-          <Card className="p-5 border-border/50 bg-card/30">
-            <h3 className="font-semibold mb-4">Job Details</h3>
-            <dl className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Quality</dt>
-                <dd className="font-medium">{job.qualityPreset}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Resolution</dt>
-                <dd className="font-medium font-mono">{job.width}x{job.height}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Framerate</dt>
-                <dd className="font-medium">{job.fps} fps</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Duration</dt>
-                <dd className="font-medium">{job.durationSeconds} sec</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Seed</dt>
-                <dd className="font-medium font-mono">{job.seed || "Random"}</dd>
-              </div>
-            </dl>
-          </Card>
-
-          <Card className="p-5 border-border/50 bg-card/30">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <HardDrive className="size-4" /> Execution
-            </h3>
-            <dl className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Provider</dt>
-                <dd className="font-medium" data-testid="text-generation-provider">
-                  {job.provider === "FAL" ? "Cloud" : "Local GPU / Comfy"}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Model</dt>
-                <dd className="text-right font-medium" data-testid="text-generation-model">
-                  {job.provider === "FAL" ? formatProviderModel(job.providerModelId) : job.workflowName || "Comfy workflow"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Voice cloning</dt>
-                <dd className="font-medium">{job.voiceCloningEnabled ? "Enabled" : "Off"}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Mode</dt>
-                <dd className="font-medium">{job.generationMode}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Workflow</dt>
-                <dd className="font-medium">{job.workflowName || "Unknown"}</dd>
-              </div>
-              <div className="flex justify-between items-start">
-                <dt className="text-muted-foreground">Server</dt>
-                <dd className="font-medium font-mono text-right">{job.serverName || "Pending"}</dd>
-              </div>
-            </dl>
-          </Card>
-
-          <Card className="p-5 border-border/50 bg-card/30">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Clock className="size-4" /> Timeline
-            </h3>
-            <dl className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Created</dt>
-                <dd>{format(new Date(job.createdAt), "MMM d, HH:mm:ss")}</dd>
-              </div>
-              {job.queuedAt && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Started</dt>
-                  <dd>{format(new Date(job.queuedAt), "HH:mm:ss")}</dd>
-                </div>
-              )}
-              {job.completedAt && (
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Finished</dt>
-                  <dd>{format(new Date(job.completedAt), "HH:mm:ss")}</dd>
-                </div>
-              )}
-            </dl>
-          </Card>
+          <GenerationDetails job={job} title="Job details" />
         </div>
       </div>
     </Page>
   );
-}
-
-function formatProviderModel(providerModelId: string | null) {
-  if (providerModelId === "fal-ai/topaz/upscale/video") return "Topaz Proteus · Upscale";
-  switch (providerModelId) {
-    case "fal-ai/veo3.1/fast": return "Veo 3.1 Fast";
-    case "fal-ai/kling-video/v3/standard/text-to-video": return "Kling v3 Standard";
-    case "bytedance/seedance-2.0/enterprise/mini/text-to-video": return "Seedance 2.0 Mini";
-    case "bytedance/seedance-2.0/enterprise/mini/reference-to-video": return "Seedance 2.0 Mini · References";
-    case "bytedance/seedance-2.0/enterprise/v2/text-to-video": return "Seedance 2.0 quality";
-    case "bytedance/seedance-2.0/enterprise/v2/reference-to-video": return "Seedance 2.0 quality · References";
-    default: return "Cloud model";
-  }
 }
 
 function StatusBadge({ status }: { status: string }) {

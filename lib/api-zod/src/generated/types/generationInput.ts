@@ -18,6 +18,7 @@ import type { GenerationInputSeedMode } from './generationInputSeedMode';
 
 export interface GenerationInput {
   provider?: GenerationInputProvider;
+  cloudConfirmed?: boolean;
   model?: GenerationInputModel;
   voiceCloningEnabled?: boolean;
   /** Native audio is available on all Cloud models. For Seedance, omission enables audio for dialogue; for Veo 3.1 Fast and Kling 3 Standard, omission keeps output silent. Explicit false always keeps a request silent. */

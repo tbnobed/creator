@@ -8,6 +8,8 @@
 
 export type SettingReferencesItem = {
   id: string;
+  imageAssetId?: string;
+  unavailableReason?: string;
   name: string;
   url: string;
   prompt: string;

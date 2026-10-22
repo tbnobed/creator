@@ -18,7 +18,7 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatusCard 
           title="API Health" 
-          value={health?.status === "ok" ? "Online" : "Offline"} 
+          value={health?.status === "ok" ? "Reachable" : "Unreachable"} 
           icon={Activity} 
           isLoading={isLoadingHealth}
           status={health?.status === "ok" ? "good" : "bad"}
@@ -39,10 +39,10 @@ export default function AdminPage() {
         />
         <StatusCard 
           title="Database" 
-          value="Connected" 
+          value={summary ? "Responding" : "Not verified"} 
           icon={Database} 
-          isLoading={false}
-          status="good"
+          isLoading={isLoadingSummary}
+          status={summary ? "good" : "warning"}
         />
       </div>
 
@@ -66,7 +66,7 @@ export default function AdminPage() {
               <h4 className="font-medium text-base text-foreground">Import Workflows</h4>
               <p className="text-muted-foreground mt-1">
                 In the <strong className="text-foreground/80">Workflows</strong> tab, paste ComfyUI API JSON format templates. 
-                Map inputs carefully so the Generate page knows where to inject prompts and image sizes.
+                Map inputs carefully so Generate Video knows where to inject prompts and image sizes.
               </p>
             </div>
 
@@ -74,7 +74,7 @@ export default function AdminPage() {
               <div className="absolute -left-[9px] top-0 size-4 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">3</div>
               <h4 className="font-medium text-base text-foreground">Populate Library</h4>
               <p className="text-muted-foreground mt-1">
-                Build your creative library in <strong className="text-foreground/80">Characters</strong> and <strong className="text-foreground/80">Settings</strong>. 
+                Build your creative library in <strong className="text-foreground/80">Characters</strong> and <strong className="text-foreground/80">Locations &amp; Scenery</strong>. 
                 These become reusable assets for the production team.
               </p>
             </div>
@@ -85,15 +85,11 @@ export default function AdminPage() {
           <h3 className="font-semibold text-lg mb-4">System Information</h3>
           <dl className="space-y-4 text-sm">
             <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <dt className="text-muted-foreground">Studio Version</dt>
-              <dd className="font-mono">v0.1.0-beta</dd>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-border/50">
               <dt className="text-muted-foreground">Total Characters</dt>
               <dd className="font-mono">{isLoadingSummary ? "..." : summary?.characterCount || 0}</dd>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <dt className="text-muted-foreground">Total Settings</dt>
+              <dt className="text-muted-foreground">Total Locations</dt>
               <dd className="font-mono">{isLoadingSummary ? "..." : summary?.settingCount || 0}</dd>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
@@ -103,7 +99,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center py-2">
               <dt className="text-muted-foreground">Object Storage</dt>
               <dd>
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Configured</Badge>
+                <Badge variant="outline" className="text-muted-foreground" data-testid="status-storage">Not verified</Badge>
               </dd>
             </div>
           </dl>

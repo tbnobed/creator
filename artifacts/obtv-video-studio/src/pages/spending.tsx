@@ -38,8 +38,8 @@ export default function SpendingPage() {
   return (
     <Page>
       <PageHeader
-        title="Spending & Limits"
-        description="Local cost tracking by user and tenant, with monthly spending limits."
+        title="Spending"
+        description={isSiteAdmin ? "Estimated paid cloud costs for your workspace, or across all workspaces (system view, site admins only)." : "Estimated paid cloud costs and monthly limits for your current workspace."}
         actions={
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <Input
@@ -63,8 +63,10 @@ export default function SpendingPage() {
       <div className="space-y-8 animate-in fade-in duration-500 pb-8">
         <SpendingOverview month={month} tenantId={queryTenantId} />
 
-        <div className="text-xs text-muted-foreground bg-secondary/30 p-3 rounded-md border border-border/50">
-          Costs are calculated and stored locally using the app's rate card—not fetched from provider bills. Allowances cover Cloud/API jobs only and reset each UTC calendar month. Local GPU usage is excluded.
+        <div className="grid gap-2 text-xs text-muted-foreground bg-secondary/30 p-3 rounded-md border border-border/50 sm:grid-cols-3" data-testid="text-spending-boundaries">
+          <p><span className="font-semibold text-foreground">Estimated, not billed.</span> Amounts come from this studio's rate card, not provider invoices. Local GPU usage is not counted toward the cloud allowance or these totals.</p>
+          <p><span className="font-semibold text-foreground">Workspace scope.</span> Limits apply per workspace and per member, and reset each UTC calendar month. Only paid cloud jobs count.</p>
+          <p><span className="font-semibold text-foreground">{isSiteAdmin ? "System view." : "Personal details"}</span> {isSiteAdmin ? "Choosing All workspaces shows every tenant; that view is visible to site admins only." : "Your sign-in and profile live in Account & Workspace."}</p>
         </div>
 
         <Tabs defaultValue="members" className="w-full">
@@ -151,7 +153,7 @@ function SpendingOverview({ month, tenantId }: { month: string, tenantId?: strin
       <Card className="border-border/50 bg-card/30 backdrop-blur-sm shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Coins className="size-4 text-emerald-500" /> Recorded Cost
+            <Coins className="size-4 text-emerald-500" /> Estimated Cloud Cost
           </CardTitle>
         </CardHeader>
         <CardContent>

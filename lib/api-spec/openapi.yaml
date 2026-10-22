@@ -66,6 +66,12 @@ paths:
   /production-projects/{id}:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: deleteProductionProject
+      tags: [long-form-projects]
+      responses:
+        "204": { description: Production and inactive render project deleted; shared libraries retained }
+        "409": { description: Cancel active work before deleting }
     get:
       operationId: getProductionProject
       tags: [long-form-projects]
@@ -1765,6 +1771,50 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ImageModelList" }
+  /settings/{id}/image-jobs:
+    post:
+      operationId: createLocationImageJob
+      tags: [settings]
+      summary: Generate a durable location reference or variant
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationImageJobInput"
+      responses:
+        "202":
+          description: Location image job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageJob"
+  /settings/{id}/references/{referenceId}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - name: referenceId
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      operationId: renameLocationReference
+      tags: [settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationReferenceNameInput"
+      responses:
+        "200": { description: Reference renamed }
+    delete:
+      operationId: removeLocationReference
+      tags: [settings]
+      responses:
+        "200": { description: Reference detached without deleting media }
+        "409": { description: Location is used by a production }
   /image-studio/jobs:
     get:
       operationId: listImageStudioJobs
@@ -2319,6 +2369,17 @@ components:
         referenceAssetIds: { type: array, items: { type: string } }
         maskAssetId: { type: ["string", "null"] }
         createdAt: { type: string }
+    LocationReferenceNameInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+    LocationImageJobInput:
+      allOf:
+        - $ref: "#/components/schemas/ImageJobInput"
+        - type: object
+          properties:
+            referenceName: { type: string, maxLength: 180 }
     ImageJobInput:
       type: object
       required: [modelId, operation, prompt, width, height, count]
@@ -2748,6 +2809,8 @@ components:
             required: [id, name, url, prompt]
             properties:
               id: { type: string }
+              imageAssetId: { type: string }
+              unavailableReason: { type: string }
               name: { type: string }
               url: { type: string }
               prompt: { type: string }
@@ -3157,6 +3220,7 @@ components:
       required: [prompt, generationMode, durationSeconds, fps, width, height, qualityPreset, seedMode]
       properties:
         provider: { type: string, enum: [COMFYUI, FAL], default: COMFYUI }
+        cloudConfirmed: { type: boolean, default: false }
         model:
           type: string
           enum: [veo-3.1-fast, gemini-omni-flash, kling-v3-standard, seedance-2.0-mini, seedance-2.0, seedance-2.0-fast, seedance-2.5]

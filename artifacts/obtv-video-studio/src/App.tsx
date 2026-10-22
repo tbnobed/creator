@@ -5,6 +5,7 @@ import { getGetSessionQueryKey, useGetSession } from "@workspace/api-client-reac
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ConfirmProvider } from "@/components/shared/confirm";
 
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth-guard";
@@ -134,7 +135,8 @@ function AppRoutes() {
             <Route path="/servers" component={StudioRouter} />
             <Route path="/workflows" component={StudioRouter} />
             <Route path="/admin" component={StudioRouter} />
-            <Route component={NotFound} />
+            {/* Unknown URLs render inside the authenticated shell so navigation stays available. */}
+            <Route component={StudioRouter} />
           </Switch>
           <Toaster />
         </TooltipProvider>
@@ -154,7 +156,9 @@ function App() {
   return (
     <WouterRouter base={basePath}>
       <QueryClientProvider client={queryClient}>
-        <AppRoutes />
+        <ConfirmProvider>
+          <AppRoutes />
+        </ConfirmProvider>
       </QueryClientProvider>
     </WouterRouter>
   );

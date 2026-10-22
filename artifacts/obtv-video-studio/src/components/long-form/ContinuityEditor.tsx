@@ -1,3 +1,4 @@
+import { useConfirm } from "@/components/shared/confirm";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
@@ -58,6 +59,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function ContinuityEditor({ project, open, onOpenChange }: { project: any; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const confirmAction = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: globalCharacters = [] } = useListCharacters();
@@ -239,7 +241,7 @@ export function ContinuityEditor({ project, open, onOpenChange }: { project: any
                                               toast({ title: "Dossier not approved", description: "You can only import from an APPROVED dossier.", variant: "destructive" });
                                               return;
                                             }
-                                            if (confirm("This will import approved wardrobes and performance defaults, replacing current settings. Continue?")) {
+                                            if (await confirmAction({ title: "Import from the approved dossier?", description: "Approved wardrobes and performance defaults replace this shot plan's current settings.", confirmLabel: "Import" })) {
                                               if (dossier.performanceNotes) {
                                                 form.setValue(`characters.${index}.behavior`, dossier.performanceNotes);
                                               }

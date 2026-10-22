@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { useConfirm } from "@/components/shared/confirm";
 
 export default function ServersPage() {
   const { data: servers, isLoading } = useListServers({
@@ -95,8 +96,9 @@ function ServerCard({ server }: { server: any }) {
   const updateMutation = useUpdateServer();
   const testMutation = useTestServerConnection();
 
+  const confirmAction = useConfirm();
   const handleDelete = async () => {
-    if (confirm(`Remove "${server.displayName}" from the compute fleet? Linked jobs, shots, and their history will be kept. Workers with active jobs cannot be removed until those jobs finish or are cancelled.`)) {
+    if (await confirmAction({ title: `Remove "${server.displayName}" from the compute fleet?`, description: "Linked jobs, shots, and their history will be kept. Workers with active jobs cannot be removed until those jobs finish or are cancelled.", confirmLabel: "Remove worker", destructive: true })) {
       setActionError(null);
       try {
         await deleteMutation.mutateAsync({ id: server.id });
