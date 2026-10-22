@@ -458,8 +458,8 @@ function allocateShotDurations(minimums: number[], targetDurationSeconds: number
     throw new Error(`The requested duration needs more shots. Add shot headers so no shot exceeds ${MAX_SHOT_DURATION_SECONDS} seconds.`);
   }
   const plannedTotal = Math.max(targetDurationSeconds, minimumTotal);
-  if (plannedTotal > 600) {
-    throw new Error("The spoken script needs more than 10 minutes. Shorten the dialogue or split it into another project.");
+  if (plannedTotal > 5400) {
+    throw new Error("The planned shots exceed the 90-minute production limit. Shorten the draft or split it into another project.");
   }
 
   const durations = [...minimums];
