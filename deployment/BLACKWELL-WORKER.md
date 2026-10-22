@@ -1,6 +1,27 @@
 # Blackwell worker installation
 
-## Services
+## Current hardware verification — 2026-10-22
+
+The host at `192.168.201.221` now exposes **two RTX 5090 workers**, on
+ports 8188 and 8189. Both were reached over the internal network from the
+dual-H100 SSH host. The older 6000/5090 installation notes below are historical,
+not a description of the current GPU pair.
+
+Both running ComfyUI instances report version 0.35.0 and advertise:
+- `MiniMaxH3ImageToVideo` (native first-frame conditioning)
+- `minimax_h3_fl2va_pruned_nvfp4.safetensors`
+- `minimax_h3_ref2va_pruned_nvfp4.safetensors`
+- `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`
+- MiniMax H3 video and audio VAEs
+
+Both queues were empty at inspection. No software upgrades, restarts or renders
+were performed: the required node and model files were already present.
+File/node availability is not a completed render or a 32 GB memory qualification.
+Include **both workers** in the exact-first-frame production integration and
+validate each before assigning that capability. The missing application
+approved-frame/FL2VA pipeline is separate from model installation.
+
+## Historical installation notes
 
 - Existing RTX PRO 6000 (96 GB): `comfyui.service`, port 8188. Existing input, output and user folders were preserved.
 - RTX 5090 (32 GB): `obtv-comfy-secondary.service`, port 8189 on all IPv4 interfaces. Separate folders under `/srv/comfyui/5090`.

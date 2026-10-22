@@ -5,6 +5,12 @@ description: Safely restarts heterogeneous remote ComfyUI installations without 
 
 Never infer a ComfyUI worker's startup interpreter or restart mechanism from its current executable path alone. Discover the running process, its command line, available venvs, queue state, and service manager before restarting it.
 
+Do not equate a failed external ComfyUI request or stored OFFLINE status with an inaccessible GPU server. Check the documented SSH endpoints and query ComfyUI locally through SSH.
+
+**Why:** The dual-H100 server had three running, locally reachable ComfyUI workers while its external API checks failed. The user reiterated that SSH access to the fleet was already provided.
+
+**How to apply:** Use the connection details in replit.md and existing secrets without asking for them again. Report SSH reachability, local service health, and public API reachability separately; inspect queues before changes.
+
 During GPU-loss recovery, hold worker startup across the reboot until physical GPU and MIG validation completes; do not rely on temporary firewall rules surviving reboot.
 
 **Why:** Boot-enabled workers can accept portal retries before recovery checks, even when the live portal's administrative connection is unavailable.
