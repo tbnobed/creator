@@ -1594,13 +1594,21 @@ function scheduleLongFormOrchestration(projectId: string, source: string): void 
   });
 }
 
+export function longFormStartDisposition(status: string): "start" | "running" {
+  if (status === "RUNNING") return "running";
+  if (["READY", "PAUSED", "FAILED"].includes(status)) return "start";
+  if (status === "CANCELLED") throw new Error("This render was cancelled. Retry a cancelled shot to resume it; Create does not restart cancelled renders.");
+  if (["COMPLETED", "EDITING", "ASSEMBLING"].includes(status)) throw new Error(`This render is ${status.toLowerCase()}. Use Review or retry a specific shot instead of starting it again.`);
+  throw new Error(`This render is ${status.toLowerCase()}. Finish preparing its shot queue before starting.`);
+}
+
 export async function startLongFormProject(projectId: string) {
   const project = await withProjectLock(projectId, async () => {
-    const [current] = await db.select({
-      status: longFormProjectsTable.status,
-      continuity: longFormProjectsTable.continuity,
-      generationMode: longFormProjectsTable.generationMode,
-    }).from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    const [current] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (!current) throw new ResourceNotFoundError("Long-form project not found");
+    // A retry already changes the project to RUNNING. A subsequent Start
+    // must acknowledge that state, not fail after the retry succeeded.
+    if (longFormStartDisposition(current.status) === "running") return current;
     if (current?.continuity?.enabled) {
       const requiredReferenceSlots = 1 + Math.max(
         0,
