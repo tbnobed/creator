@@ -42,6 +42,7 @@ import {
   replaceCharacterDossier,
 } from "../lib/character-dossier-service";
 import { mediaStorage } from "../lib/storage-service";
+import { reconcileProductionCharacters } from "../lib/production-character-library";
 import {
   createCharacterImageJob,
   CharacterImageGenerationConflictError,
@@ -69,6 +70,7 @@ import {
 const router: IRouter = Router();
 
 async function list(tenantId: string) {
+  await reconcileProductionCharacters(tenantId);
   const characters = await db.select().from(charactersTable)
     .where(eq(charactersTable.tenantId, tenantId))
     .orderBy(asc(charactersTable.createdAt), asc(charactersTable.id));
@@ -205,6 +207,7 @@ router.get("/characters/:id/dossier", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  await reconcileProductionCharacters(req.context!.tenant!.id);
   const dossier = await getCharacterDossier(req.context!.tenant!.id, params.data.id);
   if (!dossier) {
     res.status(404).json({ error: "Character not found" });

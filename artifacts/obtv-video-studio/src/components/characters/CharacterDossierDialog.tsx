@@ -293,11 +293,11 @@ function CharacterDossierEditor({
               {activeId ? `Editing Dossier: ${form.watch("name") || "Unnamed"}` : "New character"}
               {dossier?.status === "APPROVED" && (
                 <Badge variant="default" className="bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/30">
-                  <CheckCircle2 className="w-3 h-3 mr-1" /> Approved
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Dossier approved
                 </Badge>
               )}
               {dossier?.status === "DRAFT" && (
-                <Badge variant="outline" className="text-muted-foreground border-border/50">Draft</Badge>
+                <Badge variant="outline" className="text-muted-foreground border-border/50">Dossier draft</Badge>
               )}
             </DialogTitle>
             <DialogDescription>

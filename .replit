@@ -28,3 +28,8 @@ packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp
 [userenv.shared]
 PUBLIC_APP_URL = "https://create1.obtv.io"
 SENDGRID_FROM_EMAIL = "alerts@obedtv.com"
+
+[userenv.development]
+STORY_AI_BASE_URL = "http://76.219.194.165:11434"
+STORY_AI_COMFY_BASE_URL = "http://76.219.194.165:8188"
+STORY_AI_MODEL = "qwen3.8:27b-q8_0"

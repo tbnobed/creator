@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Runtime media lives in the server's persistent data volume, not source history.
+/artifacts/api-server/data/obtv-media/tenants/
+/generated-artifacts/

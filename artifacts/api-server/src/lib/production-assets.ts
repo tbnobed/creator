@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db, charactersTable, characterAssetsTable, imageStudioAssetsTable, settingsTable, settingAssetsTable, type ProductionProjectRow } from "@workspace/db";
 import { createImageJob, getImageJob, inspectImage, presentImageAsset } from "./image-studio-service";
 import { mediaStorage } from "./storage-service";
@@ -7,6 +7,7 @@ import { getImageModel } from "./image-studio-models";
 import { numberIn, text, type ProductionState, type ProductionTask } from "./production-types";
 import { stateOf } from "./production-store";
 import { publishProductionScenery } from "./scenery-library";
+import { publishProductionCharacters } from "./production-character-library";
 
 const MODEL = "local-flux2-klein-4b";
 const views = ["front", "three-quarter", "profile", "expressions"];
@@ -128,9 +129,13 @@ export async function mutateProductionAsset(row: ProductionProjectRow, action: s
       await db.update(characterAssetsTable).set({ isPrimary: false }).where(eq(characterAssetsTable.characterId, character.characterId));
       await db.insert(characterAssetsTable).values({
         characterId: character.characterId, storageKey: asset.storageKey, originalName: `${character.name}-locked-look.png`,
-        mimeType: asset.mimeType, label: "headshot", isPrimary: true, description: character.description,
+        mimeType: asset.mimeType, label: "other", isPrimary: true, description: character.description,
       });
       character.selectedAssetId = selected.assetId; character.locked = true; character.status = "LOCKED";
+      await db.update(charactersTable).set({
+        dossierStatus: "DRAFT", dossierApprovedAt: null,
+        dossierRevision: sql`${charactersTable.dossierRevision} + 1`,
+      }).where(and(eq(charactersTable.id, character.characterId), eq(charactersTable.tenantId, row.tenantId)));
       character.referenceSheet = [];
       addTask(state, "sheet", character.id);
     } else {
@@ -174,6 +179,7 @@ export async function mutateProductionAsset(row: ProductionProjectRow, action: s
   for (const task of state.tasks) if (!priorTasks.has(task.id)) {
     task.modelId = modelId; task.cloudConfirmed = model?.provider === "CLOUD" && payload.cloudConfirmed === true;
   }
+  await publishProductionCharacters(row, state);
   return state;
 }
 
@@ -227,6 +233,7 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
   if (task.type === "portraits" && character) character.options.push(image);
   else if (task.type === "sheet" && character) character.referenceSheet.push({ ...image, label: views[task.index] });
   else Object.assign(entity, image);
+  await publishProductionCharacters(row, state);
   task.index++;
   task.jobId = undefined;
   const total = task.type === "portraits" || task.type === "sheet" ? 4 : 1;

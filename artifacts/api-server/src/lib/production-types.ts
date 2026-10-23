@@ -27,6 +27,7 @@ export type ProductionTask = {
   storySourceKey?: string;
 };
 export type ProductionState = {
+  publishedCharacterAssets?: string[];
   step: number;
   storyCancelTaskId?: string | null;
   story: { summary: string; script: string; targetMinutes: number; sourceMode?: "summary" | "script";

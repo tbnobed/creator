@@ -1,4 +1,5 @@
 import { count, eq } from "drizzle-orm";
+import { createMiniMaxH3ProductionWorkflow, productionMappings } from "./seed-data/minimax-h3-production";
 import { createMiniMaxH3Fl2vaWorkflow, fl2vaMappings, isEmptyFl2vaPlaceholder } from "./seed-data/minimax-h3-fl2va";
 import { upgradeLegacyLtxFps } from "./seed-data/ltx-25-upgrade";
 import {
@@ -183,6 +184,19 @@ function equalJson(left: unknown, right: unknown): boolean {
 async function seedWorkflowDefinitions(): Promise<void> {
   const existing = await db.select().from(workflowTemplatesTable);
   const existingNames = new Set(existing.map((workflow) => workflow.name));
+  for (const blackwell of [false, true]) {
+    const name = `MiniMax H3 Production Guide (${blackwell ? "Blackwell" : "H100 / A100"})`;
+    if (!existingNames.has(name)) {
+      await db.insert(workflowTemplatesTable).values({
+        name, description: "Native frame-zero guide plus three independent cast, wardrobe and scenery reference slots.",
+        generationMode: "h3-production", modelFamily: "MiniMax H3",
+        compatibleServerTags: ["minimax-h3", blackwell ? "blackwell" : "a100"],
+        apiWorkflow: createMiniMaxH3ProductionWorkflow(blackwell),
+        mappings: productionMappings, expectedInputs: Object.keys(productionMappings),
+        expectedOutputs: ["video"], active: true,
+      });
+    }
+  }
   const variants = [
     {
       ...miniMaxH3R2vSeed.a100,

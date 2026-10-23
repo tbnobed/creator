@@ -185,7 +185,10 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   if (assets.length !== new Set(ids).size) throw new Error("A locked production reference was removed. Restore it before rendering.");
   const keys = [...new Set(ids)].map(id => assets.find(a => a.id === id)!.storageKey);
   const position = orderedShots.findIndex(s => s.id === shot.id);
-  const previous = position > 0 ? orderedShots[position - 1] : null;
+  const prior = position > 0 ? orderedShots[position - 1] : null;
+  // A scene cut establishes the assigned new set. Only continue the previous
+  // frame within the same scene, otherwise the old location anchors the cut.
+  const previous = prior?.sceneNumber === shot.sceneNumber ? prior : null;
   // The opening shot uses the approved location plate; subsequent shots use
   // the actual previous output frame. Never leave firstFrame placeholders unset.
   let startFrameKey: string;
@@ -194,7 +197,7 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
     const directory = await mkdtemp(path.join(tmpdir(), "production-last-frame-"));
     try {
       const output = path.join(directory, "frame.png");
-      await exec("ffmpeg", ["-y", "-sseof", "-0.1", "-i", mediaStorage.resolvePath(previous.outputStorageKey), "-frames:v", "1", output], { timeout: 60000, maxBuffer: 1024 * 1024 });
+      await exec("ffmpeg", ["-y", "-sseof", "-1", "-i", mediaStorage.resolvePath(previous.outputStorageKey), "-update", "1", output], { timeout: 60000, maxBuffer: 1024 * 1024 });
       startFrameKey = await mediaStorage.storeGenerationReferenceMedia("image/png", await readFile(output), row.tenantId);
     } finally { await rm(directory, { recursive: true, force: true }); }
   } else {
