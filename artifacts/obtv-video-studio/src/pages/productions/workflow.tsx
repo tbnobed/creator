@@ -16,6 +16,7 @@ import type { ProductionProject } from "@workspace/api-client-react";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, Loader2, RotateCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { ContentManager } from "./content-manager";
 import {
   DEFAULT_SETTINGS, STEPS, errorMessage, isConflict, needsPolling, normalizeState,
   type ProductionSettings, type ProductionState, type Story,
@@ -307,6 +308,7 @@ export default function ProductionWorkflowPage() {
         />
 
         <Stepper current={step} onSelect={(i) => void goToStep(i)} disabled={saving || !scenesReady} />
+        <ContentManager state={state} step={step} run={run} busy={pendingAction !== null || saving} />
         {state.tasks.some(t => t.type === "story" && isStoryActive(t.status)) && (
           <Banner tone="error" testId="status-writing-control">
             <span className="flex-1">Writing in progress. Cancelling keeps your source and completed scene plans. Paid requests already accepted may still be charged.</span>

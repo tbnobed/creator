@@ -21,7 +21,7 @@ export async function productionLock<T>(id: string, work: () => Promise<T>): Pro
     finally { await client.query("SELECT pg_advisory_unlock(hashtext($1))", [`production:${id}`]); }
   } finally { client.release(); }
 }
-export async function saveProduction(row: ProductionProjectRow, state: ProductionState, extra: { title?: string; renderProjectId?: string } = {}) {
+export async function saveProduction(row: ProductionProjectRow, state: ProductionState, extra: { title?: string; renderProjectId?: string | null } = {}) {
   const [saved] = await db.update(productionProjectsTable).set({
     ...extra,
     // Cancellation is an out-of-band control message: preserve it atomically

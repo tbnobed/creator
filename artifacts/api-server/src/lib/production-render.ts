@@ -20,6 +20,11 @@ export async function assertProductionEditable(row: ProductionProjectRow) {
   if (!row.renderProjectId) return;
   const [render] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, row.renderProjectId));
   if (render && ["RUNNING", "ASSEMBLING"].includes(render.status)) throw new Error("Pause this project's renders before changing approved production elements.");
+  const [active] = await db.select({ id: longFormShotsTable.id }).from(longFormShotsTable).where(and(
+    eq(longFormShotsTable.projectId, row.renderProjectId),
+    inArray(longFormShotsTable.status, ["QUEUED", "RENDERING", "PREPARING"]),
+  )).limit(1);
+  if (active) throw new Error("Wait for the active shot to finish after pausing before editing project content.");
 }
 
 export function productionShotPlan(scenes: ProductionScene[], defaultDuration: number) {
@@ -36,8 +41,12 @@ export function productionShotPlan(scenes: ProductionScene[], defaultDuration: n
 }
 
 export async function prepareProductionRender(row: ProductionProjectRow): Promise<string> {
-  if (row.renderProjectId) return row.renderProjectId;
   const state = stateOf(row);
+  for (const scene of state.story.scenes) for (const character of state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()))) {
+    const outfit = state.wardrobes.filter(w => w.characterId === character.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber).at(-1);
+    if (outfit && (!outfit.assetId || outfit.approvedAssetId !== outfit.assetId)) throw new Error(`Review and approve ${character.name}'s ${outfit.name} in Wardrobe before rendering.`);
+  }
+  if (row.renderProjectId) return row.renderProjectId;
   if (!state.story.scenes.length || state.story.draftStatus !== "READY") throw new Error("Finish and review the story draft first.");
   if (state.tasks.some(t => ["QUEUED", "RUNNING"].includes(t.status))) throw new Error("Wait for the reference generation queue to finish.");
   if (!state.settings.generationMode) throw new Error("Select a video workflow in Create.");
@@ -174,6 +183,7 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
     const outfit = state.wardrobes.filter(w => w.characterId === character.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber).at(-1);
     if (outfit) {
       if (!outfit.assetId) throw new Error(`The ${outfit.name} outfit image is not ready.`);
+      if (outfit.approvedAssetId !== outfit.assetId) throw new Error(`Review and approve the ${outfit.name} outfit in Wardrobe before rendering.`);
       ids.push(outfit.assetId);
       notes.push(`${character.name} wears ${outfit.name}: ${outfit.prompt}`);
       if (outfit.stateFromScene !== undefined && scene.sceneNumber >= outfit.stateFromScene) notes.push(`${character.name} outfit state: ${outfit.stateNote || ""}`);

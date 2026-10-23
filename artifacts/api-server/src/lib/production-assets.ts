@@ -86,11 +86,20 @@ export async function mutateProductionAsset(row: ProductionProjectRow, action: s
     });
     return state; // Reuse the approved identity and reference, with no generation or spending.
   }
+  if (action === "approve-wardrobe") {
+    const outfit = state.wardrobes.find(w => w.id === payload.id);
+    if (!outfit?.assetId || outfit.status !== "READY" || outfit.assetId !== payload.assetId) throw new Error("Review the current completed outfit before approving it.");
+    outfit.approvedAssetId = outfit.assetId;
+    return state;
+  }
   const priorTasks = new Set(state.tasks.map(t => t.id));
   const modelId = payload.modelId === undefined ? MODEL : text(payload.modelId, "Image model", 100);
   const model = getImageModel(modelId);
   if (action !== "update-character") {
     if (!model) throw new Error("Choose a supported image model.");
+    if (action === "add-wardrobe" && model.provider === "LOCAL" && model.id !== "local-flux2-klein-4b") {
+      throw new Error("This local model redraws the subject instead of editing clothing. Choose FLUX.2 Klein native reference editing or a supported cloud editing model.");
+    }
     const edit = ["keep-look", "add-wardrobe", "add-variant"].includes(action);
     if (!model.operations.includes(edit ? "edit" : "generate") || (edit && model.maxReferences < 1)) throw new Error("This model cannot perform the required reference-conditioned operation.");
     if (model.provider === "CLOUD" && payload.cloudConfirmed !== true) throw new Error("Confirm the paid image batch before submitting. Portrait and reference-sheet batches each create four images.");
@@ -201,7 +210,7 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
     } else if (task.type === "wardrobe" && outfit) {
       const identity = state.characters.find(c => c.id === outfit.characterId);
       if (!identity?.locked || !identity.selectedAssetId) throw new Error("The character look must be locked.");
-      prompt = `Preserve the reference person's exact face and identity. Full-body outfit reference: ${outfit.prompt}`;
+      prompt = `Edit only the clothing of the character in the supplied image. Keep the exact same character, face, eyes, head shape, body proportions, material, pose, camera and background. Do not redesign or replace the subject. Clothing change: ${outfit.prompt}`;
       seed = identity.seed; referenceAssetIds = [identity.selectedAssetId];
     } else if (task.type === "place" && place) {
       prompt = `Wide establishing reference of a location, consistent architecture and geography, no text: ${place.prompt}`;
@@ -212,6 +221,8 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
     } else throw new Error("The required base reference is missing.");
     const job = await createImageJob({
       tenantId: row.tenantId, userId: row.createdByUserId,
+      ...(referenceAssetIds.length && (task.modelId ?? MODEL) === "local-flux2-klein-4b"
+        ? { referenceMode: "native-reference-edit" as const } : {}),
       request: {
         modelId: task.modelId ?? MODEL, cloudConfirmed: task.cloudConfirmed === true,
         operation: referenceAssetIds.length ? "edit" : "generate",

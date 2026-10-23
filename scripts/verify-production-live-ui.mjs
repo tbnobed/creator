@@ -12,6 +12,7 @@ const userId = `ui-verification-${randomUUID()}`;
 const email = `${userId}@example.invalid`, password = randomBytes(32).toString("hex");
 const origin = `https://${process.env.REPLIT_DEV_DOMAIN}`;
 let browser;
+let temporaryProduction;
 try {
   const { rows: [project] } = await pool.query("SELECT tenant_id FROM obtv_production_projects WHERE id=$1", [projectId]);
   if (!project) throw new Error("Verification project missing");
@@ -29,7 +30,53 @@ try {
   const page = await context.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
   const characterId = process.argv[3];
-  if (characterId) {
+  if (characterId === "content") {
+    const { rows: [original] } = await pool.query("SELECT state FROM obtv_production_projects WHERE id=$1", [projectId]);
+    const state = original.state; state.step = 0; state.tasks = [];
+    temporaryProduction = randomUUID();
+    await pool.query("INSERT INTO obtv_production_projects (id,tenant_id,created_by_user_id,title,state) VALUES ($1,$2,$3,'Content controls verification',$4)",
+      [temporaryProduction, project.tenant_id, userId, JSON.stringify(state)]);
+    await page.goto(`/productions/${temporaryProduction}`);
+    for (const step of [0,2,3,1]) {
+      const stepButton = page.getByTestId(`button-step-${step}`);
+      await stepButton.waitFor();
+      if (await stepButton.isEnabled()) await stepButton.click();
+      await page.getByTestId("button-edit-project-content").click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("button", {name:"Edit",exact:true}).first().click();
+      const label = step === 0 ? "Title" : "Name";
+      await dialog.getByLabel(label, {exact:true}).fill(`Verified ${step}`);
+      await dialog.getByRole("button", {name:"Save changes",exact:true}).click();
+      await dialog.getByText(`Verified ${step}`,{exact:true}).waitFor();
+      await page.screenshot({path:`/tmp/content-controls-${step}.png`,fullPage:true});
+      await dialog.getByRole("button", {name:"Remove",exact:true}).first().click();
+      await dialog.getByRole("button", {name:"Confirm removal",exact:true}).click();
+      await page.waitForTimeout(500);
+      assert.equal(await dialog.getByText(`Verified ${step}`,{exact:true}).count(),0);
+      await page.keyboard.press("Escape");
+      console.log(`PASS live edit/save/remove for step ${step+1}`);
+    }
+    assert.equal(errors.length,0,errors.join("\\n"));
+  } else if (characterId === "wardrobe") {
+    const { rows: [original] } = await pool.query("SELECT state FROM obtv_production_projects WHERE id=$1", [projectId]);
+    const state = original.state;
+    state.step = 2;
+    const outfit = state.wardrobes.at(-1);
+    delete outfit.approvedAssetId;
+    temporaryProduction = randomUUID();
+    await pool.query("INSERT INTO obtv_production_projects (id,tenant_id,created_by_user_id,title,state) VALUES ($1,$2,$3,'Wardrobe UI verification',$4)",
+      [temporaryProduction, project.tenant_id, userId, JSON.stringify(state)]);
+    await page.goto(`/productions/${temporaryProduction}`);
+    const card = page.getByTestId(`card-outfit-${outfit.id}`).locator("..");
+    await card.getByRole("link", { name: "Inspect full image" }).waitFor();
+    await card.getByRole("button", { name: "Approve outfit", exact: true }).click();
+    await card.getByRole("button", { name: "Approved", exact: true }).waitFor();
+    await page.screenshot({ path: "/tmp/wardrobe-native-controls.png", fullPage: true });
+    await card.getByRole("button", { name: "Generate replacement" }).click();
+    await page.getByTestId("button-generate-outfit").waitFor();
+    assert.equal(errors.length, 0, errors.join("\n"));
+    console.log("PASS wardrobe full-image link, persisted approval and replacement form; isolated fixture only, no extra generation.");
+  } else if (characterId) {
     const dossierResponse = await context.request.get(`/api/characters/${characterId}/dossier`);
     assert.equal(dossierResponse.status(), 200);
     const dossier = await dossierResponse.json();
@@ -104,6 +151,7 @@ try {
   }
 } finally {
   await browser?.close();
+  if (temporaryProduction) await pool.query("DELETE FROM obtv_production_projects WHERE id=$1", [temporaryProduction]);
   await pool.query("DELETE FROM obtv_tenant_memberships WHERE user_id=$1", [userId]);
   await pool.query("DELETE FROM obtv_users WHERE id=$1", [userId]);
   await pool.end();

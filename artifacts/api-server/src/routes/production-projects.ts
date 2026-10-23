@@ -13,6 +13,7 @@ import { sql } from "drizzle-orm";
 import { cancelActiveStory } from "../lib/production-story-control";
 import { deleteLongFormProject } from "../lib/long-form-service";
 import { publishProductionScenery } from "../lib/scenery-library";
+import { changeProductionContent } from "../lib/production-content";
 
 const router: IRouter = Router();
 function errorResponse(res: express.Response, error: unknown) {
@@ -149,6 +150,10 @@ router.post("/production-projects/:id/actions", async (req, res) => {
         return saveProduction(row, state, { renderProjectId: renderId });
       }
       await assertProductionEditable(row);
+      if (action === "edit-content") {
+        state = changeProductionContent(state, payload);
+        return saveProduction(row, state, { renderProjectId: null });
+      }
       if (action === "draft-story") {
         const storyModel = state.settings.storyModel || "local";
         if (storyModel !== "local" && payload.cloudConfirmed !== true) throw new Error("Confirm paid story drafting before submitting the screenplay batch.");

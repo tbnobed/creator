@@ -11,6 +11,7 @@ export type ProductionCharacter = {
   locked: boolean; referenceSheet: ProductionImage[]; status: string; error?: string;
 };
 export type ProductionWardrobe = {
+  approvedAssetId?: string;
   id: string; characterId: string; name: string; prompt: string;
   fromScene: number; toScene: number; stateFromScene?: number; stateNote?: string;
   assetId?: string; mediaUrl?: string; status: string; error?: string;

@@ -45,6 +45,12 @@ Individual shots must be playable beside their correction controls; the assemble
 
 **How to apply:** Keep shot playback accessible in both Create and manual Review corrections, without triggering a new render.
 
+Project-content removal must not delete shared-library assets or historical rendered media. Structural edits require a fresh render plan.
+
+**Why:** The user needs to edit and remove scenes, characters, wardrobe and places without destroying reusable assets or making old shot mappings appear current.
+
+**How to apply:** Update dependencies and scene ranges, retain prior renders in history, and block changes while image generation or individual shots are still active.
+
 Native H3 guide conditioning is not proof of exact first-frame preservation or cross-scene visual continuity.
 
 **Why:** Live multi-scene verification produced playable exports but changed clothing, prop scale and appearance; decoded adjacent boundary frames were not identical.

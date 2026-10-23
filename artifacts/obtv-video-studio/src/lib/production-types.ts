@@ -21,6 +21,7 @@ export interface ProductionCharacter {
   referenceSheet: MediaRef[]; status: string; error?: string;
 }
 export interface Wardrobe {
+  approvedAssetId?: string;
   id: string; characterId: string; name: string; prompt: string; fromScene: number; toScene: number;
   stateFromScene?: number; stateNote?: string; assetId?: string; mediaUrl?: string; status: string; error?: string;
 }

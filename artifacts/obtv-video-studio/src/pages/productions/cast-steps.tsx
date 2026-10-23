@@ -229,7 +229,17 @@ function WardrobeRow({ model, character: c, outfits, maxScene, run, busy }: { mo
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1">
         {outfits.map((w) => (
-          <OutfitCard key={w.id} className="w-36 shrink-0" testId={`card-outfit-${w.id}`} outfit={outfitFromProduction(w)} />
+          <div key={w.id} className="w-36 shrink-0 space-y-2">
+            <OutfitCard testId={`card-outfit-${w.id}`} outfit={outfitFromProduction(w)} />
+            {w.mediaUrl && <a className="block text-xs underline" href={w.mediaUrl} target="_blank" rel="noreferrer">Inspect full image</a>}
+            {w.assetId && w.status === "READY" && <Button size="sm" variant="outline" disabled={busy || w.approvedAssetId === w.assetId}
+              onClick={() => void run("approve-wardrobe", { id: w.id, assetId: w.assetId })}>
+              {w.approvedAssetId === w.assetId ? "Approved" : "Approve outfit"}
+            </Button>}
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => {
+              setF({ name: w.name, prompt: w.prompt, fromScene: w.fromScene, toScene: w.toScene, stateFromScene: "", stateNote: "" }); setOpen(true);
+            }}>Generate replacement</Button>
+          </div>
         ))}
         <button type="button" disabled={!c.locked} onClick={() => setOpen(true)}
           className="flex aspect-[3/4] w-36 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-40"

@@ -1090,10 +1090,14 @@ export async function createImageJob(input: {
   request: ImageJobRequest;
   settingId?: string;
   settingReferenceName?: string;
+  referenceMode?: "native-reference-edit";
 }): Promise<PresentedImageJob> {
   const model = getImageModel(input.request.modelId);
   if (!model) throw new ImageStudioRequestError("Image model not found", 400);
   validateRequest(model, input.request);
+  if (input.referenceMode && (model.id !== "local-flux2-klein-4b" || !input.request.referenceAssetIds?.length)) {
+    throw new ImageStudioRequestError("Native reference editing requires FLUX.2 Klein and a source image.", 400);
+  }
   if (
     model.provider === "CLOUD"
     && (!input.tenantId.trim() || !input.userId.trim())
@@ -1149,7 +1153,7 @@ export async function createImageJob(input: {
     const candidates = await compatibleLocalServers(model);
     for (const candidate of candidates) {
       try {
-        if (await serverHasCapacity(candidate) && await checkLocalImageModel(model.id, candidate)) {
+        if (await serverHasCapacity(candidate) && await checkLocalImageModel(model.id, candidate, { referenceMode: input.referenceMode })) {
           server = candidate;
           break;
         }
@@ -1201,6 +1205,7 @@ export async function createImageJob(input: {
             cancellationRequested: false,
           }
           : {
+            ...(input.referenceMode ? { referenceMode: input.referenceMode } : {}),
             submissionIntent: true,
             submissionIntentAt: new Date().toISOString(),
             cancellationRequested: false,
@@ -1307,6 +1312,7 @@ export async function createImageJob(input: {
         count: input.request.count,
         denoiseStrength: input.request.denoiseStrength,
         referenceImages: loadedAssets.references,
+        ...(input.referenceMode ? { referenceMode: input.referenceMode } : {}),
         mask: loadedAssets.mask,
         ...(server ? { server } : {}),
         clientId: job.id,
