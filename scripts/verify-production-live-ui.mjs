@@ -30,7 +30,22 @@ try {
   const page = await context.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
   const characterId = process.argv[3];
-  if (characterId === "content" || characterId === "props" || characterId === "openings" || characterId === "openings-live") {
+  if (characterId === "queue") {
+    await page.goto(`/productions/${projectId}`);
+    await page.getByTestId("nav-steps").waitFor({ timeout: 30000 });
+    const createStep = page.getByTestId("button-step-4");
+    if (await createStep.isEnabled()) await createStep.click();
+    for (const scene of [1, 2]) {
+      const row = page.getByTestId(`row-scene-${scene}`);
+      await row.waitFor();
+      await row.locator("button").first().click();
+    }
+    await page.waitForTimeout(1500);
+    await mkdir("generated-artifacts", { recursive: true });
+    await page.screenshot({ path: "generated-artifacts/parallel-scenes-queue.png", fullPage: true });
+    assert.equal(errors.length, 0, errors.join("\n"));
+    console.log("PASS authenticated two-scene queue is visible; screenshot generated-artifacts/parallel-scenes-queue.png");
+  } else if (characterId === "content" || characterId === "props" || characterId === "openings" || characterId === "openings-live") {
     const { rows: [original] } = await pool.query("SELECT state,title FROM obtv_production_projects WHERE id=$1", [projectId]);
     const state = original.state; state.step = 0; state.tasks = [];
     if(characterId==="openings-live" && original.title!=="Continuity verification — reviewed scene compositions")throw new Error("Live approval is restricted to the visually reviewed verification fixture.");

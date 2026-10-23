@@ -6,7 +6,7 @@ import path from "node:path";
 
 const root = await mkdtemp(path.join(tmpdir(), "production-frame-test-"));
 process.env.OBTV_MEDIA_ROOT = root;
-const { registerProductionFrame, productionDispatchBlock } = await import("./production-dispatch");
+const { registerProductionFrame, productionDispatchBlock, readyProductionShots, previousProductionShot } = await import("./production-dispatch");
 const { LocalMediaStorage, isTenantGenerationReferenceKey } = await import("./storage-service");
 
 test("approved scenery is registered as a readable private generation frame without changing its bytes", async () => {
@@ -42,4 +42,27 @@ test("dependent shots wait for real output, and retrying the failed first shot a
   assert.equal(productionDispatchBlock([shot("COMPLETED", 1, "output.mp4"), shot("PLANNED", 2)]), null);
   assert.equal(productionDispatchBlock([shot("PLANNED", 1), shot("FAILED", 2)]), null);
   assert.equal(productionDispatchBlock([shot("CANCELLED", 1), shot("PLANNED", 2)])?.failed, true);
+});
+
+test("independent scene starts run while same-scene continuations wait", () => {
+  const a = shot("RENDERING", 1);
+  const b = shot("PLANNED", 2);
+  const c = { ...shot("PLANNED", 3), sceneNumber: 2 };
+  const d = { ...shot("PLANNED", 4), sceneNumber: 2 };
+  assert.deepEqual(readyProductionShots([d, b, c, a]), [c]);
+  assert.equal(productionDispatchBlock([a, b, c, d]), null);
+  assert.equal(previousProductionShot(c, [a, b, c, d]), undefined);
+  assert.equal(previousProductionShot(d, [d, b, a, c]), c);
+  assert.deepEqual(readyProductionShots([{ ...a, status: "COMPLETED", outputStorageKey: "a.mp4" }, b, c, d]), [b, c]);
+});
+
+test("failed scenes do not stop independent scenes or prematurely fail active work", () => {
+  const failed = shot("FAILED", 1);
+  const pending = shot("PLANNED", 2);
+  const independent = { ...shot("PLANNED", 3), sceneNumber: 2 };
+  assert.deepEqual(readyProductionShots([failed, pending, independent]), [independent]);
+  assert.equal(productionDispatchBlock([failed, pending, independent]), null);
+  assert.equal(productionDispatchBlock([failed, pending, { ...independent, status: "RENDERING" }])?.failed, false);
+  assert.equal(productionDispatchBlock([failed, pending, { ...independent, status: "COMPLETED", outputStorageKey: "b.mp4" }])?.failed, true);
+  assert.deepEqual(readyProductionShots([shot("COMPLETED", 1), pending, independent]), [independent]);
 });

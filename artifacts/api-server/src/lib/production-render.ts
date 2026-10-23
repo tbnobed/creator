@@ -10,12 +10,12 @@ import { stateOf } from "./production-store";
 import { productionAppearance, approvedProductionProp } from "./production-appearance";
 import { requireOpening } from "./production-openings";
 import { requireProductionScenery } from "./production-scenery";
-import { registerProductionFrame } from "./production-dispatch";
 import { text, type ProductionScene } from "./production-types";
 import { mediaStorage } from "./storage-service";
 import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject, retryLongFormShot, startLongFormProject, updateLongFormShot } from "./long-form-service";
 import { createAndSubmitGeneration } from "./generation-service";
 import { falModels, type FalModel } from "./fal/client";
+import { registerProductionFrame, previousProductionShot } from "./production-dispatch";
 
 const exec = promisify(execFile);
 export async function assertProductionEditable(row: ProductionProjectRow) {
@@ -195,11 +195,9 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   const assets = await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId, row.tenantId), inArray(imageStudioAssetsTable.id, [...new Set(ids)])));
   if (assets.length !== new Set(ids).size) throw new Error("A locked production reference was removed. Restore it before rendering.");
   const keys = [...new Set(ids)].map(id => assets.find(a => a.id === id)!.storageKey);
-  const position = orderedShots.findIndex(s => s.id === shot.id);
-  const prior = position > 0 ? orderedShots[position - 1] : null;
   // A scene cut establishes the assigned new set. Only continue the previous
   // frame within the same scene, otherwise the old location anchors the cut.
-  const previous = prior?.sceneNumber === shot.sceneNumber ? prior : null;
+  const previous = previousProductionShot(shot, orderedShots);
   // The opening shot uses the approved location plate; subsequent shots use
   // the actual previous output frame. Never leave firstFrame placeholders unset.
   let startFrameKey: string;

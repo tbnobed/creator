@@ -24,10 +24,11 @@ import {
   type LongFormShotContinuity,
 } from "@workspace/db";
 import { hasRequiredTags, isLongFormWorkflow } from "./comfy/scheduler";
+import { productionWorkflowCapability } from "./comfy/production-capability";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { productionForRender, productionShotReferences, dispatchProductionCloudShot } from "./production-render";
-import { productionDispatchBlock } from "./production-dispatch";
+import { productionDispatchBlock, readyProductionShots } from "./production-dispatch";
 import { stateOf as productionState } from "./production-store";
 import { comfyServerLockKey, getAssignableWorker, liveWorker } from "./worker-lifecycle";
 import { mediaStorage } from "./storage-service";
@@ -854,7 +855,7 @@ type DispatchAvailability = {
   reason: string | null;
 };
 
-async function findDispatchAvailability(project: LongFormProject, requiredReferenceSlots = 0): Promise<DispatchAvailability> {
+async function findDispatchAvailability(project: LongFormProject, requiredReferenceSlots = 0, production = false): Promise<DispatchAvailability> {
   const [servers, workflows, activeJobs, activeImageJobs] = await Promise.all([
     db.select().from(comfyServersTable).where(liveWorker()),
     db.select().from(workflowTemplatesTable).where(and(eq(workflowTemplatesTable.generationMode, project.generationMode), eq(workflowTemplatesTable.active, true))),
@@ -876,6 +877,10 @@ async function findDispatchAvailability(project: LongFormProject, requiredRefere
   }
   const compatibleWorkflows = workflows.filter((workflow) => (
     isLongFormWorkflow(workflow) &&
+    (!production || (() => {
+      const capability = productionWorkflowCapability(workflow.apiWorkflow, workflow.mappings);
+      return capability.supportsFirstFrame && capability.referenceImageSlots >= requiredReferenceSlots;
+    })()) &&
     (!project.continuity?.enabled || (
       Boolean(workflow.mappings.referenceImage1) &&
       Object.keys(workflow.mappings).filter((field) => /^referenceImage\d+$/.test(field)).length >= requiredReferenceSlots
@@ -1429,7 +1434,6 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
   const remaining = shots.filter((shot) => shot.status === "PLANNED");
   const active = shots.filter((shot) => activeShotStatuses.includes(shot.status));
   const production = await productionForRender(projectId);
-  if (production && active.length > 0) return;
   if (production) {
     const blocked = productionDispatchBlock(shots);
     if (blocked) {
@@ -1464,8 +1468,11 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
     }
   }
 
-  let nextShot = remaining[0];
+  let nextShot = (production ? readyProductionShots(shots) : remaining)[0];
+  if (!nextShot) return;
   if (production && productionState(production).settings.videoProvider === "FAL") {
+    // Keep paid-provider concurrency unchanged; this scheduler expansion is local.
+    if (active.length > 0) return;
     if (nextShot) {
       try { await dispatchProductionCloudShot(production, nextShot, shots); }
       catch (error) { await recordDispatchBlock(project, error instanceof Error ? error.message : "Cloud dispatch unavailable."); }
@@ -1473,10 +1480,27 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
     return;
   }
   let nextWardrobeReferences = nextShot ? await wardrobeReferenceKeys(project, nextShot) : [];
-  let availability = await findDispatchAvailability(
-    project,
-    project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0,
-  );
+  const requiredSlots = () => {
+    if (!production) return project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0;
+    const state = productionState(production);
+    const scene = state.story.scenes.find(scene => scene.sceneNumber === nextShot.sceneNumber);
+    const cast = state.characters.filter(c => scene?.characters.some(name => name.toLowerCase() === c.name.toLowerCase()));
+    return 1 + cast.length + cast.filter(c => state.wardrobes.some(w =>
+      w.characterId === c.id && w.fromScene <= nextShot.sceneNumber && w.toScene >= nextShot.sceneNumber,
+    )).length;
+  };
+  async function nextAvailable(): Promise<DispatchAvailability> {
+    let result: DispatchAvailability = { server: null, reason: null };
+    const candidates = production ? readyProductionShots(shots) : shots.filter(shot => shot.status === "PLANNED").slice(0, 1);
+    for (const candidate of candidates) {
+      nextShot = candidate;
+      nextWardrobeReferences = await wardrobeReferenceKeys(project, candidate);
+      result = await findDispatchAvailability(project, requiredSlots(), Boolean(production));
+      if (result.server) return result;
+    }
+    return result;
+  }
+  let availability = await nextAvailable();
   let server = availability.server;
   if (!server) {
     await recordDispatchBlock(project, availability.reason ?? "Waiting for a compatible GPU worker.");
@@ -1488,7 +1512,7 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
       if (currentProject?.status !== "RUNNING") return false;
       const confirmedAvailability = await findDispatchAvailability(
         project,
-        project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0,
+        requiredSlots(), Boolean(production),
       );
       const confirmedServer = confirmedAvailability.server;
       if (confirmedServer?.id !== server.id) return false;
@@ -1570,13 +1594,10 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
       }
     })();
     if (!dispatched) break;
-    nextShot = (await db.select().from(longFormShotsTable).where(and(eq(longFormShotsTable.projectId, project.id), eq(longFormShotsTable.status, "PLANNED"))).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber)))[0];
-    if (production) break;
-    nextWardrobeReferences = nextShot ? await wardrobeReferenceKeys(project, nextShot) : [];
-    availability = await findDispatchAvailability(
-      project,
-      project.continuity?.enabled ? 1 + nextWardrobeReferences.length : 0,
-    );
+    shots = await db.select().from(longFormShotsTable).where(eq(longFormShotsTable.projectId, project.id)).orderBy(asc(longFormShotsTable.sceneNumber), asc(longFormShotsTable.shotNumber));
+    nextShot = (production ? readyProductionShots(shots) : shots.filter(shot => shot.status === "PLANNED"))[0];
+    if (!nextShot) break;
+    availability = await nextAvailable();
     server = availability.server;
   }
   if (!server && nextShot && availability.reason) {

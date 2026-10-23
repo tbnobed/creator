@@ -8,3 +8,9 @@ Long-form shots are distributed across independent GPU workers, with one active 
 **Why:** Multiple ComfyUI processes can duplicate model memory and make a worker unstable or out-of-memory. Independent workers also cannot maintain continuity between shots; a queue that is slower but reliable is preferable to silently losing long-form shots or assuming cross-GPU continuity.
 
 **How to apply:** Any scheduler, short generation path, or project dispatcher with no explicit worker capacity must interpret that missing value as one slot. Treat continuity, presenter identity, voice consistency, and final audio mixing as explicit inputs or post-processing steps, not as shared GPU state. Capacity changes should be deliberate and validated against the intended workflow, resolution, duration, and GPU.
+
+Local scene parallelism is not authorization to increase paid-provider concurrency.
+
+**Why:** The request was to use idle GPUs, not to expand simultaneous paid submissions. Local throughput work should not change the creator's Cloud spending behavior.
+
+**How to apply:** Keep Cloud concurrency unchanged unless separately requested, and test local scheduling using a clearly named copy of a reviewed production rather than resetting its completed originals.
