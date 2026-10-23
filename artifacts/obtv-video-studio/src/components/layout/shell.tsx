@@ -11,7 +11,6 @@ import {
   Server, 
   Workflow, 
   Settings as SettingsIcon,
-  Video,
   Menu,
   X,
   UserCircle,
@@ -24,6 +23,7 @@ import { InstallAppPrompt } from "@/components/pwa/install-app-prompt";
 
 function isLinkActive(location: string, href: string) {
   if (location === href) return true;
+  if (href === "/studio" && location === "/reference-video") return true;
   if (href === "/projects" && location.startsWith("/productions/")) return true;
   return href !== "/studio" && location.startsWith(`${href}/`);
 }
@@ -69,7 +69,6 @@ export function Shell({ children }: { children: ReactNode }) {
   const links = [
     { href: "/studio", label: "Generate Video", icon: Clapperboard },
     { href: "/image-studio", label: "Image Studio", icon: Palette },
-    { href: "/reference-video", label: "Reference Video", icon: Video },
     { href: "/video-cleanup", label: "Video Cleanup", icon: Eraser },
     { href: "/garment-studio", label: "Video Replacement", icon: Shirt },
     { href: "/projects", label: "Long-Form", icon: Film },

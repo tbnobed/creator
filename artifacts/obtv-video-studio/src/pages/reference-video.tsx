@@ -203,11 +203,11 @@ export default function ReferenceVideoPage() {
   return (
     <Page className="max-w-[1400px] mx-auto">
       <PageHeader
-        title="Reference Video"
-        description="Upload presenter footage once, review it here, then send it into a reference-video workflow."
+        title="Video references"
+        description="Upload or choose footage to use in Generate Video."
         actions={
           <Button asChild variant="outline" className="gap-2"><Link href={returnTo}>
-              <ArrowLeft className="size-4" /> Back to Shot Composer
+              <ArrowLeft className="size-4" /> Back to Generate Video
             </Link></Button>
         }
       />

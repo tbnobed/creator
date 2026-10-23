@@ -2,7 +2,6 @@ import { ModelCommandList } from "@/components/shared/model-option";
 import { imageModelOption } from "@/lib/model-option";
 import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "wouter";
 import {
   ImageAsset,
   ImageJob,
@@ -417,10 +416,6 @@ export function GenerationPanel({
             <ImageIcon className="h-5 w-5 text-primary" />
             Image Studio
           </h2>
-          <div className="flex bg-secondary/30 p-1 rounded-lg">
-            <Link href="/studio" className="px-3 py-1 text-muted-foreground hover:text-foreground text-xs font-medium transition-all">Video</Link>
-            <div className="px-3 py-1 rounded-md bg-primary/20 text-primary text-xs font-semibold shadow-[0_0_10px_rgba(255,31,98,0.15)] transition-all">Image</div>
-          </div>
         </div>
         <Button type="button" variant="outline" className="mb-3 w-full" onClick={onUpload}>
           <UploadCloud className="mr-2 h-4 w-4" />Upload image

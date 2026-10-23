@@ -86,3 +86,9 @@ Consolidate repeated UI without removing newer features or collapsing distinct l
 **Why:** The user requested fixing all inconsistencies while retaining newer features and the best UI experience.
 
 **How to apply:** Reuse presentation controls with adapters for project-specific scene ranges, approval, and job state. Preserve advanced tools, explicit paid consent, durable jobs, shared references and cancel/resume.
+
+Studio navigation must have one primary home, not page-local Video/Image switches or a separate top-level reference-video tool.
+
+**Why:** The user pointed out these remaining duplicates after the consolidation.
+
+**How to apply:** Keep video references reachable from Generate Video and retain old deep links; check actual menus and headers, not just shared components.

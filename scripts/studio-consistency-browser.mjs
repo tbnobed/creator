@@ -51,6 +51,7 @@ async function run(viewport, label) {
     else if (path === "/api/spending") data = { periodStart: now, periodEnd: now, currency: "USD", scope: { tenantId: "t1", userId: null }, totals: { reservedUSD: 0, estimatedUSD: 1.87, actualUSD: 0, totalUSD: 1.87 }, rows: [], pendingInvitations: [], permissions: { canViewAllTenants: true } };
     else if (path === "/api/spending/entries") data = { items: [], entries: [], totalItems: 0, total: 0, page: 1, pageSize: 25, totalPages: 0 };
     else if (path === "/api/dashboard/summary") data = { onlineServerCount: 1, activeGenerationCount: 0, characterCount: 0, settingCount: 1, completedGenerationCount: 3 };
+    else if (path === "/api/reference-videos") data = { items: [] };
     else { calls.unknown.add(`${method} ${path}`); data = []; }
     await route.fulfill({ json: data });
   });
@@ -64,6 +65,13 @@ async function run(viewport, label) {
     await go(p);
     await expect(page).toHaveTitle(new RegExp(`^${t.replace("&", "&")}`), { timeout: 15000 });
   }
+  await go("/image-studio");
+  await expect(page.getByRole("link", { name: "Video", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Reference Video", exact: true })).toHaveCount(0);
+  await go("/reference-video");
+  await expect(page).toHaveTitle(/^Generate Video/);
+  await expect(page.getByRole("heading", { name: "Video references", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to Generate Video" })).toBeVisible();
 
   // Long-Form stays the active section inside a production.
   await go("/productions/prod-1");
