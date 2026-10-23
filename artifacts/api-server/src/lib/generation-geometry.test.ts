@@ -7,7 +7,14 @@ import {
   r2vMappings,
 } from "./seed-data/minimax-h3-r2v";
 import { buildWorkflow } from "./comfy/workflow-builder";
-import { normalizeMiniMaxH3SubmissionGeometry, validateMiniMaxH3WorkerModelPair } from "./generation-service";
+import { normalizeMiniMaxH3SubmissionGeometry, validateMiniMaxH3WorkerModelPair, validateMiniMaxH3WorkflowCapabilities } from "./generation-service";
+import { createMiniMaxH3Fl2vaWorkflow, fl2vaMappings } from "./seed-data/minimax-h3-fl2va";
+
+test("native FL2VA graphs pass the submission geometry guard on both hardware families", () => {
+  for (const blackwell of [false, true]) {
+    assert.doesNotThrow(() => validateMiniMaxH3WorkflowCapabilities(createMiniMaxH3Fl2vaWorkflow(blackwell), fl2vaMappings));
+  }
+});
 
 test("MiniMax H3 rounds requested 1080p to its 32px model grid", () => {
   const geometry = normalizeMiniMaxH3SubmissionGeometry({

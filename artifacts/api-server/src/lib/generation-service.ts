@@ -161,7 +161,7 @@ function isLinkTo(value: unknown, nodeId: string): boolean {
  * exposes the actual seeded H3 nodes. This fails closed for an incomplete or
  * incompatible workflow rather than guessing at a model's geometry contract.
  */
-function validateMiniMaxH3WorkflowCapabilities(
+export function validateMiniMaxH3WorkflowCapabilities(
   apiWorkflow: Record<string, unknown>,
   mappings: ParameterMappings,
 ): void {
@@ -179,7 +179,7 @@ function validateMiniMaxH3WorkflowCapabilities(
   const fpsNode = workflowNodeForGeometry(apiWorkflow, fpsMapping.nodeId);
   if (
     !outputNode
-    || outputNode.class_type !== "MiniMaxH3ReferenceToVideo"
+    || !["MiniMaxH3ReferenceToVideo", "MiniMaxH3ImageToVideo"].includes(String(outputNode.class_type))
     || !(widthMapping.input in outputNode.inputs!)
     || heightNode !== outputNode
     || !(heightMapping.input in outputNode.inputs!)
