@@ -159,6 +159,11 @@ async function run(viewport, label) {
   // Location variant: paid model gated by explicit confirmation, async job queued.
   await page.getByRole("button", { name: "Edit Gull Point Lantern Room" }).click();
   await page.getByTestId("tab-location-variant").click();
+  await expect(page.getByRole("tab", { name: "Generate from prompt", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Edit an existing image", exact: true })).toBeVisible();
+  await expect(page.getByTestId("input-location-reference-name")).toHaveAttribute("placeholder", "Variant name (optional)");
+  await page.getByTestId("input-location-reference-name").fill("");
+  await expect(page.getByTestId("button-generate-location-image")).toBeEnabled();
   await page.getByTestId("chip-location-variant-storm").click();
   await page.getByTestId("input-location-image-prompt").fill("Same room in a storm");
   const generate = page.getByTestId("button-generate-location-image");

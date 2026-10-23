@@ -54,7 +54,7 @@ export function LocationImageJob({ ensureSaved, defaultPrompt, references }: {
 
   const submit = async () => {
     if (!prompt.trim() || !model.canSubmit || busy) return;
-    if (mode === "variant" && (!source?.imageAssetId || !refName.trim())) return;
+    if (mode === "variant" && !source?.imageAssetId) return;
     setBusy(true); setError(null);
     try {
       const id = await ensureSaved();
@@ -63,7 +63,7 @@ export function LocationImageJob({ ensureSaved, defaultPrompt, references }: {
         ...model.payload(), operation: mode === "base" ? "generate" : "edit", prompt: prompt.trim(),
         width: 1344, height: 768, count: 1, requestKey,
         referenceAssetIds: mode === "variant" && source?.imageAssetId ? [source.imageAssetId] : [],
-        ...(refName.trim() ? { referenceName: refName.trim() } : {}),
+        referenceName: refName.trim() || (mode === "variant" ? `${source?.name ?? "Location"} — edited` : "Base"),
       });
       keyRef.current = null;
       setJobId(created.id);
@@ -85,10 +85,13 @@ export function LocationImageJob({ ensureSaved, defaultPrompt, references }: {
         {(["base", "variant"] as const).map((m) => (
           <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
             className={`flex-1 rounded px-2 py-1.5 font-medium ${mode === m ? "bg-background text-foreground shadow" : "text-muted-foreground"}`} data-testid={`tab-location-${m}`}>
-            {m === "base" ? "New reference" : "Named variant"}
+            {m === "base" ? "Generate from prompt" : "Edit an existing image"}
           </button>
         ))}
       </div>
+      <p className="text-xs text-muted-foreground">
+        {mode === "base" ? "Describe the location to generate a new image." : "Choose an image and describe what to change. AI may also alter other details."}
+      </p>
       {mode === "variant" && (
         editable.length === 0 ? (
           <p className="text-xs text-muted-foreground" data-testid="text-variant-needs-source">Variants are edited from an existing reference. Generate or upload a base image first.</p>
@@ -103,13 +106,13 @@ export function LocationImageJob({ ensureSaved, defaultPrompt, references }: {
           </div>
         )
       )}
-      <Input value={refName} onChange={(e) => setRefName(e.target.value)} placeholder={mode === "variant" ? "Variant name (required)" : "Reference name (optional)"} className="bg-background/60" data-testid="input-location-reference-name" />
+      <Input value={refName} onChange={(e) => setRefName(e.target.value)} aria-label={mode === "variant" ? "Variant name (optional)" : "Image name (optional)"} placeholder={mode === "variant" ? "Variant name (optional)" : "Image name (optional)"} className="bg-background/60" data-testid="input-location-reference-name" />
       <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} className="min-h-20 bg-background/60" placeholder={mode === "variant" ? "Same room at night, rain on the windows" : "Wide establishing view of the location"} data-testid="input-location-image-prompt" />
       <ModelPicker choice={model} label={mode === "base" ? "Location model" : "Variant model"} />
       <Button type="button" className="w-full gap-2" onClick={() => void submit()}
-        disabled={busy || running || !prompt.trim() || !model.canSubmit || (mode === "variant" && (!source?.imageAssetId || !refName.trim()))} data-testid="button-generate-location-image">
+        disabled={busy || running || !prompt.trim() || !model.canSubmit || (mode === "variant" && !source?.imageAssetId)} data-testid="button-generate-location-image">
         {busy || running ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-        {running ? (job?.status === "QUEUED" ? "Queued" : "Generating") : mode === "base" ? "Generate reference" : "Generate variant"}
+        {running ? (job?.status === "QUEUED" ? "Queued" : "Generating") : mode === "base" ? "Generate image" : "Create edited image"}
       </Button>
       {running && <p className="text-xs text-muted-foreground" data-testid="status-location-job">You can close this dialog. The image is added to this location when it finishes.</p>}
       {job?.status === "COMPLETED" && outputUrl && <img src={outputUrl} alt="Generated reference" className="aspect-video w-full rounded-md object-cover" data-testid="img-location-generated" />}

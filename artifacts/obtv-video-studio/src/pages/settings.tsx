@@ -276,9 +276,9 @@ function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess:
           <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} placeholder="interior, studio, nighttime" className="bg-secondary/20" />
         </div>
         <div className="space-y-2">
-          <Label>Reference images</Label>
-          <FileDropzone compact multiple accept="image/jpeg,image/png,image/webp" title={uploads.length ? `${uploads.length} image${uploads.length === 1 ? "" : "s"} selected` : "Choose or drop reference images"} hint="JPG, PNG or WebP" onFiles={setUploads} testId="dropzone-location-references" />
-          <p className="text-xs text-muted-foreground">Upload approved JPG, PNG, or WebP images. The first image becomes the thumbnail automatically.</p>
+          <Label>Upload images</Label>
+          <FileDropzone compact multiple accept="image/jpeg,image/png,image/webp" title={uploads.length ? `${uploads.length} image${uploads.length === 1 ? "" : "s"} selected` : "Choose or drop images"} hint="JPG, PNG or WebP" onFiles={setUploads} testId="dropzone-location-references" />
+          <p className="text-xs text-muted-foreground">Use images you already have—no AI generation. The first image becomes the thumbnail.</p>
         </div>
 
         <div className="pt-2">
