@@ -224,3 +224,17 @@ mtime_ms = 1791354567988
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/652b4a45-5be3-4ab6-8cea-94b1b3f7726f/8f71a446-b0d2-4d34-8c7f-b7e336cc8675"
 storage_version_token = "1791354579190524"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "SoK2ChxCWAOPTgWiZOZe2"
+uri = "file://artifacts/api-server/data/obtv-media/tenants/90b26d9c-35a6-44b9-b19d-a210890f8273/generations/97ef32c0-7b3e-4a79-8511-46a420900d80.mp4"
+type = "video"
+title = "Continuity test — scenery check failed"
+description = "Two five-second scenes. The workshop appears initially, then incorrectly changes to a neutral background during close-ups. This is a failed verification, not an approved result."
+logical_id = "5d44bfd5-8d90-44f7-af74-af3d8b82b0cd"
+content_hash = "sha256:8cb0ec7d3dcc510c495d1c59c2b17f049e62d267e438c3390a18089be492d550"
+size = 1785345
+mtime_ms = 1792777644726
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/5d44bfd5-8d90-44f7-af74-af3d8b82b0cd/60d4e138-4767-4615-b972-81ec45eb2a78"
+storage_version_token = "1792777802515316"
+content_type = "video/mp4"

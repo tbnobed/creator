@@ -56,3 +56,21 @@ Native H3 guide conditioning is not proof of exact first-frame preservation or c
 **Why:** Live multi-scene verification produced playable exports but changed clothing, prop scale and appearance; decoded adjacent boundary frames were not identical.
 
 **How to apply:** Separate pipeline completion from visual acceptance. Verify generated reference images and scene-opening compositions before rendering, then inspect boundary frames and cross-scene identity; never label a successful job as verified continuity.
+
+An approved dressed character reference takes precedence over its original unclothed portrait and shared-library wardrobe descriptions.
+
+**Why:** Supplying both looks makes clothing ambiguous. Even when production explicitly supplies its approved images, spare workflow slots can otherwise reintroduce an older library look.
+
+**How to apply:** Treat project-approved appearance and recurring-prop references as complete snapshots, not additions to an automatically chosen library appearance. Reference approval is input acceptance, not proof that generated video preserved the look; inspect output frames too.
+
+Scene animation must start from a reviewed composition containing the intended cast, outfits and props in the actual location—not an empty room plus competing portrait backgrounds.
+
+**Why:** A live scene transition began in the workshop but ended against the neutral character-reference backdrop. Reference boards also produced duplicate characters and oversized props; separate native reference inputs improved composition but still required correction and human review.
+
+**How to apply:** Use separate native reference conditioning, fail rather than drop excess references, and require explicit approval of the composed opening. Bind approval to current source images, identity, scene and output dimensions. Never auto-approve a generated candidate or equate successful rendering with visual continuity.
+
+A reviewed opening is necessary input validation, not a demonstrated cure for H3 background drift.
+
+**Why:** A second live two-scene test used the approved composition, correct empty workshop and a cropped prop reference with library fallbacks disabled. The workshop still changed into a neutral backdrop during close-ups. The character and vest remained recognizable, but scenery continuity failed.
+
+**How to apply:** Do not advertise this H3 path as fully continuity-verified. Preserve failed outputs for comparison and obtain a deliberate workflow/model decision rather than repeating the same render or silently charging for a paid alternative.

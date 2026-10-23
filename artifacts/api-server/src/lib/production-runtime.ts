@@ -103,6 +103,10 @@ export async function tickProductions() {
               }
             } else {
               task.status = "FAILED"; task.error = message;
+              if(task.type==="opening") {
+                const scene=state.story.scenes.find(s=>String(s.sceneNumber)===task.entityId);
+                if(scene?.opening)scene.opening.status="FAILED";
+              }
               if (task.type === "story") {
                 state.story.draftStatus = "FAILED"; state.story.error = message;
                 if (state.story.progress) { state.story.progress.active = false; state.story.progress.stage = "Writing stopped"; }

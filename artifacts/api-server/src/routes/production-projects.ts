@@ -154,6 +154,9 @@ router.post("/production-projects/:id/actions", async (req, res) => {
         state = changeProductionContent(state, payload);
         return saveProduction(row, state, { renderProjectId: null });
       }
+      if (["set-prop-reference", "approve-prop-reference", "remove-prop-reference","generate-scene-opening","set-scene-opening","approve-scene-opening"].includes(action)) {
+        return saveProduction(row, await mutateProductionAsset(row, action, payload), { renderProjectId: null });
+      }
       if (action === "draft-story") {
         const storyModel = state.settings.storyModel || "local";
         if (storyModel !== "local" && payload.cloudConfirmed !== true) throw new Error("Confirm paid story drafting before submitting the screenplay batch.");

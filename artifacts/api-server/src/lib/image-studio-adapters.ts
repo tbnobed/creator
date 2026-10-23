@@ -32,6 +32,7 @@ export type ImageTaskInput = {
    * snapshot this mode before they enter the durable queue.
    */
   referenceMode?: "latent-img2img" | "native-reference-edit";
+  nativeUploadedReferences?: string[];
   /**
    * Native FLUX.2 Klein reference editing snapshots the resize capability
    * selected during worker preparation. It is not a user-facing setting.
@@ -293,7 +294,7 @@ function validateInput(input: ImageTaskInput, model: ImageModel): void {
   if (!Number.isInteger(input.count) || input.count < 1 || input.count > model.maxImages) {
     throw new Error(`${model.name} supports between 1 and ${model.maxImages} output images.`);
   }
-  if (input.referenceImages.length > model.maxReferences) {
+  if (input.referenceImages.length > (input.referenceMode==="native-reference-edit" && model.id==="local-flux2-klein-4b" ? 4 : model.maxReferences)) {
     throw new Error(`${model.name} accepts at most ${model.maxReferences} reference images.`);
   }
   if (
@@ -302,10 +303,10 @@ function validateInput(input: ImageTaskInput, model: ImageModel): void {
       model.id !== "local-flux2-klein-4b"
       || model.provider !== "LOCAL"
       || input.operation !== "edit"
-      || input.referenceImages.length !== 1
+      || input.referenceImages.length < 1 || input.referenceImages.length > 4
     )
   ) {
-    throw new Error("Native FLUX.2 Klein reference editing requires exactly one local source image.");
+    throw new Error("Native FLUX.2 Klein reference editing requires one to four local source images.");
   }
   const prompt = input.prompt.trim();
   const promptIsOptional = input.operation === "upscale" || input.operation === "remove-background";
@@ -768,6 +769,20 @@ function createFlux2KleinNativeReferenceWorkflow(
       },
     },
   };
+  let positive = "11", negative = "12";
+  for (const [index,name] of (input.nativeUploadedReferences ?? []).slice(1).entries()) {
+    const base=100+index*5;
+    const load=String(base),resize=String(base+1),encode=String(base+2),pos=String(base+3),neg=String(base+4);
+    workflow[load]={class_type:"LoadImage",inputs:{image:name}};
+    workflow[resize]=structuredClone(workflow["15"]);
+    workflow[resize].inputs.image=[load,0];
+    workflow[encode]={class_type:"VAEEncode",inputs:{pixels:[resize,0],vae:["3",0]}};
+    workflow[pos]={class_type:"ReferenceLatent",inputs:{conditioning:[positive,0],latent:[encode,0]}};
+    workflow[neg]={class_type:"ReferenceLatent",inputs:{conditioning:[negative,0],latent:[encode,0]}};
+    positive=pos;negative=neg;
+  }
+  workflow["13"].inputs.positive=[positive,0];
+  workflow["13"].inputs.negative=[negative,0];
   return workflow;
 }
 
@@ -1449,12 +1464,14 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
       );
     }
     const seed = input.seed ?? Math.floor(Math.random() * 2_147_483_647);
-    const referenceImageName = input.referenceImages[0]
-      ? await uploadLocalReference(input.server, input.referenceImages[0])
-      : undefined;
+    const referenceNames = input.referenceMode==="native-reference-edit"
+      ? await Promise.all(input.referenceImages.map(image=>uploadLocalReference(input.server!,image)))
+      : input.referenceImages[0] ? [await uploadLocalReference(input.server,input.referenceImages[0])] : [];
+    const referenceImageName = referenceNames[0];
     const workflow = createLocalWorkflow(
       {
         ...input,
+        ...(input.referenceMode==="native-reference-edit" ? {nativeUploadedReferences:referenceNames} : {}),
         ...(nativeReferenceResizeMode ? { nativeReferenceResizeMode } : {}),
       },
       seed,

@@ -1094,7 +1094,7 @@ export async function createImageJob(input: {
 }): Promise<PresentedImageJob> {
   const model = getImageModel(input.request.modelId);
   if (!model) throw new ImageStudioRequestError("Image model not found", 400);
-  validateRequest(model, input.request);
+  validateRequest(input.referenceMode==="native-reference-edit" && model.id==="local-flux2-klein-4b" ? {...model,maxReferences:4} : model, input.request);
   if (input.referenceMode && (model.id !== "local-flux2-klein-4b" || !input.request.referenceAssetIds?.length)) {
     throw new ImageStudioRequestError("Native reference editing requires FLUX.2 Klein and a source image.", 400);
   }

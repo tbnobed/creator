@@ -1,3 +1,4 @@
+- [Production card actions](production-card-actions.md) — Small pencil/trash icons belong at the top-right of each scene, character, outfit and place card.
 - [OpenAPI Zod compatibility](openapi-zod-compatibility.md) — Generated integer/URI validators need v3-safe contract shapes plus server-side validation.
 - [Long-form GPU capacity](long-form-gpu-capacity.md) — Treat one render per GPU as the safe default until a workload benchmark proves otherwise.
 - [H100 MIG scope](h100-mig-scope.md) — Three requested slices belong to CreatorAI; GPU 1’s 3g.40gb slice is reserved and must remain unassigned.

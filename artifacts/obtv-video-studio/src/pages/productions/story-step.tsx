@@ -1,3 +1,4 @@
+import { ContentActions } from "./content-manager";
 import { PaidConfirm } from "@/components/shared/paid-confirm";
 import { useEffect, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -191,7 +192,8 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
 function SceneCard({ scene, onChange }: { scene: Scene; onChange: (patch: Partial<Scene>) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <li className="rounded-xl border border-border bg-card p-4" data-testid={`card-scene-${scene.sceneNumber}`}>
+    <li className="relative rounded-xl border border-border bg-card p-4 pr-20" data-testid={`card-scene-${scene.sceneNumber}`}>
+      <ContentActions step={0} id={String(scene.sceneNumber)}/>
       <button type="button" className="flex w-full items-start gap-3 text-left" onClick={() => setOpen((o) => !o)} data-testid={`button-toggle-scene-${scene.sceneNumber}`}>
         <span className="font-mono text-xs text-primary">{String(scene.sceneNumber).padStart(2, "0")}</span>
         <div className="min-w-0 flex-1">

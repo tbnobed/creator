@@ -30,26 +30,65 @@ try {
   const page = await context.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
   const characterId = process.argv[3];
-  if (characterId === "content") {
-    const { rows: [original] } = await pool.query("SELECT state FROM obtv_production_projects WHERE id=$1", [projectId]);
+  if (characterId === "content" || characterId === "props" || characterId === "openings" || characterId === "openings-live") {
+    const { rows: [original] } = await pool.query("SELECT state,title FROM obtv_production_projects WHERE id=$1", [projectId]);
     const state = original.state; state.step = 0; state.tasks = [];
+    if(characterId==="openings-live" && original.title!=="Continuity verification — reviewed scene compositions")throw new Error("Live approval is restricted to the visually reviewed verification fixture.");
+    if(characterId!=="openings-live") {
     temporaryProduction = randomUUID();
     await pool.query("INSERT INTO obtv_production_projects (id,tenant_id,created_by_user_id,title,state) VALUES ($1,$2,$3,'Content controls verification',$4)",
       [temporaryProduction, project.tenant_id, userId, JSON.stringify(state)]);
-    await page.goto(`/productions/${temporaryProduction}`);
-    for (const step of [0,2,3,1]) {
+    }
+    await page.goto(`/productions/${temporaryProduction ?? projectId}`);
+    if (characterId === "openings" || characterId==="openings-live") {
+      const createStep=page.getByTestId("button-step-4");
+      await createStep.waitFor();
+      if(await createStep.isEnabled())await createStep.click();
+      assert(await page.getByRole("button",{name:/Create all scenes|Create remaining scenes/}).isDisabled());
+      const openingPanel=page.locator("details").filter({has:page.getByText("Scene opening images",{exact:true})}).first();
+      if(await openingPanel.getAttribute("open")===null)await page.getByText("Scene opening images",{exact:true}).click();
+      for (const scene of state.story.scenes) await page.getByRole("button",{name:`Approve opening ${scene.sceneNumber}`,exact:true}).click();
+      await page.waitForTimeout(500);
+      assert(await page.getByRole("button",{name:/Create all scenes|Create remaining scenes/}).isEnabled(),"All approved scene compositions should permit rendering");
+      await page.reload();
+      const panel=page.locator("details").filter({has:page.getByText("Scene opening images",{exact:true})});
+      if(!(await panel.getAttribute("open"))) await page.getByText("Scene opening images",{exact:true}).click();
+      for(const scene of state.story.scenes)assert(await page.getByRole("button",{name:`Approve opening ${scene.sceneNumber}`,exact:true}).isDisabled(),"Approval must survive reload");
+      await page.screenshot({path:"/tmp/scene-opening-approval-controls.png",fullPage:true});
+      console.log("PASS scene opening review, explicit approvals, render gating and reload persistence; no render submitted.");
+    } else if (characterId === "props") {
+      await page.getByTestId("button-step-4").click();
+      await page.getByText("Prop continuity · Optional",{exact:true}).click();
+      await page.getByLabel("Prop appearance and relative size").fill("Test reference: preserve the exact wooden appearance and relative size.");
+      await page.getByLabel("Upload prop reference").setInputFiles("artifacts/api-server/data/obtv-media/tenants/90b26d9c-35a6-44b9-b19d-a210890f8273/image-studio/afd030a8-90d9-42bc-86b7-202b90eddd74.png");
+      await page.getByRole("button",{name:"Approve prop reference",exact:true}).click();
+      await page.getByText("Prop continuity · Approved",{exact:true}).waitFor();
+      await page.reload();
+      await page.getByText("Prop continuity · Approved",{exact:true}).click();
+      await page.getByLabel("Prop appearance and relative size").fill("Updated prop description and scale for review.");
+      await page.getByRole("button",{name:"Save description for review",exact:true}).click();
+      await page.getByText("Prop continuity · Needs review",{exact:true}).waitFor();
+      assert(await page.getByRole("button",{name:/Create all scenes|Create remaining scenes/}).isDisabled(), "Unapproved prop changes must block rendering");
+      await page.getByRole("button",{name:"Approve prop reference",exact:true}).click();
+      await page.getByText("Prop continuity · Approved",{exact:true}).waitFor();
+      await page.screenshot({path:"/tmp/prop-reference-controls.png",fullPage:true});
+      await page.getByRole("button",{name:"Remove reference",exact:true}).click();
+      await page.getByText("Prop continuity · Optional",{exact:true}).waitFor();
+      console.log("PASS prop upload, explicit approval, reload persistence, and removal.");
+    } else for (const step of [0,2,3,1]) {
       const stepButton = page.getByTestId(`button-step-${step}`);
       await stepButton.waitFor();
       if (await stepButton.isEnabled()) await stepButton.click();
-      await page.getByTestId("button-edit-project-content").click();
+      await page.screenshot({path:`/tmp/content-icons-${step}.png`,fullPage:true});
+      await page.locator(`[data-testid^="content-edit-${step}-"]`).first().click();
       const dialog = page.getByRole("dialog");
-      await dialog.getByRole("button", {name:"Edit",exact:true}).first().click();
       const label = step === 0 ? "Title" : "Name";
       await dialog.getByLabel(label, {exact:true}).fill(`Verified ${step}`);
       await dialog.getByRole("button", {name:"Save changes",exact:true}).click();
       await dialog.getByText(`Verified ${step}`,{exact:true}).waitFor();
       await page.screenshot({path:`/tmp/content-controls-${step}.png`,fullPage:true});
-      await dialog.getByRole("button", {name:"Remove",exact:true}).first().click();
+      await page.keyboard.press("Escape");
+      await page.locator(`[data-testid^="content-remove-${step}-"]`).first().click();
       await dialog.getByRole("button", {name:"Confirm removal",exact:true}).click();
       await page.waitForTimeout(500);
       assert.equal(await dialog.getByText(`Verified ${step}`,{exact:true}).count(),0);
@@ -152,6 +191,7 @@ try {
 } finally {
   await browser?.close();
   if (temporaryProduction) await pool.query("DELETE FROM obtv_production_projects WHERE id=$1", [temporaryProduction]);
+  await pool.query("DELETE FROM obtv_image_studio_assets WHERE created_by_user_id=$1", [userId]);
   await pool.query("DELETE FROM obtv_tenant_memberships WHERE user_id=$1", [userId]);
   await pool.query("DELETE FROM obtv_users WHERE id=$1", [userId]);
   await pool.end();

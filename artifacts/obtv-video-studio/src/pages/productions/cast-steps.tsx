@@ -1,7 +1,9 @@
+import { ContentActions } from "./content-manager";
 import { ErrorNotice } from "@/components/shared/error-notice";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Loader2, Lock, MapPin, Plus, RefreshCw, Shirt, X } from "lucide-react";
+import { CheckCircle2, Eye, Loader2, Lock, MapPin, Plus, RefreshCw, Shirt, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,7 +70,7 @@ export function CharactersStep({ state, run, pendingAction, onSettings }: StepPr
           const portrait = c.options.find((o) => o.assetId === c.selectedAssetId)?.mediaUrl ?? c.referenceSheet[0]?.mediaUrl;
           const selected = panel?.mode === "edit" && panel.id === c.id;
           return (
-            <button key={c.id} type="button" onClick={() => setPanel({ mode: "edit", id: c.id })}
+            <div key={c.id} className="relative"><button type="button" onClick={() => setPanel({ mode: "edit", id: c.id })}
               className={`group rounded-xl border bg-card p-2 text-left transition-all hover:-translate-y-0.5 ${selected ? "border-primary" : "border-border hover:border-foreground/30"}`}
               data-testid={`card-character-${c.id}`}>
               <div className="relative">
@@ -81,7 +83,7 @@ export function CharactersStep({ state, run, pendingAction, onSettings }: StepPr
               </div>
               <p className="mt-2 truncate px-1 font-semibold">{c.name}</p>
               <p className="line-clamp-2 px-1 text-xs text-muted-foreground">{c.description}</p>
-            </button>
+            </button><ContentActions step={1} id={c.id}/></div>
           );
         })}
         <button type="button" onClick={() => setPanel({ mode: "new" })}
@@ -229,16 +231,19 @@ function WardrobeRow({ model, character: c, outfits, maxScene, run, busy }: { mo
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1">
         {outfits.map((w) => (
-          <div key={w.id} className="w-36 shrink-0 space-y-2">
+          <div key={w.id} className="relative w-36 shrink-0 space-y-2">
             <OutfitCard testId={`card-outfit-${w.id}`} outfit={outfitFromProduction(w)} />
-            {w.mediaUrl && <a className="block text-xs underline" href={w.mediaUrl} target="_blank" rel="noreferrer">Inspect full image</a>}
-            {w.assetId && w.status === "READY" && <Button size="sm" variant="outline" disabled={busy || w.approvedAssetId === w.assetId}
+            <ContentActions step={2} id={w.id}/>
+            <TooltipProvider delayDuration={200}><div className="flex items-center justify-center gap-1 border-t border-border/60 pt-2">
+            {w.mediaUrl && <Tooltip><TooltipTrigger asChild><Button asChild size="icon" variant="ghost" className="h-8 w-8"><a aria-label="Inspect full image" href={w.mediaUrl} target="_blank" rel="noreferrer"><Eye className="h-4 w-4"/></a></Button></TooltipTrigger><TooltipContent>Preview full image</TooltipContent></Tooltip>}
+            {w.assetId && w.status === "READY" && <Tooltip><TooltipTrigger asChild><span className="inline-flex"><Button size="icon" variant="ghost" className={`h-8 w-8 ${w.approvedAssetId === w.assetId ? "text-emerald-400 disabled:opacity-100" : ""}`} aria-label={w.approvedAssetId === w.assetId ? "Approved" : "Approve outfit"} disabled={busy || w.approvedAssetId === w.assetId}
               onClick={() => void run("approve-wardrobe", { id: w.id, assetId: w.assetId })}>
-              {w.approvedAssetId === w.assetId ? "Approved" : "Approve outfit"}
-            </Button>}
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => {
+              <CheckCircle2 className="h-4 w-4"/>
+            </Button></span></TooltipTrigger><TooltipContent>{w.approvedAssetId === w.assetId ? "Outfit approved" : "Approve outfit"}</TooltipContent></Tooltip>}
+            <Tooltip><TooltipTrigger asChild><span className="inline-flex"><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Generate replacement" disabled={busy} onClick={() => {
               setF({ name: w.name, prompt: w.prompt, fromScene: w.fromScene, toScene: w.toScene, stateFromScene: "", stateNote: "" }); setOpen(true);
-            }}>Generate replacement</Button>
+            }}><RefreshCw className="h-4 w-4"/></Button></span></TooltipTrigger><TooltipContent>Generate replacement</TooltipContent></Tooltip>
+            </div></TooltipProvider>
           </div>
         ))}
         <button type="button" disabled={!c.locked} onClick={() => setOpen(true)}
@@ -297,7 +302,7 @@ export function PlacesStep({ state, run, pendingAction, onSettings }: StepProps)
       <StepHead n="04 / Places" title="Where does it happen?" sub="Each place gets a wide establishing reference with a fixed seed, so every scene reuses the same set. Variants for time and weather are edited from the base." />
       <SceneScenery state={state} onSettings={onSettings} disabled={!!pendingAction} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {state.places.map((p) => <PlaceCard key={p.id} model={variantModel} place={p} usedIn={used(p.id)} run={run} busy={!!pendingAction} />)}
+        {state.places.map((p) => <div key={p.id} className="relative"><PlaceCard model={variantModel} place={p} usedIn={used(p.id)} run={run} busy={!!pendingAction} /><ContentActions step={3} id={p.id}/></div>)}
         <button type="button" onClick={() => setAdding(true)}
           className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground" data-testid="button-add-place">
           <MapPin className="h-5 w-5 text-primary" /> Add a place
@@ -355,9 +360,6 @@ function PlaceCard({ model, place: p, usedIn, run, busy }: { model: ModelChoice;
       <div className="space-y-2 p-3">
         <div className="flex items-baseline justify-between gap-2">
           <h3 className="truncate font-bold">{p.name}</h3>
-          <Button size="sm" variant="ghost" disabled={busy || isPending(p.status) || p.variants.some(v => isPending(v.status))}
-            onClick={async () => { if (await confirmAction({ title: `Remove “${p.name}” from this production?`, description: "Its variants are detached too. Existing scenes and shared library media are kept.", confirmLabel: "Remove", destructive: true })) void run("remove-place", { placeId: p.id }); }}
-            data-testid={`button-remove-place-${p.id}`}>Remove</Button>
           <span className="shrink-0 text-xs text-muted-foreground" data-testid={`text-place-usage-${p.id}`}>Used in {usedIn} scene{usedIn === 1 ? "" : "s"}</span>
         </div>
         {p.error && <p role="alert" className="text-xs text-destructive" data-testid={`text-place-error-${p.id}`}>{p.error}</p>}

@@ -1,5 +1,6 @@
 export type ProductionImage = { assetId: string; mediaUrl: string; label?: string };
 export type ProductionScene = {
+  opening?: { assetId?: string; mediaUrl?: string; approvedAssetId?: string; sourceKey: string; status: string };
   sceneNumber: number; title: string; location: string; timeOfDay: string;
   characters: string[]; action: string; dialogue: string;
   durationSeconds?: number;
@@ -21,13 +22,15 @@ export type ProductionVariant = {
 };
 export type ProductionPlace = ProductionVariant & { seed: number; variants: ProductionVariant[] };
 export type ProductionTask = {
-  id: string; type: "story" | "portraits" | "sheet" | "wardrobe" | "place" | "variant";
+  id: string; type: "story" | "portraits" | "sheet" | "wardrobe" | "place" | "variant" | "opening";
   status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
   entityId?: string; placeId?: string; jobId?: string; index: number; error?: string;
   modelId?: string; cloudConfirmed?: boolean; storyModel?: string;
+  openingReferenceAssetId?: string; openingCorrection?: string;
   storySourceKey?: string;
 };
 export type ProductionState = {
+  propReference?: ProductionImage & { description: string; approvedAssetId?: string };
   publishedCharacterAssets?: string[];
   step: number;
   storyCancelTaskId?: string | null;

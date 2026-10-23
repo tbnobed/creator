@@ -291,6 +291,8 @@ export type GenerationRequest = {
   referenceAudioKeys?: string[];
   /** Required continuity references (still plus assigned wardrobes); cast refs may be capped. */
   mandatoryReferenceImageCount?: number;
+  /** Production owns complete appearance snapshots; never append older library looks. */
+  explicitReferenceImagesOnly?: boolean;
   continuityContext?: string;
   settingId?: string | null;
   prompt: string;
@@ -327,6 +329,7 @@ function composerRestoreMetadata(input: GenerationRequest): Record<string, unkno
       startFrameKey: input.startFrameKey ?? null,
       endFrameKey: input.endFrameKey ?? null,
       referenceImageKeys: input.referenceImageKeys ?? [],
+      explicitReferenceImagesOnly: input.explicitReferenceImagesOnly === true,
       klingElements: input.klingElements ?? [],
       klingCfgScale: input.klingCfgScale ?? null,
       referenceVideoKeys: input.referenceVideoKeys ?? [],
@@ -905,6 +908,11 @@ function compilePrompt(
   setting: { name: string; promptDescription: string } | undefined,
   input: GenerationRequest,
 ): string {
+  if (input.explicitReferenceImagesOnly) {
+    characters = characters.map(character => ({
+      ...character, promptDescription: "Use this production's explicit approved appearance reference; do not infer wardrobe from the shared character biography.",
+    }));
+  }
   if (modelFamily.trim().toLowerCase() !== "minimax h3") {
     return compileGenericPrompt(characters, setting, input);
   }
@@ -928,6 +936,7 @@ export function planContinuityReferenceSlots(
   approvedStillKeys: string[],
   canonicalCharacterKeys: string[],
   mandatoryReferenceImageCount = approvedStillKeys.length,
+  explicitOnly = false,
 ): Array<{ field: string; storageKey: string }> {
   const fields = Object.keys(mappings)
     .filter((field) => /^referenceImage\d+$/.test(field))
@@ -938,7 +947,12 @@ export function planContinuityReferenceSlots(
   if (mandatoryReferenceImageCount > fields.length) {
     throw new Error("This workflow does not have enough reference image slots for the approved still and assigned wardrobe references");
   }
-  return [...approvedStillKeys, ...canonicalCharacterKeys]
+  const keys = explicitOnly ? [...approvedStillKeys] : [...approvedStillKeys, ...canonicalCharacterKeys];
+  // Imported fixed-arity graphs can retain connected LoadImage placeholders.
+  // Repeating an authoritative input is safer than reviving a conflicting
+  // library portrait or leaving a missing-file placeholder in that branch.
+  if (explicitOnly && keys.length) while (keys.length < fields.length) keys.push(keys[0]);
+  return keys
     .slice(0, fields.length)
     .map((storageKey, index) => ({ field: fields[index]!, storageKey }));
 }
@@ -968,6 +982,7 @@ async function uploadMappedReferences(
   settingId?: string | null,
   referenceImageKeys: string[] = [],
   mandatoryReferenceImageCount?: number,
+  explicitOnly = false,
 ): Promise<Record<string, string>> {
   const [characterAssets, settingAssets] = await Promise.all([
     characterIds.length
@@ -1016,6 +1031,7 @@ async function uploadMappedReferences(
       referenceImageKeys,
       canonicalCharacterAssets.map((asset) => asset.storageKey),
       mandatoryReferenceImageCount,
+      explicitOnly,
     ).map(({ field, storageKey }) => [field, referenceAssets.get(storageKey)!] as const),
     ...settingAssets.map((asset, index) => [`settingImage${index + 1}`, asset] as const),
   ];
@@ -1530,6 +1546,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
       input.settingId,
       input.referenceImageKeys,
       input.mandatoryReferenceImageCount,
+      input.explicitReferenceImagesOnly,
     );
     const requiredReferences = getWorkflowReferenceRequirements(apiWorkflow, workflow.mappings);
     if (input.startFrameKey) {
@@ -1658,7 +1675,7 @@ async function createAndSubmitFalGeneration(
   const referenceModel = model in falSeedanceReferenceModels || model === "kling-v3-standard" || model === "veo-3.1-fast"
     ? model as SeedanceReferenceModel | "kling-v3-standard" | "veo-3.1-fast"
     : null;
-  const referenceAssets = referenceModel
+  const referenceAssets = referenceModel && !input.explicitReferenceImagesOnly
     ? planSeedanceReferences(
       characters,
       characters.length

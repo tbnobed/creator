@@ -8,6 +8,7 @@ import { numberIn, text, type ProductionState, type ProductionTask } from "./pro
 import { stateOf } from "./production-store";
 import { publishProductionScenery } from "./scenery-library";
 import { publishProductionCharacters } from "./production-character-library";
+import { openingInputs } from "./production-openings";
 
 const MODEL = "local-flux2-klein-4b";
 const views = ["front", "three-quarter", "profile", "expressions"];
@@ -28,6 +29,43 @@ function flagCharacterScenes(state: ProductionState, id: string) {
 }
 export async function mutateProductionAsset(row: ProductionProjectRow, action: string, payload: Record<string, unknown>) {
   const state = stateOf(row);
+  if (["generate-scene-opening","set-scene-opening","approve-scene-opening"].includes(action)) {
+    const scene=state.story.scenes.find(s=>s.sceneNumber===Number(payload.sceneNumber));
+    if(!scene)throw new Error("Scene not found.");
+    if(state.tasks.some(t=>["QUEUED","RUNNING"].includes(t.status)))throw new Error("Wait for reference generation to finish.");
+    const {sourceKey}=openingInputs(state,scene);
+    if(action==="approve-scene-opening") {
+      if(!scene.opening?.assetId || scene.opening.assetId!==payload.assetId || scene.opening.sourceKey!==sourceKey)throw new Error("The opening image changed. Generate or upload and review a current composition.");
+      scene.opening.approvedAssetId=scene.opening.assetId;
+    } else if(action==="generate-scene-opening") {
+      const correction=typeof payload.correction==="string" ? text(payload.correction,"Opening correction",2000,false) : "";
+      const prior=scene.opening?.assetId;
+      if(correction && !prior)throw new Error("Generate or upload an opening before correcting it.");
+      scene.opening={status:"QUEUED",sourceKey};
+      addTask(state,"opening",String(scene.sceneNumber));
+      state.tasks.at(-1)!.modelId=MODEL;
+      if(correction){state.tasks.at(-1)!.openingReferenceAssetId=prior;state.tasks.at(-1)!.openingCorrection=correction;}
+    } else {
+      const [asset]=await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId,row.tenantId),eq(imageStudioAssetsTable.id,text(payload.assetId,"Opening image",100))));
+      if(!asset)throw new Error("Opening image not found in this workspace.");
+      scene.opening={assetId:asset.id,mediaUrl:presentImageAsset(asset).url,status:"READY",sourceKey};
+    }
+    return state;
+  }
+  if (["set-prop-reference", "approve-prop-reference", "remove-prop-reference"].includes(action)) {
+    if (state.tasks.some(t => ["QUEUED", "RUNNING"].includes(t.status))) throw new Error("Wait for reference generation to finish.");
+    if (action === "remove-prop-reference") delete state.propReference;
+    else if (action === "approve-prop-reference") {
+      if (!state.propReference || state.propReference.assetId !== payload.assetId) throw new Error("Review the current prop reference before approving.");
+      state.propReference.approvedAssetId = state.propReference.assetId;
+    } else {
+      const id = text(payload.assetId, "Prop image", 100);
+      const [asset] = await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.id, id), eq(imageStudioAssetsTable.tenantId, row.tenantId)));
+      if (!asset) throw new Error("Prop image not found in this workspace.");
+      state.propReference = {assetId: id, mediaUrl: presentImageAsset(asset).url, description: text(payload.description, "Prop description", 2000)};
+    }
+    return state;
+  }
   if (action === "import-place") {
     const id = text(payload.settingId, "Location ID", 100);
     if (state.places.some(p => p.id === id)) return state;
@@ -193,15 +231,23 @@ export async function mutateProductionAsset(row: ProductionProjectRow, action: s
 }
 
 export async function advanceProductionImage(row: ProductionProjectRow, state: ProductionState, task: ProductionTask) {
+  const openingScene=task.type==="opening" ? state.story.scenes.find(s=>String(s.sceneNumber)===task.entityId) : undefined;
   const character = state.characters.find(c => c.id === task.entityId);
   const outfit = state.wardrobes.find(w => w.id === task.entityId);
   const place = state.places.find(p => p.id === (task.placeId ?? task.entityId));
   const variant = task.type === "variant" ? place?.variants.find(v => v.id === task.entityId) : undefined;
-  const entity = character ?? outfit ?? variant ?? place;
+  const entity = openingScene?.opening ?? character ?? outfit ?? variant ?? place;
   if (!entity) throw new Error("The generation target no longer exists.");
   if (!task.jobId) {
     let prompt = "", referenceAssetIds: string[] = [], seed = 0, wide = false;
-    if (task.type === "portraits" && character) {
+    if (task.type==="opening" && openingScene) {
+      const inputs=openingInputs(state,openingScene);
+      if(inputs.ids.length>4 && !task.openingReferenceAssetId)throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
+      prompt=task.openingCorrection
+        ? `Edit this single complete scene image. Preserve its exact cast, faces, materials, outfits, props, room, lighting and camera except for this requested correction: ${task.openingCorrection}. Do not duplicate characters or objects.`
+        : inputs.prompt;
+      referenceAssetIds=task.openingReferenceAssetId ? [task.openingReferenceAssetId] : inputs.ids;wide=true;
+    } else if (task.type === "portraits" && character) {
       prompt = `Character portrait, one subject, clear face, no text. ${character.description}`;
       seed = character.seed + task.index;
     } else if (task.type === "sheet" && character?.selectedAssetId) {
@@ -226,7 +272,7 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
       request: {
         modelId: task.modelId ?? MODEL, cloudConfirmed: task.cloudConfirmed === true,
         operation: referenceAssetIds.length ? "edit" : "generate",
-        prompt, width: wide ? 1344 : 1024, height: wide ? 768 : 1024, count: 1,
+        prompt, width: task.type==="opening" ? state.settings.width : wide ? 1344 : 1024, height: task.type==="opening" ? state.settings.height : wide ? 768 : 1024, count: 1,
         ...(getImageModel(task.modelId ?? MODEL)?.supportsSeed ? { seed } : {}),
         referenceAssetIds, requestKey: `${task.id.slice(0, -2)}${task.index.toString(16).padStart(2, "0")}`,
       },

@@ -7,6 +7,8 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, productionProjectsTable, imageStudioAssetsTable, longFormProjectsTable, longFormShotsTable, workflowTemplatesTable, type ProductionProjectRow, type LongFormShot } from "@workspace/db";
 import { productionWorkflowCapability } from "./comfy/production-capability";
 import { stateOf } from "./production-store";
+import { productionAppearance, approvedProductionProp } from "./production-appearance";
+import { requireOpening } from "./production-openings";
 import { requireProductionScenery } from "./production-scenery";
 import { registerProductionFrame } from "./production-dispatch";
 import { text, type ProductionScene } from "./production-types";
@@ -42,6 +44,8 @@ export function productionShotPlan(scenes: ProductionScene[], defaultDuration: n
 
 export async function prepareProductionRender(row: ProductionProjectRow): Promise<string> {
   const state = stateOf(row);
+  approvedProductionProp(state);
+  for (const scene of state.story.scenes) requireOpening(state,scene);
   for (const scene of state.story.scenes) for (const character of state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()))) {
     const outfit = state.wardrobes.filter(w => w.characterId === character.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber).at(-1);
     if (outfit && (!outfit.assetId || outfit.approvedAssetId !== outfit.assetId)) throw new Error(`Review and approve ${character.name}'s ${outfit.name} in Wardrobe before rendering.`);
@@ -90,9 +94,7 @@ export async function runProductionRenderAction(row: ProductionProjectRow, actio
       ));
       const requiredSlots = Math.max(1, ...state.story.scenes.map(scene => {
         const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
-        return 1 + cast.length + cast.filter(c => state.wardrobes.some(w =>
-          w.characterId === c.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber,
-        )).length;
+        return 2 + (state.propReference ? 1 : 0);
       }));
       if (!workflows.some(workflow => {
         const capability = productionWorkflowCapability(workflow.apiWorkflow, workflow.mappings);
@@ -175,22 +177,21 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   const scene = state.story.scenes.find(s => s.sceneNumber === shot.sceneNumber);
   if (!scene) throw new Error("This shot's production scene no longer exists.");
   const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
-  const ids: string[] = [];
-  const notes: string[] = [];
+  const composed=requireOpening(state,scene);
+  const ids: string[] = [composed.assetId!];
+  const notes: string[] = ["Reference image 1 is the approved complete scene composition. Preserve its character identities, outfits, props, relative scale and entire location. Do not switch to a portrait background."];
   for (const character of cast) {
-    if (!character.locked || !character.selectedAssetId) throw new Error(`Lock ${character.name}'s appearance before rendering.`);
-    ids.push(character.selectedAssetId);
-    const outfit = state.wardrobes.filter(w => w.characterId === character.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber).at(-1);
-    if (outfit) {
-      if (!outfit.assetId) throw new Error(`The ${outfit.name} outfit image is not ready.`);
-      if (outfit.approvedAssetId !== outfit.assetId) throw new Error(`Review and approve the ${outfit.name} outfit in Wardrobe before rendering.`);
-      ids.push(outfit.assetId);
-      notes.push(`${character.name} wears ${outfit.name}: ${outfit.prompt}`);
-      if (outfit.stateFromScene !== undefined && scene.sceneNumber >= outfit.stateFromScene) notes.push(`${character.name} outfit state: ${outfit.stateNote || ""}`);
-    }
+    const appearance = productionAppearance(state, character, scene.sceneNumber);
+    notes.push(`In the approved composition: ${appearance.description}`);
   }
   const { place, reference: scenery } = requireProductionScenery(state, scene);
   ids.push(scenery.assetId!);
+  notes.push(`Reference image ${ids.length} supplies location and lighting only, not character identity or clothing. Preserve prop shape, color, material and size relative to the characters throughout the shot.`);
+  const prop = approvedProductionProp(state);
+  if (prop) {
+    ids.push(prop.assetId);
+    notes.push(`Reference image ${ids.length} is the approved prop reference, not a replacement location or character. Preserve its exact object design, markings, material, color and relative scale: ${prop.description}`);
+  }
   const assets = await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId, row.tenantId), inArray(imageStudioAssetsTable.id, [...new Set(ids)])));
   if (assets.length !== new Set(ids).size) throw new Error("A locked production reference was removed. Restore it before rendering.");
   const keys = [...new Set(ids)].map(id => assets.find(a => a.id === id)!.storageKey);
@@ -211,11 +212,13 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
       startFrameKey = await mediaStorage.storeGenerationReferenceMedia("image/png", await readFile(output), row.tenantId);
     } finally { await rm(directory, { recursive: true, force: true }); }
   } else {
-    const opening = assets.find(a => a.id === scenery.assetId)!;
+    const opening=assets.find(a=>a.id===composed.assetId);
+    if(!opening)throw new Error("The approved opening image was removed.");
     startFrameKey = await registerProductionFrame(opening.storageKey, opening.mimeType, row.tenantId);
   }
   return {
     referenceImageKeys: keys, mandatoryReferenceImageCount: keys.length,
+    explicitReferenceImagesOnly: true,
     startFrameKey, seed: cast[0]?.seed ?? place.seed,
     continuityContext: `Location ${scene.location}, ${scene.timeOfDay}. ${notes.join(". ")}`.slice(0, 5000),
   };

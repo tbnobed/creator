@@ -4,6 +4,7 @@ export type QualityPreset = "DRAFT" | "STANDARD" | "HIGH";
 
 export interface SceneShot { prompt: string; dialogue: string; durationSeconds: number }
 export interface Scene {
+  opening?: { assetId?:string;mediaUrl?:string;approvedAssetId?:string;sourceKey:string;status:string };
   sceneNumber: number; title: string; location: string; timeOfDay: string;
   characters: string[]; action: string; dialogue: string; shots?: SceneShot[];
   durationSeconds?: number;
@@ -45,6 +46,7 @@ export interface ProductionTask { id: string; type: string; status: string; erro
 export const taskIsPaid = (t: ProductionTask) => !!t.cloudConfirmed || ["CLOUD", "FAL", "OPENAI"].includes((t.provider ?? "").toUpperCase()) || /^(openai:|cloud)/.test(t.modelId ?? "");
 export interface ReviewIssue { id: string; shotId?: string; sceneNumber?: number; timecode?: string; description: string; correction?: string }
 export interface ProductionState {
+  propReference?: { assetId: string; mediaUrl: string; description: string; approvedAssetId?: string };
   storyCancelTaskId?: string;
   step: number; story: Story; characters: ProductionCharacter[]; wardrobes: Wardrobe[]; places: Place[];
   settings: ProductionSettings; tasks: ProductionTask[];
@@ -73,6 +75,7 @@ export function normalizeState(raw: Record<string, unknown> | null | undefined):
       progress: s.progress && typeof s.progress.stage === "string" && typeof s.progress.model === "string" && typeof s.progress.target === "string" ? s.progress : undefined,
     },
     characters: arr<ProductionCharacter>(r.characters).map((c) => ({ ...c, options: arr(c.options), referenceSheet: arr(c.referenceSheet) })),
+    propReference: r.propReference,
     wardrobes: arr<Wardrobe>(r.wardrobes),
     places: arr<Place>(r.places).map((p) => ({ ...p, variants: arr(p.variants) })),
     settings: { ...DEFAULT_SETTINGS, ...(r.settings ?? {}) },

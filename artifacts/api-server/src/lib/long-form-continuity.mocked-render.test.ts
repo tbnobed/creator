@@ -7,6 +7,27 @@ import {
   compileLongFormPromptForTest,
   planContinuityReferenceSlots,
 } from "./generation-service";
+
+test("complete production snapshots never reintroduce conflicting library portraits", () => {
+  const mappings = {
+    referenceImage1: {nodeId:"1",input:"image"}, referenceImage2:{nodeId:"2",input:"image"},
+    referenceImage3:{nodeId:"3",input:"image"},
+  };
+  const result=planContinuityReferenceSlots(mappings,["approved-vest.png","location.png"],["old-unclothed.png"],2,true);
+  assert.deepEqual(result.map(r=>r.storageKey),["approved-vest.png","location.png","approved-vest.png"]);
+  const props=planContinuityReferenceSlots(mappings,["approved-vest.png","location.png","approved-ball.png"],["old-unclothed.png"],3,true);
+  assert.deepEqual(props.map(r=>r.storageKey),["approved-vest.png","location.png","approved-ball.png"]);
+});
+
+test("production image authority also overrides stale wardrobe biography text", () => {
+  const prompt=compileLongFormPromptForTest([{id:"c",name:"Pip",promptDescription:"Pip wears a green jacket and striped shorts."}],{
+    explicitReferenceImagesOnly:true, prompt:"Pip rolls the ball.",dialogue:"",
+    continuityContext:"Reference image 1 controls the approved royal blue vest. Reference image 3 controls the small red wooden ball.",
+  } as Parameters<typeof compileLongFormPromptForTest>[1]);
+  assert(!prompt.includes("green jacket"));
+  assert(prompt.includes("royal blue vest"));
+  assert(prompt.includes("small red wooden ball"));
+});
 import { characterIdsForLongFormShot, retryLongFormShotError } from "./long-form-service";
 import {
   invalidatedStillValues,

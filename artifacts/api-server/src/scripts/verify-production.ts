@@ -38,7 +38,9 @@ async function step(value: number) {
 }
 async function main() {
   let row = await waitIdle();
-  console.log("STEP 1 completed: actual GPU screenplay task.", JSON.stringify(stateOf(row).story.scenes));
+  const observe=process.argv.includes("--observe");
+  if(!observe) {
+  console.log("STEP 1: existing screenplay loaded for render verification.", JSON.stringify(stateOf(row).story.scenes));
   await step(1);
   if (!stateOf(row).characters.length) {
     await act("add-character", { name: "Pip", description: "Pip, a small friendly wooden toy robot, rounded carved oak body, two dark circular eyes, articulated arms, full body, plain neutral backdrop." });
@@ -48,7 +50,7 @@ async function main() {
   if (!character.locked) await act("keep-look", { id: character.id, assetId: character.options[0].assetId });
   row = await waitIdle();
   character = stateOf(row).characters[0];
-  console.log("STEP 2 completed: four generated looks, approved look and reference sheet.", character.selectedAssetId);
+  console.log("STEP 2: cast and approved reference ready.", character.selectedAssetId);
   await step(2);
   if (!stateOf(row).wardrobes.length) await act("add-wardrobe", {
     characterId: character.id, name: "Blue vest",
@@ -84,13 +86,15 @@ async function main() {
     await saveProduction(current, state);
   });
   console.log("STEP 4 completed: generated scenery, assigned to scene. Ready for actual render preparation.");
-  if (!process.argv.includes("--render")) return;
-  let renderId: string;
-  await productionLock(id, async () => {
+  }
+  if(observe && !row.renderProjectId)throw new Error("No existing render to observe.");
+  if (!observe && !process.argv.includes("--render")) return;
+  let renderId: string = row.renderProjectId!;
+  if(!observe) await productionLock(id, async () => {
     const current = await load();
     renderId = await runProductionRenderAction(current, "create-scenes", {});
   });
-  console.log("STEP 5 submitted", renderId!);
+  console.log(observe ? "Observing existing render" : "STEP 5 submitted", renderId!);
   let lastProgress = "";
   for (let i = 0; i < 720; i++) {
     const [render] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, renderId!));

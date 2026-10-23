@@ -2,11 +2,18 @@ import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db, pool, productionProjectsTable, type ProductionProjectRow } from "@workspace/db";
 import { emptyProduction, numberIn, text, validateScenes, type ProductionState } from "./production-types";
+import { openingInputs } from "./production-openings";
 
 export class ProductionConflict extends Error {}
 export function stateOf(row: ProductionProjectRow): ProductionState { return row.state as unknown as ProductionState; }
 export function presentProduction(row: ProductionProjectRow) {
-  return { id: row.id, title: row.title, revision: row.revision, state: row.state, renderProjectId: row.renderProjectId, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
+  const state=structuredClone(stateOf(row));
+  for(const scene of state.story.scenes) if(scene.opening) {
+    let stale=false;
+    try {stale=scene.opening.sourceKey!==openingInputs(state,scene).sourceKey;} catch {stale=true;}
+    if(stale){scene.opening.approvedAssetId=undefined;scene.opening.status="STALE";}
+  }
+  return { id: row.id, title: row.title, revision: row.revision, state, renderProjectId: row.renderProjectId, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 export async function ownedProduction(id: string, tenantId: string) {
   const [row] = await db.select().from(productionProjectsTable).where(and(eq(productionProjectsTable.id, id), eq(productionProjectsTable.tenantId, tenantId)));
@@ -53,7 +60,7 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
       // Keep drafted shot plans only if the producer has not changed that scene.
       next.story.scenes = scenes.map((scene, i) => {
         const prior = state.story.scenes[i];
-        return prior && prior.action === scene.action && prior.dialogue === scene.dialogue && prior.location === scene.location && prior.timeOfDay === scene.timeOfDay ? { ...scene, shots: prior.shots } : scene;
+        return prior && prior.action === scene.action && prior.dialogue === scene.dialogue && prior.location === scene.location && prior.timeOfDay === scene.timeOfDay ? { ...scene, shots: prior.shots, opening: prior.opening } : scene;
       });
       if (next.settings.sceneReferences) {
         for (const key of Object.keys(next.settings.sceneReferences)) {

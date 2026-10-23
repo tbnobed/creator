@@ -586,6 +586,19 @@ test("Native FLUX.2 Klein character edit conditions on the source and samples a 
   assert.equal(result.metadata.nativeReferenceResizeMode, "total-pixels");
 });
 
+test("Native composition keeps three independent reference encodings on both conditioning branches",async()=>{
+  const input=localInput("local-flux2-klein-4b",true,{denoiseStrength:undefined,width:1280,height:704});
+  const result=await submitMockedLocal({...input,referenceMode:"native-reference-edit",
+    referenceImages:[input.referenceImages[0],input.referenceImages[0],input.referenceImages[0]]},undefined,true);
+  const nodes=Object.values(result.workflow);
+  assert.equal(nodes.filter(n=>n.class_type==="LoadImage").length,3);
+  assert.equal(nodes.filter(n=>n.class_type==="VAEEncode").length,3);
+  assert.equal(nodes.filter(n=>n.class_type==="ReferenceLatent").length,6);
+  assert.deepEqual(result.workflow["13"].inputs.positive,["108",0]);
+  assert.deepEqual(result.workflow["13"].inputs.negative,["109",0]);
+  assert.deepEqual(result.workflow["16"].inputs.latent_image,["6",0]);
+});
+
 test("Native FLUX.2 Klein capability checks fail closed without ReferenceLatent", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: string | URL | Request) => {
