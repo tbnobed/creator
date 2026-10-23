@@ -39,6 +39,12 @@ Long-Form end-to-end verification must include multiple scenes, not just multipl
 
 **How to apply:** Include distinct locations and carry cast/wardrobe across them; inspect within-scene continuation, scene transitions and final assembly.
 
+Individual shots must be playable beside their correction controls; the assembled Review video is not a substitute.
+
+**Why:** The user repeatedly requested shot previews to decide corrections, not instructions to watch the whole export.
+
+**How to apply:** Keep shot playback accessible in both Create and manual Review corrections, without triggering a new render.
+
 Native H3 guide conditioning is not proof of exact first-frame preservation or cross-scene visual continuity.
 
 **Why:** Live multi-scene verification produced playable exports but changed clothing, prop scale and appearance; decoded adjacent boundary frames were not identical.

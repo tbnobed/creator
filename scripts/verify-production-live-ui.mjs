@@ -55,6 +55,27 @@ try {
     const button = page.getByTestId(`button-step-${i}`);
     if (await button.isEnabled()) await button.click();
     await page.waitForTimeout(1800);
+    if (i === 4) {
+      await page.getByTestId("row-scene-1").locator("button").first().click();
+      const previews = page.locator('[data-testid^="button-preview-shot-"]');
+      assert(await previews.count() >= 2, "Both completed shots need preview controls");
+      for (let n = 0; n < 2; n++) {
+        const preview = previews.nth(n);
+        const id = (await preview.getAttribute("data-testid")).replace("button-preview-shot-", "");
+        await preview.click();
+        const video = page.getByTestId(`video-shot-${id}`);
+        await video.evaluate(async v => { v.muted = true; await v.play(); });
+        await page.waitForTimeout(700);
+        assert(await video.evaluate(v => v.currentTime > 0 && !v.error));
+        await page.getByTestId(`button-correct-shot-${id}`).click();
+        await page.getByTestId(`input-correction-${id}`).fill("Keep the ball small");
+        assert(await video.isVisible(), "Preview must remain beside corrections");
+        await page.screenshot({ path: `/tmp/shot-preview-${n}.png`, fullPage: true });
+        await preview.click();
+        assert.equal(await video.count(), 0, "Hiding preview must unmount and stop playback");
+      }
+      console.log("PASS individual shot playback, correction alongside preview, and closing players.");
+    }
     await page.screenshot({ path: `${directory}/step-${i+1}.png`, fullPage: true });
     assert.equal(errors.length, 0, errors.join("\n"));
     const text = await page.locator("body").innerText();

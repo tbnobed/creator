@@ -309,6 +309,8 @@ function SceneRow({ n, title, where, shots, run, busy }: { n: number; title: str
 export function ShotFix({ shot, run, busy, initial = "" }: { shot: LongFormShot; run: RunAction; busy: boolean; initial?: string }) {
   const [text, setText] = useState(initial);
   const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
   const p = phase(shot.status);
   return (
     <div className="rounded-lg bg-background/50 p-2.5" data-testid={`shot-${shot.id}`}>
@@ -316,12 +318,24 @@ export function ShotFix({ shot, run, busy, initial = "" }: { shot: LongFormShot;
         <span className="font-mono text-muted-foreground">{shot.sceneNumber}.{shot.shotNumber}</span>
         <span className="min-w-0 flex-1 truncate">{shot.title}</span>
         <PhaseBadge p={p} />
-        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen((o) => !o)} disabled={p === "Creating"} data-testid={`button-correct-shot-${shot.id}`}>Correct</Button>
+        {shot.outputUrl && <Button size="sm" variant="ghost" className="h-7 text-xs"
+          aria-expanded={preview} aria-controls={`preview-${shot.id}`}
+          onClick={() => { setPreview(v => !v); setPlaybackError(false); }}
+          data-testid={`button-preview-shot-${shot.id}`}>{preview ? "Hide preview" : "Preview"}</Button>}
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setOpen((o) => !o); if (shot.outputUrl) setPreview(true); }} disabled={p === "Creating"} data-testid={`button-correct-shot-${shot.id}`}>Correct</Button>
       </div>
+      {preview && shot.outputUrl && <div id={`preview-${shot.id}`} className="mt-3">
+        <video key={shot.outputUrl} src={shot.outputUrl} controls playsInline preload="metadata"
+          aria-label={`Preview scene ${shot.sceneNumber}, shot ${shot.shotNumber}`}
+          className="aspect-video max-h-[60vh] w-full rounded-lg bg-black object-contain"
+          onError={() => setPlaybackError(true)}
+          data-testid={`video-shot-${shot.id}`} />
+        {playbackError && <p role="alert" className="mt-2 text-xs text-destructive">This clip could not be loaded. <a href={shot.outputUrl} target="_blank" rel="noreferrer" className="underline">Open the video directly</a>.</p>}
+      </div>}
       {shot.errorMessage && <p role="alert" className="mt-1 text-xs text-destructive">{shot.errorMessage}</p>}
       {open && (
         <div className="mt-2 flex gap-2">
-          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="His slicker should be soaked" className="h-8 text-sm" data-testid={`input-correction-${shot.id}`} />
+          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Describe what to change in this shot" className="h-8 text-sm" data-testid={`input-correction-${shot.id}`} />
           <Button size="sm" disabled={!text.trim() || busy} onClick={async () => { if (await run("fix-shot", { shotId: shot.id, correction: text.trim() })) setOpen(false); }} data-testid={`button-submit-fix-${shot.id}`}>
             Re-render shot
           </Button>
