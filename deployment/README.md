@@ -182,8 +182,15 @@ The deployment seed includes these active `r2v` variants:
   tags, loads the uploaded video with `LoadVideo`, and extracts its video/audio
   components.
 
-The seed also creates the inactive `MiniMax H3 FL2VA` catalog placeholder for a
-future first/last-frame workflow. Video/audio reference variants do not require
+The seed installs native `MiniMax H3 FL2VA` (Blackwell NVFP4) and
+`MiniMax H3 FL2VA (H100 / A100)` (INT8 ConvRot) graphs, including first/last-frame
+mappings. The original empty FL2VA placeholder is upgraded in place on startup;
+imported/custom graphs are not overwritten. H100 workers use the existing
+`a100` compatibility tag for the INT8 graph, not the Blackwell NVFP4 graph.
+Workers need `MiniMaxH3ImageToVideo` and the matching FL2VA model, encoder and
+audio/video VAEs. These keyframe graphs do not accept independent cast/location
+reference images: they do not replace the separate composed-still production
+pipeline. Video/audio reference variants do not require
 cast or environment assets; the uploaded video is their reference.
 
 Set the endpoint pairs in `.env` before the first `docker compose up -d --build`

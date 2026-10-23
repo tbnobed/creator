@@ -1323,7 +1323,6 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   }
   if (
     input.seedanceTask
-    || input.endFrameKey
     || input.referenceVideoKeys?.length
     || input.referenceAudioKeys?.length
   ) {
@@ -1336,6 +1335,9 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
     .orderBy(desc(workflowTemplatesTable.version));
   if (input.startFrameKey && !workflows.some(w => (w.mappings as ParameterMappings).firstFrame)) {
     throw new Error("This local workflow has no explicit firstFrame mapping for shot continuation. Import a compatible image-to-video workflow.");
+  }
+  if (input.endFrameKey && !workflows.some(w => (w.mappings as ParameterMappings).lastFrame)) {
+    throw new Error("This local workflow has no lastFrame mapping. Select a first/last-frame workflow.");
   }
   const inputTypeWorkflows = workflows.filter((candidate) => (
     wantsReferenceVideo
@@ -1350,6 +1352,7 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
   const compatibleWorkflows = inputTypeWorkflows.filter((candidate) => {
     const required = getWorkflowReferenceRequirements(candidate.apiWorkflow, candidate.mappings);
     return (!input.startFrameKey || Boolean((candidate.mappings as ParameterMappings).firstFrame))
+      && (!input.endFrameKey || Boolean((candidate.mappings as ParameterMappings).lastFrame))
       && (!required.requiresCharacterReferences || characters.length > 0 || Boolean(input.referenceImageKeys?.length))
       && (!required.requiresSettingReference || setting.length > 0)
       && (!input.referenceImageKeys?.length || Boolean((candidate.mappings as ParameterMappings).referenceImage1))
@@ -1536,6 +1539,14 @@ export async function createAndSubmitGeneration(input: GenerationRequest): Promi
         bytes: await mediaStorage.readBuffer(input.startFrameKey),
       });
       assetParameters.firstFrame = uploaded.name;
+    }
+    if (input.endFrameKey) {
+      const uploaded = await client.uploadImage({
+        name: "generation-last-frame.png",
+        mimeType: "image/png",
+        bytes: await mediaStorage.readBuffer(input.endFrameKey),
+      });
+      assetParameters.lastFrame = uploaded.name;
     }
     if (
       requiredReferences.requiresCharacterReferences &&

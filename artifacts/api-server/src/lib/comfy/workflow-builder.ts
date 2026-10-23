@@ -17,7 +17,7 @@ function removeUnusedImageNodes(
   parameters: Record<string, string | number | undefined>,
 ): void {
   for (const [field, mapping] of Object.entries(mappings)) {
-    if (!/^(referenceImage|settingImage)\d+$/.test(field) || parameters[field] !== undefined) continue;
+    if (!/^(?:(referenceImage|settingImage)\d+|firstFrame|lastFrame)$/.test(field) || parameters[field] !== undefined) continue;
 
     const mappedNode = workflow[mapping.nodeId];
     if (!mappedNode?.inputs) continue;

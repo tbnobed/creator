@@ -1,4 +1,5 @@
 import { count, eq } from "drizzle-orm";
+import { createMiniMaxH3Fl2vaWorkflow, fl2vaMappings, isEmptyFl2vaPlaceholder } from "./seed-data/minimax-h3-fl2va";
 import { upgradeLegacyLtxFps } from "./seed-data/ltx-25-upgrade";
 import {
   charactersTable,
@@ -443,17 +444,28 @@ async function seedWorkflowDefinitions(): Promise<void> {
     }).where(eq(workflowTemplatesTable.id, workflow.id));
   }));
 
-  if (!existingNames.has("MiniMax H3 FL2VA")) {
-    await db.insert(workflowTemplatesTable).values({
-      name: "MiniMax H3 FL2VA",
-      description: "First and last frame video generation or clip continuation. Import the actual ComfyUI API workflow before activation.",
+  for (const blackwell of [true, false]) {
+    const name = blackwell ? "MiniMax H3 FL2VA" : "MiniMax H3 FL2VA (H100 / A100)";
+    const current = existing.find((workflow) => workflow.name === name);
+    const definition = {
+      name,
+      description: `Native first/last-frame video and audio generation (${blackwell ? "Blackwell NVFP4" : "H100/A100 INT8"}). Optional keyframes anchor the start and end; this is not a multi-reference cast workflow.`,
       generationMode: "FIRST_LAST_FRAME_TO_VIDEO",
       modelFamily: "MiniMax H3",
-      compatibleServerTags: ["minimax-h3"],
-      active: false,
-      expectedInputs: ["prompt", "firstFrame", "lastFrame", "width", "height", "frames", "seed"],
+      compatibleServerTags: ["minimax-h3", blackwell ? "blackwell" : "a100"],
+      apiWorkflow: createMiniMaxH3Fl2vaWorkflow(blackwell),
+      mappings: fl2vaMappings,
+      active: true,
+      expectedInputs: Object.keys(fl2vaMappings),
       expectedOutputs: ["video"],
-    });
+    };
+    if (!current) {
+      await db.insert(workflowTemplatesTable).values(definition);
+    } else if (isEmptyFl2vaPlaceholder(current)) {
+      await db.update(workflowTemplatesTable).set({
+        ...definition, version: current.version + 1,
+      }).where(eq(workflowTemplatesTable.id, current.id));
+    }
   }
 }
 
