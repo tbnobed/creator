@@ -48,6 +48,21 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ### Model-swapping diagnostic, 2026-10-24
 
+**Superseded by recurrence at 22:58:51 UTC:** GPU 0 again reported PCIe
+SDES/Xid 79 with dynamic VRAM disabled. The watchdog stopped all three
+video workers; no recovery reboot has been performed for this recurrence.
+Worker 8190 completed four FLUX jobs before the next prompt failed at
+sampler-output transfer, without a new model-load message. Workers 8188
+and 8189 showed no render activity in that interval. The last successful
+image was 1024×1024, unlike the 640×384 diagnostic. CUDA errors are
+asynchronous, so the transfer traceback does not identify the initiating
+fault. Other internal services still reported healthy.
+
+The live NVIDIA crash report and journals are preserved privately at
+`/var/backups/obtv-h100-recovery/20261024T225851Z/`.
+The previous successful rollout checks below are historical, not current
+availability or stability claims.
+
 After another GPU 0 PCIe surprise-down/Xid 79 event, an authorized reboot
 and isolated test on worker 2 completed six alternating H3/FLUX jobs
 (five model-family transitions) with only `--disable-dynamic-vram` added.
