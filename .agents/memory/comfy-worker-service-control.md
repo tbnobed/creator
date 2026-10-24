@@ -5,6 +5,12 @@ description: Safely restarts heterogeneous remote ComfyUI installations without 
 
 Never infer a ComfyUI worker's startup interpreter or restart mechanism from its current executable path alone. Discover the running process, its command line, available venvs, queue state, and service manager before restarting it.
 
+Before diagnostic submissions, verify the effective command and allocator reported by ComfyUI, not just the override file.
+
+**Why:** A template MIG launcher drop-in sorted after an instance diagnostic drop-in and silently superseded its ExecStart. The API precondition caught the unchanged allocator before any jobs were submitted.
+
+**How to apply:** Account for template and instance drop-in ordering together, then assert both the expected flags and actual allocator name. Keep intake isolated until these checks pass.
+
 Do not equate a failed external ComfyUI request or stored OFFLINE status with an inaccessible GPU server. Check the documented SSH endpoints and query ComfyUI locally through SSH.
 
 **Why:** The dual-H100 server had three running, locally reachable ComfyUI workers while its external API checks failed. The user reiterated that SSH access to the fleet was already provided.

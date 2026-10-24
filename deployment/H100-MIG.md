@@ -46,6 +46,27 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Native allocator test, 2026-10-24
+
+After an authorized recovery reboot, worker 8190 alone ran with both
+`--disable-dynamic-vram` and `--disable-cuda-malloc`. The API verified the
+allocator as `native`; two-stream offloading and pinned memory were unchanged.
+Fifty 1024×1024 FLUX jobs completed over approximately eleven minutes,
+including nine one-minute idle intervals. All fifty output PNGs decoded.
+GPU 0 sampled peaks: 53°C core, 65°C memory, 268.08 W. The power limit
+remained 310 W, uncorrectable volatile ECC remained zero on both GPUs,
+and no kernel Xid/PCIe errors appeared, including after worker shutdown.
+
+This is a promising isolated same-model result, not a full-resolution
+H3/FLUX switching test, concurrent test, or established root cause.
+Private evidence:
+`/var/backups/obtv-h100-recovery/allocator-test-20261024/`.
+
+The test override and temporary network rule have been removed. All three
+video workers are stopped under `/etc/obtv/h100-recovery-hold` and its
+`99-recovery-hold.conf` start condition. Other internal services are healthy.
+The native allocator has **not** been rolled out to the shared launcher.
+
 ### Model-swapping diagnostic, 2026-10-24
 
 **Superseded by recurrence at 22:58:51 UTC:** GPU 0 again reported PCIe
