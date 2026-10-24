@@ -10,11 +10,11 @@ Actual NVIDIA MIG device ordering differs from the requested example:
 | 0 | 1 | 4g.40gb | CreatorAI `obtv-comfy@0` | `http://192.168.203.4:8188` |
 | 0 | 0 | 3g.40gb | CreatorAI `obtv-comfy@2` | `http://192.168.203.4:8190` |
 | 1 | 1 | 4g.40gb | CreatorAI `obtv-comfy@1` | `http://192.168.203.4:8189` |
-| 1 | 0 | 3g.40gb | Reserved — no service or workload assigned | None |
+| 1 | 0 | 3g.40gb | Reserved for other internal AI services — never assign CreatorAI | None |
 
 Each active endpoint reports approximately 39.5 GiB usable VRAM.
-The reserved instance has driver overhead but no assigned compute process.
-No Docker installation or containers were found on this GPU host.
+The reserved instance now serves internal language/embedding workloads.
+Preserve its Docker services during CreatorAI worker changes.
 
 ## Startup and safety
 
@@ -60,10 +60,13 @@ concurrent stability.
 
 Private evidence: `/var/backups/obtv-h100-recovery/swap-test-dynamic-disabled/`.
 Temporary worker override and network blocking were removed after the queue
-drained. All three video workers are stopped under the persistent
-`/etc/obtv/h100-recovery-hold` start condition, pending approval to roll out
-the tested option. Other internal services are healthy. Remove the hold
-and its `99-recovery-hold.conf` drop-in only as part of intentional recovery.
+drained. Following operator approval, the shared MIG launcher was updated
+to pass `--disable-dynamic-vram` for all three video workers; the recovery
+hold and its drop-in were removed. All three workers are active and enabled
+at boot. Local and external `/system_stats` checks verified the flag and
+correct MIG profiles on ports 8188–8190. Other internal services remain
+healthy, power remains 310 W, and no new kernel Xid/PCIe errors were found.
+The pre-rollout launcher is preserved beside the private diagnostic evidence.
 Do not treat this test as authorization to change MIG, firmware, power, or
 the operator-controlled thermal bypass.
 
