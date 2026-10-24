@@ -53,6 +53,12 @@ Do not accept a newly provisioned multi-GPU worker based only on initial `/syste
 
 For the dual-H100 workstation, check BMC thermal events before treating GPU disappearance as a driver-install problem. Passive GPU cooling must work independently of CPU load.
 
+Compare BMC and host clocks before correlating event times. Do not treat a successful guard check as a historical temperature sample.
+
+**Why:** Inspection found the BMC clock five hours behind the host despite its UTC label. The guard does not retain healthy temperature readings, so its success cannot establish pre-failure temperature when thermal cutoffs are bypassed.
+
+**How to apply:** Record both clocks in diagnostics and distinguish missing thermal evidence from evidence of normal temperatures. Capture the NVIDIA report before reboot clears the live crash state.
+
 **Why:** Inspection on 2026-09-30 found a PCIe-slot critical-temperature event before fatal surprise-link-down errors on both GPU links. The supplied screenshot showed GPUs at 93°C/85°C with no compute processes, while the CPU was cool. GPU initialization failures and ECC messages after the link loss did not establish the original cause.
 
 **How to apply:** Read BMC sensors/event logs and the first kernel error sequence, not just the final NVIDIA errors. Require adequate directed airflow and safe idle temperatures before any stress test; do not assume CPU-based chassis fan curves cool passive accelerators.
