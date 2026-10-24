@@ -28,6 +28,7 @@ import { productionWorkflowCapability } from "./comfy/production-capability";
 import { cancelGeneration, createAndSubmitGeneration } from "./generation-service";
 import { logger } from "./logger";
 import { productionForRender, productionShotReferences, dispatchProductionCloudShot } from "./production-render";
+import { productionShotPrompt } from "./production-shot-prompt";
 import { productionDispatchBlock, readyProductionShots } from "./production-dispatch";
 import { stateOf as productionState } from "./production-store";
 import { comfyServerLockKey, getAssignableWorker, liveWorker } from "./worker-lifecycle";
@@ -1543,7 +1544,12 @@ async function orchestrateProjectUnlocked(projectId: string): Promise<void> {
           createdByUserId: project.createdByUserId,
           characterIds: characterIdsForLongFormShot(project.characterIds, claimed),
           settingId: project.settingId ?? undefined,
-          prompt: claimed.dialogue ? removeDialogueFromPrompt(claimed.prompt) : claimed.prompt,
+          prompt: (() => {
+            const prompt = production
+              ? productionShotPrompt(claimed.prompt, project.storyline ?? "")
+              : claimed.prompt;
+            return claimed.dialogue ? removeDialogueFromPrompt(prompt) : prompt;
+          })(),
           negativePrompt: project.negativePrompt,
           cameraInstructions: claimed.cameraInstructions,
           dialogue: claimed.dialogue,

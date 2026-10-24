@@ -16,6 +16,7 @@ import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject,
 import { createAndSubmitGeneration } from "./generation-service";
 import { falModels, type FalModel } from "./fal/client";
 import { registerProductionFrame, previousProductionShot } from "./production-dispatch";
+import { productionShotPrompt } from "./production-shot-prompt";
 
 const exec = promisify(execFile);
 export async function assertProductionEditable(row: ProductionProjectRow) {
@@ -65,7 +66,8 @@ export async function prepareProductionRender(row: ProductionProjectRow): Promis
   const script = shots.map((shot, i) => `SHOT ${i + 1}\nVisual: ${shot.prompt}\n${shot.dialogue ? `Dialogue: ${shot.dialogue}\n` : ""}`).join("\n\n");
   const render = await createLongFormProject({
     tenantId: row.tenantId, createdByUserId: row.createdByUserId, title: row.title,
-    script, storyline: state.story.summary, targetDurationSeconds: total,
+    // Story summaries and pasted screenplays are planning inputs, not shared visual style.
+    script, targetDurationSeconds: total,
     ...state.settings,
     characterIds: state.characters.flatMap(c => c.characterId ? [c.characterId] : []),
     continuity: { enabled: false, characters: [], scenes: [] },
@@ -148,7 +150,7 @@ export async function dispatchProductionCloudShot(row: ProductionProjectRow, sho
   try {
     await createAndSubmitGeneration({
       tenantId: row.tenantId, createdByUserId: row.createdByUserId, provider: "FAL", model: state.settings.videoModel as FalModel,
-      generationMode: state.settings.generationMode, prompt: shot.prompt, dialogue: shot.dialogue,
+      generationMode: state.settings.generationMode, prompt: productionShotPrompt(shot.prompt, state.story.summary), dialogue: shot.dialogue,
       characterIds: [], cameraInstructions: shot.cameraInstructions, motionInstructions: shot.motionInstructions,
       durationSeconds: shot.durationSeconds, width: state.settings.width, height: state.settings.height,
       fps: state.settings.fps, qualityPreset: state.settings.qualityPreset, seedMode: "RANDOM",
