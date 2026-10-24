@@ -46,6 +46,27 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Model-swapping diagnostic, 2026-10-24
+
+After another GPU 0 PCIe surprise-down/Xid 79 event, an authorized reboot
+and isolated test on worker 2 completed six alternating H3/FLUX jobs
+(five model-family transitions) with only `--disable-dynamic-vram` added.
+cudaMallocAsync and two-stream asynchronous offloading remained enabled.
+All three 124-frame videos and three images decoded at 640×384.
+Sampled GPU 0 peaks were 63°C core and 76°C memory, with zero reported
+uncorrectable volatile ECC errors and no new kernel Xid/PCIe errors.
+This is a bounded mitigation test, not proof of root cause or full-resolution,
+concurrent stability.
+
+Private evidence: `/var/backups/obtv-h100-recovery/swap-test-dynamic-disabled/`.
+Temporary worker override and network blocking were removed after the queue
+drained. All three video workers are stopped under the persistent
+`/etc/obtv/h100-recovery-hold` start condition, pending approval to roll out
+the tested option. Other internal services are healthy. Remove the hold
+and its `99-recovery-hold.conf` drop-in only as part of intentional recovery.
+Do not treat this test as authorization to change MIG, firmware, power, or
+the operator-controlled thermal bypass.
+
 ### Recovery verification, 2026-10-07
 
 After GPU 0 reported Xid 79 and fatal PCIe link loss, an authorized host reboot
