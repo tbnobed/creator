@@ -13,6 +13,12 @@ Do not equate a failed external ComfyUI request or stored OFFLINE status with an
 
 During GPU-loss recovery, hold worker startup across the reboot until physical GPU and MIG validation completes; do not rely on temporary firewall rules surviving reboot.
 
+The operator reports the H100 failure happens consistently during model swapping and says the physical seating/power/airflow checks have already been tested.
+
+**Why:** The user explicitly corrected the investigation focus; repeating the physical checklist does not advance diagnosis.
+
+**How to apply:** Prioritize controlled comparisons of model loading/unloading, ComfyUI dynamic VRAM, CUDA allocation/offload behavior, and driver/firmware. Treat model swapping as the reported trigger, not proof of a particular software root cause. Preserve the reserved MIG workload and require approval for disruptive host recovery.
+
 **Why:** Boot-enabled workers can accept portal retries before recovery checks, even when the live portal's administrative connection is unavailable.
 
 **How to apply:** Use a temporary persistent service-start condition, verify hardware and assigned profiles, then test through loopback with external intake blocked before restoring normal startup and intake. Keep the reserved slice unassigned.
