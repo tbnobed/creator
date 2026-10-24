@@ -35,7 +35,8 @@ export function productionShotPlan(scenes: ProductionScene[], defaultDuration: n
     const shots = scene.shots?.length ? scene.shots : [{ prompt: scene.action, dialogue: scene.dialogue, durationSeconds: defaultDuration }];
     return shots.map(shot => {
       // A draft must not compress a long spoken line into a short video.
-      const words = shot.dialogue.trim().split(/\s+/).filter(Boolean).length;
+      const words = (shot.dialogue.replace(/^[A-Z][A-Z .'-]*:\s*/gm, "")
+        .replace(/^\s*\([^)]*\)\s*$/gm, "").match(/[\p{L}\p{N}]+/gu) ?? []).length;
       const durationSeconds = Math.max(shot.durationSeconds, Math.ceil(words / 2.1 + (words ? 2 : 0)));
       if (durationSeconds > 30) throw new Error(`Scene ${scene.sceneNumber} has dialogue too long for one shot. Split it into shorter shots before creating.`);
       return { ...shot, durationSeconds, sceneNumber: scene.sceneNumber };
