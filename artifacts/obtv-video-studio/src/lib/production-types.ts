@@ -64,7 +64,7 @@ const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 export function normalizeState(raw: Record<string, unknown> | null | undefined): ProductionState {
   const r = (raw ?? {}) as Record<string, any>;
   const s = r.story ?? {};
-  const tm = Number.isInteger(s.targetMinutes) && s.targetMinutes >= 1 && s.targetMinutes <= 90 ? s.targetMinutes : 3;
+  const tm = Number.isFinite(s.targetMinutes) && s.targetMinutes >= 2 / 60 && s.targetMinutes <= 90 ? s.targetMinutes : 3;
   return {
     storyCancelTaskId: typeof r.storyCancelTaskId === "string" ? r.storyCancelTaskId : undefined,
     step: Math.min(5, Math.max(0, Number(r.step) || 0)),

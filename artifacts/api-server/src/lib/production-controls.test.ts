@@ -10,8 +10,8 @@ import type { ProductionProjectRow } from "@workspace/db";
 test("three-minute and custom durations save; invalid values are rejected", () => {
   const state = emptyProduction();
   assert.equal(state.story.targetMinutes, 3);
-  for (const minutes of [1, 3, 7, 10, 30, 90]) assert.equal(applyProductionPatch(state, { story: { targetMinutes: minutes } }).story.targetMinutes, minutes);
-  for (const minutes of [0, 91, 2.5, NaN]) assert.throws(() => applyProductionPatch(state, { story: { targetMinutes: minutes } }), /whole number/);
+  for (const minutes of [2 / 60, 0.5, 1, 2.5, 3, 7, 10, 30, 90]) assert.equal(applyProductionPatch(state, { story: { targetMinutes: minutes } }).story.targetMinutes, minutes);
+  for (const minutes of [0, 91, NaN]) assert.throws(() => applyProductionPatch(state, { story: { targetMinutes: minutes } }), /2 seconds to 90 minutes/);
 });
 test("a timed screenplay pasted into Summary keeps its four scenes and 180 seconds", () => {
   const script = [0, 1, 2, 3].map((n) => {

@@ -14,3 +14,9 @@ For authored scripts, allocate original speech deterministically before requesti
 **Why:** Copying through the writer produced rejected drafts and could drop wrapped lines. Repeated speech padding on very short shots also reduces usable dialogue time.
 
 **How to apply:** Preserve words and speaker order, count only speech consistently in planning and rendering, and keep the scene's authored total fixed. Use longer takes within supported limits when needed; reject genuinely impossible timing rather than silently deleting speech or expanding the scene.
+
+Use one minutes-and-seconds target control for summaries, not fixed Test/Short/Episode/Feature cards.
+
+**Why:** The user repeatedly rejected preset durations and the extra controls added around them.
+
+**How to apply:** Support sub-minute targets and retain authored script timings rather than forcing scripts to match a summary target.

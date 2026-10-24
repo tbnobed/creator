@@ -8,12 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { isFailed, isPending, type ProductionSettings, type Scene, type Story, type TargetMinutes } from "@/lib/production-types";
 
-const LENGTHS: { minutes: TargetMinutes; name: string; note: string }[] = [
-  { minutes: 3, name: "Test", note: "3 minutes" },
-  { minutes: 10, name: "Short", note: "about 10 min" },
-  { minutes: 30, name: "Episode", note: "about 30 min" },
-  { minutes: 90, name: "Feature", note: "about 90 min" },
-];
 
 type Props = {
   story: Story;
@@ -45,7 +39,8 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
   const ready = !running && !isFailed(story.draftStatus) && (!story.draftStatus || story.draftStatus.toUpperCase() === "READY");
   const hasInput = (mode === "summary" ? story.summary : story.script).trim().length > 0;
   const authored = mode === "script" || /^\s*(?:SCENE\s+\d+\b|(?:INT|EXT|INT\/EXT)\.)/mi.test(story.summary);
-  const validDuration = Number.isInteger(story.targetMinutes) && story.targetMinutes >= 1 && story.targetMinutes <= 90;
+  const totalSeconds = Math.round(story.targetMinutes * 60);
+  const validDuration = Number.isFinite(story.targetMinutes) && totalSeconds >= 2 && totalSeconds <= 5400;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -93,25 +88,17 @@ export function StoryStep({ story, onChange, onDraft: draftAction, onUpload, onC
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{authored ? "Script timing" : "Target length"}</p>
           {authored && <p className="text-sm text-muted-foreground" data-testid="text-script-timing">Your scene timings are kept as written.</p>}
           {!authored && <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {LENGTHS.map((l) => {
-              const active = story.targetMinutes === l.minutes;
-              return (
-                <button key={l.minutes} type="button" onClick={() => onChange({ targetMinutes: l.minutes })}
-                  className={`rounded-xl border p-3 text-left transition-all ${active ? "border-primary bg-primary/10 brand-glow" : "border-border bg-card hover:border-foreground/30"}`}
-                  data-testid={`button-length-${l.minutes}`} aria-pressed={active}>
-                  <span className="block font-bold">{l.name}</span>
-                  <span className="text-xs text-muted-foreground">{l.note}</span>
-                </button>
-              );
-            })}
+          <div className="flex items-end gap-3">
+            <label className="space-y-1 text-sm">Minutes
+              <Input type="number" min={0} max={90} step={1} value={Math.floor(totalSeconds / 60)} disabled={running}
+                onChange={e => onChange({ targetMinutes: (Math.trunc(Number(e.target.value)) * 60 + totalSeconds % 60) / 60 })} className="w-24" data-testid="input-target-minutes" />
+            </label>
+            <label className="space-y-1 text-sm">Seconds
+              <Input type="number" min={0} max={59} step={1} value={totalSeconds % 60} disabled={running}
+                onChange={e => onChange({ targetMinutes: (Math.floor(totalSeconds / 60) * 60 + Math.max(0, Math.min(59, Math.trunc(Number(e.target.value))))) / 60 })} className="w-24" data-testid="input-target-seconds" />
+            </label>
           </div>
-          <label className="mt-3 flex items-center gap-3 text-sm">
-            Exact target (minutes)
-            <Input type="number" min={1} max={90} step={1} value={story.targetMinutes} disabled={running}
-              onChange={e => onChange({ targetMinutes: Number(e.target.value) })} className="w-24" data-testid="input-target-minutes" />
-          </label>
-          {!validDuration && <p role="alert" className="text-sm text-destructive">Choose a whole number from 1 to 90 minutes.</p>}
+          {!validDuration && <p role="alert" className="text-sm text-destructive">Choose a duration from 2 seconds to 90 minutes.</p>}
           </>}
         </div>
 

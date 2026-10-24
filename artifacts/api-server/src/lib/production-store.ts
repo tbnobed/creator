@@ -49,7 +49,10 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
     if (story.summary !== undefined) next.story.summary = text(story.summary, "Summary", 20000, false);
     if (story.script !== undefined) next.story.script = text(story.script, "Script", 100000, false);
     if (story.targetMinutes !== undefined) {
-      next.story.targetMinutes = numberIn(story.targetMinutes, "Duration in minutes", 1, 90);
+      const minutes = story.targetMinutes;
+      if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes < 2 / 60 || minutes > 90)
+        throw new Error("Duration must be from 2 seconds to 90 minutes.");
+      next.story.targetMinutes = Math.round(minutes * 60) / 60;
     }
     if (story.sourceMode !== undefined) {
       if (!["summary", "script"].includes(String(story.sourceMode))) throw new Error("Choose Summary or Script.");
