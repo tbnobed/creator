@@ -46,6 +46,32 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Matching 4g slice comparison, 2026-10-25 UTC
+
+After an authorized reboot, GPU 1's allowed 4g.40gb slice and then GPU 0's
+4g.40gb slice each passed six alternating H3/FLUX jobs. The identical graphs
+used H3 1280×736/124 frames/20 steps and FLUX 1024×1024/4 steps, with dynamic
+VRAM and cudaMallocAsync disabled. All twelve outputs decoded successfully.
+No new kernel Xid/fatal PCIe errors or uncorrectable volatile ECC were found.
+
+Sampled peaks: GPU 1 67°C core/79°C memory/273.51 W; GPU 0 80°C core/
+89°C memory/311.60 W. Reported power limits remained 310 W. GPU 0's higher
+temperature merits attention but does not establish why earlier failures
+occurred at lower sampled temperatures.
+
+This does not demonstrate a fix: the prior failing full-resolution native-
+allocator run used GPU 0's **3g.40gb**, not its 4g.40gb slice. Both physical
+GPUs passing the matching 4g workload leaves intermittent hardware/path
+faults and profile/workload-dependent driver behavior unresolved.
+
+Private evidence:
+`/var/backups/obtv-h100-recovery/matched-slices-20261025T164248Z/`.
+Temporary overrides and intake-blocking rule were removed. All three video
+workers remain stopped under the persistent recovery hold. Internal Docker
+services are healthy; the reserved slice, MIG layout, 310 W limits, and
+operator thermal policy were not changed. Native allocator remains a
+diagnostic override, not a shared-launcher rollout.
+
 ### Full-resolution native-allocator failure, 2026-10-25 UTC
 
 The isolated H3 1280×736 / FLUX 1024×1024 test failed on job three.

@@ -1,11 +1,18 @@
 """Run on the isolated host. Does not clear queues or unload models manually."""
-import json, pathlib, subprocess, time, urllib.request, urllib.error, urllib.parse, sys
+import json, pathlib, subprocess, time, urllib.request, urllib.error, urllib.parse, sys, argparse
 
-full_resolution = "--full-resolution" in sys.argv
-root = pathlib.Path("/var/tmp/h100-native-full-swap" if full_resolution else "/tmp/h100-swap-probe")
+parser = argparse.ArgumentParser()
+parser.add_argument("--full-resolution", action="store_true")
+parser.add_argument("--port", type=int, default=8190)
+parser.add_argument("--results-dir")
+options = parser.parse_args()
+full_resolution = options.full_resolution
+root = pathlib.Path(options.results_dir or ("/var/tmp/h100-native-full-swap" if full_resolution else "/tmp/h100-swap-probe"))
 root.mkdir(mode=0o700, exist_ok=True)
+if list(root.glob("*-receipt.json")):
+    raise RuntimeError("Results directory contains previous submissions; use a fresh directory.")
 graphs = json.loads(pathlib.Path("/tmp/h100-swap-graphs.json").read_text())
-base = "http://127.0.0.1:8190"
+base = f"http://127.0.0.1:{options.port}"
 
 def api(route, payload=None):
     request = urllib.request.Request(base + route,

@@ -7,6 +7,12 @@ Never infer a ComfyUI worker's startup interpreter or restart mechanism from its
 
 Before diagnostic submissions, verify the effective command and allocator reported by ComfyUI, not just the override file.
 
+Diagnostic GPU pinning must also survive the service's EnvironmentFile precedence.
+
+**Why:** A temporary unit Environment assignment was overridden by the worker's environment file, preventing CUDA initialization before any diagnostic job ran.
+
+**How to apply:** Pin the approved MIG UUID at process launch, as the production launcher does, rather than relying on Environment alone. Verify the actual device before submission; never remove unrelated service environment settings.
+
 **Why:** A template MIG launcher drop-in sorted after an instance diagnostic drop-in and silently superseded its ExecStart. The API precondition caught the unchanged allocator before any jobs were submitted.
 
 **How to apply:** Account for template and instance drop-in ordering together, then assert both the expected flags and actual allocator name. Keep intake isolated until these checks pass.
@@ -52,6 +58,12 @@ An isolated full-resolution H3/FLUX test also lost GPU 0 with both settings disa
 **Why:** Passing repeated FLUX images did not generalize to H3. The recurrence without other video workers and with pre-failure telemetry means concurrency and overheating cannot be assumed as explanations.
 
 **How to apply:** Preserve the live NVIDIA report before recovery, keep failed workers offline, and distinguish card/PCIe-path faults from shared driver/GSP/MIG behavior through controlled comparisons rather than declaring another ComfyUI flag a fix.
+
+Track the MIG profile as a separate diagnostic variable, not just the physical GPU.
+
+**Why:** The same full-resolution H3/FLUX sequence passed on both allowed 4g.40gb slices after failing on GPU 0's 3g.40gb slice with the same allocator flags. This does not isolate profile causality or exclude an intermittent physical fault.
+
+**How to apply:** Compare like profiles first, then reproduce on the previously failing profile before attributing the issue to a card or declaring a workaround stable.
 
 **Why:** The Blackwell server's installed build rejects `--normalvram`; its default memory policy starts successfully without that flag.
 
