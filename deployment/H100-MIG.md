@@ -46,6 +46,28 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Previously failing 3g slice retest, 2026-10-25 UTC
+
+On the same boot as the matching 4g comparison, GPU 0's 3g.40gb slice
+passed the identical six-job full-resolution H3/FLUX sequence with dynamic
+VRAM disabled and the native allocator. All three 124-frame 1280×736 videos
+and three 1024×1024 images decoded successfully. Runtime was approximately
+31 minutes. Kernel logs showed no new Xid/fatal PCIe errors; sampled
+uncorrectable volatile ECC remained zero.
+
+GPU 0 sampled peaks were 66°C core, 79°C memory, and 229.44 W; reported
+power limit stayed at 310 W. These results do not establish a fix or a
+3g-profile-specific cause: this profile and configuration have now both
+failed and passed the same sequence across boots. All three allowed slices
+passed sequentially on this boot, not concurrently or under an extended soak.
+
+Private evidence:
+`/var/backups/obtv-h100-recovery/gpu0-3g-comparison-20261025T181035Z/`.
+Test overrides and temporary firewall rule were removed. All three video
+workers remain stopped under the recovery hold. Other internal services
+remain healthy. No reboot, shared allocator rollout, reserved-slice changes,
+or production reopening occurred during this retest.
+
 ### Matching 4g slice comparison, 2026-10-25 UTC
 
 After an authorized reboot, GPU 1's allowed 4g.40gb slice and then GPU 0's
@@ -93,8 +115,10 @@ do not establish production readiness.
 Live NVIDIA report, test outputs, journals, configuration and telemetry:
 `/var/backups/obtv-h100-recovery/20261025T000931Z/`.
 All three video workers are stopped under the persistent recovery hold.
-The temporary test override and firewall rule were removed; the failed
-GPU has not been rebooted again. Other internal services report healthy.
+The temporary test override and firewall rule were removed. This crash was
+subsequently recovered by the authorized reboot documented in the matching
+slice comparison above; it is historical failure evidence, not current GPU
+availability.
 
 ### Native allocator test, 2026-10-24
 

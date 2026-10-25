@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Run as root on the dual-H100 host after an explicitly approved recovery.
 set -euo pipefail
-RUN="/var/backups/obtv-h100-recovery/matched-slices-$(date -u +%Y%m%dT%H%M%SZ)"
+case "${1:-}" in
+  "") UNITS="1 0"; PROFILE="4g.40gb"; LABEL="matched-slices" ;;
+  --gpu0-3g) UNITS="2"; PROFILE="3g.40gb"; LABEL="gpu0-3g-comparison" ;;
+  *) echo "Unknown comparison mode"; exit 2 ;;
+esac
+RUN="/var/backups/obtv-h100-recovery/$LABEL-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -m 700 "$RUN"
 exec > >(tee "$RUN/comparison.log") 2>&1
 echo "EVIDENCE $RUN"
@@ -16,13 +21,13 @@ START=$(date -u --iso-8601=seconds)
 cleanup() {
   status=$?
   trap - EXIT
-  systemctl stop obtv-comfy@0 obtv-comfy@1 || true
+  for unit in $UNITS; do systemctl stop "obtv-comfy@$unit" || true; done
   journalctl -k --since "$START" --no-pager > "$RUN/kernel.log"
-  journalctl -u obtv-comfy@0 -u obtv-comfy@1 --since "$START" --no-pager > "$RUN/workers.log"
+  journalctl -u obtv-comfy@0 -u obtv-comfy@1 -u obtv-comfy@2 --since "$START" --no-pager > "$RUN/workers.log"
   if [ "$status" != 0 ]; then
     (cd "$RUN"; timeout 180 nvidia-bug-report.sh --safe-mode) || true
   fi
-  for unit in 0 1; do
+  for unit in $UNITS; do
     rm -f "/etc/systemd/system/obtv-comfy@$unit.service.d/zzz-matched-slice-test.conf"
   done
   systemctl daemon-reload
@@ -33,10 +38,12 @@ cleanup() {
 }
 iptables -I INPUT 1 ! -i lo -p tcp --dport 8188:8190 -m comment --comment obtv-matched-slice-test -j REJECT
 trap cleanup EXIT
-for unit in 1 0; do
+for unit in $UNITS; do
   /usr/local/sbin/obtv-h100-guard --check
   if [ "$unit" = 1 ]; then
     MIG=MIG-afbf9abb-9c62-570c-a646-6a4022e64a3a
+  elif [ "$unit" = 2 ]; then
+    MIG=MIG-e0c9f37c-870d-504b-8345-80326d502d98
   else
     MIG=MIG-b215bab1-2252-5f4c-acb8-496dcd3a3556
   fi
@@ -56,7 +63,7 @@ EOF
   systemctl daemon-reload
   systemctl show "obtv-comfy@$unit" -p ExecStart -p Environment > "$RUN/gpu$unit-service.txt"
   grep -q -- --disable-cuda-malloc "$RUN/gpu$unit-service.txt"
-  echo "STARTING GPU $unit matching 4g.40gb slice"
+  echo "STARTING worker $unit on $PROFILE slice"
   systemctl start "obtv-comfy@$unit"
   ready=0
   for attempt in $(seq 1 90); do
@@ -65,11 +72,11 @@ EOF
     sleep 2
   done
   test "$ready" = 1
-  /opt/obtv/venv/bin/python -c 'import json,sys; s=json.load(open(sys.argv[1])); assert all("4g.40gb" in d["name"] and "native" in d["name"] for d in s["devices"]), s["devices"]' "$RUN/gpu$unit-startup.json"
+  /opt/obtv/venv/bin/python -c 'import json,sys; s=json.load(open(sys.argv[1])); assert s["devices"] and all(sys.argv[2] in d["name"] and "native" in d["name"] for d in s["devices"]), s["devices"]' "$RUN/gpu$unit-startup.json" "$PROFILE"
   /opt/obtv/venv/bin/python -u /tmp/h100-swap-probe.py --full-resolution --port "$port" --results-dir "$RUN/gpu$unit"
   systemctl stop "obtv-comfy@$unit"
   rm "$dir/zzz-matched-slice-test.conf"
   systemctl daemon-reload
-  echo "GPU $unit SIX JOBS PASSED"
+  echo "WORKER $unit ($PROFILE) SIX JOBS PASSED"
 done
-echo "BOTH MATCHING SLICES PASSED. This is not a long-term stability certification."
+echo "SELECTED COMPARISON PASSED. This is not a long-term stability certification."

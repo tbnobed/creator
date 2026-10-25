@@ -61,9 +61,9 @@ An isolated full-resolution H3/FLUX test also lost GPU 0 with both settings disa
 
 Track the MIG profile as a separate diagnostic variable, not just the physical GPU.
 
-**Why:** The same full-resolution H3/FLUX sequence passed on both allowed 4g.40gb slices after failing on GPU 0's 3g.40gb slice with the same allocator flags. This does not isolate profile causality or exclude an intermittent physical fault.
+**Why:** The same full-resolution H3/FLUX sequence passed on both allowed 4g.40gb slices after failing on GPU 0's 3g.40gb slice with the same allocator flags. A subsequent 3g retest also passed. The previously failing profile/configuration has both failed and passed across boots, so neither profile causality nor a permanent workaround is established.
 
-**How to apply:** Compare like profiles first, then reproduce on the previously failing profile before attributing the issue to a card or declaring a workaround stable.
+**How to apply:** Compare like profiles and preserve boot/workload context. Do not attribute intermittent PCIe loss to a card or MIG profile from one short comparison, or treat a passing retest as proof of a fix.
 
 **Why:** The Blackwell server's installed build rejects `--normalvram`; its default memory policy starts successfully without that flag.
 
