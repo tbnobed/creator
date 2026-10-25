@@ -46,6 +46,30 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Full-resolution native-allocator failure, 2026-10-25 UTC
+
+The isolated H3 1280×736 / FLUX 1024×1024 test failed on job three.
+The first 124-frame H3 output and the following FLUX image completed and
+decoded correctly. The second H3 job ran through sampling, loaded its
+audio/video VAEs, then GPU 0 suffered fatal PCIe SDES/Xid 79 at 00:09:31 UTC.
+The last healthy sample one second earlier was 63°C core, 75°C memory,
+177.22 W, 310 W limit, zero uncorrectable volatile ECC. Whole-test peaks
+were 66°C core and 78°C memory. The native allocator and dynamic-VRAM
+disable flag were verified before submission; no other CreatorAI worker
+was running.
+
+The GSP history again showed a pending GSP_RM_ALLOC after completed FREE
+requests. This is context, not proof that GSP caused the link loss.
+Neither disabling dynamic VRAM nor adding the native allocator is a
+demonstrated fix. The low-resolution swap and repeated-FLUX successes
+do not establish production readiness.
+
+Live NVIDIA report, test outputs, journals, configuration and telemetry:
+`/var/backups/obtv-h100-recovery/20261025T000931Z/`.
+All three video workers are stopped under the persistent recovery hold.
+The temporary test override and firewall rule were removed; the failed
+GPU has not been rebooted again. Other internal services report healthy.
+
 ### Native allocator test, 2026-10-24
 
 After an authorized recovery reboot, worker 8190 alone ran with both

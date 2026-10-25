@@ -41,11 +41,17 @@ Both dual-H100 ComfyUI workers should start automatically at boot.
 
 Do not assume historical ComfyUI VRAM flags still exist on newer workers.
 
-Disabling dynamic VRAM is not a sufficient mitigation for the dual-H100 PCIe loss.
+Neither disabling dynamic VRAM nor combining that with the native CUDA allocator is a demonstrated fix for the dual-H100 PCIe loss.
 
 **Why:** The operator-approved rollout failed again despite the disable flag, after an isolated low-resolution H3/FLUX test had passed. The recurrence followed repeated FLUX image jobs without a new model-load message, and only one video worker showed render activity. Neither model-family swapping nor concurrent rendering is established as a necessary trigger.
 
 **How to apply:** Do not present the earlier passing test as a fix. Reproduce representative image sizes and repeated same-model jobs as well as swaps. Separate dynamic VRAM from CUDA allocator/offloading options, changing one variable at a time; a CUDA transfer stack after PCIe loss is not proof of the initiating cause.
+
+An isolated full-resolution H3/FLUX test also lost GPU 0 with both settings disabled. It reached H3 video decoding; sampled core and memory temperatures were moderate immediately before PCIe loss.
+
+**Why:** Passing repeated FLUX images did not generalize to H3. The recurrence without other video workers and with pre-failure telemetry means concurrency and overheating cannot be assumed as explanations.
+
+**How to apply:** Preserve the live NVIDIA report before recovery, keep failed workers offline, and distinguish card/PCIe-path faults from shared driver/GSP/MIG behavior through controlled comparisons rather than declaring another ComfyUI flag a fix.
 
 **Why:** The Blackwell server's installed build rejects `--normalvram`; its default memory policy starts successfully without that flag.
 
