@@ -83,6 +83,6 @@ A reviewed opening is necessary input validation, not a demonstrated cure for H3
 
 Stable-exposure prompt text and a bright opening guide do not guarantee stable lighting through an H3 clip. An exposure check is a cascade safeguard, not a demonstrated prevention mechanism.
 
-**Why:** A user-supplied fading clip was byte-identical to a retained worker output. Its actual prompt prohibited dimming, and its starting guide matched the bright approved composition. Thus fading can originate within a fresh guided render, not only from inheriting a dark prior frame.
+**Why:** A user-supplied fading clip was byte-identical to a retained worker output. Its actual prompt prohibited dimming, and its starting guide matched the bright approved composition. A matched-input, matched-seed comparison retained a bright ending after the negated unwanted-effect descriptions were replaced with positive illumination instructions. This supports the prompt correction for that example, not universal stability or a quantization/decoder diagnosis.
 
-**How to apply:** Inspect the actual submitted graph, input images and raw worker output before attributing fading to prompts, previous-frame inheritance, precision, or a specific GPU. Distinguish confirmed pipeline stage from an unproven model-versus-decoder cause.
+**How to apply:** Use positive-only automatic lighting descriptions, preserve explicitly authored lighting changes, and retain the exposure safeguard. Inspect the actual submitted graph, input images and raw worker output before attributing fading to prompts, previous-frame inheritance, precision, or a specific GPU. Distinguish a measured comparison from an unproven general diagnosis.

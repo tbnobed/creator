@@ -10,7 +10,7 @@ import { stateOf } from "./production-store";
 import { productionAppearance, approvedProductionProp } from "./production-appearance";
 import { requireOpening } from "./production-openings";
 import { requireProductionScenery } from "./production-scenery";
-import { hasSevereExposureDrift, meanFrameBrightness, productionExposureLock, requestsExposureChange } from "./production-exposure";
+import { hasSevereExposureDrift, meanFrameBrightness, productionExposureForShot, requestsExposureChange } from "./production-exposure";
 import { text, type ProductionScene } from "./production-types";
 import { mediaStorage } from "./storage-service";
 import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject, retryLongFormShot, startLongFormProject, updateLongFormShot } from "./long-form-service";
@@ -235,6 +235,6 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
     referenceImageKeys: keys, mandatoryReferenceImageCount: keys.length,
     explicitReferenceImagesOnly: true,
     startFrameKey, seed: cast[0]?.seed ?? place.seed,
-    continuityContext: `Location ${scene.location}, ${scene.timeOfDay}. ${productionExposureLock} ${notes.join(". ")}`.slice(0, 5000),
+    continuityContext: `Location ${scene.location}, ${scene.timeOfDay}. ${productionExposureForShot(shot.prompt)} ${notes.join(". ")}`.slice(0, 5000),
   };
 }

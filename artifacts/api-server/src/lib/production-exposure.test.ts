@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { hasSevereExposureDrift, meanFrameBrightness, productionExposureLock, requestsExposureChange } from "./production-exposure";
+import { hasSevereExposureDrift, meanFrameBrightness, productionExposureForShot, productionExposureLock, requestsExposureChange } from "./production-exposure";
 
 test("severe cumulative darkening plus an in-clip decline stops a cascade", () => {
   assert.equal(hasSevereExposureDrift(120, 85, 45), true);
@@ -19,11 +19,16 @@ test("stable shots, small shifts and intentionally dark baselines do not trigger
 test("exposure instructions preserve exact continuation and explicitly authored changes", () => {
   assert.match(productionExposureLock, /fixed lighting baseline/);
   assert.match(productionExposureLock, /exact starting image/);
+  assert.match(productionExposureLock, /including the final frame/);
+  assert.doesNotMatch(productionExposureLock, /\b(?:no|not|never|without|unless|fade|black|darker|darkening|dimming|vignette)\b/i);
   assert.equal(requestsExposureChange("The lights dim."), true);
   assert.equal(requestsExposureChange("Fade to black."), true);
   assert.equal(requestsExposureChange("A dim bakery. Nora gives Eli bread."), false);
   assert.equal(requestsExposureChange("The beam stutters, then dies."), true);
   assert.equal(requestsExposureChange("Eli turns the lights off."), true);
+  assert.equal(productionExposureForShot("A dim bakery. Nora gives Eli bread."), productionExposureLock);
+  assert.match(productionExposureForShot("Eli turns the lights off."), /Follow the lighting progression explicitly/);
+  assert.doesNotMatch(productionExposureForShot("Fade to black."), /Maintain the opening frame's illumination/);
 });
 
 test("real ffmpeg decoding measures fading video and its unmodified final frame", async () => {

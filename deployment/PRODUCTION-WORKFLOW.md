@@ -3,6 +3,28 @@
 New projects start at `/projects/new` and resume at `/productions/:id`.
 Existing render projects keep their `/projects/:id` editor.
 
+## Lighting continuity
+
+Automatically generated lighting guidance describes the desired illumination,
+white balance, midtones and shadow detail positively through the final frame.
+It does not name unwanted visual effects inside positive conditioning.
+Explicitly authored lighting changes remain in the shot action and use
+action-following guidance instead of a conflicting constant-exposure instruction.
+
+The exposure safeguard still checks the unmodified final frame before
+continuation. Prompt wording is not an exposure guarantee, and changing it
+does not repair completed videos or update already queued worker prompts.
+This is an API-side change: a separately hosted Docker installation needs
+its API rebuilt from the updated source before subsequent renders use it.
+
+An isolated same-input, same-seed comparison on the dual-5090 worker retained
+124 frames at 24 fps and changed only the generated exposure instruction
+(plus the diagnostic output filename). Mean grayscale brightness changed from
+101.34 → 39.34 in the original to 100.56 → 98.80 with positive-only guidance.
+The new clip ranged from 98.16 to 100.56 across all frames. This is evidence
+for the tested shot, not a guarantee for every seed, scene or model.
+No production shot record or existing output was replaced by the diagnostic.
+
 ## Deployment
 
 Back up the database, update the source, then rebuild **both API and web**:

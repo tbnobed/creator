@@ -266,3 +266,17 @@ mtime_ms = 1793141200000
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/d0e04b48-1fae-444d-9020-26495eb325ed/118dfa33-8dad-41d0-8747-319d18c43e48"
 storage_version_token = "1793141273992876"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "ZLCiUWep5ZzGZsrgWkw4B"
+uri = "file://generated-artifacts/h3-positive-exposure/output.mp4"
+type = "video"
+title = "Shot 19 — positive-lighting comparison"
+description = "Same worker, source images, seed and sampler settings as the fading original. Only the automatic lighting wording and diagnostic filename changed. Brightness stayed near 101 at the start and 99 at the end. This is a diagnostic output, not an automatic replacement of the production shot."
+logical_id = "fa747228-2263-4e39-97d0-8291b30af786"
+content_hash = "sha256:dba5e7e0572efb520ca75bfd11472e5ccbeb25d3004b712bc75214bbe1a6bf7e"
+size = 800160
+mtime_ms = 1793142390000
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/fa747228-2263-4e39-97d0-8291b30af786/0a3b2348-bdf1-4ca2-b3a0-ec78d6d92127"
+storage_version_token = "1793142508798645"
+content_type = "video/mp4"

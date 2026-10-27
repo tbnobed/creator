@@ -2,10 +2,20 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 const exec = promisify(execFile);
 
-export const productionExposureLock = "Exposure continuity: use the approved complete scene composition and scenery reference as the fixed lighting baseline, not a progressively darker reinterpretation of the previous frame. Keep exposure, white balance, midtone brightness and shadow detail stable throughout this shot and across continuations. No fade to black, vignette buildup or gradual dimming unless explicitly requested in this shot's action. The previous frame fixes the exact starting image; it does not request an additional decrease in exposure.";
+// Describe only the desired lighting in positive conditioning. Negated visual
+// effects can still introduce those concepts into the model's conditioning.
+// Keep authored shot actions intact; this instruction is not an exposure guarantee.
+export const productionExposureLock = "Exposure continuity: use the approved complete scene composition and scenery reference as the fixed lighting baseline. Preserve the supplied previous frame as the exact starting image. Maintain the opening frame's illumination, exposure, white balance, midtone brightness, colors and visible shadow detail consistently throughout the shot, including the final frame.";
 
 export function requestsExposureChange(action: string): boolean {
   return /\b(?:fade(?:s|d| out)? to black|blackout|lights? (?:go(?:es)? out|dim(?:s)?|turn(?:s)? off)|(?:switch|turn)(?:es|s|ed)? (?:off (?:the )?lights?|(?:the )?lights? off)|darken(?:s|ing)? gradually|gradually (?:dim|darken)|(?:beam|light|lamp)[^.!?\n]{0,60}\b(?:dies|goes dark|goes out|fades out))\b/i.test(action);
+}
+
+export function productionExposureForShot(action: string): string {
+  if (requestsExposureChange(action)) {
+    return "Exposure continuity: use the approved complete scene composition and scenery reference as the opening lighting baseline. Preserve the supplied previous frame as the exact starting image. Follow the lighting progression explicitly described in this shot's action.";
+  }
+  return productionExposureLock;
 }
 
 /** Conservative cascade stop, not automatic grading: never change a continuity frame. */

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { h3DialogueTurns } from "./h3-dialogue";
 import { compileMiniMaxH3PromptForTest, type GenerationRequest } from "./generation-service";
+import { productionExposureForShot, productionExposureLock } from "./production-exposure";
 
 const cast = [
   { id: "nora", name: "Nora Finch", promptDescription: "An older baker." },
@@ -14,6 +15,25 @@ const input: GenerationRequest = {
   generationMode: "H3", durationSeconds: 10, fps: 24, width: 1280, height: 736,
   qualityPreset: "STANDARD", seedMode: "FIXED", seed: 42,
 };
+
+test("compiled H3 production prompts carry positive-only exposure instructions", () => {
+  const prompt = compileMiniMaxH3PromptForTest(cast, undefined, {
+    ...input, continuityContext: productionExposureLock,
+  });
+  assert.match(prompt, /Maintain the opening frame's illumination/);
+  assert.match(prompt, /including the final frame/);
+  assert.doesNotMatch(prompt, /fade to black|progressively darker|vignette buildup|gradual dimming|decrease in exposure/i);
+  assert.equal(prompt.split("My name is Nora.").length - 1, 1);
+});
+
+test("positive-only lighting defaults preserve explicitly authored shot actions", () => {
+  const prompt = compileMiniMaxH3PromptForTest(cast, undefined, {
+    ...input, prompt: "Nora closes the bakery. Fade to black.",
+    continuityContext: productionExposureForShot("Nora closes the bakery. Fade to black."),
+  });
+  assert.match(prompt, /Nora closes the bakery\. Fade to black\./);
+  assert.doesNotMatch(prompt, /Maintain the opening frame's illumination/);
+});
 
 test("speaker labels become separate metadata while literal name mentions remain speech", () => {
   assert.deepEqual(h3DialogueTurns(input.dialogue!, cast.map(c => c.name)), [
