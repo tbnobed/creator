@@ -18,6 +18,7 @@ import {
   type GenerationJob,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { h3DialogueTurns } from "./h3-dialogue";
 import { attachFalVideoReferences } from "./fal/client";
 import { comfyServerLockKey, getAssignableWorker, liveWorker, liveWorkerById } from "./worker-lifecycle";
 import { ComfyUIClient, isTransientComfyUIRequestError } from "./comfy/client";
@@ -631,12 +632,14 @@ function compileMiniMaxH3StandardPrompt(
 ): string {
   const settingSubjectNumber = setting ? characters.length + 1 : null;
   const dialogue = input.dialogue?.trim();
+  const dialogueTurns = dialogue ? h3DialogueTurns(dialogue, characters.map(c => c.name)) : null;
   const shotPrompt = shotPromptOnly(input.prompt);
   // A single-video creator deliberately selected these assets. Long-form
   // projects may select a cast/set for the whole project while individual
   // shots (such as B-roll) omit them.
   const referencedCharacters = input.longFormShotId
     ? characters.filter((character) => (
+      dialogueTurns?.some(turn => turn.speakerIndex === characters.indexOf(character)) ||
       escapedWordPattern(character.name).test(shotPrompt) ||
       /\b(?:presenter|character|woman|man|actor|person|subject|host|guest)\b/i.test(shotPrompt)
     ))
@@ -668,7 +671,13 @@ function compileMiniMaxH3StandardPrompt(
   const isVoiceover = !hasOnScreenSpeech && /\b(off[- ]screen|voice[- ]?over|narration)\b/i.test(shotPrompt);
   const hasAuthoredCamera = /\bcamera\s*:/i.test(shotPrompt);
   const hasAuthoredMotion = /\bmotion\s*:/i.test(shotPrompt);
-  const spokenAction = dialogue
+  const spokenAction = dialogueTurns
+    ? dialogueTurns.map(turn => {
+      const speaker = turn.speakerIndex === null ? primarySpeaker : `<Subject ${turn.speakerIndex + 1}>`;
+      if (turn.voiceover) return `The off-screen narrator (S0) says in an off-screen voiceover: <d>[English] ${turn.text}</d> while the on-screen characters' lips remain closed.`;
+      return `${speaker} (S${turn.speakerIndex === null ? 1 : turn.speakerIndex + 1}) says clearly at a natural speaking rate: <d>[English] ${turn.text}</d>`;
+    }).join(" Then ")
+    : dialogue
     ? isVoiceover
       ? `${primarySpeaker} (S1) says in an off-screen voiceover: <d>[English] ${dialogue}</d> while the corresponding on-screen character's lips remain completely closed.`
       : `${primarySpeaker} (S1) says clearly at a natural speaking rate: <d>[English] ${dialogue}</d>`
@@ -682,7 +691,7 @@ function compileMiniMaxH3StandardPrompt(
       ? `${characterPlacement} ${referencedCharacters.length === 1 ? "appears" : "appear"} with ${referencedCharacters.length === 1 ? "the referenced identity" : "their referenced identities"} fully preserved.`
       : "",
     usesSettingReference && settingSubjectNumber ? `The shot takes place in <Subject ${settingSubjectNumber}>.` : "",
-    spokenAction,
+    dialogueTurns ? "" : spokenAction,
     input.continuityContext ? `Continuity locks for this shot: ${compactPromptText(input.continuityContext)}` : "",
     compactPromptText(shotPrompt),
     input.cameraInstructions && !hasAuthoredCamera ? `Camera: ${compactPromptText(input.cameraInstructions)}` : "",
@@ -711,7 +720,7 @@ function compileMiniMaxH3StandardPrompt(
   ];
 
   return [
-    dialogue ? `exact_dialogue:\n${dialogue}` : "",
+    dialogue ? `exact_dialogue:\n${dialogueTurns ? `${spokenAction}\nSpeak each utterance once, in order. Speaker identities are metadata, not spoken words. Only the designated speaker moves their lips during their turn; the others listen silently.` : dialogue}` : "",
     `subject_definitions:\n${subjectDefinitions.join("\n") || "No supplied reference subject is required to appear in this shot."}`,
     `summary:\n[reference generation] Create a single-shot target video using ${summarySubjects || "the described scene"}.`,
     `retention_analysis:\n${retention.join("\n") || "No supplied subject is required to appear in this shot; prioritize the described scene."}`,

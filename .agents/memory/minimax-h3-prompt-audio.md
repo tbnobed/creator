@@ -17,6 +17,12 @@ MiniMax H3 full-reference workflows should use the official six-section schema: 
 
 Preserve the empirically working standard/image-reference speech grammar even when official prompt guidance suggests a cleaner equivalent. Dialogue appears once inside `<d>`, but the established speaker-event wording and soundscape clarity reinforcement are part of the conditioning contract.
 
+Treat screenplay speaker labels as non-spoken metadata, distinct from literal name mentions in the authored words.
+
+**Why:** A creator's bakery-film transcript contained repeated pronunciations of `ELI` and other speaker cues. Passing labeled multi-speaker dialogue as one utterance both leaked labels into speech and lost turn ownership.
+
+**How to apply:** Preserve each utterance verbatim, bind each labeled turn separately, and do not duplicate those utterances elsewhere in the compiled prompt. Unknown/ambiguous cast labels must not silently become spoken text. Keep this fix separate from the established unlabeled speech and reference-video paths; audible render quality still needs render-level verification.
+
 **Why:** Replacing the working standard compiler with narrator-aware subject binding and cleaner speaker wording caused output to regress from intelligible speech to gibberish, despite remaining structurally valid.
 
 **How to apply:** Keep reference-video prompt experiments physically isolated. For standard jobs, do not force the first selected cast member into an off-screen narrator subject, reorder speech conditioning, or rewrite the established `says clearly at a natural speaking rate` / voiceover event without an audible A/B render.

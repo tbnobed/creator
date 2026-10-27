@@ -27,6 +27,12 @@ The user requires exact starting-frame continuation, not the previous frame supp
 
 **How to apply:** Do not alias H3 reference images as first frames. A workflow must consume a true starting-frame input without displacing mandatory cast/scenery references; otherwise it needs an approved composed-frame stage before animation.
 
+Do not silently brighten or replace the continuation frame to hide cumulative exposure drift.
+
+**Why:** The creator reported progressively darkening shots, but exact first-frame continuity remains an explicit requirement. Automatic grading of the handed-off image would change that contract rather than prove a lighting fix.
+
+**How to apply:** Keep the approved scene lighting as the baseline. Detect severe unintended drift and request correction before propagating it; distinguish those guardrails from a verified model-level cure and preserve intentional lighting changes.
+
 When the user requests Long-Form verification, test a visible application project through its actual steps, not only a direct ComfyUI submission.
 
 **Why:** The user repeatedly requested end-to-end verification and rejected a standalone worker diagnostic as evidence that their project works.

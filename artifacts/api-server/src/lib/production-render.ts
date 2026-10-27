@@ -10,6 +10,7 @@ import { stateOf } from "./production-store";
 import { productionAppearance, approvedProductionProp } from "./production-appearance";
 import { requireOpening } from "./production-openings";
 import { requireProductionScenery } from "./production-scenery";
+import { hasSevereExposureDrift, meanFrameBrightness, productionExposureLock, requestsExposureChange } from "./production-exposure";
 import { text, type ProductionScene } from "./production-types";
 import { mediaStorage } from "./storage-service";
 import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject, retryLongFormShot, startLongFormProject, updateLongFormShot } from "./long-form-service";
@@ -210,6 +211,19 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
     try {
       const output = path.join(directory, "frame.png");
       await exec("ffmpeg", ["-y", "-sseof", "-1", "-i", mediaStorage.resolvePath(previous.outputStorageKey), "-update", "1", output], { timeout: 60000, maxBuffer: 1024 * 1024 });
+      // Preserve the exact final frame. Stop a severe unintended fade before
+      // passing it to another sampler, rather than brightening it silently.
+      if (!requestsExposureChange(previous.prompt) && !requestsExposureChange(shot.prompt)) {
+        const opening = assets.find(a => a.id === composed.assetId)!;
+        const [anchor, first, last] = await Promise.all([
+          meanFrameBrightness(mediaStorage.resolvePath(opening.storageKey)),
+          meanFrameBrightness(mediaStorage.resolvePath(previous.outputStorageKey)),
+          meanFrameBrightness(output),
+        ]);
+        if (hasSevereExposureDrift(anchor, first, last)) {
+          throw new Error(`Exposure drift detected after shot ${previous.shotNumber}: its ending is substantially darker than both its opening and the approved scene image. Correct and re-render that shot with stable lighting before continuing. The exact continuation frame has not been altered.`);
+        }
+      }
       startFrameKey = await mediaStorage.storeGenerationReferenceMedia("image/png", await readFile(output), row.tenantId);
     } finally { await rm(directory, { recursive: true, force: true }); }
   } else {
@@ -221,6 +235,6 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
     referenceImageKeys: keys, mandatoryReferenceImageCount: keys.length,
     explicitReferenceImagesOnly: true,
     startFrameKey, seed: cast[0]?.seed ?? place.seed,
-    continuityContext: `Location ${scene.location}, ${scene.timeOfDay}. ${notes.join(". ")}`.slice(0, 5000),
+    continuityContext: `Location ${scene.location}, ${scene.timeOfDay}. ${productionExposureLock} ${notes.join(". ")}`.slice(0, 5000),
   };
 }
