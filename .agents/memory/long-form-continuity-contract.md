@@ -86,3 +86,9 @@ Stable-exposure prompt text and a bright opening guide do not guarantee stable l
 **Why:** A user-supplied fading clip was byte-identical to a retained worker output. Its actual prompt prohibited dimming, and its starting guide matched the bright approved composition. A matched-input, matched-seed comparison retained a bright ending after the negated unwanted-effect descriptions were replaced with positive illumination instructions. This supports the prompt correction for that example, not universal stability or a quantization/decoder diagnosis.
 
 **How to apply:** Use positive-only automatic lighting descriptions, preserve explicitly authored lighting changes, and retain the exposure safeguard. Inspect the actual submitted graph, input images and raw worker output before attributing fading to prompts, previous-frame inheritance, precision, or a specific GPU. Distinguish a measured comparison from an unproven general diagnosis.
+
+Shot correction requires stopping a running queue, not requiring every project to transition from running to paused. Keep the ordinary manual Pause command strict.
+
+**Why:** A creator could not re-render a completed shot in a failed production because the correction flow unconditionally invoked the running-only Pause operation.
+
+**How to apply:** Treat already-stopped projects as ready for correction, preserve protections for active shots and final assembly, and validate lifecycle decisions under the project lock.

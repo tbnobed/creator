@@ -131,9 +131,11 @@ export async function runProductionRenderAction(row: ProductionProjectRow, actio
     const shots = await db.select().from(longFormShotsTable).where(eq(longFormShotsTable.projectId, row.renderProjectId));
     const targets = shots.filter(s => payload.shotId ? s.id === payload.shotId : s.sceneNumber === payload.sceneNumber);
     if (!targets.length) throw new Error("Choose a shot belonging to this production.");
-    await pauseLongFormProject(row.renderProjectId);
+    if (targets.some(shot => ["QUEUED", "RENDERING"].includes(shot.status))) {
+      throw new Error("Wait for the selected shot's current render to finish before correcting it.");
+    }
+    await pauseLongFormProject(row.renderProjectId, { forCorrection: true });
     for (const shot of targets) {
-      if (["QUEUED", "RENDERING"].includes(shot.status)) throw new Error("Wait for the selected shot's current render to finish before correcting it.");
       await updateLongFormShot(row.renderProjectId, shot.id, { prompt: `${shot.prompt}\nCorrection: ${correction}`.slice(0, 20000) });
       if (shot.status === "FAILED" || shot.status === "CANCELLED") await retryLongFormShot(row.renderProjectId, shot.id);
     }

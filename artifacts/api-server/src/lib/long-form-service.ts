@@ -1798,8 +1798,21 @@ export async function updateLongFormTimeline(projectId: string, input: LongFormT
   return presentLongFormProject(result.updated, true);
 }
 
-export async function pauseLongFormProject(projectId: string) {
+export function longFormPauseDisposition(status: string, forCorrection = false): "pause" | "unchanged" {
+  if (status === "RUNNING") return "pause";
+  if (forCorrection && ["PAUSED", "FAILED", "READY", "COMPLETED", "EDITING", "CANCELLED"].includes(status)) return "unchanged";
+  if (forCorrection && status === "ASSEMBLING") throw new Error("Wait for final video assembly to finish before correcting a shot.");
+  throw new Error("Only a running project can be paused");
+}
+
+export async function pauseLongFormProject(projectId: string, options: { forCorrection?: boolean } = {}) {
   const project = await withProjectLock(projectId, async () => {
+    const [current] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
+    if (!current) throw new ResourceNotFoundError("Long-form project not found");
+    // Correction needs a stopped queue, not a transition from RUNNING.
+    // Check under the same project lock as the transition so failed/paused
+    // projects remain correctable without weakening the ordinary Pause API.
+    if (longFormPauseDisposition(current.status, options.forCorrection) === "unchanged") return current;
     const [updated] = await db.update(longFormProjectsTable)
       .set({ status: "PAUSED" })
       .where(and(eq(longFormProjectsTable.id, projectId), eq(longFormProjectsTable.status, "RUNNING")))
