@@ -252,3 +252,17 @@ mtime_ms = 1793140958655
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/cc46d789-b944-4ef9-97ff-c5d094c272ff/cb9a43ee-dc61-476f-86b4-aa065b2e402f"
 storage_version_token = "1793140963485781"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "bXsjwS95e-hjhn2e1fdLq"
+uri = "file://generated-artifacts/shot19-inputs.jpg"
+type = "image"
+title = "Shot 19: actual worker inputs"
+description = "Retrieved from the exact worker job whose output matches the uploaded video byte-for-byte. The starting guide is identical to the bright approved composition; the scenery reference is also brightly lit."
+logical_id = "d0e04b48-1fae-444d-9020-26495eb325ed"
+content_hash = "sha256:7b2a895021686f0592151f485d577e71bd026f78c365cb40dbadbaf9320832ce"
+size = 131671
+mtime_ms = 1793141200000
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/d0e04b48-1fae-444d-9020-26495eb325ed/118dfa33-8dad-41d0-8747-319d18c43e48"
+storage_version_token = "1793141273992876"
+content_type = "image/jpeg"

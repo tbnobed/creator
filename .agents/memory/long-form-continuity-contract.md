@@ -80,3 +80,9 @@ A reviewed opening is necessary input validation, not a demonstrated cure for H3
 **Why:** A second live two-scene test used the approved composition, correct empty workshop and a cropped prop reference with library fallbacks disabled. The workshop still changed into a neutral backdrop during close-ups. The character and vest remained recognizable, but scenery continuity failed.
 
 **How to apply:** Do not advertise this H3 path as fully continuity-verified. Preserve failed outputs for comparison and obtain a deliberate workflow/model decision rather than repeating the same render or silently charging for a paid alternative.
+
+Stable-exposure prompt text and a bright opening guide do not guarantee stable lighting through an H3 clip. An exposure check is a cascade safeguard, not a demonstrated prevention mechanism.
+
+**Why:** A user-supplied fading clip was byte-identical to a retained worker output. Its actual prompt prohibited dimming, and its starting guide matched the bright approved composition. Thus fading can originate within a fresh guided render, not only from inheriting a dark prior frame.
+
+**How to apply:** Inspect the actual submitted graph, input images and raw worker output before attributing fading to prompts, previous-frame inheritance, precision, or a specific GPU. Distinguish confirmed pipeline stage from an unproven model-versus-decoder cause.
