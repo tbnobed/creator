@@ -238,3 +238,17 @@ mtime_ms = 1792777644726
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/5d44bfd5-8d90-44f7-af74-af3d8b82b0cd/60d4e138-4767-4615-b972-81ec45eb2a78"
 storage_version_token = "1792777802515316"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "SiVGmdvkxo82MoGL7oVMB"
+uri = "file://generated-artifacts/shot19-exposure-comparison.jpg"
+type = "image"
+title = "Shot 19: opening versus ending"
+description = "Top left: 0 seconds. Top right: 1 second. Bottom left: 3 seconds. Bottom right: final frame at 5.125 seconds. The rendered image visibly darkens near the end."
+logical_id = "cc46d789-b944-4ef9-97ff-c5d094c272ff"
+content_hash = "sha256:5662886e5b215cb440b4822a07f35361d0c731b126c884473f1b065ddec690e9"
+size = 148741
+mtime_ms = 1793140958655
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/cc46d789-b944-4ef9-97ff-c5d094c272ff/cb9a43ee-dc61-476f-86b4-aa065b2e402f"
+storage_version_token = "1793140963485781"
+content_type = "image/jpeg"
