@@ -46,6 +46,36 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Read-only failure comparison, 2026-10-27 UTC
+
+Six archived kernel captures (October 7, 23, 24 twice, 25, and 27) show the
+same failing path: upstream root port `c0:01.1` records DPC/fatal SDES
+(Surprise Down), and endpoint `c1:00.0` (physical GPU 0) records Xid 79.
+GPU 1's `f1:00.0` records Xid 154 recovery advice, not Xid 79 in those
+captures. GSP history contains different pending calls across events;
+an incomplete allocation/control RPC is not itself evidence of the cause.
+The four available NVIDIA crash reports contain no Xid 119/120 events.
+
+Live inspection after recovery found both endpoints at PCIe Gen5 x16,
+ASPM disabled at both root ports/endpoints, matching VBIOS `96.00.30.00.01`,
+and driver `580.178.04`. Current AER counters are zero since reboot; they
+do not erase the archived fatal errors. No new machine-check/IOMMU fault
+was found in this boot. BMC has no new SEL events after October 6; its
+current clock is aligned with UTC, unlike the historical offset.
+
+This localizes recurrence to GPU 0's endpoint/link path, not a particular
+ComfyUI model, MIG profile, allocator, or an established GSP panic.
+It does not distinguish failing GPU hardware, Gen5 signal/platform behavior,
+or driver/device resets that cause the endpoint to disappear.
+A GPU 0-only Gen4 link-speed comparison is the next proposed discriminating
+test, not an applied fix. No PCIe retraining, firmware/driver changes, stress
+jobs, or GPU 1 interruption were performed during this inspection.
+
+NVIDIA's Xid catalog distinguishes inaccessible PCIe endpoints (79) from
+GSP RPC timeouts/errors (119/120), and explicitly allows hardware/link or
+driver causes:
+https://docs.nvidia.com/deploy/xid-errors/analyzing-xid-catalog.html
+
 ### GPU 1-only recovery, 2026-10-27 UTC
 
 After explicit operator approval, the host was rebooted following the
