@@ -6,11 +6,20 @@ import threading
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
+import argparse
 
-root = pathlib.Path("/var/tmp/h100-allocator-probe")
+parser = argparse.ArgumentParser()
+parser.add_argument("--results-dir", default="/var/tmp/h100-allocator-probe")
+parser.add_argument("--graph", default="/var/tmp/h100-allocator-probe/graph.json")
+options = parser.parse_args()
+root = pathlib.Path(options.results_dir)
 root.mkdir(mode=0o700, exist_ok=True)
+if list(root.glob("*-receipt.json")):
+    raise RuntimeError("Use a fresh results directory; prior receipts must not be overwritten.")
 base = "http://127.0.0.1:8190"
-graph_source = json.loads((root / "graph.json").read_text())
+graph_source = json.loads(pathlib.Path(options.graph).read_text())
+(root / "graph.json").write_text(json.dumps(graph_source))
 stop = threading.Event()
 failures = []
 
@@ -94,6 +103,20 @@ try:
                 if item.get("status", {}).get("status_str") == "error":
                     raise RuntimeError(json.dumps(item["status"]))
                 if item.get("status", {}).get("completed"):
+                    from PIL import Image
+                    images = [entry for node in item.get("outputs", {}).values()
+                              for entry in node.get("images", [])]
+                    if not images:
+                        raise RuntimeError("Completed job has no image output.")
+                    for number, entry in enumerate(images):
+                        query = urllib.parse.urlencode({k: entry[k] for k in ["filename", "subfolder", "type"] if k in entry})
+                        path = root / f"{index:02d}-{number}.png"
+                        with urllib.request.urlopen(base + "/view?" + query, timeout=60) as response:
+                            path.write_bytes(response.read())
+                        with Image.open(path) as image:
+                            image.load()
+                            assert image.size == (1024, 1024), image.size
+                    print(f"VERIFIED {index+1}/50 decoded at 1024x1024", flush=True)
                     print(f"COMPLETED {index+1}/50 {time.monotonic()-started:.1f}s", flush=True)
                     break
             time.sleep(1)

@@ -7,6 +7,12 @@ Never infer a ComfyUI worker's startup interpreter or restart mechanism from its
 
 Before diagnostic submissions, verify the effective command and allocator reported by ComfyUI, not just the override file.
 
+Check kernel lockdown before attempting live PCIe configuration experiments; never bypass Secure Boot to force a diagnostic.
+
+**Why:** On this H100 host, integrity-mode lockdown denied root's `setpci` writes, while pciutils still returned a successful shell status. Only stderr and register/link-speed readback showed that Gen4 had not been applied.
+
+**How to apply:** Require verified hardware state before submitting comparison jobs. Treat rejected setup as blocked, not as a failed workload or evidence about Gen4 stability. Use the documented firmware slot-speed option with authorized console access instead.
+
 Diagnostic GPU pinning must also survive the service's EnvironmentFile precedence.
 
 **Why:** A temporary unit Environment assignment was overridden by the worker's environment file, preventing CUDA initialization before any diagnostic job ran.

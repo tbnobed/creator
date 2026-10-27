@@ -46,6 +46,34 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Gen4 comparison blocked before workload, 2026-10-27 UTC
+
+The operator approved an isolated GPU 0 Gen4 comparison. The OS rejected
+both attempted root-port configuration writes with `Operation not permitted`.
+Readback confirmed GPU 0 remained at 32 GT/s x16 (Gen5); no worker was started
+and no image job was submitted. This is not a Gen4 stability result.
+
+Root-cause of the access denial is confirmed by kernel logs:
+`Lockdown: setpci: direct PCI access is restricted`. Secure Boot is enabled
+and kernel lockdown is in integrity mode. Do not bypass or disable those
+security controls to force this test. This pciutils invocation did not
+produce a failing shell status despite reporting write errors, so the
+diagnostic now checks stderr, register readback, and lockdown before changes.
+
+GPU 1 remains active on port 8189; GPU 0 remains quarantined. Both physical
+links remain Gen5 x16; temporary diagnostic firewall rules were removed.
+Private setup-failure evidence:
+`/var/backups/obtv-h100-recovery/gen4-comparison-20261027T223458Z/`.
+
+The supported alternative is firmware's per-slot `PCIEX16 Link Mode`
+under Advanced / Onboard Devices Configuration / PCIE Link Speed, set to
+GEN 4 for the verified GPU 0 slot only. Changing this requires firmware
+console/configuration access and a maintenance reboot. No installed vendor
+BIOS configuration utility was found. SMBIOS slot records omit the H100
+bus addresses and sysfs provides no physical-slot mapping, so do not guess
+which numbered slot contains GPU 0. The documented option is in the
+ASUS Pro WS sTR5 Series BIOS manual, page 49.
+
 ### Read-only failure comparison, 2026-10-27 UTC
 
 Six archived kernel captures (October 7, 23, 24 twice, 25, and 27) show the
