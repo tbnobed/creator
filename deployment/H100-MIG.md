@@ -46,6 +46,30 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### GPU 1-only recovery, 2026-10-27 UTC
+
+After explicit operator approval, the host was rebooted following the
+22:18:28 PCIe failure. New boot ID:
+`d01d8868-03cd-407a-ac9e-34da4478f6f3`. Both GPUs and the original MIG
+instances enumerated; both power limits were 310 W and volatile uncorrectable
+ECC was zero. Only worker 1 (GPU 1 4g.40gb, port 8189) was reopened.
+Local and external system-stats checks verified its correct slice, native
+allocator, and both memory-policy flags. Startup logs confirmed physical
+GPU 1's approved MIG UUID. Worker 1 is active and boot-enabled.
+
+Workers 0 and 2 remain inactive and persistently quarantined using
+`/etc/obtv/h100-gpu0-quarantine` plus their instance drop-ins
+`99-gpu0-quarantine.conf`. Their boot enablement remains intact, but the
+condition prevents startup. Do not remove this quarantine merely because
+GPU 0 enumerates after reboot; reopening it needs operator authorization.
+The global recovery-hold marker was removed after validation; its template
+condition remains available. Temporary port-8189 intake blocking was removed.
+Only port 8189 is listening among the three H100 worker ports.
+
+The reserved GPU 1 3g instance, MIG layout, host-wide watchdog, thermal policy,
+and power settings were not changed. This is containment and service recovery,
+not a diagnosis or repair of the recurring GPU 0 PCIe fault.
+
 ### Image-generation recurrence, 2026-10-27 22:18:28 UTC
 
 **Supersedes the availability status in the reopening entry below.** GPU 0

@@ -25,6 +25,12 @@ Do not equate a failed external ComfyUI request or stored OFFLINE status with an
 
 During GPU-loss recovery, hold worker startup across the reboot until physical GPU and MIG validation completes; do not rely on temporary firewall rules surviving reboot.
 
+Keep both GPU 0 video slices quarantined until the operator authorizes reopening them; normal GPU enumeration after reboot is not that authorization.
+
+**Why:** After another production image job dropped physical GPU 0 off PCIe, the operator explicitly selected rebooting and restoring only GPU 1's video worker.
+
+**How to apply:** Preserve the GPU 0-specific quarantine across reboots and routine service changes. GPU 1's reserved slice remains outside the video pool, and the existing host-wide watchdog policy remains unchanged.
+
 The operator reports the H100 failure happens consistently during model swapping and says the physical seating/power/airflow checks have already been tested.
 
 **Why:** The user explicitly corrected the investigation focus; repeating the physical checklist does not advance diagnosis.
