@@ -46,6 +46,25 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Image-generation recurrence, 2026-10-27 22:18:28 UTC
+
+**Supersedes the availability status in the reopening entry below.** GPU 0
+again suffered fatal PCIe SDES at root port `c0:01.1`, Xid 79 at `c1:00.0`,
+and failed link retraining. The driver requested a node reboot for both GPUs.
+Worker 2 (GPU 0 3g slice, port 8190) accepted a FLUX Klein image prompt at
+22:18:20; CUDA failed approximately eight seconds later at sampler-output
+transfer. Startup logs confirmed native allocation and dynamic VRAM disabled.
+The reopened worker logs contain no preceding H3 job; this occurrence is not
+evidence that an H3-to-FLUX swap is required. No pre-failure temperature
+time series was captured for this production job.
+
+The watchdog stopped all three workers at 22:18:36. They remain inactive,
+the recovery hold marker has been restored, and no recovery reboot has been
+performed for this event. Internal Docker services still report healthy.
+Private NVIDIA report (successful safe-mode capture), journals, and launcher:
+`/var/backups/obtv-h100-recovery/20261027T221828Z/`.
+The prior passing comparisons and allocator settings are not a demonstrated fix.
+
 ### Workers reopened, 2026-10-27 UTC
 
 Following operator authorization, all three CreatorAI workers were brought
