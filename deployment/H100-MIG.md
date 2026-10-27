@@ -46,6 +46,27 @@ no test workload. Full model renders and concurrent throughput were not tested.
 
 ## Live portal work remains
 
+### Workers reopened, 2026-10-27 UTC
+
+Following operator authorization, all three CreatorAI workers were brought
+online and verified locally and externally on ports 8188–8190. The shared
+launcher now uses both `--disable-dynamic-vram` and `--disable-cuda-malloc`,
+matching the successful isolated comparisons. Each endpoint reports its
+correct MIG profile and native allocator. Launch logs confirm the original
+physical UUID/profile assignments; the reserved GPU 1 slice is untouched.
+All workers are active and enabled at boot. Queues were empty at verification.
+
+The recovery-hold marker was removed; its condition drop-in is retained so
+future recovery can hold startup again. Temporary intake blocking was removed.
+The existing host-wide watchdog policy, 310 W limits, MIG layout, and thermal
+bypass remain unchanged. Other internal services report healthy, and no new
+kernel GPU-loss errors were found during startup. This restores availability;
+it does not establish that the intermittent PCIe fault is fixed.
+
+Private pre-change launcher and hold configuration:
+`/var/backups/obtv-h100-recovery/resume-20261027T220502Z/`.
+Earlier stopped/held status entries below describe historical test phases.
+
 ### Previously failing 3g slice retest, 2026-10-25 UTC
 
 On the same boot as the matching 4g comparison, GPU 0's 3g.40gb slice

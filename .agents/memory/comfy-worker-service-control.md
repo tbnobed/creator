@@ -49,6 +49,12 @@ Do not assume historical ComfyUI VRAM flags still exist on newer workers.
 
 Neither disabling dynamic VRAM nor combining that with the native CUDA allocator is a demonstrated fix for the dual-H100 PCIe loss.
 
+When reopening after the isolated comparisons, retain the tested native-allocator/dynamic-VRAM-disabled configuration unless another controlled comparison justifies changing it.
+
+**Why:** The operator authorized reopening all three workers after sequential tests passed on every allowed slice. This is an operational baseline, not a claim that the intermittent PCIe fault was resolved.
+
+**How to apply:** Preserve that baseline during routine restarts and distinguish availability checks from stability certification. Reopening did not authorize changing the host-wide watchdog, reserved slice, or thermal policy.
+
 **Why:** The operator-approved rollout failed again despite the disable flag, after an isolated low-resolution H3/FLUX test had passed. The recurrence followed repeated FLUX image jobs without a new model-load message, and only one video worker showed render activity. Neither model-family swapping nor concurrent rendering is established as a necessary trigger.
 
 **How to apply:** Do not present the earlier passing test as a fix. Reproduce representative image sizes and repeated same-model jobs as well as swaps. Separate dynamic VRAM from CUDA allocator/offloading options, changing one variable at a time; a CUDA transfer stack after PCIe loss is not proof of the initiating cause.

@@ -24,6 +24,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = matches[0]
 base = "/var/lib/obtv/comfy" + worker
 args = ["/opt/obtv/venv/bin/python", "/opt/obtv/ComfyUI/main.py", "--listen", "0.0.0.0", "--port", str(port),
  "--input-directory", base+"/input", "--output-directory", base+"/output", "--temp-directory", base+"/temp",
- "--user-directory", base+"/user", "--disable-auto-launch", "--disable-dynamic-vram"]
+ "--user-directory", base+"/user", "--disable-auto-launch", "--disable-dynamic-vram", "--disable-cuda-malloc"]
 print("CreatorAI worker", worker, "assigned", parent, profile, matches[0], flush=True)
 os.execv(args[0], args)
