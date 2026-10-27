@@ -7,6 +7,7 @@ import {
   getProductionProject,
   getGetProductionProjectQueryKey,
   getListProductionProjectsQueryKey,
+  getGetLongFormProjectQueryKey,
   useCreateProductionProject,
   useGetProductionProject,
   useRunProductionAction,
@@ -62,6 +63,7 @@ export default function ProductionWorkflowPage() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [actionError, setActionError] = useState<{ message: string; retry: () => void } | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const actionInFlightRef = useRef(false);
   const [uploading, setUploading] = useState(false);
   const initFor = useRef<string | null>(null);
   const dirtyRef = useRef(false);
@@ -174,13 +176,17 @@ export default function ProductionWorkflowPage() {
   const confirmRef = useRef(confirmAction);
   confirmRef.current = confirmAction;
   const run: RunAction = useCallback(async (action, payload = {}) => {
-    if (action === "fix-shot" && normalizeState(projectRef.current?.state ?? {}).settings.videoProvider === "FAL") {
-      if (!(await confirmRef.current({ title: "Submit a new paid render?", description: "This correction uses paid cloud credits.", confirmLabel: "Submit paid render" }))) return null;
-      payload = { ...payload, cloudConfirmed: true };
-    }
-    setActionError(null);
-    setPendingAction(action);
+    // React state alone does not block a second click before the next render.
+    if (actionInFlightRef.current && action !== "cancel-story") return null;
+    const ownsAction = !actionInFlightRef.current;
+    if (ownsAction) actionInFlightRef.current = true;
     try {
+      if (action === "fix-shot" && normalizeState(projectRef.current?.state ?? {}).settings.videoProvider === "FAL") {
+        if (!(await confirmRef.current({ title: "Submit a new paid render?", description: "This correction uses paid cloud credits.", confirmLabel: "Submit paid render" }))) return null;
+        payload = { ...payload, cloudConfirmed: true };
+      }
+      setActionError(null);
+      setPendingAction(action);
       let current = projectRef.current;
       if (action !== "cancel-story" && (!current || dirtyRef.current)) current = await save();
       else if (action === "cancel-story") { /* Never save edits or wait on the inference lock to cancel. */ }
@@ -200,7 +206,19 @@ export default function ProductionWorkflowPage() {
       toast({ title: "Action failed", description: message, variant: "destructive" });
       return null;
     } finally {
-      setPendingAction(null);
+      // The render has its own query cache. Refresh it even after a conflict:
+      // a previous request or another client may have started this shot.
+      try {
+        const renderId = projectRef.current?.renderProjectId;
+        if (renderId && ["fix-shot", "create-scenes", "prepare-render", "export"].includes(action)) {
+          await qc.invalidateQueries({ queryKey: getGetLongFormProjectQueryKey(renderId) });
+        }
+      } finally {
+        if (ownsAction) {
+          actionInFlightRef.current = false;
+          setPendingAction(null);
+        }
+      }
     }
   }, [save]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -91,4 +91,4 @@ Shot correction requires stopping a running queue, not requiring every project t
 
 **Why:** A creator could not re-render a completed shot in a failed production because the correction flow unconditionally invoked the running-only Pause operation.
 
-**How to apply:** Treat already-stopped projects as ready for correction, preserve protections for active shots and final assembly, and validate lifecycle decisions under the project lock.
+**How to apply:** Treat already-stopped projects as ready for correction, preserve protections for active shots and final assembly, and validate lifecycle decisions under the project lock. Refresh the separate render-query cache after correction success or failure; otherwise a stopped parent's cached status can hide a newly active shot. Keep polling while any child shot is active, even if the parent is paused or failed.
