@@ -181,9 +181,16 @@ export default function ProductionWorkflowPage() {
     const ownsAction = !actionInFlightRef.current;
     if (ownsAction) actionInFlightRef.current = true;
     try {
-      if (action === "fix-shot" && normalizeState(projectRef.current?.state ?? {}).settings.videoProvider === "FAL") {
-        if (!(await confirmRef.current({ title: "Submit a new paid render?", description: "This re-render uses paid cloud credits.", confirmLabel: "Submit paid render" }))) return null;
-        payload = { ...payload, cloudConfirmed: true };
+      if (action === "fix-shot") {
+        const paid = normalizeState(projectRef.current?.state ?? {}).settings.videoProvider === "FAL";
+        if (!(await confirmRef.current({
+          title: paid ? "Submit a new paid render?" : "Re-render this shot?",
+          description: paid
+            ? "This submits a new render using paid cloud credits. To stop afterward, use Cancel above the scene list; it cancels all unfinished shots, not just this shot."
+            : "This submits a new render on your local GPU workers. To stop afterward, use Cancel above the scene list; it cancels all unfinished shots, not just this shot.",
+          confirmLabel: paid ? "Submit paid render" : "Re-render shot",
+        }))) return null;
+        if (paid) payload = { ...payload, cloudConfirmed: true };
       }
       setActionError(null);
       setPendingAction(action);

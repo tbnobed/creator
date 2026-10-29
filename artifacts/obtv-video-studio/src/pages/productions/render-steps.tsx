@@ -236,9 +236,9 @@ export function CreateStep({ state, project, run, pendingAction, onSettings, sav
               <Pause className="mr-1.5 h-4 w-4" /> Pause
             </Button>
           )}
-          {rp && ["RUNNING", "PAUSED", "READY"].includes(rp.status) && (
+          {rp && ["RUNNING", "PAUSED", "READY", "FAILED"].includes(rp.status) && (
             <Button variant="outline" className="border-destructive/30 text-destructive" disabled={cancel.isPending}
-              onClick={async () => { if (await confirmAction({ title: "Cancel rendering?", description: "Finished shots are kept. You can resume remaining scenes later.", confirmLabel: "Cancel rendering", destructive: true })) cancel.mutate({ id: rp.id }, { onSuccess: invalidate, onError: (e) => toast({ title: "Cancel failed", description: errorMessage(e), variant: "destructive" }) }); }}
+              onClick={async () => { if (await confirmAction({ title: "Cancel rendering?", description: "Cancels all unfinished shots in this production, including any re-render. Finished shots are kept. You can resume remaining scenes later.", confirmLabel: "Cancel rendering", destructive: true })) cancel.mutate({ id: rp.id }, { onSuccess: invalidate, onError: (e) => toast({ title: "Cancel failed", description: errorMessage(e), variant: "destructive" }) }); }}
               data-testid="button-cancel-render">
               <XCircle className="mr-1.5 h-4 w-4" /> Cancel
             </Button>
