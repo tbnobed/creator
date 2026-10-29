@@ -98,3 +98,9 @@ Shots must support re-rendering without an explicit correction. Corrections are 
 **Why:** The user explicitly requested a new render without having to describe a change.
 
 **How to apply:** Provide a direct re-render action, preserve the authored prompt when no correction is supplied, and retain active-render guards and paid-provider confirmation. Do not invent correction text to satisfy a required field.
+
+Multi-step shot corrections must finish preparing the selected shots before scheduling background dispatch.
+
+**Why:** Early automatic dispatch can acquire the project lock before a later step of the same request, reporting failure even though rendering already started.
+
+**How to apply:** Keep dispatch paused throughout batch preparation and start it once afterwards. Preserve automatic dispatch for standalone operations. Do not hide genuine errors or retry submissions to conceal lock conflicts.

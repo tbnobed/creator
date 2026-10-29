@@ -18,6 +18,7 @@ import { createAndSubmitGeneration } from "./generation-service";
 import { falModels, type FalModel } from "./fal/client";
 import { registerProductionFrame, previousProductionShot } from "./production-dispatch";
 import { productionRerenderPrompt, productionRetrySeed, productionShotPrompt } from "./production-shot-prompt";
+import { prepareProductionRerenders } from "./production-rerender";
 
 const exec = promisify(execFile);
 export async function assertProductionEditable(row: ProductionProjectRow) {
@@ -135,12 +136,12 @@ export async function runProductionRenderAction(row: ProductionProjectRow, actio
     }
     // Validate optional corrections before changing queue or shot state.
     const updates = targets.map(shot => ({ shot, prompt: productionRerenderPrompt(shot.prompt, payload.correction) }));
-    await pauseLongFormProject(row.renderProjectId, { forCorrection: true });
-    for (const { shot, prompt } of updates) {
-      await updateLongFormShot(row.renderProjectId, shot.id, { prompt });
-      if (shot.status === "FAILED" || shot.status === "CANCELLED") await retryLongFormShot(row.renderProjectId, shot.id);
-    }
-    await startLongFormProject(row.renderProjectId);
+    await prepareProductionRerenders(row.renderProjectId, updates, {
+      pause: pauseLongFormProject,
+      update: updateLongFormShot,
+      retry: retryLongFormShot,
+      start: startLongFormProject,
+    });
   } else throw new Error("Unknown rendering action.");
   return row.renderProjectId;
 }

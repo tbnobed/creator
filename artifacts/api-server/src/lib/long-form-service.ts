@@ -1845,7 +1845,12 @@ export async function cancelLongFormProject(projectId: string) {
   return result;
 }
 
-export async function updateLongFormShot(projectId: string, shotId: string, input: LongFormShotContinuityUpdate) {
+export function shotMutationDispatch(continuityRevision: boolean, deferStart = false): { status: "PAUSED" | "RUNNING"; shouldSchedule: boolean } {
+  const paused = continuityRevision || deferStart;
+  return { status: paused ? "PAUSED" : "RUNNING", shouldSchedule: !paused };
+}
+
+export async function updateLongFormShot(projectId: string, shotId: string, input: LongFormShotContinuityUpdate, options: { deferStart?: boolean } = {}) {
   const result = await withProjectLock(projectId, async () => {
     const [project] = await db.select().from(longFormProjectsTable).where(eq(longFormProjectsTable.id, projectId));
     if (!project) throw new Error("Long-form project not found");
@@ -1908,7 +1913,7 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
     if (regenerate) {
       await db.update(longFormProjectsTable)
         .set({
-          status: continuityRevision ? "PAUSED" : "RUNNING",
+          status: shotMutationDispatch(continuityRevision, options.deferStart).status,
           completedShots: Math.max(0, project.completedShots - 1),
           progress: Math.min(99, project.progress),
           finalOutputStorageKey: null,
@@ -1917,11 +1922,14 @@ export async function updateLongFormShot(projectId: string, shotId: string, inpu
           errorMessage: null,
         })
         .where(eq(longFormProjectsTable.id, projectId));
+    } else if (options.deferStart) {
+      await db.update(longFormProjectsTable).set({ status: "PAUSED" })
+        .where(eq(longFormProjectsTable.id, projectId));
     }
     return {
       shot,
       regenerate,
-      scheduleRegeneration: regenerate && !continuityRevision,
+      scheduleRegeneration: regenerate && shotMutationDispatch(continuityRevision, options.deferStart).shouldSchedule,
       previousFinalOutputKey: regenerate ? project.finalOutputStorageKey : null,
     };
   });
@@ -1988,7 +1996,7 @@ export function retryLongFormShotError(
   return "Only failed, cancelled, or completed shots can be retried.";
 }
 
-export async function retryLongFormShot(projectId: string, shotId: string) {
+export async function retryLongFormShot(projectId: string, shotId: string, options: { deferStart?: boolean } = {}) {
   const result = await withProjectLock(projectId, async () => {
     const [project] = await db.select({
       continuity: longFormProjectsTable.continuity,
@@ -2049,7 +2057,7 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
       ));
     }
     await db.update(longFormProjectsTable).set({
-      status: preparingCompletedRevision ? "PAUSED" : "RUNNING",
+      status: shotMutationDispatch(Boolean(preparingCompletedRevision), options.deferStart).status,
       ...(existingShot.status === "COMPLETED"
         ? {
             completedShots: Math.max(0, project.completedShots - 1),
@@ -2066,7 +2074,7 @@ export async function retryLongFormShot(projectId: string, shotId: string) {
       shot: updated,
       outputStorageKey: preparingCompletedRevision ? existingShot.outputStorageKey : null,
       previousFinalOutputKey: existingShot.status === "COMPLETED" ? project.finalOutputStorageKey : null,
-      shouldSchedule: !preparingCompletedRevision,
+      shouldSchedule: shotMutationDispatch(Boolean(preparingCompletedRevision), options.deferStart).shouldSchedule,
     };
   });
   if (result === null) throw new Error("Project is currently being updated; try again.");
