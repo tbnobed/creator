@@ -11,13 +11,13 @@ import { productionAppearance, approvedProductionProp } from "./production-appea
 import { requireOpening } from "./production-openings";
 import { requireProductionScenery } from "./production-scenery";
 import { hasSevereExposureDrift, meanFrameBrightness, productionExposureForShot, requestsExposureChange } from "./production-exposure";
-import { text, type ProductionScene } from "./production-types";
+import { type ProductionScene } from "./production-types";
 import { mediaStorage } from "./storage-service";
 import { createLongFormProject, pauseLongFormProject, reassembleLongFormProject, retryLongFormShot, startLongFormProject, updateLongFormShot } from "./long-form-service";
 import { createAndSubmitGeneration } from "./generation-service";
 import { falModels, type FalModel } from "./fal/client";
 import { registerProductionFrame, previousProductionShot } from "./production-dispatch";
-import { productionShotPrompt } from "./production-shot-prompt";
+import { productionRerenderPrompt, productionRetrySeed, productionShotPrompt } from "./production-shot-prompt";
 
 const exec = promisify(execFile);
 export async function assertProductionEditable(row: ProductionProjectRow) {
@@ -122,21 +122,22 @@ export async function runProductionRenderAction(row: ProductionProjectRow, actio
   if (action === "export") {
     await reassembleLongFormProject(row.renderProjectId);
   } else if (action === "fix-shot") {
-    if (stateOf(row).settings.videoProvider === "FAL" && payload.cloudConfirmed !== true) throw new Error("Confirm the paid shot correction before rendering again.");
+    if (stateOf(row).settings.videoProvider === "FAL" && payload.cloudConfirmed !== true) throw new Error("Confirm the paid shot re-render before rendering again.");
     if (stateOf(row).settings.videoProvider === "FAL") {
       stateOf(row).settings.videoConfirmed = true;
       await db.update(productionProjectsTable).set({ state: row.state }).where(eq(productionProjectsTable.id, row.id));
     }
-    const correction = text(payload.correction, "Correction", 5000);
     const shots = await db.select().from(longFormShotsTable).where(eq(longFormShotsTable.projectId, row.renderProjectId));
     const targets = shots.filter(s => payload.shotId ? s.id === payload.shotId : s.sceneNumber === payload.sceneNumber);
     if (!targets.length) throw new Error("Choose a shot belonging to this production.");
     if (targets.some(shot => ["QUEUED", "RENDERING"].includes(shot.status))) {
       throw new Error("Wait for the selected shot's current render to finish before correcting it.");
     }
+    // Validate optional corrections before changing queue or shot state.
+    const updates = targets.map(shot => ({ shot, prompt: productionRerenderPrompt(shot.prompt, payload.correction) }));
     await pauseLongFormProject(row.renderProjectId, { forCorrection: true });
-    for (const shot of targets) {
-      await updateLongFormShot(row.renderProjectId, shot.id, { prompt: `${shot.prompt}\nCorrection: ${correction}`.slice(0, 20000) });
+    for (const { shot, prompt } of updates) {
+      await updateLongFormShot(row.renderProjectId, shot.id, { prompt });
       if (shot.status === "FAILED" || shot.status === "CANCELLED") await retryLongFormShot(row.renderProjectId, shot.id);
     }
     await startLongFormProject(row.renderProjectId);
@@ -236,7 +237,7 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   return {
     referenceImageKeys: keys, mandatoryReferenceImageCount: keys.length,
     explicitReferenceImagesOnly: true,
-    startFrameKey, seed: cast[0]?.seed ?? place.seed,
+    startFrameKey, seed: productionRetrySeed(cast[0]?.seed ?? place.seed, shot.retryCount),
     continuityContext: `Location ${scene.location}, ${scene.timeOfDay}. ${productionExposureForShot(shot.prompt)} ${notes.join(". ")}`.slice(0, 5000),
   };
 }

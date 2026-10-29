@@ -182,7 +182,7 @@ export default function ProductionWorkflowPage() {
     if (ownsAction) actionInFlightRef.current = true;
     try {
       if (action === "fix-shot" && normalizeState(projectRef.current?.state ?? {}).settings.videoProvider === "FAL") {
-        if (!(await confirmRef.current({ title: "Submit a new paid render?", description: "This correction uses paid cloud credits.", confirmLabel: "Submit paid render" }))) return null;
+        if (!(await confirmRef.current({ title: "Submit a new paid render?", description: "This re-render uses paid cloud credits.", confirmLabel: "Submit paid render" }))) return null;
         payload = { ...payload, cloudConfirmed: true };
       }
       setActionError(null);

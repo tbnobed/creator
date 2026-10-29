@@ -25,7 +25,7 @@ import { errorMessage, isFailed, isPending, taskIsPaid, type ProductionSettings,
 import type { RunAction } from "./workflow";
 import { missingSceneryCount } from "./scene-scenery";
 import { useConfirm } from "@/components/shared/confirm";
-import { correctionIsDisabled, renderNeedsPolling, shotIsRendering } from "@/lib/production-shot-state";
+import { shotRerenderDisabled, renderNeedsPolling, shotIsRendering } from "@/lib/production-shot-state";
 
 type Base = { state: ProductionState; project?: ProductionProject; run: RunAction; pendingAction: string | null };
 
@@ -329,6 +329,15 @@ export function ShotFix({ shot, run, busy, initial = "" }: { shot: LongFormShot;
           aria-expanded={preview} aria-controls={`preview-${shot.id}`}
           onClick={() => { setPreview(v => !v); setPlaybackError(false); }}
           data-testid={`button-preview-shot-${shot.id}`}>{preview ? "Hide preview" : "Preview"}</Button>}
+        <Button size="sm" variant="ghost" className="h-7 text-xs"
+          disabled={shotRerenderDisabled(shot.status, busy)}
+          title="Generate this shot again using its current prompt"
+          aria-label={`Re-render scene ${shot.sceneNumber}, shot ${shot.shotNumber} without changes`}
+          onClick={async () => {
+            if (shotRerenderDisabled(shot.status, busy)) return;
+            if (await run("fix-shot", { shotId: shot.id })) setOpen(false);
+          }}
+          data-testid={`button-rerender-shot-${shot.id}`}>Re-render</Button>
         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setOpen((o) => !o); if (shot.outputUrl) setPreview(true); }} disabled={busy || shotIsRendering(shot.status)} data-testid={`button-correct-shot-${shot.id}`}>Correct</Button>
       </div>
       {preview && shot.outputUrl && <div id={`preview-${shot.id}`} className="mt-3">
@@ -342,8 +351,8 @@ export function ShotFix({ shot, run, busy, initial = "" }: { shot: LongFormShot;
       {shot.errorMessage && <p role="alert" className="mt-1 text-xs text-destructive">{shot.errorMessage}</p>}
       {open && (
         <div className="mt-2 flex gap-2">
-          <Input value={text} onChange={(e) => setText(e.target.value)} disabled={busy || shotIsRendering(shot.status)} placeholder="Describe what to change in this shot" className="h-8 text-sm" data-testid={`input-correction-${shot.id}`} />
-          <Button size="sm" disabled={correctionIsDisabled(shot.status, text, busy)} onClick={async () => { if (correctionIsDisabled(shot.status, text, busy)) return; if (await run("fix-shot", { shotId: shot.id, correction: text.trim() })) setOpen(false); }} data-testid={`button-submit-fix-${shot.id}`}>
+          <Input value={text} onChange={(e) => setText(e.target.value)} disabled={busy || shotIsRendering(shot.status)} placeholder="Describe what to change (optional)" className="h-8 text-sm" data-testid={`input-correction-${shot.id}`} />
+          <Button size="sm" disabled={shotRerenderDisabled(shot.status, busy)} onClick={async () => { if (shotRerenderDisabled(shot.status, busy)) return; if (await run("fix-shot", { shotId: shot.id, correction: text.trim() })) setOpen(false); }} data-testid={`button-submit-fix-${shot.id}`}>
             {shotIsRendering(shot.status) ? "Render in progress" : busy ? "Submitting…" : "Re-render shot"}
           </Button>
         </div>

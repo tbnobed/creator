@@ -1,19 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { correctionIsDisabled, renderNeedsPolling, shotIsRendering } from "./production-shot-state";
+import { shotRerenderDisabled, renderNeedsPolling, shotIsRendering } from "./production-shot-state";
 
 test("already-open corrections cannot resubmit a queued or rendering shot", () => {
   for (const status of ["QUEUED", "RENDERING"]) {
     assert.equal(shotIsRendering(status), true);
-    assert.equal(correctionIsDisabled(status, "Keep lighting stable", false), true);
+    assert.equal(shotRerenderDisabled(status, false), true);
   }
 });
 
-test("completed, failed and cancelled shots remain correctable with a nonempty instruction", () => {
+test("idle shots can re-render without a correction, but pending requests block submissions", () => {
   for (const status of ["COMPLETED", "FAILED", "CANCELLED", "PLANNED"]) {
-    assert.equal(correctionIsDisabled(status, "Keep lighting stable", false), false);
-    assert.equal(correctionIsDisabled(status, "   ", false), true);
-    assert.equal(correctionIsDisabled(status, "Keep lighting stable", true), true);
+    assert.equal(shotRerenderDisabled(status, false), false);
+    assert.equal(shotRerenderDisabled(status, true), true);
   }
 });
 
