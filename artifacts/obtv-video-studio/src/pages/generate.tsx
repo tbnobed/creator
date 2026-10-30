@@ -23,6 +23,8 @@ import { VideoGenerationViewer } from "@/components/video-studio/VideoGeneration
 import { GenerationThumbnail } from "@/components/video-studio/GenerationThumbnail";
 import { displayDuration as formatDuration, localOutputSize } from "@/lib/studio-display";
 import { SeedanceReferences, emptySeedanceMedia, normalizeSeedanceMedia, type SeedanceMedia } from "@/components/video-studio/SeedanceReferences";
+import { LocalImageReferences } from "@/components/video-studio/LocalImageReferences";
+import { localImageReferenceLimit, localImageReferenceError } from "@/lib/local-image-references";
 import { safeStorageRemove, safeStorageSet } from "@/lib/media-file";
 import { VideoOutputControls } from "@/components/video-studio/VideoOutputControls";
 import { cloudOutputOptions, cloudPromptControls, cloudReferencePayload, elementProblems, inactiveReferenceRoles, isSeedanceModel, modelAcceptsReferences, RESOLUTION_QUALITY, type AspectRatio, type OutputResolution, activeSeedanceRoles, effectiveModelDuration, seedanceReferenceBudget, VIDEO_MODEL_CAPABILITIES, type FalModel, type SeedanceTask } from "@/lib/video-model-capabilities";
@@ -300,6 +302,9 @@ export default function GeneratePage() {
   const cloneRestorationPending = Boolean(cloneJobId && (sourceLoadState !== "ready" || restoredCloneJobId !== cloneJobId));
   const capabilitiesForMode = capabilities?.filter((cap) => cap.generationMode === generationMode) || [];
   const hasReferenceVideo = Boolean(referenceVideoKey);
+  const [localReferenceUploading, setLocalReferenceUploading] = useState(false);
+  const localReferenceLimit = localImageReferenceLimit(capabilitiesForMode, hasReferenceVideo, Boolean(selectedSetting));
+  const localReferenceProblem = localImageReferenceError(seedanceMedia.images.length, localReferenceLimit, localReferenceUploading);
   const hasNonReferenceCapability = capabilitiesForMode.some((cap) => !cap.supportsReferenceVideo);
   const workflowRequiresReferenceVideo = capabilitiesForMode.length > 0 && !hasNonReferenceCapability;
   const eligibleCapabilities = hasReferenceVideo
@@ -540,9 +545,10 @@ export default function GeneratePage() {
         : "The original generation could not be loaded. Return to Queue & History and open it again.");
     }
     if (pipelineError) return alert(pipelineError);
+    if (!isCloudProvider && localReferenceProblem) return alert(localReferenceProblem);
     if (!prompt) return alert("Shot prompt is required");
     if (mediaError) return alert(mediaError);
-    if (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) {
+    if (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0 && !seedanceMedia.images.length) {
       return alert("Select at least one character with a reference image");
     }
     if (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) {
@@ -590,6 +596,9 @@ export default function GeneratePage() {
           seedMode: !isCloudProvider || promptControls.fixedSeed ? seedMode : "RANDOM",
           seed: seedMode === "FIXED" && (!isCloudProvider || promptControls.fixedSeed) ? seed : null,
           referenceVideoKey: provider === "COMFYUI" ? referenceVideoKey || undefined : undefined,
+          ...(!isCloudProvider && seedanceMedia.images.length ? {
+            referenceImageKeys: seedanceMedia.images.map(image => image.storageKey),
+          } : {}),
           ...(isCloudProvider ? {
             aspectRatio: aspectInherited || !outputOptions.aspectRatios.includes(aspectRatio) ? undefined : aspectRatio,
             outputResolution: outputOptions.resolutions.includes(outputResolution) ? outputResolution : outputOptions.resolutions[0],
@@ -812,6 +821,10 @@ export default function GeneratePage() {
             </div>
           </Card>}
 
+          {!isCloudProvider && <LocalImageReferences value={seedanceMedia.images}
+            onChange={images => setSeedanceMedia(current => ({ ...current, images }))}
+            limit={localReferenceLimit} onBusyChange={setLocalReferenceUploading} />}
+          {!isCloudProvider && localReferenceProblem && <p role="alert" className="text-xs text-destructive">{localReferenceProblem}</p>}
           {seedanceFull && <SeedanceReferences value={seedanceMedia} onChange={setSeedanceMedia} version={model} task={seedance25 ? seedanceTask : "reference"} primaryImageCount={referenceBudget.primaryImages} />}
           {isCloudProvider && inactiveRoles.length > 0 && <p className="rounded-lg border border-[#8a6a3f] bg-[#3a2e22] px-4 py-3 text-xs leading-relaxed text-[#f6e2c4]" data-testid="text-inactive-references">{cloudModelName}{seedance25 && seedanceTask !== "reference" ? ` ${seedanceTask === "editing" ? "Edit" : "Extend"}` : ""} does not accept {inactiveRoles.join(", ")}. They stay saved in this draft for other models but will not be sent with this render.</p>}
           {editingSourceOnly && <p className="rounded-lg border border-[#79506a] bg-[#3d2837] px-4 py-3 text-xs leading-relaxed text-[#f3d6e4]" data-testid="text-seedance-edit-limits">Edit and Extend send one source video plus any image and audio references. Cast, environment, frames and extra videos remain saved in this draft for Generate, but are not submitted with this task. Output keeps the source shape. Cloud chooses Edit output duration (up to 30s) and reserves the conservative maximum cost.</p>}
@@ -996,7 +1009,7 @@ export default function GeneratePage() {
                     {isCloudProvider && <BatchCountPicker value={batchCount} onChange={setBatchCount} disabled={batchSubmitting} />}
                     <Button
                       onClick={handleGenerate}
-                      disabled={(isCloudProvider && !cloudConfirmed) || batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || cloneRestorationPending || !prompt.trim() || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
+                      disabled={(isCloudProvider && !cloudConfirmed) || batchSubmitting || createJob.isPending || Boolean(mediaError) || Boolean(pipelineError) || (!isCloudProvider && Boolean(localReferenceProblem)) || cloneRestorationPending || !prompt.trim() || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0 && !seedanceMedia.images.length) || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting) || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo) || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)}
                       className="h-8 rounded-md bg-[linear-gradient(90deg,#FF1F62,#8B2BE2)] px-3 text-[11px] font-semibold text-white hover:brightness-110 disabled:bg-none disabled:bg-[#514551] disabled:text-[#a8a0aa] sm:px-5"
                       data-testid="button-generate-video"
                     >
@@ -1013,6 +1026,7 @@ export default function GeneratePage() {
                 )}
                 {submitError && <ErrorNotice className="mx-3 mb-3" testId="status-generate-error" title="Generation not submitted" message={submitError} onRetry={() => void handleGenerate()} onDismiss={() => setSubmitError(null)} />}
                 {pipelineError && <p role="alert" data-testid="status-local-pipeline-error" className="px-4 pb-3 text-xs text-rose-200">{pipelineError}</p>}
+                {!isCloudProvider && localReferenceProblem && <p role="alert" className="px-4 pb-3 text-xs text-rose-200">{localReferenceProblem}</p>}
                 {!prompt.trim() && <p className="px-4 pb-3 text-sm text-[#d6c9d6]">Add a scene description to enable Generate.</p>}
               </div>
 
@@ -1383,8 +1397,8 @@ export default function GeneratePage() {
                   <p>Negative prompt: {negativePrompt.trim() ? isCloudProvider && !promptControls.negativePrompt ? "Not supported by this model; not sent." : "Included as a separate conditioning field." : "None."}</p>
                    <div className="flex justify-between">
                     <span>Cast:</span>
-                    <span className={selectedChars.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "text-foreground" : "text-destructive"}>
-                      {editingSourceOnly ? "Not sent" : selectedChars.length ? selectedChars.length : hasReferenceVideo || !workflowRequiresReferenceImage ? "Optional" : "Missing"}
+                    <span className={selectedChars.length || seedanceMedia.images.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "text-foreground" : "text-destructive"}>
+                      {editingSourceOnly ? "Not sent" : selectedChars.length ? selectedChars.length : seedanceMedia.images.length || hasReferenceVideo || !workflowRequiresReferenceImage ? "Optional" : "Missing"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -1412,9 +1426,10 @@ export default function GeneratePage() {
                     || Boolean(mediaError)
                     || cloneRestorationPending
                     || Boolean(pipelineError)
+                    || (!isCloudProvider && Boolean(localReferenceProblem))
                     || !prompt.trim()
                     || batchSubmitting
-                    || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0)
+                    || (!isCloudProvider && !hasReferenceVideo && workflowRequiresReferenceImage && selectedChars.length === 0 && !seedanceMedia.images.length)
                     || (!isCloudProvider && !hasReferenceVideo && workflowRequiresStudioSetting && !selectedSetting)
                     || (!isCloudProvider && workflowRequiresReferenceVideo && !hasReferenceVideo)
                     || (!editingSourceOnly && voiceCloningEnabled && !canEnableVoiceCloning)

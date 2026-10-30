@@ -262,6 +262,9 @@ router.post("/generations", async (req, res): Promise<void> => {
   try {
     const job = await createAndSubmitGeneration({
       ...input.data,
+      // Every image explicitly attached in the composer must reach the workflow.
+      // Do not silently truncate references when a smaller workflow is selected.
+      mandatoryReferenceImageCount: input.data.provider !== "FAL" ? input.data.referenceImageKeys?.length : undefined,
       tenantId: req.context!.tenant!.id,
       createdByUserId: req.context!.user.id,
     });

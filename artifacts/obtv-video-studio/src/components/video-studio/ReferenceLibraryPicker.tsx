@@ -9,12 +9,13 @@ const sourceLabel: Record<ReferenceLibraryItem["sourceType"], string> = {
   upload: "Upload", referenceVideo: "Reference video", generation: "Completed run", imageAsset: "Image studio", characterAsset: "Character", settingAsset: "Environment",
 };
 
-export function ReferenceLibraryPicker({ kind, role, label, disabled, onImported }: {
+export function ReferenceLibraryPicker({ kind, role, label, disabled, onImported, onBusyChange }: {
   kind: ReferenceKind;
   role: ReferenceRole;
   label: string;
   disabled: boolean;
   onImported: (media: { storageKey: string; mediaUrl: string; mimeType: string; name: string }) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState<string | null>(null);
@@ -25,6 +26,7 @@ export function ReferenceLibraryPicker({ kind, role, label, disabled, onImported
   async function choose(item: ReferenceLibraryItem) {
     if (importing) return;
     setImporting(`${item.sourceType}:${item.sourceId}`);
+    onBusyChange?.(true);
     setError("");
     try {
       // Server resolves the tenant-owned source and writes a fresh private reference key.
@@ -35,6 +37,7 @@ export function ReferenceLibraryPicker({ kind, role, label, disabled, onImported
       setError(cause instanceof Error ? cause.message : "Import failed.");
     } finally {
       setImporting(null);
+      onBusyChange?.(false);
     }
   }
 
