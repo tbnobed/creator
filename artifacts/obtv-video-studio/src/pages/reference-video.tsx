@@ -1,6 +1,7 @@
 import { scopedKey } from "@/lib/workspace-storage";
 import { FileDropzone } from "@/components/shared/file-dropzone";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { handoffReferenceVideo } from "@/lib/reference-video-handoff";
 import { Link, useLocation } from "wouter";
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
@@ -65,12 +66,13 @@ export default function ReferenceVideoPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const uploadInFlight = useRef(false);
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const { data: savedReferenceVideos, isLoading: isLoadingSavedVideos } = useListReferenceVideos();
   const deleteReferenceVideo = useDeleteReferenceVideo();
   const queryClient = useQueryClient();
   const returnToParam = new URLSearchParams(window.location.search).get("returnTo");
-  const returnTo = returnToParam?.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : "/";
+  const returnTo = returnToParam?.startsWith("/") && !returnToParam.startsWith("//") ? returnToParam : "/studio";
   const activeVideoName = file?.name ?? storedVideo?.name ?? "Saved reference video";
   const activeVideoSize = file ? formatBytes(file.size) : storedVideo?.size ? formatBytes(storedVideo.size) : "Previously uploaded";
   const activeVideoType = file?.type === "video/webm" || storedVideo?.mimeType === "video/webm" ? "WebM" : "MP4";
@@ -117,8 +119,9 @@ export default function ReferenceVideoPage() {
     setFile(nextFile);
   };
 
-  const uploadVideo = async () => {
-    if (!file || isUploading) return;
+  const uploadVideo = async (): Promise<string | null> => {
+    if (!file || uploadInFlight.current) return null;
+    uploadInFlight.current = true;
     setIsUploading(true);
     setError("");
     try {
@@ -131,7 +134,7 @@ export default function ReferenceVideoPage() {
         body: file,
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || typeof payload.storageKey !== "string" || typeof payload.mediaUrl !== "string") {
+      if (!response.ok || typeof payload.storageKey !== "string" || !payload.storageKey || typeof payload.mediaUrl !== "string" || !payload.mediaUrl) {
         throw new Error(payload.error || "Reference video upload failed.");
       }
       setUploadedKey(payload.storageKey);
@@ -146,16 +149,20 @@ export default function ReferenceVideoPage() {
       };
       setStoredVideo(nextStoredVideo);
       window.localStorage.setItem(scopedKey(REFERENCE_VIDEO_STORAGE_KEY_BASE), JSON.stringify(nextStoredVideo));
+      void queryClient.invalidateQueries({ queryKey: getListReferenceVideosQueryKey() });
+      return payload.storageKey;
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Reference video upload failed.");
+      return null;
     } finally {
+      uploadInFlight.current = false;
       setIsUploading(false);
     }
   };
 
-  const useInComposer = () => {
-    if (!uploadedKey) return;
-    setLocation(withReferenceVideoKey(returnTo, uploadedKey));
+  const useInComposer = async () => {
+    if (uploadInFlight.current) return;
+    await handoffReferenceVideo(uploadedKey, uploadVideo, key => setLocation(withReferenceVideoKey(returnTo, key)));
   };
 
   const clearVideo = () => {
@@ -230,7 +237,7 @@ export default function ReferenceVideoPage() {
           </div>
 
           <div className="space-y-5 p-5 md:p-7">
-            <FileDropzone accept="video/mp4,video/webm" title="Choose a reference video" hint="MP4 or WebM · maximum 250 MB · or drop it here"
+            <FileDropzone disabled={isUploading} accept="video/mp4,video/webm" title="Choose a reference video" hint="MP4 or WebM · maximum 250 MB · or drop it here"
               onFiles={([f]) => selectFile(f ?? null)} testId="dropzone-reference-video" />
 
             {(file || uploadedKey) && (
@@ -240,7 +247,7 @@ export default function ReferenceVideoPage() {
                   <p className="truncate text-sm font-medium">{activeVideoName}</p>
                   <p className="text-xs text-muted-foreground">{activeVideoSize} · {activeVideoType}</p>
                 </div>
-                {uploadedKey ? <CheckCircle2 className="size-5 shrink-0 text-emerald-500" /> : <Button type="button" variant="ghost" size="sm" onClick={clearVideo}>Remove</Button>}
+                {uploadedKey ? <CheckCircle2 className="size-5 shrink-0 text-emerald-500" /> : <Button type="button" variant="ghost" size="sm" disabled={isUploading} onClick={clearVideo}>Remove</Button>}
               </div>
             )}
 
@@ -265,6 +272,7 @@ export default function ReferenceVideoPage() {
                         >
                           <button
                             type="button"
+                             disabled={isUploading}
                             onClick={() => useSavedVideo(video)}
                             className="block w-full text-left hover:bg-primary/5"
                             aria-label={`Use ${video.name}`}
@@ -282,6 +290,7 @@ export default function ReferenceVideoPage() {
                               {isSelected && <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />}
                             </div>
                           </button>
+                           <p className="px-3 pb-2 text-xs text-primary">{isSelected ? "Selected for composer" : "Click the video to select it"}</p>
                           <div className="flex justify-end border-t border-border/40 px-2 py-1.5">
                             <Button
                               type="button"
@@ -289,7 +298,7 @@ export default function ReferenceVideoPage() {
                               size="sm"
                               className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => deleteSavedVideo(video)}
-                              disabled={deletingName === video.name}
+                              disabled={isUploading || deletingName === video.name}
                               aria-label={`Delete ${video.name}`}
                             >
                               {deletingName === video.name ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
@@ -312,7 +321,7 @@ export default function ReferenceVideoPage() {
             )}
 
             <div className="flex flex-col gap-3 border-t border-border/50 pt-5 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" onClick={clearVideo} disabled={!file && !uploadedKey}>
+              <Button type="button" variant="outline" onClick={clearVideo} disabled={isUploading || (!file && !uploadedKey)}>
                 <RotateCcw className="mr-2 size-4" /> Choose Different Video
               </Button>
               <Button type="button" onClick={uploadVideo} disabled={!file || !!uploadedKey || isUploading} className="brand-glow">
@@ -351,10 +360,11 @@ export default function ReferenceVideoPage() {
             <div className="rounded-lg border border-border/50 bg-background/40 p-3 text-xs leading-relaxed text-muted-foreground">
               {uploadedKey
                 ? <span className="flex items-center gap-2 text-emerald-500"><CheckCircle2 className="size-4 shrink-0" /> Uploaded and ready for the Shot Composer.</span>
-                : "Upload the video to make it available to the generation workflow."}
+                : file ? "Selected on your device—not uploaded yet. Upload & use below saves it and opens the composer."
+                : "Choose a video above or select one from Previously uploaded videos."}
             </div>
-            <Button type="button" onClick={useInComposer} disabled={!uploadedKey} className="w-full">
-              Use in Shot Composer <ArrowLeft className="ml-2 size-4 rotate-180" />
+            <Button type="button" onClick={() => void useInComposer()} disabled={isUploading || (!uploadedKey && !file)} className="w-full" data-testid="button-use-reference-video">
+              {isUploading ? <><Loader2 className="mr-2 size-4 animate-spin" /> Uploading…</> : <>{uploadedKey ? "Use in Shot Composer" : "Upload & use in Shot Composer"} <ArrowLeft className="ml-2 size-4 rotate-180" /></>}
             </Button>
           </div>
         </Card>
