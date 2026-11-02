@@ -8,6 +8,7 @@ import {
   isTransientComfyUIRequestError,
 } from "./comfy/client";
 import { createFlux2KleinWorkflow } from "./seed-data/flux2-klein";
+import { applyNativeComposition, compositionNodeClasses, hasCompositionSchemas, validateNativeComposition, type NativeComposition } from "./image-native-composition";
 import {
   getImageModel,
   type ImageModel,
@@ -33,6 +34,7 @@ export type ImageTaskInput = {
    */
   referenceMode?: "latent-img2img" | "native-reference-edit";
   nativeUploadedReferences?: string[];
+  nativeComposition?: NativeComposition;
   /**
    * Native FLUX.2 Klein reference editing snapshots the resize capability
    * selected during worker preparation. It is not a user-facing setting.
@@ -770,6 +772,7 @@ function createFlux2KleinNativeReferenceWorkflow(
     },
   };
   let positive = "11", negative = "12";
+  const encodings = ["10"];
   for (const [index,name] of (input.nativeUploadedReferences ?? []).slice(1).entries()) {
     const base=100+index*5;
     const load=String(base),resize=String(base+1),encode=String(base+2),pos=String(base+3),neg=String(base+4);
@@ -777,12 +780,16 @@ function createFlux2KleinNativeReferenceWorkflow(
     workflow[resize]=structuredClone(workflow["15"]);
     workflow[resize].inputs.image=[load,0];
     workflow[encode]={class_type:"VAEEncode",inputs:{pixels:[resize,0],vae:["3",0]}};
-    workflow[pos]={class_type:"ReferenceLatent",inputs:{conditioning:[positive,0],latent:[encode,0]}};
-    workflow[neg]={class_type:"ReferenceLatent",inputs:{conditioning:[negative,0],latent:[encode,0]}};
-    positive=pos;negative=neg;
+    encodings.push(encode);
+    if (!input.nativeComposition) {
+      workflow[pos]={class_type:"ReferenceLatent",inputs:{conditioning:[positive,0],latent:[encode,0]}};
+      workflow[neg]={class_type:"ReferenceLatent",inputs:{conditioning:[negative,0],latent:[encode,0]}};
+      positive=pos;negative=neg;
+    }
   }
   workflow["13"].inputs.positive=[positive,0];
   workflow["13"].inputs.negative=[negative,0];
+  if (input.nativeComposition) applyNativeComposition(workflow, input.nativeComposition, encodings, input.width, input.height);
   return workflow;
 }
 
@@ -1447,6 +1454,15 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
     const nativeReferenceResizeMode = input.referenceMode === "native-reference-edit"
       ? capability.nativeReferenceResizeMode
       : undefined;
+    if (input.nativeComposition) {
+      if (input.referenceMode !== "native-reference-edit" || input.modelId !== "local-flux2-klein-4b") {
+        throw new ImageTaskError("Regional composition requires native FLUX.2 Klein reference editing.", false);
+      }
+      validateNativeComposition(input.nativeComposition, input.width, input.height, input.referenceImages.length);
+      if (!hasCompositionSchemas(await fetchObjectInfo(input.server, compositionNodeClasses))) {
+        throw new ImageTaskError("This worker lacks the verified regional-conditioning nodes. No unmasked composition was submitted.", false);
+      }
+    }
     if (input.referenceMode === "native-reference-edit" && !nativeReferenceResizeMode) {
       throw new ImageTaskError(
         `${model.name} native reference resize capability is unavailable on ${input.server.displayName}.`,
@@ -1509,13 +1525,14 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
         // restart, without reconstructing or resubmitting the workflow.
         progressNodes: input.modelId === "local-flux2-klein-4b"
           ? input.referenceMode === "native-reference-edit"
-            ? { sampler: ["16"], saving: ["18"] }
+            ? { sampler: Object.entries(workflow).filter(([, node]) => node.class_type === "SamplerCustomAdvanced").map(([id]) => id), saving: ["18"] }
             : { sampler: ["11"], saving: ["13"] }
           : { sampler: ["8"], saving: ["10"] },
         ...(input.referenceMode === "native-reference-edit"
           ? {
             referenceMode: "native-reference-edit",
             nativeReferenceResizeMode,
+            ...(input.nativeComposition ? { nativeComposition: structuredClone(input.nativeComposition) } : {}),
           }
           : {}),
         submittedAt: Date.now(),

@@ -21,6 +21,12 @@ When the first view explicitly names its subjects, an opening composition uses t
 
 **How to apply:** Bind each included reference image to its named character and preserve species, anatomy and approved wardrobe. Test single-character openings in multi-character scenes as well as explicitly multi-character openings.
 
+For local multi-character openings, use separate cropped character renders and disjoint feathered compositing, not a shared sampler conditioned on every identity. Strip studio-asset/model-sheet directives from scene identity notes while retaining anatomy and accessories. Group corrections must re-use approved identities, not a blended prior image as their only reference.
+
+**Why:** A live test using uploaded character-card crops still transferred features between subjects with separate regional conditioning inside a shared sample. A subsequent separate-sampler composition kept the crab, spotted character and bird distinct in that test. These are sample results, not proof of every future output or of the creator's original production inputs.
+
+**How to apply:** Each character render gets its scenery crop plus only that character's approved look. Preserve approval gates and explicit reference-capacity failures. Snapshot the composition plan for recovery and inspect an actual GPU output before claiming identity separation works.
+
 Revising a completed continuity-controlled shot must leave time for review before rendering again.
 
 **Why:** The ordinary edit-and-regenerate flow conflicts with a required still-approval stage. Continuity revisions need a deliberate paused review state, while existing projects without continuity retain their original behavior.

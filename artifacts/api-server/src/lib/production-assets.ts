@@ -9,6 +9,7 @@ import { stateOf } from "./production-store";
 import { publishProductionScenery } from "./scenery-library";
 import { publishProductionCharacters } from "./production-character-library";
 import { openingCorrectionPrompt, openingInputs } from "./production-openings";
+import type { NativeComposition } from "./image-native-composition";
 
 const MODEL = "local-flux2-klein-4b";
 const views = ["front", "three-quarter", "profile", "expressions"];
@@ -240,13 +241,22 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
   if (!entity) throw new Error("The generation target no longer exists.");
   if (!task.jobId) {
     let prompt = "", referenceAssetIds: string[] = [], seed = 0, wide = false;
+    let nativeComposition: NativeComposition | undefined;
     if (task.type==="opening" && openingScene) {
       const inputs=openingInputs(state,openingScene);
-      if(inputs.ids.length>4 && !task.openingReferenceAssetId)throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
+      if(inputs.ids.length>4 && (!task.openingReferenceAssetId || inputs.composition))throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
       prompt=task.openingCorrection
         ? openingCorrectionPrompt(task.openingCorrection)
         : inputs.prompt;
-      referenceAssetIds=task.openingReferenceAssetId ? [task.openingReferenceAssetId] : inputs.ids;wide=true;
+      // Group corrections must not use a previously blended image as the sole
+      // identity source. Recompose from approved scenery/looks and the correction.
+      referenceAssetIds=task.openingReferenceAssetId && !inputs.composition ? [task.openingReferenceAssetId] : inputs.ids;wide=true;
+      nativeComposition = inputs.composition ? structuredClone(inputs.composition) : undefined;
+      if (nativeComposition && task.openingCorrection) {
+        nativeComposition.backgroundPrompt += ` Requested scene correction: ${task.openingCorrection}`;
+        for (const subject of nativeComposition.subjects) subject.prompt += ` Apply this requested correction where relevant to ${subject.name}, preserving its own identity: ${task.openingCorrection}`;
+        prompt = `${inputs.prompt}\nRequested correction: ${task.openingCorrection}`;
+      }
     } else if (task.type === "portraits" && character) {
       prompt = `Character portrait, one subject, clear face, no text. ${character.description}`;
       seed = character.seed + task.index;
@@ -267,6 +277,7 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
     } else throw new Error("The required base reference is missing.");
     const job = await createImageJob({
       tenantId: row.tenantId, userId: row.createdByUserId,
+      ...(nativeComposition ? { nativeComposition } : {}),
       ...(referenceAssetIds.length && (task.modelId ?? MODEL) === "local-flux2-klein-4b"
         ? { referenceMode: "native-reference-edit" as const } : {}),
       request: {

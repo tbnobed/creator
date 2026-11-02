@@ -280,3 +280,17 @@ mtime_ms = 1793142390000
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/fa747228-2263-4e39-97d0-8291b30af786/0a3b2348-bdf1-4ca2-b3a0-ec78d6d92127"
 storage_version_token = "1793142508798645"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "cBKMxXP-jYNicD05LjRsx"
+uri = "file://generated-artifacts/regional-opening-verification.png"
+type = "image"
+title = "GPU verification — separate character renders"
+description = "Local GPU test using cropped character cards and the marsh image from your uploads. Each character was rendered separately into its own scenery crop, then composited. This is a verification sample, not a regenerated or approved image in your production."
+logical_id = "dcb337f0-cb70-4282-a060-a6a6c795a18b"
+content_hash = "sha256:0eb6dd3c33d2613c82767a0ed8c2313e97f86636590b13fead00ab9980b9e848"
+size = 957851
+mtime_ms = 1793604342802
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/dcb337f0-cb70-4282-a060-a6a6c795a18b/504f24ec-d8de-42e8-8b48-0e5e12c4d9e7"
+storage_version_token = "1793604486426841"
+content_type = "image/png"

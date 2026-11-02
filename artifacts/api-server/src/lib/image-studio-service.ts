@@ -1,3 +1,4 @@
+import { validateNativeComposition, type NativeComposition } from "./image-native-composition";
 import { assertOpaqueTopazSource, topazImageScale, TOPAZ_IMAGE_MODEL } from "./topaz-image";
 import { publishLocationImageResults } from "./scenery-library";
 import { galleryAssetCondition, isEditorMaskName } from "./image-studio-asset-visibility";
@@ -1091,12 +1092,20 @@ export async function createImageJob(input: {
   settingId?: string;
   settingReferenceName?: string;
   referenceMode?: "native-reference-edit";
+  nativeComposition?: NativeComposition;
 }): Promise<PresentedImageJob> {
+  const nativeComposition = input.nativeComposition ? structuredClone(input.nativeComposition) : undefined;
   const model = getImageModel(input.request.modelId);
   if (!model) throw new ImageStudioRequestError("Image model not found", 400);
   validateRequest(input.referenceMode==="native-reference-edit" && model.id==="local-flux2-klein-4b" ? {...model,maxReferences:4} : model, input.request);
   if (input.referenceMode && (model.id !== "local-flux2-klein-4b" || !input.request.referenceAssetIds?.length)) {
     throw new ImageStudioRequestError("Native reference editing requires FLUX.2 Klein and a source image.", 400);
+  }
+  if (nativeComposition) {
+    if (model.id !== "local-flux2-klein-4b" || input.referenceMode !== "native-reference-edit") {
+      throw new ImageStudioRequestError("Regional composition requires native local reference editing.", 400);
+    }
+    validateNativeComposition(nativeComposition, input.request.width, input.request.height, input.request.referenceAssetIds?.length ?? 0);
   }
   if (
     model.provider === "CLOUD"
@@ -1206,6 +1215,7 @@ export async function createImageJob(input: {
           }
           : {
             ...(input.referenceMode ? { referenceMode: input.referenceMode } : {}),
+            ...(nativeComposition ? { nativeComposition } : {}),
             submissionIntent: true,
             submissionIntentAt: new Date().toISOString(),
             cancellationRequested: false,
@@ -1313,6 +1323,7 @@ export async function createImageJob(input: {
         denoiseStrength: input.request.denoiseStrength,
         referenceImages: loadedAssets.references,
         ...(input.referenceMode ? { referenceMode: input.referenceMode } : {}),
+        ...(nativeComposition ? { nativeComposition } : {}),
         mask: loadedAssets.mask,
         ...(server ? { server } : {}),
         clientId: job.id,
