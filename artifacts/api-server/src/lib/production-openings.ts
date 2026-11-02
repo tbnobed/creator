@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { productionAppearance,approvedProductionProp } from "./production-appearance";
 import { requireProductionScenery } from "./production-scenery";
 import type { ProductionState,ProductionScene } from "./production-types";
+import { resolveProductionCast } from "./production-cast";
 export function openingInputs(state:ProductionState,scene:ProductionScene) {
-  const cast=state.characters.filter(c=>scene.characters.some(n=>n.toLowerCase()===c.name.toLowerCase()));
+  const cast=resolveProductionCast(state,scene);
   const {reference}=requireProductionScenery(state,scene);
   const prop=approvedProductionProp(state);
   const ids=[reference.assetId!,...cast.map(c=>productionAppearance(state,c,scene.sceneNumber).assetId),...(prop?[prop.assetId]:[])];

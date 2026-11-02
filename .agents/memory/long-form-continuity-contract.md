@@ -9,6 +9,12 @@ Treat an approved shot still and assigned wardrobe imagery as required render in
 
 **How to apply:** Check the selected workflow's actual reference capacity before dispatch. Preserve per-job reference and speaker snapshots rather than relying on mutable project settings or shared state between GPUs.
 
+An empty or mismatched scene cast list must not silently turn a named production character into a text-only subject.
+
+**Why:** A scene described Cleo, but the opening prompt used the no-matched-cast fallback and omitted her approved image. The resulting subject did not match the creator's main character.
+
+**How to apply:** Resolve known character mentions consistently for composed openings and video dispatch. Accept only exact names or unambiguous short names, fail on missing declared identities and ambiguous names, and preserve approved wardrobe precedence. Do not assume that a reference being included guarantees the model will reproduce it.
+
 Revising a completed continuity-controlled shot must leave time for review before rendering again.
 
 **Why:** The ordinary edit-and-regenerate flow conflicts with a required still-approval stage. Continuity revisions need a deliberate paused review state, while existing projects without continuity retain their original behavior.

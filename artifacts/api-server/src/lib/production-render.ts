@@ -19,6 +19,7 @@ import { falModels, type FalModel } from "./fal/client";
 import { registerProductionFrame, previousProductionShot } from "./production-dispatch";
 import { productionRerenderPrompt, productionRetrySeed, productionShotPrompt } from "./production-shot-prompt";
 import { prepareProductionRerenders } from "./production-rerender";
+import { resolveProductionCast } from "./production-cast";
 
 const exec = promisify(execFile);
 export async function assertProductionEditable(row: ProductionProjectRow) {
@@ -50,7 +51,7 @@ export async function prepareProductionRender(row: ProductionProjectRow): Promis
   const state = stateOf(row);
   approvedProductionProp(state);
   for (const scene of state.story.scenes) requireOpening(state,scene);
-  for (const scene of state.story.scenes) for (const character of state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()))) {
+  for (const scene of state.story.scenes) for (const character of resolveProductionCast(state, scene)) {
     const outfit = state.wardrobes.filter(w => w.characterId === character.id && w.fromScene <= scene.sceneNumber && w.toScene >= scene.sceneNumber).at(-1);
     if (outfit && (!outfit.assetId || outfit.approvedAssetId !== outfit.assetId)) throw new Error(`Review and approve ${character.name}'s ${outfit.name} in Wardrobe before rendering.`);
   }
@@ -58,8 +59,9 @@ export async function prepareProductionRender(row: ProductionProjectRow): Promis
   if (!state.story.scenes.length || state.story.draftStatus !== "READY") throw new Error("Finish and review the story draft first.");
   if (state.tasks.some(t => ["QUEUED", "RUNNING"].includes(t.status))) throw new Error("Wait for the reference generation queue to finish.");
   if (!state.settings.generationMode) throw new Error("Select a video workflow in Create.");
-  const names = new Set(state.story.scenes.flatMap(s => s.characters).map(n => n.toLowerCase()));
-  for (const name of names) if (!state.characters.some(c => c.name.toLowerCase() === name && c.locked && c.characterId)) throw new Error(`Lock a look for ${name} before creating scenes.`);
+  for (const scene of state.story.scenes) for (const character of resolveProductionCast(state, scene)) {
+    if (!character.locked || !character.characterId) throw new Error(`Lock a look for ${character.name} before creating scenes.`);
+  }
   for (const scene of state.story.scenes) requireProductionScenery(state, scene);
   const shots = productionShotPlan(state.story.scenes, state.settings.shotDurationSeconds);
   const total = shots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
@@ -81,7 +83,7 @@ export async function prepareProductionRender(row: ProductionProjectRow): Promis
     await tx.update(longFormShotsTable).set({ shotNumber: sql`${longFormShotsTable.shotNumber} + 100000` }).where(eq(longFormShotsTable.projectId, render.id));
     for (let i = 0; i < created.length; i++) {
       const planned = shots[i], scene = state.story.scenes.find(s => s.sceneNumber === planned.sceneNumber)!;
-      const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase())).flatMap(c => c.characterId ? [c.characterId] : []);
+      const cast = resolveProductionCast(state, scene).flatMap(c => c.characterId ? [c.characterId] : []);
       await tx.update(longFormShotsTable).set({ sceneNumber: planned.sceneNumber, shotNumber: i + 1, durationSeconds: planned.durationSeconds, dialogue: planned.dialogue, characterIds: cast }).where(eq(longFormShotsTable.id, created[i].id));
     }
     await tx.update(productionProjectsTable).set({ renderProjectId: render.id }).where(eq(productionProjectsTable.id, row.id));
@@ -98,7 +100,7 @@ export async function runProductionRenderAction(row: ProductionProjectRow, actio
         eq(workflowTemplatesTable.generationMode, state.settings.generationMode),
       ));
       const requiredSlots = Math.max(1, ...state.story.scenes.map(scene => {
-        const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
+        resolveProductionCast(state, scene);
         return 2 + (state.propReference ? 1 : 0);
       }));
       if (!workflows.some(workflow => {
@@ -184,7 +186,7 @@ export async function productionShotReferences(row: ProductionProjectRow, shot: 
   const state = stateOf(row);
   const scene = state.story.scenes.find(s => s.sceneNumber === shot.sceneNumber);
   if (!scene) throw new Error("This shot's production scene no longer exists.");
-  const cast = state.characters.filter(c => scene.characters.some(n => n.toLowerCase() === c.name.toLowerCase()));
+  const cast = resolveProductionCast(state, scene);
   const composed=requireOpening(state,scene);
   const ids: string[] = [composed.assetId!];
   const notes: string[] = ["Reference image 1 is the approved complete scene composition. Preserve its character identities, outfits, props, relative scale and entire location. Do not switch to a portrait background."];
