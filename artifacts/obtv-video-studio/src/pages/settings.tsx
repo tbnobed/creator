@@ -4,7 +4,9 @@ import { useListSettings, useDeleteSetting, useCreateSetting, useUpdateSetting }
 import { getListSettingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Page, PageHeader } from "@/components/layout/page";
-import { Plus, Edit2, Trash2, Map, Image as ImageIcon } from "lucide-react";
+import { Plus, Edit2, Trash2, Map, Image as ImageIcon, Sparkles, Upload, ChevronDown } from "lucide-react";
+import type { Setting } from "@workspace/api-client-react";
+import { deriveShortDescription, hasDistinctShortDescription, locationThumbnailInput, parseTags, resolveShortDescription, SHORT_DESCRIPTION_MAX } from "@/lib/location-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -159,142 +161,204 @@ export default function SettingsPage() {
   );
 }
 
-function SettingForm({ initialData, onSuccess }: { initialData?: any, onSuccess: () => void }) {
+function SettingForm({ initialData, onSuccess }: { initialData?: Setting, onSuccess: () => void }) {
   const queryClient = useQueryClient();
   const createMutation = useCreateSetting();
   const updateMutation = useUpdateSetting();
-
-  const formRef = useRef<HTMLFormElement>(null);
-  const [activeId, setActiveId] = useState<string | undefined>(initialData?.id);
-  const [thumbnail, setThumbnail] = useState<string>(initialData?.thumbnail || "");
-  const [uploads, setUploads] = useState<File[]>([]);
   const { toast } = useToast();
 
-  const getFormData = () => {
-    if (!formRef.current) return null;
-    const formData = new FormData(formRef.current);
+  const [activeId, setActiveId] = useState<string | undefined>(initialData?.id);
+  const [name, setName] = useState(initialData?.name ?? "");
+  const [prompt, setPrompt] = useState(initialData?.promptDescription || initialData?.description || "");
+  const [tags, setTags] = useState(initialData?.tags?.join(", ") ?? "");
+  // A summary the user wrote separately is preserved (and editable under More options); otherwise derived.
+  const [summary, setSummary] = useState<string | null>(
+    hasDistinctShortDescription(initialData?.description, initialData?.promptDescription) ? initialData!.description : null,
+  );
+  const [thumbnail, setThumbnail] = useState<string>(initialData?.thumbnail || "");
+  const [source, setSource] = useState<"generate" | "upload">("generate");
+  const [uploads, setUploads] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const savePromise = useRef<Promise<string> | null>(null);
+  const idRef = useRef<string | undefined>(initialData?.id);
 
-    const tagsStr = formData.get("tags") as string;
-    const tags = tagsStr ? tagsStr.split(",").map(t => t.trim()).filter(Boolean) : [];
+  // Live references from the shared list cache so newly generated images are editable immediately.
+  const { data: settings } = useListSettings({ query: { queryKey: getListSettingsQueryKey() } });
+  const live = settings?.find((s) => s.id === activeId);
+  const references = live?.references ?? initialData?.references ?? [];
 
-    return {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      promptDescription: formData.get("promptDescription") as string,
-      thumbnail: thumbnail || null,
-      tags,
-    };
+  const buildData = (thumb: string) => ({
+    name: name.trim(),
+    description: resolveShortDescription(prompt, summary),
+    promptDescription: prompt.trim(),
+    // Omit an unset thumbnail on updates: a durable job may have supplied one
+    // since this dialog opened. Never clear that image with stale form state.
+    ...locationThumbnailInput(thumb),
+    tags: parseTags(tags),
+  });
+
+  // Serialised save: concurrent callers share one request, and the created ID is reused afterwards.
+  const saveOrUpdate = (thumb = thumbnail): Promise<string> => {
+    if (savePromise.current) return savePromise.current;
+    const run = (async () => {
+      const data = buildData(thumb);
+      if (idRef.current) {
+        await updateMutation.mutateAsync({ id: idRef.current, data });
+      } else {
+        const saved = await createMutation.mutateAsync({ data });
+        idRef.current = saved.id;
+        setActiveId(saved.id);
+      }
+      return idRef.current!;
+    })();
+    savePromise.current = run;
+    return run.finally(() => { savePromise.current = null; });
   };
 
-  const saveOrUpdate = async () => {
-    const data = getFormData();
-    if (!data) throw new Error("Could not get form data");
-
-    let currentId = activeId;
-    let saved;
-    if (currentId) {
-      saved = await updateMutation.mutateAsync({ id: currentId, data });
-    } else {
-      saved = await createMutation.mutateAsync({ data });
-      setActiveId(saved.id);
-      currentId = saved.id;
-    }
-    return { id: currentId, data };
+  const validate = () => {
+    if (!name.trim()) throw new Error("Give the location a name first.");
+    if (!prompt.trim()) throw new Error("Describe the location first.");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
-      const { id: savedId, data } = await saveOrUpdate();
-
-      const files = uploads;
-
-      let finalThumbnail = thumbnail;
-      for (const file of files) {
-        const response = await fetch(`/api/settings/${savedId}/assets`, {
-          method: "POST",
-          headers: { "content-type": file.type, "x-file-name": file.name },
-          body: file,
-        });
-        const result = await response.json() as { mediaUrl?: string; error?: string };
-        if (!response.ok) throw new Error(result.error ?? "Reference image upload failed");
-        finalThumbnail ||= result.mediaUrl ?? "";
+      validate();
+      const savedId = await saveOrUpdate();
+      let finalThumbnail = live?.thumbnail || thumbnail;
+      if (source === "upload" || uploads.length) {
+        for (const file of uploads) {
+          const response = await fetch(`/api/settings/${savedId}/assets`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": file.type, "x-file-name": file.name },
+            body: file,
+          });
+          const result = await response.json().catch(() => ({})) as { mediaUrl?: string; error?: string };
+          if (!response.ok) throw new Error(result.error ?? "Image upload failed");
+          finalThumbnail ||= result.mediaUrl ?? "";
+          setThumbnail(finalThumbnail);
+          // If a later file fails, retry only the files still waiting.
+          setUploads(pending => pending.filter(candidate => candidate !== file));
+        }
+        setUploads([]);
       }
-      if (finalThumbnail !== (data.thumbnail || "") && finalThumbnail !== "") {
+      if (finalThumbnail && finalThumbnail !== thumbnail) {
         setThumbnail(finalThumbnail);
-        await updateMutation.mutateAsync({ id: savedId, data: { ...data, thumbnail: finalThumbnail } });
+        await saveOrUpdate(finalThumbnail);
       }
-
-      queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
       onSuccess();
-    } catch (err: any) {
-      toast({ title: "Error saving location", description: err.message, variant: "destructive" });
+    } catch (err) {
+      void queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
+      toast({ title: "Error saving location", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Generation is queued against a saved location, so save the form first.
+  // Generation is queued against a saved location, so save the current form first.
   const ensureSaved = async () => {
-    if (!formRef.current?.checkValidity()) {
-      formRef.current?.reportValidity();
-      throw new Error("Fill out the required fields first so the location can be saved.");
-    }
-    const { id } = await saveOrUpdate();
-    queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
+    validate();
+    const id = await saveOrUpdate();
+    await queryClient.invalidateQueries({ queryKey: getListSettingsQueryKey() });
     return id;
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = saving || createMutation.isPending || updateMutation.isPending;
+  const derived = deriveShortDescription(prompt);
 
   return (
-    <div className="space-y-6">
-      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input id="name" name="name" required defaultValue={initialData?.name} className="bg-secondary/20" />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate={false}>
+      <div className="space-y-2">
+        <Label htmlFor="location-name">Name</Label>
+        <Input id="location-name" required disabled={isPending} value={name} onChange={(e) => setName(e.target.value)} className="bg-secondary/20" data-testid="input-location-name" />
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">Short Description</Label>
-          <Input id="description" name="description" required defaultValue={initialData?.description} className="bg-secondary/20" />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="location-prompt">Description</Label>
+        <Textarea
+          id="location-prompt"
+          required
+          disabled={isPending}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          className="min-h-28 bg-secondary/20"
+          placeholder="Architecture, lighting, mood, colors and details that should stay consistent across scenes."
+          aria-describedby="location-prompt-hint"
+          data-testid="input-location-prompt"
+        />
+        <p id="location-prompt-hint" className="text-xs text-muted-foreground">Used as the image prompt and to keep this environment consistent in generated scenes.</p>
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="promptDescription">Environment appearance</Label>
-          <Textarea
-            id="promptDescription"
-            name="promptDescription"
-            required
-            defaultValue={initialData?.promptDescription}
-            className="min-h-24 bg-secondary/20"
-            placeholder="Describe the location, architecture, lighting, mood, colors, and details that should remain consistent."
-          />
-          <p className="text-xs text-muted-foreground">Used to keep this environment consistent across generated scenes.</p>
+      <fieldset className="space-y-3">
+        <legend className="mb-2 text-sm font-medium">Image</legend>
+        <div className="grid grid-cols-2 gap-1 rounded-md bg-secondary/40 p-1 text-xs" role="radiogroup" aria-label="Image source">
+          {([["generate", "Generate image", Sparkles], ["upload", "Upload image", Upload]] as const).map(([v, label, Icon]) => (
+            <label key={v}
+              className={`relative flex cursor-pointer items-center justify-center gap-1.5 rounded px-2 py-2 font-medium transition-colors focus-within:ring-2 focus-within:ring-ring ${source === v ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}>
+              <input type="radio" name="location-image-source" value={v} checked={source === v} disabled={isPending}
+                onChange={() => setSource(v)} className="sr-only" data-testid={`radio-location-source-${v}`} />
+              <Icon className="size-3.5" aria-hidden />{label}
+            </label>
+          ))}
         </div>
+        <div hidden={source !== "generate"}>
+          <LocationImageJob mode="base" ensureSaved={ensureSaved} basePrompt={prompt} references={references} disabled={isPending} />
+        </div>
+        {source === "upload" && (
+          <div className="space-y-2">
+            <FileDropzone compact multiple disabled={isPending} accept="image/jpeg,image/png,image/webp" title={uploads.length ? `${uploads.length} image${uploads.length === 1 ? "" : "s"} selected` : "Choose or drop images"} hint="JPG, PNG or WebP" onFiles={setUploads} testId="dropzone-location-references" />
+            <p className="text-xs text-muted-foreground">No AI generation. Images upload when you save; the first becomes the thumbnail if none is set.</p>
+          </div>
+        )}
+      </fieldset>
 
-        <div className="space-y-2">
-          <Label htmlFor="tags">Tags <span className="font-normal text-muted-foreground">(optional)</span></Label>
-          <Input id="tags" name="tags" defaultValue={initialData?.tags?.join(", ")} placeholder="interior, studio, nighttime" className="bg-secondary/20" />
+      <details className="group rounded-lg border border-border/60 bg-secondary/10" data-testid="details-location-more">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          More options
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="space-y-4 border-t border-border/60 p-3">
+          <div className="space-y-2">
+            <Label htmlFor="location-tags">Tags <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <Input id="location-tags" disabled={isPending} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="interior, studio, nighttime" className="bg-secondary/20" data-testid="input-location-tags" />
+          </div>
+          {summary !== null ? (
+            <div className="space-y-2">
+              <Label htmlFor="location-summary">Card summary</Label>
+              <Input id="location-summary" maxLength={SHORT_DESCRIPTION_MAX} value={summary} onChange={(e) => setSummary(e.target.value)} className="bg-secondary/20" data-testid="input-location-summary" />
+              <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setSummary(null)} data-testid="button-summary-derive">Use description instead</button>
+            </div>
+          ) : derived ? (
+            <p className="text-xs text-muted-foreground" data-testid="text-location-summary-derived">Card summary: {derived}</p>
+          ) : null}
+          {source === "generate" && (
+            <div className="space-y-2">
+              <Label>Also upload images</Label>
+              <FileDropzone compact multiple disabled={isPending} accept="image/jpeg,image/png,image/webp" title={uploads.length ? `${uploads.length} image${uploads.length === 1 ? "" : "s"} selected` : "Choose or drop images"} hint="Uploaded when you save" onFiles={setUploads} testId="dropzone-location-references-extra" />
+            </div>
+          )}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Variants &amp; image editing</p>
+            <LocationImageJob mode="variant" ensureSaved={ensureSaved} references={references} disabled={isPending} />
+          </div>
+          {activeId && references.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Images ({references.length})</p>
+              <LocationReferences settingId={activeId} references={references} />
+            </div>
+          )}
         </div>
-        <div className="space-y-2">
-          <Label>Upload images</Label>
-          <FileDropzone compact multiple accept="image/jpeg,image/png,image/webp" title={uploads.length ? `${uploads.length} image${uploads.length === 1 ? "" : "s"} selected` : "Choose or drop images"} hint="JPG, PNG or WebP" onFiles={setUploads} testId="dropzone-location-references" />
-          <p className="text-xs text-muted-foreground">Use images you already have—no AI generation. The first image becomes the thumbnail.</p>
-        </div>
+      </details>
 
-        <div className="pt-2">
-          <LocationImageJob
-            ensureSaved={ensureSaved}
-            defaultPrompt={initialData?.promptDescription || ""}
-            references={initialData?.references ?? []}
-          />
-        </div>
-
-        <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isPending} data-testid="button-save-location">
-            {isPending ? "Saving..." : activeId ? "Save Changes" : "Create Location"}
-          </Button>
-        </div>
-      </form>
-    </div>
+      <div className="flex justify-end pt-2">
+        <Button type="submit" disabled={isPending} data-testid="button-save-location">
+          {isPending ? "Saving..." : "Save location"}
+        </Button>
+      </div>
+    </form>
   );
 }
