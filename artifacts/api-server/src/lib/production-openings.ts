@@ -7,9 +7,15 @@ export function openingInputs(state:ProductionState,scene:ProductionScene) {
   const {reference}=requireProductionScenery(state,scene);
   const prop=approvedProductionProp(state);
   const ids=[reference.assetId!,...cast.map(c=>productionAppearance(state,c,scene.sceneNumber).assetId),...(prop?[prop.assetId]:[])];
-  const prompt=`One cinematic photograph inside the room in image 1. Keep image 1's room, architecture and lighting as the entire background. Exactly ${cast.length} character${cast.length===1?"":"s"}, each appearing ONCE, from image${cast.length===1?"":"s"} ${cast.map((_,i)=>i+2).join(", ")}. Preserve their exact faces, bodies, materials and clothes. ${prop ? `Exactly ONE recurring prop from image ${ids.length}: ${prop.description}.` : ""} No duplicates, no miniatures, no collage. Do not copy the character reference's plain background. Scene: ${scene.shots?.[0]?.prompt || scene.action}. ${cast.map(c=>productionAppearance(state,c,scene.sceneNumber).description).join(" ")}`;
+  const castInstruction = cast.length
+    ? `Exactly ${cast.length} character${cast.length===1?"":"s"}, each appearing ONCE, from image${cast.length===1?"":"s"} ${cast.map((_,i)=>i+2).join(", ")}. Preserve their exact faces, bodies, materials and clothes. Do not copy the character reference's plain background.`
+    : "Use the location reference and the subjects described in the scene.";
+  const prompt=`One cinematic photograph at the location shown in image 1. Keep image 1's environment, layout, scenery and lighting as the entire background. Preserve the visible surroundings as shown in that reference. ${castInstruction} ${prop ? `Exactly ONE recurring prop from image ${ids.length}: ${prop.description}.` : ""} No duplicates, no miniatures, no collage. Scene: ${scene.shots?.[0]?.prompt || scene.action}. ${cast.map(c=>productionAppearance(state,c,scene.sceneNumber).description).join(" ")}`;
   const sourceKey=createHash("sha256").update(JSON.stringify({ids,prompt,location:scene.location,timeOfDay:scene.timeOfDay,identities:cast.map(c=>c.selectedAssetId),width:state.settings.width,height:state.settings.height})).digest("hex");
   return {ids,prompt,sourceKey};
+}
+export function openingCorrectionPrompt(correction: string): string {
+  return `Edit this single complete scene image. Preserve its exact cast, faces, materials, outfits, props, location, scenery, lighting and camera except for this requested correction: ${correction}. Do not duplicate characters or objects.`;
 }
 export function requireOpening(state:ProductionState,scene:ProductionScene) {
   const inputs=openingInputs(state,scene);

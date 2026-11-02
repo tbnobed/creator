@@ -8,7 +8,7 @@ import { numberIn, text, type ProductionState, type ProductionTask } from "./pro
 import { stateOf } from "./production-store";
 import { publishProductionScenery } from "./scenery-library";
 import { publishProductionCharacters } from "./production-character-library";
-import { openingInputs } from "./production-openings";
+import { openingCorrectionPrompt, openingInputs } from "./production-openings";
 
 const MODEL = "local-flux2-klein-4b";
 const views = ["front", "three-quarter", "profile", "expressions"];
@@ -244,7 +244,7 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
       const inputs=openingInputs(state,openingScene);
       if(inputs.ids.length>4 && !task.openingReferenceAssetId)throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
       prompt=task.openingCorrection
-        ? `Edit this single complete scene image. Preserve its exact cast, faces, materials, outfits, props, room, lighting and camera except for this requested correction: ${task.openingCorrection}. Do not duplicate characters or objects.`
+        ? openingCorrectionPrompt(task.openingCorrection)
         : inputs.prompt;
       referenceAssetIds=task.openingReferenceAssetId ? [task.openingReferenceAssetId] : inputs.ids;wide=true;
     } else if (task.type === "portraits" && character) {

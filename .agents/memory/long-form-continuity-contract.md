@@ -75,6 +75,12 @@ Scene animation must start from a reviewed composition containing the intended c
 
 **How to apply:** Use separate native reference conditioning, fail rather than drop excess references, and require explicit approval of the composed opening. Bind approval to current source images, identity, scene and output dimensions. Never auto-approve a generated candidate or equate successful rendering with visual continuity.
 
+Automatic scene-opening and correction instructions must be location-neutral. Interior or exterior details should come from the creator's scene and approved scenery, not a shared indoor template.
+
+**Why:** An outdoor marsh opening repeatedly included an overhead structure while the shared template instructed every scene to be photographed “inside the room.” That wording was a confirmed prompt defect, not proof of the exact cause of every generated artifact.
+
+**How to apply:** Preserve the reference location, scenery and lighting without inventing a room, roof, or ceiling. Test both outdoor and indoor scenes, retaining explicitly authored interior details.
+
 A reviewed opening is necessary input validation, not a demonstrated cure for H3 background drift.
 
 **Why:** A second live two-scene test used the approved composition, correct empty workshop and a cropped prop reference with library fallbacks disabled. The workshop still changed into a neutral backdrop during close-ups. The character and vest remained recognizable, but scenery continuity failed.
