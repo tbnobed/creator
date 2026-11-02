@@ -2,16 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PNG } from "pngjs";
 import { applyNativeComposition, compositionSegmentationModel, hasCompositionSchemas, validateNativeComposition, validateCompositionMask, type NativeComposition } from "./image-native-composition";
-import { openingIdentity, openingSubjectAction } from "./production-opening-prompts";
+import { openingSubjectAction } from "./production-opening-prompts";
 import { openingInputs } from "./production-openings";
 import { emptyProduction } from "./production-types";
 
 const plan = (): NativeComposition => ({
   version: 3, backgroundPrompt: "Wetland scenery", backgroundReferenceIndexes: [0],
   subjects: [
-    { name: "Cleo", referenceIndex: 1, prompt: "One crab Cleo", x: 16, y: 16, width: 240, height: 400 },
-    { name: "Barns", referenceIndex: 2, prompt: "One shark Barns", x: 272, y: 16, width: 240, height: 400 },
-    { name: "Ridley", referenceIndex: 3, prompt: "One bird Ridley", x: 528, y: 16, width: 240, height: 400 },
+    { name: "Subject A", referenceIndex: 1, prompt: "Subject from first portrait", x: 16, y: 16, width: 240, height: 400 },
+    { name: "Subject B", referenceIndex: 2, prompt: "Subject from second portrait", x: 272, y: 16, width: 240, height: 400 },
+    { name: "Subject C", referenceIndex: 3, prompt: "Subject from third portrait", x: 528, y: 16, width: 240, height: 400 },
   ],
 });
 
@@ -27,7 +27,7 @@ test("separate cropped samplers give each subject scenery plus only its own iden
     "18": { class_type: "SaveImage", inputs: { images: ["17", 0] } },
   } as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
   const p = plan();
-  applyNativeComposition(graph, p, ["location", "crab", "shark", "bird"], 800, 448);
+  applyNativeComposition(graph, p, ["location", "identity-1", "identity-2", "identity-3"], 800, 448);
   const walkReferences = (nodeId: string): string[] => {
     const node = graph[nodeId];
     if (!node) return [];
@@ -40,10 +40,10 @@ test("separate cropped samplers give each subject scenery plus only its own iden
     const chains = Object.values(graph).filter(node => node.class_type === "CFGGuider")
       .map(node => walkReferences((node.inputs.positive as string[])[0]));
     assert.ok(textId);
-    const own = chains.find(chain => chain[1] === ["", "crab", "shark", "bird"][subject.referenceIndex])!;
+    const own = chains.find(chain => chain[1] === ["", "identity-1", "identity-2", "identity-3"][subject.referenceIndex])!;
     assert.equal(own.length, 2);
     assert.equal(graph[own[0]].class_type, "VAEEncode");
-    assert.equal(chains.filter(chain => chain.includes(["", "crab", "shark", "bird"][subject.referenceIndex])).length, 1);
+    assert.equal(chains.filter(chain => chain.includes(["", "identity-1", "identity-2", "identity-3"][subject.referenceIndex])).length, 1);
   }
   assert.equal(graph["13"], undefined);
   assert.equal(Object.values(graph).filter(node => node.class_type === "SamplerCustomAdvanced").length, 3);
@@ -61,12 +61,12 @@ test("separate cropped samplers give each subject scenery plus only its own iden
 });
 
 test("foreground masks reject empty, full-frame and wrong-size output", () => {
-  const subject = { name: "Cleo", width: 64, height: 64 };
+  const subject = { name: "Subject A", width: 64, height: 64 };
   const png = new PNG({ width: 64, height: 64 });
   png.data.fill(0);
-  assert.throws(() => validateCompositionMask(PNG.sync.write(png), subject), /Could not isolate Cleo/);
+  assert.throws(() => validateCompositionMask(PNG.sync.write(png), subject), /Could not isolate Subject A/);
   png.data.fill(255);
-  assert.throws(() => validateCompositionMask(PNG.sync.write(png), subject), /Could not isolate Cleo/);
+  assert.throws(() => validateCompositionMask(PNG.sync.write(png), subject), /Could not isolate Subject A/);
   png.data.fill(0);
   for (let y = 16; y < 48; y++) for (let x = 16; x < 48; x++) {
     png.data.fill(255, (y * 64 + x) * 4, (y * 64 + x) * 4 + 4);
@@ -98,7 +98,7 @@ test("a recurring prop gets a background-only pass, separate from the character 
     "15": { class_type: "ImageScale", inputs: { image: ["14", 0], width: 1024, height: 0, crop: "disabled", upscale_method: "nearest-exact" } },
     "18": { class_type: "SaveImage", inputs: { images: ["17", 0] } },
   } as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
-  applyNativeComposition(graph, p, ["location", "crab", "shark", "prop"], 800, 448);
+  applyNativeComposition(graph, p, ["location", "identity-1", "identity-2", "prop"], 800, 448);
   assert.equal(Object.values(graph).filter(node => node.class_type === "SamplerCustomAdvanced").length, 3);
   const firstGuider = Object.values(graph).find(node => node.class_type === "CFGGuider")!;
   const positive = graph[(firstGuider.inputs.positive as string[])[0]];
@@ -107,36 +107,29 @@ test("a recurring prop gets a background-only pass, separate from the character 
   assert.deepEqual(previous.inputs.latent, ["location", 0]);
 });
 
-test("identity notes retain anatomy and accessories without studio/model-sheet instructions", () => {
-  const identity = openingIdentity("Full-body character concept turnaround, 3D animated feature quality, Pixar and Disney animation style, 8k resolution, clean soft-grey studio background. Barns, an anthropomorphic leopard shark with spots. Orange-and-teal wrist guards, detailed skin texture, symmetrical centered character model sheet framing, Octane render.");
-  assert.match(identity, /leopard shark with spots/);
-  assert.match(identity, /Orange-and-teal wrist guards/);
-  assert.doesNotMatch(identity, /studio|turnaround|8k|model sheet|Octane|Pixar|concept/i);
-});
-
 test("shared actions become individual actions without describing another character", () => {
-  const action = "Golden hour: Ridley, Cleo, and Barns gaze over the sea. Barns rests with his head and fins in a tidal pool, Cleo perched nearby.";
-  const names = ["Cleo", "Barns", "Ridley"];
-  const barns = openingSubjectAction(action, "Barns", names);
-  assert.match(barns, /Barns gaze over the sea/);
-  assert.match(barns, /Barns rests with his head and fins in a tidal pool/);
-  assert.doesNotMatch(barns, /Cleo|Ridley/);
+  const names = ["Subject A", "Subject B", "Subject C"];
+  const action = `${names.join(", ")} look toward the horizon. ${names[1]} waits nearby.`;
+  const individual = openingSubjectAction(action, names[1], names);
+  assert.ok(individual.includes(`${names[1]} look toward the horizon`));
+  assert.ok(individual.includes(`${names[1]} waits nearby`));
+  assert.ok(!individual.includes(names[0]) && !individual.includes(names[2]));
 });
 
 test("multi-character openings produce bounded regional plans; approved wardrobe and all refs are preserved", () => {
   const s = emptyProduction();
-  s.characters = ["Cleo", "Barns", "Ridley"].map(name => ({ id: name, name, description: `3D animated character. ${name} identity.`,
+  s.characters = ["Subject A", "Subject B", "Subject C"].map(name => ({ id: name, name, description: `Unused creation description for ${name}.`,
     selectedAssetId: `${name}-portrait`, locked: true, status: "LOCKED", seed: 1, options: [], referenceSheet: [] }));
-  s.wardrobes = [{ id: "outfit", characterId: "Cleo", name: "Cap", prompt: "Purple cap",
-    fromScene: 1, toScene: 1, status: "READY", assetId: "dressed-crab", approvedAssetId: "dressed-crab" }];
+  s.wardrobes = [{ id: "outfit", characterId: "Subject A", name: "Approved outfit", prompt: "Creator supplied wardrobe direction",
+    fromScene: 1, toScene: 1, status: "READY", assetId: "outfit-reference", approvedAssetId: "outfit-reference" }];
   s.places = [{ id: "bay", name: "Bay", prompt: "Bay", seed: 1, variants: [], status: "READY", assetId: "bay-image" }];
   const scene = { sceneNumber: 1, title: "Bay", location: "Bay", timeOfDay: "Dawn",
-    characters: ["Cleo", "Barns", "Ridley"], action: "Cleo, Barns and Ridley gaze at the sea.", dialogue: "" };
+    characters: ["Subject A", "Subject B", "Subject C"], action: "Subject A, Subject B and Subject C gaze at the sea.", dialogue: "" };
   const inputs = openingInputs(s, scene);
-  assert.match(inputs.prompt, /^One 3D animated film frame/);
-  assert.deepEqual(inputs.ids, ["bay-image", "dressed-crab", "Barns-portrait", "Ridley-portrait"]);
+  assert.match(inputs.prompt, /^One film frame matching the visual style of the approved reference images/);
+  assert.deepEqual(inputs.ids, ["bay-image", "outfit-reference", "Subject B-portrait", "Subject C-portrait"]);
   assert.ok(inputs.composition);
   assert.doesNotThrow(() => validateNativeComposition(inputs.composition!, 1280, 720, 4));
-  assert.doesNotMatch(inputs.composition.subjects[0].prompt, /Barns|Ridley/);
-  assert.match(inputs.composition.subjects[0].prompt, /Purple cap/);
+  assert.doesNotMatch(inputs.composition.subjects[0].prompt, /Subject B|Subject C/);
+  assert.match(inputs.composition.subjects[0].prompt, /Creator supplied wardrobe direction/);
 });

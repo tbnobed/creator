@@ -8,7 +8,8 @@ import { numberIn, text, type ProductionState, type ProductionTask } from "./pro
 import { stateOf } from "./production-store";
 import { publishProductionScenery } from "./scenery-library";
 import { publishProductionCharacters } from "./production-character-library";
-import { openingCorrectionPrompt, openingInputs } from "./production-openings";
+import { openingInputs, openingGenerationInputs } from "./production-openings";
+import { reviewOpeningDirection } from "./production-opening-direction";
 import type { NativeComposition } from "./image-native-composition";
 import { openingHistory, approveOpeningCandidate, queueOpeningCandidates } from "./production-opening-history";
 import { recoverOpeningHistory } from "./production-opening-recovery";
@@ -37,6 +38,7 @@ export async function mutateProductionAsset(row: ProductionProjectRow, action: s
     const scene=state.story.scenes.find(s=>s.sceneNumber===Number(payload.sceneNumber));
     if(!scene)throw new Error("Scene not found.");
     if(state.tasks.some(t=>t.type!=="opening" && ["QUEUED","RUNNING"].includes(t.status)))throw new Error("Wait for character, wardrobe and location generation to finish.");
+    if(action==="generate-scene-opening") reviewOpeningDirection(state,scene,payload);
     const history=openingHistory(scene);
     const {sourceKey}=openingInputs(state,scene);
     if(action==="approve-scene-opening") {
@@ -245,22 +247,14 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
     let prompt = "", referenceAssetIds: string[] = [], seed = 0, wide = false;
     let nativeComposition: NativeComposition | undefined;
     if (task.type==="opening" && openingScene) {
-      const inputs=openingInputs(state,openingScene);
+      const inputs=openingGenerationInputs(state,openingScene,task.openingCorrection);
       if(openingCandidate?.sourceKey!==inputs.sourceKey)throw new Error("Scene inputs changed while this opening was queued. Generate a new version.");
       seed=task.openingSeed ??= randomInt(0,2147483647);
-      if(inputs.ids.length>4 && (!task.openingReferenceAssetId || inputs.composition))throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
-      prompt=task.openingCorrection
-        ? openingCorrectionPrompt(task.openingCorrection)
-        : inputs.prompt;
-      // Group corrections must not use a previously blended image as the sole
-      // identity source. Recompose from approved scenery/looks and the correction.
-      referenceAssetIds=task.openingReferenceAssetId && !inputs.composition ? [task.openingReferenceAssetId] : inputs.ids;wide=true;
-      nativeComposition = inputs.composition ? structuredClone(inputs.composition) : undefined;
-      if (nativeComposition && task.openingCorrection) {
-        nativeComposition.backgroundPrompt += ` Requested scene correction: ${task.openingCorrection}`;
-        for (const subject of nativeComposition.subjects) subject.prompt += ` Apply this requested correction where relevant to ${subject.name}, preserving its own identity: ${task.openingCorrection}`;
-        prompt = `${inputs.prompt}\nRequested correction: ${task.openingCorrection}`;
-      }
+      if(inputs.ids.length>4)throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
+      // Always use approved originals, never a faulty prior generation as identity.
+      prompt=inputs.prompt;
+      referenceAssetIds=inputs.ids;wide=true;
+      nativeComposition=inputs.composition;
     } else if (task.type === "portraits" && character) {
       prompt = `Character portrait, one subject, clear face, no text. ${character.description}`;
       seed = character.seed + task.index;

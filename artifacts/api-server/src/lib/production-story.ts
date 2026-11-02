@@ -52,7 +52,8 @@ Produce ${count} distinct shots to cover about ${context.targetSeconds} seconds.
 ${authored ? "Use the supplied authoredShots dialogue as context for each corresponding visual prompt. Do not redistribute it." : `Dialogue must fit each shot: at most ${Math.max(3, Math.floor(context.shotSeconds * 1.5))} spoken words per shot.`}
 Use each supplied shotDurations value exactly; the final shot can be shorter. Leave short closing shots silent if dialogue would not fit.
 ${context.preserveScript ? "This is an authored script. Each authoredShots entry already supplies exact dialogue and duration. Design the corresponding visual shot around that entry, in order. Do not rewrite the scene, invent speech, or add events. The application attaches the original dialogue; return an empty dialogue string for each shot." : "Develop only the supplied scene."}
-Do not repeat filler shots to pad runtime. Preserve the supplied scene's characters, location and plot. Do not introduce additional named characters.`,
+Do not repeat filler shots to pad runtime. Preserve the supplied scene's characters, location and plot. Do not introduce additional named characters.
+Character names are identifiers, not evidence of species or appearance. Describe action and staging without inventing physical traits, body parts, clothing or accessories absent from the supplied material. Do not infer anatomy from the setting or activity. These are drafts requiring creator review, not verified descriptions of approved character images.`,
     { scene, context, shotDurations: durations, ...(authored ? { authoredShots: authored } : {}) }, model, onGpuVerified, cancelSignal,
   ) as { action?: unknown; dialogue?: unknown; shots?: unknown };
   if (!Array.isArray(result.shots) || result.shots.length !== count || count > 120) throw new Error("The story writer returned an incomplete shot plan. Retry drafting.");

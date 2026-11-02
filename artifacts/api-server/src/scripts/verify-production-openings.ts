@@ -31,7 +31,9 @@ async function main(){
   for(const scene of state.story.scenes.filter(s=>!process.argv[3] || String(s.sceneNumber)===process.argv[3])) {
     await productionLock(id,async()=>{
       const [row]=await db.select().from(productionProjectsTable).where(eq(productionProjectsTable.id,id));
-      await saveProduction(row,await mutateProductionAsset(row,"generate-scene-opening",{sceneNumber:scene.sceneNumber,correction:process.argv[4]}));
+      if(!process.argv[5])throw new Error("Supply the reviewed opening direction as the fifth argument. Diagnostic generation cannot bypass direction review.");
+      const current=stateOf(row).story.scenes.find(s=>s.sceneNumber===scene.sceneNumber)!;
+      await saveProduction(row,await mutateProductionAsset(row,"generate-scene-opening",{sceneNumber:scene.sceneNumber,correction:process.argv[4],direction:process.argv[5],expectedDirection:current.shots?.[0]?.prompt||current.action}));
     });
     let ready=false;
     for(let i=0;i<180;i++){

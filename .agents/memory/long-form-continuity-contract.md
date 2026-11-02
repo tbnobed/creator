@@ -3,6 +3,12 @@ name: Long-form continuity contract
 description: Approval and model-capability boundaries for long-form character continuity.
 ---
 
+The user requires: "do not hardcode anything about the characters, ever."
+
+**Why:** The user explicitly prohibited character-specific assumptions after invented anatomy contaminated diagnostic prompts.
+
+**How to apply:** Obtain identities, appearance, actions and reference assignments from the actual production inputs. Do not encode this production's names, species, anatomy or staging into reusable logic or diagnostic scenarios. Use generic fixtures for regression tests; do not treat fabricated character descriptions as evidence of visual verification.
+
 Treat an approved shot still and assigned wardrobe imagery as required render inputs, not optional prompt suggestions. Canonical character references may use remaining capacity; required imagery must not be silently discarded.
 
 **Why:** A workflow can accept one reference yet lack space for wardrobe references. Advertising continuity in that case would hide that a creator's approved constraint never reached the model.

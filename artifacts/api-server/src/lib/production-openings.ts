@@ -10,7 +10,7 @@ export function openingInputs(state:ProductionState,scene:ProductionScene) {
   const {reference}=requireProductionScenery(state,scene);
   const prop=approvedProductionProp(state);
   const ids=[reference.assetId!,...cast.map(c=>productionAppearance(state,c,scene.sceneNumber).assetId),...(prop?[prop.assetId]:[])];
-  const style = cast.some(c => /\b3d|animated|animation\b/i.test(c.description)) ? "3D animated film frame" : "cinematic photograph";
+  const style = "film frame matching the visual style of the approved reference images";
   const action = scene.shots?.[0]?.prompt || scene.action;
   const castInstruction = cast.length
     ? `Exactly ${cast.length} character${cast.length===1?"":"s"}, each appearing ONCE, from image${cast.length===1?"":"s"} ${cast.map((_,i)=>i+2).join(", ")}. ${cast.map((character, index) => `Image ${index + 2} is ${character.name}'s approved identity reference. Preserve this reference's exact visible head, face, ears, limbs, body shape, markings, proportions, materials and clothes. The approved image defines the character's appearance, not a species inferred from its name or backstory.`).join(" ")} Each character retains its own distinct identity and features from its assigned image. Do not copy the character reference's plain background.`
@@ -35,6 +35,20 @@ export function openingInputs(state:ProductionState,scene:ProductionScene) {
 }
 export function openingCorrectionPrompt(correction: string): string {
   return `Edit this single complete scene image. Preserve its exact cast, faces, materials, outfits, props, location, scenery, lighting and camera except for this requested correction: ${correction}. Do not duplicate characters or objects.`;
+}
+/** Shared by actual dispatch and tests. Corrections retain the reviewed direction and approved references. */
+export function openingGenerationInputs(state: ProductionState, scene: ProductionScene, correction?: string) {
+  const inputs = openingInputs(state, scene);
+  if (correction?.trim()) {
+    inputs.prompt += ` Requested correction: ${correction}`;
+    if (inputs.composition) {
+      inputs.composition.backgroundPrompt += ` Requested scene correction: ${correction}`;
+      for (const subject of inputs.composition.subjects) {
+        subject.prompt += ` Apply this requested correction where relevant to ${subject.name}, preserving its approved identity: ${correction}`;
+      }
+    }
+  }
+  return inputs;
 }
 export function requireOpening(state:ProductionState,scene:ProductionScene) {
   const inputs=openingInputs(state,scene);

@@ -33,13 +33,13 @@ test("draft saves retain only server-owned opening approval, never client-forged
 
 test("locked visual references, not possibly contradictory creation prose, define opening anatomy",()=>{
   const s=fixture(),scene=s.story.scenes[0];
-  scene.characters=["Barns","Cleo"];
-  s.characters=scene.characters.map(name=>({id:name,name,description:"3D animated leopard shark with fins",seed:1,options:[],selectedAssetId:name,locked:true,referenceSheet:[],status:"LOCKED"}));
+  scene.characters=["Subject A","Subject B"];
+  s.characters=scene.characters.map(name=>({id:name,name,description:"UNAPPROVED_DESIGN_DESCRIPTION",seed:1,options:[],selectedAssetId:name,locked:true,referenceSheet:[],status:"LOCKED"}));
   const inputs=openingInputs(s,scene);
-  assert.doesNotMatch(inputs.prompt,/leopard shark|with fins/);
+  assert.doesNotMatch(inputs.prompt,/UNAPPROVED_DESIGN_DESCRIPTION/);
   assert.match(inputs.prompt,/approved identity reference/);
   for(const subject of inputs.composition!.subjects){
-    assert.doesNotMatch(subject.prompt,/leopard shark|with fins/);
+    assert.doesNotMatch(subject.prompt,/UNAPPROVED_DESIGN_DESCRIPTION/);
     assert.match(subject.prompt,/approved character, not an inspiration/);
   }
 });
