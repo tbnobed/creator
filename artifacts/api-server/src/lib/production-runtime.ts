@@ -6,8 +6,10 @@ import { expandScene, outlineStory } from "./production-story";
 import { productionLock, saveProduction, stateOf, ProductionConflict } from "./production-store";
 import { registerStoryWriter, StoryCancelled } from "./production-story-control";
 import { sceneWritingSeconds, scriptSource } from "./production-script-plan";
+import { openingHistory, nextProductionTask } from "./production-opening-history";
 
 let ticking = false;
+const previousTasks=new Map<string,string>();
 export async function tickProductions() {
   if (ticking) return;
   ticking = true;
@@ -26,8 +28,9 @@ export async function tickProductions() {
             state.story.draftStatus = "CANCELLED"; state.story.error = undefined;
             if (state.story.progress) { state.story.progress.active = false; state.story.progress.stage = "Writing cancelled"; }
           }
-          const task = state.tasks.find(t => ["QUEUED", "RUNNING"].includes(t.status));
-          if (!task) { if (queuedCancellation) await saveProduction(row, state); return; }
+          const task=nextProductionTask(state.tasks,previousTasks.get(row.id));
+          if (!task) { previousTasks.delete(row.id); if (queuedCancellation) await saveProduction(row, state); return; }
+          previousTasks.set(row.id,task.id);
           let cancellation: AbortController | undefined;
           let cancelTimer: ReturnType<typeof setInterval> | undefined;
           let unregister: (() => void) | undefined;
@@ -105,7 +108,11 @@ export async function tickProductions() {
               task.status = "FAILED"; task.error = message;
               if(task.type==="opening") {
                 const scene=state.story.scenes.find(s=>String(s.sceneNumber)===task.entityId);
-                if(scene?.opening)scene.opening.status="FAILED";
+                if(scene) {
+                  const candidate=openingHistory(scene).find(item=>item.id===task.id) ?? scene.opening;
+                  if(candidate){candidate.status="FAILED";candidate.error=message;}
+                  if(scene.opening?.id===task.id && !scene.opening.assetId)scene.opening.status="FAILED";
+                }
               }
               if (task.type === "story") {
                 state.story.draftStatus = "FAILED"; state.story.error = message;
@@ -121,7 +128,7 @@ export async function tickProductions() {
             if (cancelTimer) clearInterval(cancelTimer);
             unregister?.();
           }
-          await saveProduction(row, state);
+          row = await saveProduction(row, state);
         });
       } catch (error) {
         if (!(error instanceof ProductionConflict)) logger.warn({ productionId: candidate.id, errorType: error instanceof Error ? error.name : "unknown" }, "Production task tick failed");

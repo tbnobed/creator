@@ -6,6 +6,7 @@ import { CreateProductionProjectBody, UpdateProductionProjectBody, RunProduction
 import { addTask, mutateProductionAsset } from "../lib/production-assets";
 import { applyProductionPatch, createProduction, ownedProduction, presentProduction, productionLock, ProductionConflict, saveProduction, stateOf } from "../lib/production-store";
 import { assertProductionEditable, runProductionRenderAction } from "../lib/production-render";
+import { recoverOpeningHistory } from "../lib/production-opening-recovery";
 import { storeProductionScript } from "../lib/production-script-upload";
 import { text } from "../lib/production-types";
 import { createHash } from "node:crypto";
@@ -39,6 +40,7 @@ router.use("/production-projects/:id", async (req, res, next) => {
 });
 router.get("/production-projects/:id", async (req, res) => {
   const row = (await ownedProduction(String(req.params.id), req.context!.tenant!.id))!;
+  await recoverOpeningHistory(row,stateOf(row));
   if (row.renderProjectId) {
     const shots = await db.select().from(longFormShotsTable).where(eq(longFormShotsTable.projectId, row.renderProjectId));
     const state = stateOf(row);
@@ -176,7 +178,14 @@ router.post("/production-projects/:id/actions", async (req, res) => {
         const task = state.tasks.find(t => t.id === payload.id && t.status === "FAILED");
         if (!task) throw new Error("Choose a failed task.");
         if (task.cloudConfirmed && payload.cloudConfirmed !== true) throw new Error("Confirm paid costs again before retrying this task.");
+        const previousId=task.id;
         task.status = "QUEUED"; task.error = undefined; task.jobId = undefined; task.id = randomUUID();
+        if(task.type==="opening"){
+          const scene=state.story.scenes.find(s=>String(s.sceneNumber)===task.entityId);
+          const candidate=scene?.openingHistory?.find(item=>item.id===previousId);
+          if(candidate){candidate.id=task.id;candidate.status="QUEUED";candidate.error=undefined;}
+          if(scene?.opening?.id===previousId&&!scene.opening.assetId)scene.opening={...scene.opening,id:task.id,status:"QUEUED",error:undefined};
+        }
       } else {
         state = await mutateProductionAsset(row, action, payload);
       }

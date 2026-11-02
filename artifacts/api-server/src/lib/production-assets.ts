@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomInt } from "node:crypto";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db, charactersTable, characterAssetsTable, imageStudioAssetsTable, settingsTable, settingAssetsTable, type ProductionProjectRow } from "@workspace/db";
 import { createImageJob, getImageJob, inspectImage, presentImageAsset } from "./image-studio-service";
@@ -10,6 +10,8 @@ import { publishProductionScenery } from "./scenery-library";
 import { publishProductionCharacters } from "./production-character-library";
 import { openingCorrectionPrompt, openingInputs } from "./production-openings";
 import type { NativeComposition } from "./image-native-composition";
+import { openingHistory, approveOpeningCandidate, queueOpeningCandidates } from "./production-opening-history";
+import { recoverOpeningHistory } from "./production-opening-recovery";
 
 const MODEL = "local-flux2-klein-4b";
 const views = ["front", "three-quarter", "profile", "expressions"];
@@ -31,25 +33,24 @@ function flagCharacterScenes(state: ProductionState, id: string) {
 export async function mutateProductionAsset(row: ProductionProjectRow, action: string, payload: Record<string, unknown>) {
   const state = stateOf(row);
   if (["generate-scene-opening","set-scene-opening","approve-scene-opening"].includes(action)) {
+    await recoverOpeningHistory(row,state);
     const scene=state.story.scenes.find(s=>s.sceneNumber===Number(payload.sceneNumber));
     if(!scene)throw new Error("Scene not found.");
-    if(state.tasks.some(t=>["QUEUED","RUNNING"].includes(t.status)))throw new Error("Wait for reference generation to finish.");
+    if(state.tasks.some(t=>t.type!=="opening" && ["QUEUED","RUNNING"].includes(t.status)))throw new Error("Wait for character, wardrobe and location generation to finish.");
+    const history=openingHistory(scene);
     const {sourceKey}=openingInputs(state,scene);
     if(action==="approve-scene-opening") {
-      if(!scene.opening?.assetId || scene.opening.assetId!==payload.assetId || scene.opening.sourceKey!==sourceKey)throw new Error("The opening image changed. Generate or upload and review a current composition.");
-      scene.opening.approvedAssetId=scene.opening.assetId;
+      approveOpeningCandidate(scene,payload.assetId,sourceKey);
     } else if(action==="generate-scene-opening") {
       const correction=typeof payload.correction==="string" ? text(payload.correction,"Opening correction",2000,false) : "";
       const prior=scene.opening?.assetId;
       if(correction && !prior)throw new Error("Generate or upload an opening before correcting it.");
-      scene.opening={status:"QUEUED",sourceKey};
-      addTask(state,"opening",String(scene.sceneNumber));
-      state.tasks.at(-1)!.modelId=MODEL;
-      if(correction){state.tasks.at(-1)!.openingReferenceAssetId=prior;state.tasks.at(-1)!.openingCorrection=correction;}
+      queueOpeningCandidates(state,scene,sourceKey,payload.count,correction);
     } else {
       const [asset]=await db.select().from(imageStudioAssetsTable).where(and(eq(imageStudioAssetsTable.tenantId,row.tenantId),eq(imageStudioAssetsTable.id,text(payload.assetId,"Opening image",100))));
       if(!asset)throw new Error("Opening image not found in this workspace.");
       scene.opening={assetId:asset.id,mediaUrl:presentImageAsset(asset).url,status:"READY",sourceKey};
+      history.push({...scene.opening});
     }
     return state;
   }
@@ -237,13 +238,16 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
   const outfit = state.wardrobes.find(w => w.id === task.entityId);
   const place = state.places.find(p => p.id === (task.placeId ?? task.entityId));
   const variant = task.type === "variant" ? place?.variants.find(v => v.id === task.entityId) : undefined;
-  const entity = openingScene?.opening ?? character ?? outfit ?? variant ?? place;
+  const openingCandidate=openingScene ? openingHistory(openingScene).find(item=>item.id===task.id) ?? openingScene.opening : undefined;
+  const entity = openingCandidate ?? character ?? outfit ?? variant ?? place;
   if (!entity) throw new Error("The generation target no longer exists.");
   if (!task.jobId) {
     let prompt = "", referenceAssetIds: string[] = [], seed = 0, wide = false;
     let nativeComposition: NativeComposition | undefined;
     if (task.type==="opening" && openingScene) {
       const inputs=openingInputs(state,openingScene);
+      if(openingCandidate?.sourceKey!==inputs.sourceKey)throw new Error("Scene inputs changed while this opening was queued. Generate a new version.");
+      seed=task.openingSeed ??= randomInt(0,2147483647);
       if(inputs.ids.length>4 && (!task.openingReferenceAssetId || inputs.composition))throw new Error("Local scene composition supports at most four separate reference images. Upload a composed opening for this larger cast instead; no references were dropped.");
       prompt=task.openingCorrection
         ? openingCorrectionPrompt(task.openingCorrection)
@@ -301,6 +305,7 @@ export async function advanceProductionImage(row: ProductionProjectRow, state: P
   if (task.type === "portraits" && character) character.options.push(image);
   else if (task.type === "sheet" && character) character.referenceSheet.push({ ...image, label: views[task.index] });
   else Object.assign(entity, image);
+  if(openingScene && !openingScene.opening?.approvedAssetId) openingScene.opening={...openingCandidate!,...image,status:"READY"};
   await publishProductionCharacters(row, state);
   task.index++;
   task.jobId = undefined;

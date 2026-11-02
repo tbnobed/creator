@@ -22,10 +22,26 @@ test("opening approval is required and becomes stale when composition inputs cha
 test("draft saves retain only server-owned opening approval, never client-forged approval",()=>{
   const s=fixture(),scene=s.story.scenes[0];
   scene.opening={sourceKey:openingInputs(s,scene).sourceKey,status:"READY",assetId:"frame",approvedAssetId:"frame"};
+  scene.openingHistory=[{...scene.opening}];
   const saved=applyProductionPatch(s,{story:{scenes:[{...scene,opening:{assetId:"forged",approvedAssetId:"forged"}}]}});
   assert.equal(saved.story.scenes[0].opening?.assetId,"frame");
+  assert.deepEqual(saved.story.scenes[0].openingHistory,scene.openingHistory);
   const changed=applyProductionPatch(s,{story:{scenes:[{...scene,action:"Different action"}]}});
   assert.equal(changed.story.scenes[0].opening,undefined);
+  assert.deepEqual(changed.story.scenes[0].openingHistory,scene.openingHistory);
+});
+
+test("locked visual references, not possibly contradictory creation prose, define opening anatomy",()=>{
+  const s=fixture(),scene=s.story.scenes[0];
+  scene.characters=["Barns","Cleo"];
+  s.characters=scene.characters.map(name=>({id:name,name,description:"3D animated leopard shark with fins",seed:1,options:[],selectedAssetId:name,locked:true,referenceSheet:[],status:"LOCKED"}));
+  const inputs=openingInputs(s,scene);
+  assert.doesNotMatch(inputs.prompt,/leopard shark|with fins/);
+  assert.match(inputs.prompt,/approved identity reference/);
+  for(const subject of inputs.composition!.subjects){
+    assert.doesNotMatch(subject.prompt,/leopard shark|with fins/);
+    assert.match(subject.prompt,/approved character, not an inspiration/);
+  }
 });
 
 test("outdoor openings preserve marsh scenery without injecting an interior", () => {

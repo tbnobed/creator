@@ -98,8 +98,8 @@ test("a Cleo-only opening excludes Ridley and Barnaby from later shots", () => {
   assert.deepEqual(resolveOpeningCast(state, scene).map(c => c.name), ["Cleo"]);
   const opening = openingInputs(state, scene);
   assert.deepEqual(opening.ids, ["marsh-image", "cleo-approved"]);
-  assert.match(opening.prompt, /Image 2 is Cleo's identity reference only/);
-  assert.match(opening.prompt, /A crab with a golden claw and purple cap/);
+  assert.match(opening.prompt, /Image 2 is Cleo's approved identity reference/);
+  assert.match(opening.prompt, /approved image defines the character's appearance/);
   assert.doesNotMatch(opening.prompt, /Ridley|Barnaby|shorebird/);
 });
 
@@ -110,8 +110,8 @@ test("an opening explicitly showing two characters binds each identity to its ow
   scene.action = "Cleo and Ridley stand beside the tidal channel.";
   const opening = openingInputs(state, scene);
   assert.deepEqual(opening.ids, ["marsh-image", "cleo-approved", "ridley-approved"]);
-  assert.match(opening.prompt, /Image 2 is Cleo's identity reference only/);
-  assert.match(opening.prompt, /Image 3 is Ridley's identity reference only/);
+  assert.match(opening.prompt, /Image 2 is Cleo's approved identity reference/);
+  assert.match(opening.prompt, /Image 3 is Ridley's approved identity reference/);
 });
 
 test("legacy unnamed group openings retain their declared cast", () => {

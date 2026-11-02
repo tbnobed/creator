@@ -1,8 +1,10 @@
 import { isProductionDirectionLabel } from "./production-script-cues";
 
 export type ProductionImage = { assetId: string; mediaUrl: string; label?: string };
+export type OpeningCandidate = { id?: string; assetId?: string; mediaUrl?: string; approvedAssetId?: string; sourceKey: string; status: string; error?: string };
 export type ProductionScene = {
-  opening?: { assetId?: string; mediaUrl?: string; approvedAssetId?: string; sourceKey: string; status: string };
+  opening?: OpeningCandidate;
+  openingHistory?: OpeningCandidate[];
   sceneNumber: number; title: string; location: string; timeOfDay: string;
   characters: string[]; action: string; dialogue: string;
   durationSeconds?: number;
@@ -28,7 +30,7 @@ export type ProductionTask = {
   status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
   entityId?: string; placeId?: string; jobId?: string; index: number; error?: string;
   modelId?: string; cloudConfirmed?: boolean; storyModel?: string;
-  openingReferenceAssetId?: string; openingCorrection?: string;
+  openingReferenceAssetId?: string; openingCorrection?: string; openingSeed?: number;
   storySourceKey?: string;
 };
 export type ProductionState = {

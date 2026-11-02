@@ -21,13 +21,21 @@ When the first view explicitly names its subjects, an opening composition uses t
 
 **How to apply:** Bind each included reference image to its named character and preserve species, anatomy and approved wardrobe. Test single-character openings in multi-character scenes as well as explicitly multi-character openings.
 
-For local multi-character openings, use separate cropped character renders and disjoint feathered compositing, not a shared sampler conditioned on every identity. Strip studio-asset/model-sheet directives from scene identity notes while retaining anatomy and accessories. Group corrections must re-use approved identities, not a blended prior image as their only reference.
+The separate-crop compositor is not an identity- or composition-verified solution. Group corrections must re-use approved identities, not a blended prior image as their only reference.
 
-**Why:** A live test using uploaded character-card crops still transferred features between subjects with separate regional conditioning inside a shared sample. A subsequent separate-sampler composition kept the crab, spotted character and bird distinct in that test. These are sample results, not proof of every future output or of the creator's original production inputs.
+**Why:** Shared sampling transferred features between subjects. The creator subsequently rejected the separate-sampler sample: it replaced the approved spotted, upright character with a shark. The diagnostic had incorrectly supplied a shark description, contradicting the portrait. Removing that prose restored a closer character in a later sample, but it still floated above the water. A full-frame sequential-edit alternative also changed anatomy. Neither approach has passed visual acceptance.
 
-**How to apply:** Each character render gets its scenery crop plus only that character's approved look. Preserve approval gates and explicit reference-capacity failures. Snapshot the composition plan for recovery and inspect an actual GPU output before claiming identity separation works.
+**How to apply:** Make the locked image authoritative over character-creation prose. Preserve approval gates and explicit reference-capacity failures. Compare every generated character against its actual portrait, including anatomy and accessories, and inspect scale and ground contact before claiming a visual fix.
 
 Do not paste a whole generated character crop into approved scenery, even with a feathered rectangular edge. Segment only the generated subject and its visible reflection/contact details; retain the original scenery outside that mask, and fail explicitly if a required mask is empty, implausibly broad or unsupported by the selected worker.
+
+Masking preserves scenery; it does not establish that a generated subject belongs in the scene or matches its approved identity.
+
+Creators must be able to queue multiple opening-image alternatives and approve an older version made from still-current production inputs. New generations must not replace an existing approval.
+
+**Why:** The user explicitly requested simultaneous alternatives and the ability to choose earlier results, rather than being forced to approve only the latest generation.
+
+**How to apply:** Keep version history and approval separate from job progress. Preserve previews of stale results without permitting them to bypass changed cast, wardrobe, scene or location requirements.
 
 **Why:** An approved multi-character scene acquired a vertical sky seam where separately generated crops met. The first subject-only mask removed that seam but also removed a character's water reflection; a separate reflection mask restored that contact detail in the live local test.
 

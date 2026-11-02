@@ -13,6 +13,10 @@ export function presentProduction(row: ProductionProjectRow) {
     try {stale=scene.opening.sourceKey!==openingInputs(state,scene).sourceKey;} catch {stale=true;}
     if(stale){scene.opening.approvedAssetId=undefined;scene.opening.status="STALE";}
   }
+  for(const scene of state.story.scenes) for(const candidate of scene.openingHistory??[]) {
+    try { if(candidate.sourceKey!==openingInputs(state,scene).sourceKey)candidate.status="STALE"; }
+    catch { candidate.status="STALE"; }
+  }
   return { id: row.id, title: row.title, revision: row.revision, state, renderProjectId: row.renderProjectId, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 export async function ownedProduction(id: string, tenantId: string) {
@@ -63,7 +67,7 @@ export function applyProductionPatch(state: ProductionState, patch: Record<strin
       // Keep drafted shot plans only if the producer has not changed that scene.
       next.story.scenes = scenes.map((scene, i) => {
         const prior = state.story.scenes[i];
-        return prior && prior.action === scene.action && prior.dialogue === scene.dialogue && prior.location === scene.location && prior.timeOfDay === scene.timeOfDay ? { ...scene, shots: prior.shots, opening: prior.opening } : scene;
+        return prior && prior.action === scene.action && prior.dialogue === scene.dialogue && prior.location === scene.location && prior.timeOfDay === scene.timeOfDay ? { ...scene, shots: prior.shots, opening: prior.opening, openingHistory: prior.openingHistory } : { ...scene, openingHistory: prior?.openingHistory };
       });
       if (next.settings.sceneReferences) {
         for (const key of Object.keys(next.settings.sceneReferences)) {

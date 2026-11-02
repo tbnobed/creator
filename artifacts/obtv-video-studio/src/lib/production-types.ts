@@ -4,11 +4,13 @@ export type QualityPreset = "DRAFT" | "STANDARD" | "HIGH";
 
 export interface SceneShot { prompt: string; dialogue: string; durationSeconds: number }
 export interface Scene {
-  opening?: { assetId?:string;mediaUrl?:string;approvedAssetId?:string;sourceKey:string;status:string };
+  opening?: OpeningCandidate;
+  openingHistory?: OpeningCandidate[];
   sceneNumber: number; title: string; location: string; timeOfDay: string;
   characters: string[]; action: string; dialogue: string; shots?: SceneShot[];
   durationSeconds?: number;
 }
+export interface OpeningCandidate { id?:string;assetId?:string;mediaUrl?:string;approvedAssetId?:string;sourceKey:string;status:string;error?:string }
 export interface Story {
   summary: string; script: string; targetMinutes: TargetMinutes; scriptName?: string;
   sourceMode?: "summary" | "script";

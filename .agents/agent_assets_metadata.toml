@@ -294,3 +294,31 @@ mtime_ms = 1793605507750
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/dcb337f0-cb70-4282-a060-a6a6c795a18b/514dc923-1449-4e9e-ac0f-0dc365d07d98"
 storage_version_token = "1793605571095812"
 content_type = "image/png"
+
+[[outputs]]
+id = "XbF9YMTBi3w2xYrpehxfR"
+uri = "file://generated-artifacts/hardcoding-audit.html"
+type = "html"
+title = "Hardcoding audit — 81 reviewed findings"
+description = "Searchable report with values, effects, classifications and exact source locations, plus coverage of 788 files. Separates live behavior from tests, seeds, defaults and technical constants."
+logical_id = "8ee531ef-c8f5-4f79-a149-31d2fbecea4f"
+content_hash = "sha256:1e08967a31c067fe85d05885a7fdd67e5aa87a29f0ef2bb2299f7a32cc9e18f6"
+size = 130726
+mtime_ms = 1793639805803
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/8ee531ef-c8f5-4f79-a149-31d2fbecea4f/16495de4-875b-40a0-a4bf-a9689befceab"
+storage_version_token = "1793639865903775"
+content_type = "text/html"
+
+[[outputs]]
+id = "cmvRoIZR6wxBfjKc7s-XJ"
+uri = "file://generated-artifacts/hardcoded-literal-inventory.csv"
+type = "table"
+title = "Complete scanned literal inventory"
+description = "60,637 literal/configuration occurrences with file, line and scope. Includes generated code and harmless constants; this is an inventory, not 60,637 bugs. Sensitive-looking values are redacted."
+logical_id = "1d94661c-4f92-44c0-9581-1f679d92d576"
+content_hash = "sha256:a57cd1022aeeda3d175b64c7da964d33a4e29de472ce27cda04e73cbe96f35f1"
+size = 7607223
+mtime_ms = 1793639805771
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:825e3e6d-f4a6-475e-97d9-900f99849b4b/1d94661c-4f92-44c0-9581-1f679d92d576/1a09a126-9f34-45d2-857a-96861786e2cb"
+storage_version_token = "1793639866580075"
+content_type = "text/csv"
