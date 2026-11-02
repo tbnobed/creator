@@ -15,6 +15,12 @@ An empty or mismatched scene cast list must not silently turn a named production
 
 **How to apply:** Resolve known character mentions consistently for composed openings and video dispatch. Accept only exact names or unambiguous short names, fail on missing declared identities and ambiguous names, and preserve approved wardrobe precedence. Do not assume that a reference being included guarantees the model will reproduce it.
 
+When the first view explicitly names its subjects, an opening composition uses those subjects rather than the union of characters appearing later in the scene. Keep the full scene cast for scene-level rendering; legacy unnamed group views retain their declared scene cast.
+
+**Why:** The opening text could describe only Cleo while references included other scene characters. The user showed an output blending Cleo's accessories with Ridley's bird features; the actual submitted inputs for that external render were unavailable, so reference contamination remained a suspected cause, not a verified diagnosis.
+
+**How to apply:** Bind each included reference image to its named character and preserve species, anatomy and approved wardrobe. Test single-character openings in multi-character scenes as well as explicitly multi-character openings.
+
 Revising a completed continuity-controlled shot must leave time for review before rendering again.
 
 **Why:** The ordinary edit-and-regenerate flow conflicts with a required still-approval stage. Continuity revisions need a deliberate paused review state, while existing projects without continuity retain their original behavior.

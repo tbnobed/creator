@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { emptyProduction, type ProductionCharacter } from "./production-types";
-import { resolveProductionCast } from "./production-cast";
+import { resolveOpeningCast, resolveProductionCast } from "./production-cast";
 import { openingInputs } from "./production-openings";
 
 const character = (name = "Cleo", id = "cleo"): ProductionCharacter => ({
@@ -79,4 +79,44 @@ test("dialogue speaker cues recover cast, but merely discussing another characte
   assert.equal(resolveProductionCast(state, scene)[0].id, "cleo");
   scene.dialogue = "NARRATOR: Cleo will return tomorrow.";
   assert.deepEqual(resolveProductionCast(state, scene), []);
+});
+
+test("a Cleo-only opening excludes Ridley and Barnaby from later shots", () => {
+  const { state, scene } = fixture();
+  state.characters = [
+    { ...character(), description: "A crab with a golden claw and purple cap" },
+    { ...character("Ridley", "ridley"), description: "An orange shorebird with long yellow legs" },
+    character("Barnaby", "barnaby"),
+  ];
+  scene.characters = ["Cleo", "Ridley", "Barnaby"];
+  scene.action = "Cleo surveys her fortress. Later Ridley and Barnaby arrive.";
+  scene.shots = [
+    { prompt: "Wide shot of Cleo atop the spiral mud fortress.", dialogue: "", durationSeconds: 5 },
+    { prompt: "Ridley and Barnaby walk up to Cleo.", dialogue: "", durationSeconds: 5 },
+  ];
+  assert.equal(resolveProductionCast(state, scene).length, 3);
+  assert.deepEqual(resolveOpeningCast(state, scene).map(c => c.name), ["Cleo"]);
+  const opening = openingInputs(state, scene);
+  assert.deepEqual(opening.ids, ["marsh-image", "cleo-approved"]);
+  assert.match(opening.prompt, /Image 2 is Cleo's identity reference only/);
+  assert.match(opening.prompt, /A crab with a golden claw and purple cap/);
+  assert.doesNotMatch(opening.prompt, /Ridley|Barnaby|shorebird/);
+});
+
+test("an opening explicitly showing two characters binds each identity to its own image", () => {
+  const { state, scene } = fixture();
+  state.characters.push(character("Ridley", "ridley"));
+  scene.characters = ["Cleo", "Ridley"];
+  scene.action = "Cleo and Ridley stand beside the tidal channel.";
+  const opening = openingInputs(state, scene);
+  assert.deepEqual(opening.ids, ["marsh-image", "cleo-approved", "ridley-approved"]);
+  assert.match(opening.prompt, /Image 2 is Cleo's identity reference only/);
+  assert.match(opening.prompt, /Image 3 is Ridley's identity reference only/);
+});
+
+test("legacy unnamed group openings retain their declared cast", () => {
+  const { state, scene } = fixture();
+  scene.characters = ["Cleo"];
+  scene.action = "The group stands beside the channel.";
+  assert.deepEqual(resolveOpeningCast(state, scene).map(c => c.name), ["Cleo"]);
 });
