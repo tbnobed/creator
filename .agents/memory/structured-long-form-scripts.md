@@ -9,6 +9,12 @@ When a long-form script contains `SHOT <number>` or `B-ROLL <number>` headings, 
 
 **How to apply:** Put the complete shot list in the Full Script field and reserve Visual Storyline for global continuity instructions. Preserve explicit authored durations; distribute the target only when durations are not supplied. Treat production-script narration, typography, and music explicitly intended for post as separate from generated dialogue and visuals.
 
+Reserved screenplay direction labels such as SFX and MUSIC are not cast identities. Keep their authored text as directions when importing scripts; ignore those labels during cast resolution for existing drafts as well.
+
+**Why:** The authored-script parser treated colon-prefixed SFX as a speaker and added it to the scene cast. Strict identity validation then blocked an opening because no character named SFX existed.
+
+**How to apply:** Share label classification between import validation and reference selection, retain strict errors for genuinely missing characters, and do not blanket-exclude legitimate narrator or voice-over roles.
+
 Never describe a script as production-ready based only on its exported text: the destination importer and form requirements must support that format.
 
 **Why:** A structurally valid export did not prevent an older destination importer from splitting a closing shot into sentence fragments. Workspace fixes do not establish that a separate production instance has those fixes.

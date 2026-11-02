@@ -1,3 +1,5 @@
+import { isProductionDirectionLabel } from "./production-script-cues";
+
 export type ProductionImage = { assetId: string; mediaUrl: string; label?: string };
 export type ProductionScene = {
   opening?: { assetId?: string; mediaUrl?: string; approvedAssetId?: string; sourceKey: string; status: string };
@@ -67,11 +69,13 @@ export function validateScenes(value: unknown): ProductionScene[] {
   return value.map((raw, i) => {
     if (!raw || typeof raw !== "object") throw new Error("Invalid scene.");
     const s = raw as Record<string, unknown>;
-    if (!Array.isArray(s.characters) || s.characters.length > 9) throw new Error("Each scene supports at most nine characters.");
+    if (!Array.isArray(s.characters)) throw new Error("Each scene supports at most nine characters.");
+    const characters = s.characters.map(c => text(c, "Character name", 180)).filter(name => !isProductionDirectionLabel(name));
+    if (characters.length > 9) throw new Error("Each scene supports at most nine characters.");
     return {
       sceneNumber: i + 1, title: text(s.title, "Scene title", 180),
       location: text(s.location, "Location", 180), timeOfDay: text(s.timeOfDay, "Time of day", 100),
-      characters: s.characters.map(c => text(c, "Character name", 180)),
+      characters,
       action: text(s.action, "Scene action", 20000), dialogue: text(s.dialogue ?? "", "Dialogue", 20000, false),
       ...(s.durationSeconds !== undefined ? { durationSeconds: numberIn(s.durationSeconds, "Scene duration", 2, 5400) } : {}),
     };

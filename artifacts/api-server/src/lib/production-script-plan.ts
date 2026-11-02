@@ -1,4 +1,5 @@
 import type { ProductionScene } from "./production-types";
+import { isProductionDirectionLabel } from "./production-script-cues";
 type Source = { summary: string; script: string; sourceMode?: "summary" | "script" };
 const headings = () => /^\s*(?:SCENE\s+\d+\b[^\n]*|(?:INT|EXT|INT\/EXT|I\/E)\.[^\n]*)$/gim;
 export const looksLikeScript = (value: string) => headings().test(value);
@@ -23,7 +24,11 @@ export function parseAuthoredScenes(script: string): ProductionScene[] | null {
     let speaker: string | undefined;
     for (const line of body.split("\n")) {
       const direct = line.match(/^\s*([A-Z][A-Z .'-]{0,40}):\s*(.*)$/);
-      if (direct) { characters.add(direct[1].trim()); dialogue.push(line); speaker = direct[1].trim(); }
+      if ((direct && isProductionDirectionLabel(direct[1])) || isProductionDirectionLabel(line.trim())) {
+        speaker = undefined;
+        action.push(line);
+      }
+      else if (direct) { characters.add(direct[1].trim()); dialogue.push(line); speaker = direct[1].trim(); }
       else if (/^[A-Z][A-Z .'-]{0,30}$/.test(line.trim()) && line.trim().split(/\s+/).length <= 3 && !/^(CUT TO|FADE|SFX|B-ROLL)/.test(line.trim())) {
         speaker = line.trim(); characters.add(speaker); dialogue.push(`${speaker}:`);
       } else if (speaker && line.trim()) dialogue.push(line);

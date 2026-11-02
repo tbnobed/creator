@@ -1,4 +1,5 @@
 import type { ProductionCharacter, ProductionScene, ProductionState } from "./production-types";
+import { isProductionDirectionLabel } from "./production-script-cues";
 
 const normalize = (name: string) => name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 const shortName = (name: string) => normalize(name).split(/[\s(]/)[0];
@@ -22,12 +23,15 @@ export function resolveProductionCast(state: ProductionState, scene: ProductionS
     }
     selected.add(candidates[0].id);
   };
-  for (const name of scene.characters) resolve(name);
+  // Older drafts can already contain screenplay labels in their cast arrays.
+  // Filter at consumption as well as import, without requiring a story rewrite.
+  for (const name of scene.characters) if (!isProductionDirectionLabel(name)) resolve(name);
 
   // Planning/editing can leave the cast list empty even while a known character
   // remains in the action or shot. Recover only names from this production.
   const dialogue = [scene.dialogue, ...(scene.shots ?? []).map(s => s.dialogue)].join("\n");
-  const speakers = [...dialogue.matchAll(/^\s*([\p{L} .'-]+):/gmu)].map(match => match[1]);
+  const speakers = [...dialogue.matchAll(/^\s*([\p{L} .'-]+):/gmu)]
+    .map(match => match[1]).filter(name => !isProductionDirectionLabel(name));
   let remaining = normalize([scene.action, ...(scene.shots ?? []).map(s => s.prompt), ...speakers].join("\n"));
   const pattern = (name: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${escapePattern(normalize(name))}(?![\\p{L}\\p{N}_])`, "gu");
   // Consume full names first, longest first: "Cleo North" must not also select
