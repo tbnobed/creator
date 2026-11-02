@@ -21,6 +21,12 @@ When the first view explicitly names its subjects, an opening composition uses t
 
 **How to apply:** Bind each included reference image to its named character and preserve species, anatomy and approved wardrobe. Test single-character openings in multi-character scenes as well as explicitly multi-character openings.
 
+Use the delivered image's embedded workflow to establish which generation produced it; do not assume a neighboring diagnostic history file belongs to the same rerun.
+
+**Why:** A saved diagnostic PNG contained the newer separate-crop/segmentation workflow, while its neighboring history JSON still described an earlier shared-sampler workflow and obsolete anatomy prose.
+
+**How to apply:** Match the user's image to the saved output, inspect its embedded prompt graph, and compare that graph with the actual app job before attributing a visual difference to code or settings.
+
 The separate-crop compositor is not an identity- or composition-verified solution. Group corrections must re-use approved identities, not a blended prior image as their only reference.
 
 **Why:** Shared sampling transferred features between subjects. The creator subsequently rejected the separate-sampler sample: it replaced the approved spotted, upright character with a shark. The diagnostic had incorrectly supplied a shark description, contradicting the portrait. Removing that prose restored a closer character in a later sample, but it still floated above the water. A full-frame sequential-edit alternative also changed anatomy. Neither approach has passed visual acceptance.
