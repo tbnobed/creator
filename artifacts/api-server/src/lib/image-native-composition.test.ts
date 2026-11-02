@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyNativeComposition, hasCompositionSchemas, validateNativeComposition, type NativeComposition } from "./image-native-composition";
+import { PNG } from "pngjs";
+import { applyNativeComposition, compositionSegmentationModel, hasCompositionSchemas, validateNativeComposition, validateCompositionMask, type NativeComposition } from "./image-native-composition";
 import { openingIdentity, openingSubjectAction } from "./production-opening-prompts";
 import { openingInputs } from "./production-openings";
 import { emptyProduction } from "./production-types";
 
 const plan = (): NativeComposition => ({
-  version: 2, backgroundPrompt: "Wetland scenery", backgroundReferenceIndexes: [0],
+  version: 3, backgroundPrompt: "Wetland scenery", backgroundReferenceIndexes: [0],
   subjects: [
     { name: "Cleo", referenceIndex: 1, prompt: "One crab Cleo", x: 16, y: 16, width: 240, height: 400 },
     { name: "Barns", referenceIndex: 2, prompt: "One shark Barns", x: 272, y: 16, width: 240, height: 400 },
@@ -51,6 +52,27 @@ test("separate cropped samplers give each subject scenery plus only its own iden
   assert.equal(Object.values(graph).filter(node => node.class_type === "FeatherMask").length, 3);
   const last = graph[(graph["18"].inputs.images as string[])[0]];
   assert.equal(last.class_type, "ImageCompositeMasked");
+  assert.equal(graph[(last.inputs.mask as string[])[0]].class_type, "MaskComposite");
+  assert.equal(Object.values(graph).filter(node => node.class_type === "SAM3_Detect").length, 6);
+  assert.ok(Object.values(graph).some(node => node.class_type === "CLIPTextEncode" && node.inputs.text === "reflection"));
+  assert.equal(Object.values(graph).filter(node => node.class_type === "SaveImage").length, 4);
+  const segmentation = Object.values(graph).find(node => node.class_type === "CheckpointLoaderSimple")!;
+  assert.equal(segmentation.inputs.ckpt_name, compositionSegmentationModel);
+});
+
+test("foreground masks reject empty, full-frame and wrong-size output", () => {
+  const subject = { name: "Cleo", width: 64, height: 64 };
+  const png = new PNG({ width: 64, height: 64 });
+  png.data.fill(0);
+  assert.throws(() => validateCompositionMask(PNG.sync.write(png), subject), /Could not isolate Cleo/);
+  png.data.fill(255);
+  assert.throws(() => validateCompositionMask(PNG.sync.write(png), subject), /Could not isolate Cleo/);
+  png.data.fill(0);
+  for (let y = 16; y < 48; y++) for (let x = 16; x < 48; x++) {
+    png.data.fill(255, (y * 64 + x) * 4, (y * 64 + x) * 4 + 4);
+  }
+  assert.doesNotThrow(() => validateCompositionMask(PNG.sync.write(png), subject));
+  assert.throws(() => validateCompositionMask(PNG.sync.write(png), { ...subject, width: 32 }), /Invalid foreground mask/);
 });
 
 test("invalid, overlapping, or dropped-reference regional plans fail closed", () => {

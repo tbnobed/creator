@@ -19,7 +19,7 @@ export function openingInputs(state:ProductionState,scene:ProductionScene) {
   const backgroundPrompt = `One ${style}. Preserve the location, geography, layout and lighting of image 1 as the complete setting. Scenery only in the background region. ${prop ? `One recurring prop from image 2: ${prop.description}.` : ""}`;
   const slot = state.settings.width / Math.max(1, cast.length);
   const composition: NativeComposition | undefined = cast.length > 1 ? {
-    version: 2, backgroundPrompt,
+    version: 3, backgroundPrompt,
     backgroundReferenceIndexes: [0, ...(prop ? [ids.length - 1] : [])],
     subjects: cast.map((character, index) => ({
       name: character.name, referenceIndex: index + 1,

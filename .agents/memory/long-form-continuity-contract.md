@@ -27,6 +27,12 @@ For local multi-character openings, use separate cropped character renders and d
 
 **How to apply:** Each character render gets its scenery crop plus only that character's approved look. Preserve approval gates and explicit reference-capacity failures. Snapshot the composition plan for recovery and inspect an actual GPU output before claiming identity separation works.
 
+Do not paste a whole generated character crop into approved scenery, even with a feathered rectangular edge. Segment only the generated subject and its visible reflection/contact details; retain the original scenery outside that mask, and fail explicitly if a required mask is empty, implausibly broad or unsupported by the selected worker.
+
+**Why:** An approved multi-character scene acquired a vertical sky seam where separately generated crops met. The first subject-only mask removed that seam but also removed a character's water reflection; a separate reflection mask restored that contact detail in the live local test.
+
+**How to apply:** Check worker nodes and model files before assignment, not only at submission. Verify both scene-background continuity and contact details on real GPU output; do not infer visual success from graph structure or unit tests alone. Earlier generated images do not repair themselves and need a new approved opening.
+
 Revising a completed continuity-controlled shot must leave time for review before rendering again.
 
 **Why:** The ordinary edit-and-regenerate flow conflicts with a required still-approval stage. Continuity revisions need a deliberate paused review state, while existing projects without continuity retain their original behavior.

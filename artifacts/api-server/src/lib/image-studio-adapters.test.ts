@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
+import { PNG } from "pngjs";
 import type { ComfyServer } from "@workspace/db";
 import {
   ImageTaskError,
@@ -674,6 +675,54 @@ test("Local polling never accepts another prompt's history output", async () => 
     });
     assert.equal(result.status, "QUEUED");
     assert.equal(result.images, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("local scene composition validates each character mask and returns only the final image", async () => {
+  const originalFetch = globalThis.fetch;
+  const png = new PNG({ width: 64, height: 64 });
+  png.data.fill(0);
+  for (let y = 16; y < 48; y++) for (let x = 16; x < 48; x++) {
+    png.data.fill(255, (y * 64 + x) * 4, (y * 64 + x) * 4 + 4);
+  }
+  let maskBytes = PNG.sync.write(png);
+  let finalDownloads = 0;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    if (url.pathname.startsWith("/history/")) return jsonResponse({ "scene-prompt": {
+      status: { status_str: "success", completed: true },
+      outputs: {
+        "18": { images: [{ filename: "scene.png", subfolder: "", type: "output" }] },
+        "1001": { images: [{ filename: "mask.png", subfolder: "", type: "output" }] },
+      },
+    } });
+    if (url.pathname === "/view") {
+      if (url.searchParams.get("filename") === "mask.png") return new Response(new Uint8Array(maskBytes));
+      finalDownloads++;
+      return new Response(new Uint8Array(referencePng));
+    }
+    throw new Error(`Unexpected request ${url.pathname}`);
+  }) as typeof fetch;
+  const task: ImageTask = {
+    provider: "LOCAL", requestId: "scene-prompt", server: localServer,
+    metadata: {
+      serverId: localServer.id,
+      nativeComposition: { version: 3, backgroundPrompt: "Scenery", backgroundReferenceIndexes: [0],
+        subjects: [{ name: "Cleo", referenceIndex: 1, prompt: "Cleo", x: 0, y: 0, width: 64, height: 64 }] },
+      compositionMaskOutputs: [{ nodeId: "1001", name: "Cleo", width: 64, height: 64 }],
+    },
+  };
+  try {
+    const completed = await pollImageTask(task);
+    assert.equal(completed.status, "COMPLETED");
+    assert.equal(completed.images?.length, 1);
+    assert.equal(finalDownloads, 1);
+    png.data.fill(0);
+    maskBytes = PNG.sync.write(png);
+    await expectTaskError(() => pollImageTask(task), false);
+    assert.equal(finalDownloads, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

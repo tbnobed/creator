@@ -8,7 +8,7 @@ import {
   isTransientComfyUIRequestError,
 } from "./comfy/client";
 import { createFlux2KleinWorkflow } from "./seed-data/flux2-klein";
-import { applyNativeComposition, compositionNodeClasses, hasCompositionSchemas, validateNativeComposition, type NativeComposition } from "./image-native-composition";
+import { applyNativeComposition, compositionNodeClasses, hasCompositionSchemas, validateNativeComposition, validateCompositionMask, type NativeComposition } from "./image-native-composition";
 import {
   getImageModel,
   type ImageModel,
@@ -456,6 +456,10 @@ async function fetchObjectInfo(
     }
   }));
   return Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+}
+
+export async function checkLocalCompositionSupport(server: ComfyServer): Promise<boolean> {
+  return hasCompositionSchemas(await fetchObjectInfo(server, compositionNodeClasses));
 }
 
 function containsExactString(value: unknown, expected: string): boolean {
@@ -1344,10 +1348,11 @@ function localHistoryIsComplete(entry: Record<string, unknown> | null): boolean 
   return record.completed === true || record.status_str === "success";
 }
 
-function localOutputDescriptors(entry: Record<string, unknown> | null): OutputDescriptor[] {
+function localOutputDescriptors(entry: Record<string, unknown> | null, nodeIds?: string[]): OutputDescriptor[] {
   if (!entry?.outputs || typeof entry.outputs !== "object" || Array.isArray(entry.outputs)) return [];
   const descriptors: OutputDescriptor[] = [];
-  for (const output of Object.values(entry.outputs as Record<string, unknown>)) {
+  for (const [nodeId, output] of Object.entries(entry.outputs as Record<string, unknown>)) {
+    if (nodeIds && !nodeIds.includes(nodeId)) continue;
     if (!output || typeof output !== "object" || Array.isArray(output)) continue;
     const images = (output as Record<string, unknown>).images;
     if (!Array.isArray(images)) continue;
@@ -1459,8 +1464,8 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
         throw new ImageTaskError("Regional composition requires native FLUX.2 Klein reference editing.", false);
       }
       validateNativeComposition(input.nativeComposition, input.width, input.height, input.referenceImages.length);
-      if (!hasCompositionSchemas(await fetchObjectInfo(input.server, compositionNodeClasses))) {
-        throw new ImageTaskError("This worker lacks the verified regional-conditioning nodes. No unmasked composition was submitted.", false);
+      if (!await checkLocalCompositionSupport(input.server)) {
+        throw new ImageTaskError("This worker lacks the required character segmentation nodes or SAM 3.1 model. No rectangular or unmasked composition was submitted.", false);
       }
     }
     if (input.referenceMode === "native-reference-edit" && !nativeReferenceResizeMode) {
@@ -1532,7 +1537,15 @@ export async function submitImageTask(input: ImageTaskInput): Promise<{
           ? {
             referenceMode: "native-reference-edit",
             nativeReferenceResizeMode,
-            ...(input.nativeComposition ? { nativeComposition: structuredClone(input.nativeComposition) } : {}),
+            ...(input.nativeComposition ? {
+              nativeComposition: structuredClone(input.nativeComposition),
+              compositionMaskOutputs: Object.entries(workflow)
+                .filter(([id, node]) => node.class_type === "SaveImage" && id !== "18")
+                .map(([nodeId], index) => {
+                  const { name, width, height } = input.nativeComposition!.subjects[index];
+                  return { nodeId, name, width, height };
+                }),
+            } : {}),
           }
           : {}),
         submittedAt: Date.now(),
@@ -1572,7 +1585,28 @@ export async function pollImageTask(task: ImageTask): Promise<ImageTaskResult> {
     const entry = localHistoryEntry(history, task.requestId);
     const error = localHistoryError(entry);
     if (error) throw new ImageTaskError(error, false);
-    const outputs = localOutputDescriptors(entry);
+    const composition = task.metadata.nativeComposition as NativeComposition | undefined;
+    if (composition?.version === 3) {
+      if (!localHistoryIsComplete(entry)) return { status: "RUNNING" };
+      const masks = task.metadata.compositionMaskOutputs as { nodeId: string; name: string; width: number; height: number }[] | undefined;
+      if (!Array.isArray(masks) || masks.length !== composition.subjects.length) {
+        throw new ImageTaskError("Character mask validation data is missing; no scene image was accepted.", false);
+      }
+      for (const [index, mask] of masks.entries()) {
+        const subject = composition.subjects[index];
+        const files = typeof mask?.nodeId === "string" ? localOutputDescriptors(entry, [mask.nodeId]) : [];
+        if (files.length !== 1 || mask.name !== subject.name || mask.width !== subject.width || mask.height !== subject.height) {
+          throw new ImageTaskError("A required character mask is missing; no scene image was accepted.", false);
+        }
+        const bytes = await downloadLocalOutput(server, files[0]);
+        try {
+          validateCompositionMask(bytes, subject);
+        } catch (error) {
+          throw new ImageTaskError(error instanceof Error ? error.message : "Invalid character mask; no scene image was accepted.", false, { cause: error });
+        }
+      }
+    }
+    const outputs = localOutputDescriptors(entry, composition?.version === 3 ? ["18"] : undefined);
     if (outputs.length > 0) {
       const images = await Promise.all(outputs.map(async (output) => ({
         bytes: await downloadLocalOutput(server, output),

@@ -37,6 +37,7 @@ import {
 import {
   cancelImageTask,
   checkLocalImageModel,
+  checkLocalCompositionSupport,
   DEFAULT_DENOISE_STRENGTH,
   pollImageTask,
   submitImageTask,
@@ -1162,7 +1163,8 @@ export async function createImageJob(input: {
     const candidates = await compatibleLocalServers(model);
     for (const candidate of candidates) {
       try {
-        if (await serverHasCapacity(candidate) && await checkLocalImageModel(model.id, candidate, { referenceMode: input.referenceMode })) {
+        if (await serverHasCapacity(candidate) && await checkLocalImageModel(model.id, candidate, { referenceMode: input.referenceMode })
+          && (!nativeComposition || await checkLocalCompositionSupport(candidate))) {
           server = candidate;
           break;
         }
@@ -1172,7 +1174,9 @@ export async function createImageJob(input: {
     }
     if (!server) {
       throw new ImageStudioRequestError(
-        "All compatible local GPUs are at safe render capacity or unavailable",
+        nativeComposition
+          ? "No local GPU with character-segmentation support is currently available at safe render capacity."
+          : "All compatible local GPUs are at safe render capacity or unavailable",
         409,
       );
     }
